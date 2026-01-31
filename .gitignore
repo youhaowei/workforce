@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.tauri/
+target/
+*.log
+.DS_Store
+.env
+.env.local
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.turbo/
