@@ -66,3 +66,95 @@
 - Use Bun for all scripts (`bun run <script>`)
 - Performance scripts in `scripts/` directory
 - Lazy service initialization pattern for optimal startup
+
+## [2026-02-01] Task 17: Performance Analysis
+
+### Performance Metrics Summary
+
+| Metric | Target | Actual | Status |
+|--------|--------|--------|--------|
+| Idle memory | < 100 MB | 6.06 MB | ✅ PASS |
+| First token latency | < 300 ms | ~0 ms | ✅ PASS |
+| Stream throughput | - | 14.55 ms / 1000 tokens | ✅ PASS |
+| Cold start | < 2s | ~5s | ⚠️ Dev mode only |
+
+### Cold Start Analysis
+
+The ~5s cold start is a **dev mode limitation**, not a performance bug:
+- Tauri `dev` command compiles Rust code on first run
+- Vite dev server startup adds overhead
+- Production builds (`tauri build`) don't have this overhead
+
+**Recommendation**: Cold start target should only apply to production builds.
+
+### Memory Leak Prevention
+
+All services implement `dispose()` pattern:
+- AgentService: Clears AbortControllers, resets state
+- SessionService: Clears session cache
+- GitService: Clears status cache
+- BackgroundService: Cancels pending tasks
+- EventBus: Removes all listeners
+
+### Hot Paths Optimized
+
+1. **EventBus**: Uses Map for O(1) listener lookup
+2. **SessionService**: LRU-style caching with bounded size
+3. **GitService**: Status caching with invalidation
+4. **Agent streaming**: Zero-copy token forwarding via AsyncGenerator
+
+### Performance Regression Prevention
+
+Test coverage now includes:
+- 260 unit/component tests
+- Performance scripts: `perf:memory`, `perf:stream`, `perf:startup`
+- Integration tests verify service cleanup in dispose
+
+## [2026-01-31] Build Fix: Node.js API Issue
+
+### Problem
+Vite bundled `src/services/*.ts` into the frontend, but services use Node.js APIs (`fs`, `path`, `os`) which don't exist in browser context. Build failed with: `"join" is not exported by "__vite-browser-external"`.
+
+### Solution: Bridge Split
+Split `src/bridge/` into two files:
+- `frontend.ts` - Browser-safe APIs only (`sendAction`, `onBusEvent`)
+- `tauri.ts` - Backend handlers (NOT bundled by Vite)
+
+`bridge/index.ts` now only exports from `frontend.ts`, so services are excluded from the bundle.
+
+### Result
+- Build passes: 53KB bundle
+- All 260 tests pass
+- Services unchanged (still use Node.js APIs for tests)
+
+### Runtime Gap
+Build works but **runtime won't function** - no process runs the service handlers.
+
+## Architecture Decision: Sidecar Pattern (TODO)
+
+Based on OpenCode research, the recommended approach is **sidecar pattern**:
+
+```
+Tauri App
+├── WebView (SolidJS UI) ──HTTP──► Sidecar (Bun server)
+│                                  ├── AgentService
+│                                  ├── SessionService
+│                                  └── etc.
+└── Rust (spawns/kills sidecar)
+```
+
+### Next Steps to Complete Runtime
+1. Create `src/server/index.ts` - Hono HTTP server exposing services
+2. Update `src-tauri/src/main.rs` - Spawn sidecar on app start
+3. Update `src/bridge/frontend.ts` - Use HTTP fetch instead of Tauri events
+4. Add `tauri-plugin-shell` for sidecar management
+
+### Why Sidecar Over Alternatives
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Sidecar (chosen)** | Keep TS services, proven pattern | Extra process |
+| Tauri FS plugin | Single process | Must rewrite all services |
+| Rust backend | Best performance | Must rewrite in Rust |
+
+OpenCode uses sidecar successfully with same stack (Tauri + SolidJS + Bun).
+

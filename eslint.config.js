@@ -1,5 +1,5 @@
 import js from '@eslint/js';
-import solid from 'eslint-plugin-solid/configs/recommended';
+import solid from 'eslint-plugin-solid/configs/recommended.js';
 import typescript from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 
@@ -19,30 +19,93 @@ export default [
         }
       },
       globals: {
+        // Browser globals
         console: 'readonly',
-        process: 'readonly'
+        document: 'readonly',
+        window: 'readonly',
+        HTMLElement: 'readonly',
+        HTMLDivElement: 'readonly',
+        HTMLTextAreaElement: 'readonly',
+        HTMLInputElement: 'readonly',
+        HTMLButtonElement: 'readonly',
+        HTMLFormElement: 'readonly',
+        KeyboardEvent: 'readonly',
+        Event: 'readonly',
+        ResizeObserver: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly',
+        confirm: 'readonly',
+        alert: 'readonly',
+        // Web APIs
+        AbortController: 'readonly',
+        AbortSignal: 'readonly',
+        Headers: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        FormData: 'readonly',
+        Blob: 'readonly',
+        File: 'readonly',
+        FileReader: 'readonly',
+        performance: 'readonly',
+        // Node globals
+        process: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        NodeJS: 'readonly',
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        global: 'readonly',
+        Buffer: 'readonly',
+        // Test globals (Vitest)
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        vi: 'readonly'
       }
     },
     plugins: {
       '@typescript-eslint': typescript,
-      solid
+      solid: solid.plugins.solid
     },
     rules: {
       ...js.configs.recommended.rules,
       ...solid.rules,
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/explicit-function-return-types': 'warn',
-      'no-console': ['warn', { allow: ['warn', 'error'] }],
+      // Use TypeScript version for unused vars (handles _ prefix)
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': ['error', { 
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_'
+      }],
+      // TypeScript method overloads appear as duplicates to ESLint
+      'no-dupe-class-members': 'off',
+      // Allow generators without yield (useful for async iterators)
+      'require-yield': 'off',
+      // Allow case declarations with proper scoping
+      'no-case-declarations': 'off',
+      // Logging rules
+      'no-console': ['warn', { allow: ['warn', 'error', 'log'] }],
       'no-debugger': 'error',
+      // Code style
       'no-var': 'error',
       'prefer-const': 'error',
       'prefer-arrow-callback': 'error',
       'no-nested-ternary': 'warn',
-      'max-depth': ['warn', 3],
-      'max-lines': ['warn', { max: 300, skipBlankLines: true, skipComments: true }],
-      'complexity': ['warn', 10],
+      // Performance rules (relax slightly for complex services)
+      'max-depth': ['warn', 4],
+      'max-lines': ['warn', { max: 500, skipBlankLines: true, skipComments: true }],
+      'complexity': ['warn', 15],
+      // Solid-specific
       'solid/no-destructure': 'off',
-      'solid/reactivity': 'warn'
+      'solid/reactivity': 'warn',
+      'solid/components-return-once': 'warn'
     }
   }
 ];

@@ -1,0 +1,29 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default capabilities for Fuxi desktop app",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "fs:default",
+    "fs:allow-read",
+    "fs:allow-write",
+    "fs:allow-exists",
+    "fs:allow-mkdir",
+    "fs:allow-remove",
+    "fs:allow-rename",
+    "fs:allow-read-dir",
+    "fs:allow-stat",
+    {
+      "identifier": "fs:scope",
+      "allow": [
+        "$HOME/.fuxi/**",
+        "$APPDATA/**",
+        "$APPCONFIG/**"
+      ]
+    },
+    "shell:default",
+    "shell:allow-spawn",
+    "shell:allow-kill"
+  ]
+}

@@ -1,15 +1,82 @@
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# Bun
+.bun/
+bun.lockb
+
+# Build outputs
 dist/
 build/
+*.tsbuildinfo
+
+# Tauri
 .tauri/
-target/
-*.log
-.DS_Store
+src-tauri/target/
+src-tauri/gen/
+# Note: Cargo.lock should be tracked for applications (not libraries)
+
+# Testing
+test-results/
+playwright-report/
+playwright/.cache/
+coverage/
+*.lcov
+.nyc_output/
+
+# Environment variables
 .env
 .env.local
+.env.*.local
+.env.production
+.env.development
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+bun-debug.log*
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.cursor/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# Turbo
 .turbo/
+
+# Sisyphus (Claude Code planning tool)
+.sisyphus/boulder.json
+# Note: .sisyphus/notepads/ and .sisyphus/plans/ contain project notes/plans
+# Uncomment the line below if you want to ignore the entire .sisyphus/ directory:
+# .sisyphus/
+
+# Misc
+*.pem
+*.key
+*.cert
+.sisyphus/boulder.json
