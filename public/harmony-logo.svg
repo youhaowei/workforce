@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="48px" height="48px" viewBox="0 0 48 48" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>harmony-logo</title>
+    <g id="harmony-logo" stroke="none" fill="none" fill-rule="evenodd" stroke-width="1">
+        <g id="Group">
+            <circle id="Oval" stroke="#8B2635" stroke-width="0.72" cx="24" cy="24" r="22.08"></circle>
+            <path d="M24,1.92 C36.1944473,1.92 46.08,11.8055527 46.08,24 C46.08,36.1944473 36.1944473,46.08 24,46.08 C17.9027764,46.08 12.96,41.1372236 12.96,35.04 C12.96,28.9427764 17.9027764,24 24,24 C30.0972236,24 35.04,19.0572236 35.04,12.96 C35.04,6.86277636 30.0972236,1.92 24,1.92" id="Path" fill="#8B2635"></path>
+            <circle id="Oval" fill="#F8F5EE" cx="24" cy="12.96" r="2.4"></circle>
+            <circle id="Oval" fill="#8B2635" cx="24" cy="35.04" r="2.4"></circle>
+            <path d="M24,42.24 C34.0736738,42.24 42.24,34.0736738 42.24,24 C42.24,13.9263262 34.0736738,5.76 24,5.76 C13.9263262,5.76 5.76,13.9263262 5.76,24 C5.76,34.0736738 13.9263262,42.24 24,42.24 Z" id="Oval" stroke="#C9A227" stroke-width="0.24" stroke-dasharray="1.92"></path>
+        </g>
+    </g>
+</svg>

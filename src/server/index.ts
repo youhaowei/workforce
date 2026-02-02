@@ -6,6 +6,7 @@ import { homedir } from 'os'
 import { getAgentService } from '../services/agent'
 import { getSessionService } from '../services/session'
 import { getEventBus } from '../shared/event-bus'
+import { debugLog, getLogPath } from '../shared/debug-log'
 
 /**
  * Log auth-related diagnostics on server startup.
@@ -30,6 +31,20 @@ const app = new Hono()
 app.use('*', cors())
 
 app.get('/health', (c) => c.json({ ok: true }))
+
+app.get('/debug-log', async (c) => {
+  const logPath = getLogPath()
+  try {
+    const { readFileSync } = await import('fs')
+    const content = readFileSync(logPath, 'utf-8')
+    // Return last 200 lines
+    const lines = content.split('\n')
+    const lastLines = lines.slice(-200).join('\n')
+    return c.text(`Log file: ${logPath}\n\n${lastLines}`)
+  } catch (err) {
+    return c.text(`Log file: ${logPath}\nError reading log: ${err}`)
+  }
+})
 
 /**
  * Check auth configuration without making an API call.
@@ -98,16 +113,23 @@ app.get('/auth-check', async (c) => {
 
 app.post('/query', async (c) => {
   const { prompt } = await c.req.json<{ prompt: string }>()
+  debugLog('Server', '/query received', { prompt: prompt.slice(0, 100) })
   const agent = getAgentService()
 
   return streamSSE(c, async (stream) => {
+    let tokenCount = 0
     try {
+      debugLog('Server', 'Starting agent.query iteration')
       for await (const delta of agent.query(prompt)) {
+        tokenCount++
+        if (tokenCount <= 5) debugLog('Server', 'Token received', { index: tokenCount, preview: delta.token.slice(0, 50) })
         await stream.writeSSE({ data: delta.token })
       }
+      debugLog('Server', 'Stream complete', { totalTokens: tokenCount })
       await stream.writeSSE({ event: 'done', data: '' })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
+      debugLog('Server', 'Query error', { error: message })
       await stream.writeSSE({ event: 'error', data: message })
     }
   })
@@ -165,6 +187,9 @@ const port = parseInt(process.env.PORT || '4096')
 export default {
   port,
   fetch: app.fetch,
+  // SSE streams may have long pauses while waiting for SDK responses
+  // Default 10s timeout is too short for agent queries
+  idleTimeout: 120, // 2 minutes
 }
 
 // Log diagnostics on startup to help debug auth issues

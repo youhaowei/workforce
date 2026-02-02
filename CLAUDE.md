@@ -46,6 +46,7 @@ bun run test:e2e   # Run Playwright E2E tests (28 tests)
 bun run lint       # Lint code
 bun run type-check # TypeScript check
 bun run server     # Start backend server (port 4096) - RUN THIS FIRST
+bun run server:watch # Server with hot-reload (used by dev/dev:web automatically)
 bun run dev:web    # Start server + vite for web testing
 bun run clean      # Remove build artifacts (src-tauri/target, dist)
 ```
@@ -204,5 +205,13 @@ const agent = getAgentService();
 10. **Memory optimization** - All services implement `dispose()` pattern. Idle memory: 6 MB (target < 100 MB) ✅
 11. **Claude Agent SDK Auth** - SDK uses Claude CLI's auth from `~/.claude/.credentials.json`. Running server from terminal ensures proper shell environment for auth. The SDK handles token refresh internally.
 12. **Agent tests skipped** - `src/services/agent.test.ts` tests are skipped; need rewrite for new SDK.
+13. **SDK streaming** - Must pass `includePartialMessages: true` to `sdkQuery()` options to get `stream_event` with `content_block_delta` events. Without it, only final `assistant` messages are returned.
+14. **Bun.serve timeout** - Default `idleTimeout` is 10s. SSE endpoints need longer timeout (120s) for LLM responses. Set in server export config.
+15. **Debug logging** - `debug.log` in project root captures server/agent flow. View via `http://localhost:4096/debug-log` or `tail -f debug.log`.
+16. **SSE token whitespace** - Never `.trim()` SSE data; removes spaces between LLM tokens. Only trim final complete message in `finishStreamingMessage()`.
+17. **Streaming duplication** - With `includePartialMessages: true`, SDK sends content via deltas AND final message. Only yield from `content_block_delta` events to avoid duplicate text.
+18. **Native clipboard** - Use Tauri's native Edit menu for clipboard ops, not JS handlers. See `src-tauri/src/main.rs` for `SubmenuBuilder` setup.
+19. **Virtualization** - Use `@tanstack/solid-virtual` (dynamic heights with `measureElement`) not `@solid-primitives/virtual` (fixed heights only).
+20. **Markdown rendering** - Use `marked` + `dompurify` for XSS-safe markdown. Component at `src/ui/components/Messages/Markdown.tsx`.
 
 **Known Issues**: See `.sisyphus/notepads/fuxi/issues.md` for detailed issues and resolutions.

@@ -68,6 +68,10 @@ export function addUserMessage(content: string): string {
 
 export function startAssistantMessage(): string {
   const id = generateId();
+  const prevMsgId = streamingMessageId();
+  const prevIsStreaming = isStreaming();
+
+  console.log('[messagesStore] startAssistantMessage:', { newId: id, prevMsgId, prevIsStreaming });
 
   batch(() => {
     setState(
@@ -86,10 +90,13 @@ export function startAssistantMessage(): string {
     setIsStreaming(true);
   });
 
+  console.log('[messagesStore] After start:', { msgId: streamingMessageId(), isStreaming: isStreaming() });
+
   return id;
 }
 
 export function appendToStreamingMessage(token: string): void {
+  console.log('[messagesStore] appendToStreamingMessage:', token.slice(0, 50));
   setStreamingContent((prev) => prev + token);
 }
 
@@ -97,14 +104,18 @@ export function finishStreamingMessage(): void {
   const msgId = streamingMessageId();
   const content = streamingContent();
 
+  console.log('[messagesStore] finishStreamingMessage:', { msgId, contentLength: content.length });
+
   if (msgId) {
     batch(() => {
       setState(
         produce((s) => {
           const msg = s.messages.find((m) => m.id === msgId);
           if (msg) {
-            msg.content = content;
+            // Trim only outer whitespace of complete message, preserve internal whitespace
+            msg.content = content.trim();
             msg.isStreaming = false;
+            console.log('[messagesStore] Updated message:', msg.id, 'content length:', msg.content.length);
           }
         })
       );
@@ -112,6 +123,8 @@ export function finishStreamingMessage(): void {
       setStreamingContent('');
       setIsStreaming(false);
     });
+  } else {
+    console.log('[messagesStore] finishStreamingMessage: No msgId, nothing to finish');
   }
 }
 

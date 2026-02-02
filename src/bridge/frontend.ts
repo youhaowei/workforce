@@ -54,13 +54,17 @@ export function streamQuery(
 ): () => void {
   const controller = new AbortController()
 
+  console.log('[streamQuery] Starting query:', prompt)
+
   fetch(`${BASE_URL}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt }),
     signal: controller.signal,
   }).then(async (res) => {
+    console.log('[streamQuery] Response status:', res.status, res.ok)
     if (!res.ok || !res.body) {
+      console.error('[streamQuery] Failed to start stream:', res.status)
       onError('Failed to start stream')
       return
     }
@@ -68,10 +72,14 @@ export function streamQuery(
     const reader = res.body.getReader()
     const decoder = new TextDecoder()
     let buffer = ''
+    let tokenCount = 0
 
     while (true) {
       const { done, value } = await reader.read()
-      if (done) break
+      if (done) {
+        console.log('[streamQuery] Stream ended, total tokens:', tokenCount)
+        break
+      }
 
       buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
@@ -81,22 +89,32 @@ export function streamQuery(
         const line = lines[i]
         if (line.startsWith('event: error')) {
           const nextLine = lines[i + 1]
-          const errorMsg = nextLine?.startsWith('data:') 
-            ? nextLine.slice(5).trim() 
+          const errorMsg = nextLine?.startsWith('data:')
+            ? nextLine.slice(5).trim()
             : 'Unknown error'
+          console.error('[streamQuery] Stream error:', errorMsg)
           onError(errorMsg || 'Stream error')
           return
         } else if (line.startsWith('event: done')) {
+          console.log('[streamQuery] Received done event, total tokens:', tokenCount)
           onDone()
           return
         } else if (line.startsWith('data:')) {
-          const data = line.slice(5).trim()
-          if (data) onToken(data)
+          // SSE format: "data: <content>" or "data:<content>"
+          // Remove "data:" prefix, then the optional single SSE space
+          const afterPrefix = line.slice(5)
+          // SSE spec: single space after "data:" is format, not content
+          const data = afterPrefix.startsWith(' ') ? afterPrefix.slice(1) : afterPrefix
+          // Preserve ALL whitespace in tokens - agent whitespace is intentional
+          tokenCount++
+          if (tokenCount <= 5) console.log('[streamQuery] Token:', JSON.stringify(data))
+          onToken(data)
         }
       }
     }
     onDone()
   }).catch((err) => {
+    console.error('[streamQuery] Fetch error:', err)
     if (err.name !== 'AbortError') {
       onError(err.message)
     }

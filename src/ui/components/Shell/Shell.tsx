@@ -1,17 +1,15 @@
 /**
  * Shell - Main application layout
  *
- * The primary container that orchestrates:
- * - Header with app info and profile status
- * - Message list with virtual scrolling
- * - Input area for user messages
- * - Status bar with current state
+ * Harmony-themed design inspired by balance, serenity, and Eastern philosophy.
+ * Features yin-yang motifs, warm cream backgrounds, and burgundy/gold accents.
  */
 
 import { createSignal, Show, onMount, onCleanup } from 'solid-js';
 import { MessageList, MessageInput } from '../Messages';
 import { TodoPanel } from '../Todo';
 import { SessionsPanel } from '../Sessions';
+import { HotkeyProvider, useHotkeys } from '@ui/hotkeys';
 import {
   getMessages,
   getIsStreaming,
@@ -35,32 +33,31 @@ async function checkServerConnection(): Promise<boolean> {
   }
 }
 
-const styles = {
-  container: 'h-screen flex flex-col bg-white',
-  header: 'flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-white',
-  headerContent: 'max-w-3xl mx-auto flex items-center justify-between',
-  title: 'text-xl font-semibold text-gray-900',
-  subtitle: 'text-sm text-gray-500',
-  profileBadge: 'px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700',
-  main: 'flex-1 flex flex-col overflow-hidden',
-  statusBar: 'flex-shrink-0 px-6 py-2 border-t border-gray-200 bg-gray-50',
-  statusContent: 'max-w-3xl mx-auto flex items-center justify-between text-xs text-gray-500',
-  statusItem: 'flex items-center gap-2',
-  statusDot: 'w-2 h-2 rounded-full',
-  statusDotIdle: 'bg-gray-400',
-  statusDotActive: 'bg-green-500 animate-pulse',
-  errorBanner: 'px-6 py-3 bg-red-50 border-b border-red-200',
-  errorContent: 'max-w-3xl mx-auto flex items-center justify-between',
-  errorText: 'text-sm text-red-700',
-  errorDismiss: 'text-red-500 hover:text-red-700 text-sm',
-  serverBanner: 'px-6 py-3 bg-amber-50 border-b border-amber-200',
-  serverBannerContent: 'max-w-3xl mx-auto',
-  serverBannerTitle: 'text-sm font-medium text-amber-800',
-  serverBannerText: 'text-sm text-amber-700 mt-1',
-  serverBannerCode: 'font-mono bg-amber-100 px-2 py-0.5 rounded text-amber-900',
-};
+// Harmony Logo component (inline SVG for best control)
+function HarmonyLogo(props: { size?: number; class?: string }) {
+  const size = props.size || 48;
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" class={props.class} fill="none">
+      <circle cx="24" cy="24" r="22.08" stroke="#8B2635" stroke-width="0.72" />
+      <path
+        d="M24,1.92 C36.1944473,1.92 46.08,11.8055527 46.08,24 C46.08,36.1944473 36.1944473,46.08 24,46.08 C17.9027764,46.08 12.96,41.1372236 12.96,35.04 C12.96,28.9427764 17.9027764,24 24,24 C30.0972236,24 35.04,19.0572236 35.04,12.96 C35.04,6.86277636 30.0972236,1.92 24,1.92"
+        fill="#8B2635"
+      />
+      <circle cx="24" cy="12.96" r="2.4" fill="#F8F5EE" />
+      <circle cx="24" cy="35.04" r="2.4" fill="#8B2635" />
+      <path
+        d="M24,42.24 C34.0736738,42.24 42.24,34.0736738 42.24,24 C42.24,13.9263262 34.0736738,5.76 24,5.76 C13.9263262,5.76 5.76,13.9263262 5.76,24 C5.76,34.0736738 13.9263262,42.24 24,42.24 Z"
+        stroke="#C9A227"
+        stroke-width="0.24"
+        stroke-dasharray="1.92"
+      />
+    </svg>
+  );
+}
 
-export default function Shell() {
+// Inner shell component that can use hotkey hooks
+function ShellContent() {
+  const hotkeys = useHotkeys();
   const [currentProfile, _setCurrentProfile] = createSignal('coder');
   const [error, setError] = createSignal<string | null>(null);
   const [messageCount, setMessageCount] = createSignal(0);
@@ -69,7 +66,6 @@ export default function Shell() {
   const [serverConnected, setServerConnected] = createSignal(false);
   let cancelStream: (() => void) | null = null;
 
-  // Check server connection on mount and periodically
   onMount(() => {
     initToolStore();
 
@@ -99,28 +95,44 @@ export default function Shell() {
     });
   });
 
-  // Update message count reactively
+  // Register hotkey actions
+  onMount(() => {
+    hotkeys.registerPanelToggles({
+      history: () => setSessionsPanelOpen((prev) => !prev),
+      tasks: () => setTodoPanelOpen((prev) => !prev),
+    });
+    hotkeys.registerCancelStream(() => handleCancel());
+  });
+
   const messages = () => {
     const msgs = getMessages();
     setMessageCount(msgs.length);
     return msgs;
   };
 
-  // getIsStreaming returns an Accessor<boolean>
   const streamingSignal = getIsStreaming();
 
   const handleSubmit = (content: string) => {
+    console.log('[Shell] handleSubmit called:', content.slice(0, 50));
+    console.log('[Shell] Current streaming state:', streamingSignal());
+
     addUserMessage(content);
-    startAssistantMessage();
+    const msgId = startAssistantMessage();
+    console.log('[Shell] Started assistant message:', msgId);
 
     cancelStream = streamQuery(
       content,
-      (token) => appendToStreamingMessage(token),
+      (token) => {
+        console.log('[Shell] onToken callback:', token.slice(0, 50));
+        appendToStreamingMessage(token);
+      },
       () => {
+        console.log('[Shell] onDone callback');
         finishStreamingMessage();
         cancelStream = null;
       },
       (err) => {
+        console.log('[Shell] onError callback:', err);
         finishStreamingMessage();
         setError(err);
         cancelStream = null;
@@ -141,49 +153,76 @@ export default function Shell() {
   };
 
   return (
-    <div class={styles.container}>
+    <div class="h-screen flex flex-col bg-cream-100 harmony-texture overflow-hidden">
       {/* Header */}
-      <header class={styles.header}>
-        <div class={styles.headerContent}>
-          <div>
-            <h1 class={styles.title}>Fuxi</h1>
-            <p class={styles.subtitle}>Agentic Orchestrator</p>
-          </div>
-          <div class="flex items-center gap-3">
-            <button
-              class={`px-3 py-1 text-sm rounded ${
-                sessionsPanelOpen()
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => setSessionsPanelOpen((prev) => !prev)}
-              title="Toggle Sessions Panel (Cmd+H)"
-            >
-              History
-            </button>
-            <button
-              class={`px-3 py-1 text-sm rounded ${
-                todoPanelOpen()
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-              onClick={() => setTodoPanelOpen((prev) => !prev)}
-              title="Toggle Todo Panel (Cmd+T)"
-            >
-              Todos
-            </button>
-            <span class={styles.profileBadge}>{currentProfile()}</span>
+      <header class="flex-shrink-0 bg-cream-50/95 backdrop-blur-md border-b border-burgundy-500/10">
+        <div class="max-w-5xl mx-auto px-6">
+          <div class="flex items-center justify-between h-16">
+            {/* Logo */}
+            <div class="flex items-center gap-4 group">
+              <div class="logo-container">
+                <HarmonyLogo size={40} />
+              </div>
+              <div>
+                <h1 class="font-serif text-xl font-semibold text-burgundy-500 tracking-wide">
+                  Fuxi
+                </h1>
+                <p class="text-xs text-charcoal-600 tracking-[0.15em] uppercase">
+                  Agentic Orchestrator
+                </p>
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <nav class="flex items-center gap-2">
+              <button
+                class={`px-4 py-2 font-serif text-sm tracking-wide rounded-lg transition-all duration-300 accent-line-gold ${
+                  sessionsPanelOpen()
+                    ? 'text-burgundy-500 bg-burgundy-500/5 active'
+                    : 'text-charcoal-600 hover:text-burgundy-500'
+                }`}
+                onClick={() => setSessionsPanelOpen((prev) => !prev)}
+                title="Toggle Sessions Panel"
+              >
+                History
+              </button>
+              <button
+                class={`px-4 py-2 font-serif text-sm tracking-wide rounded-lg transition-all duration-300 accent-line-gold ${
+                  todoPanelOpen()
+                    ? 'text-burgundy-500 bg-burgundy-500/5 active'
+                    : 'text-charcoal-600 hover:text-burgundy-500'
+                }`}
+                onClick={() => setTodoPanelOpen((prev) => !prev)}
+                title="Toggle Todo Panel"
+              >
+                Tasks
+              </button>
+
+              {/* Profile badge */}
+              <div class="ml-3 px-4 py-1.5 bg-burgundy-500 text-white font-serif text-xs tracking-wide rounded-full">
+                {currentProfile()}
+              </div>
+            </nav>
           </div>
         </div>
       </header>
 
       {/* Server Not Connected Banner */}
       <Show when={!serverConnected()}>
-        <div class={styles.serverBanner}>
-          <div class={styles.serverBannerContent}>
-            <div class={styles.serverBannerTitle}>Server not connected</div>
-            <div class={styles.serverBannerText}>
-              Run <code class={styles.serverBannerCode}>bun run server</code> in your terminal first, then refresh this page.
+        <div class="px-6 py-4 bg-gold-500/10 border-b border-gold-500/20">
+          <div class="max-w-5xl mx-auto flex items-center gap-4">
+            <div class="w-10 h-10 rounded-full bg-gold-500/20 flex items-center justify-center">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+            <div>
+              <p class="font-serif text-charcoal-800">Server not connected</p>
+              <p class="text-sm text-charcoal-600">
+                Run <code class="font-mono bg-cream-200 px-2 py-0.5 rounded text-burgundy-500">bun run server</code> to start
+              </p>
             </div>
           </div>
         </div>
@@ -191,10 +230,13 @@ export default function Shell() {
 
       {/* Error Banner */}
       <Show when={error()}>
-        <div class={styles.errorBanner}>
-          <div class={styles.errorContent}>
-            <span class={styles.errorText}>{error()}</span>
-            <button onClick={dismissError} class={styles.errorDismiss}>
+        <div class="px-6 py-3 bg-burgundy-500/10 border-b border-burgundy-500/20">
+          <div class="max-w-5xl mx-auto flex items-center justify-between">
+            <span class="text-sm text-burgundy-500">{error()}</span>
+            <button
+              onClick={dismissError}
+              class="text-burgundy-500/60 hover:text-burgundy-500 text-sm font-serif transition-colors"
+            >
               Dismiss
             </button>
           </div>
@@ -223,19 +265,37 @@ export default function Shell() {
       </main>
 
       {/* Status Bar */}
-      <footer class={styles.statusBar}>
-        <div class={styles.statusContent}>
-          <div class={styles.statusItem}>
-            <span
-              class={`${styles.statusDot} ${streamingSignal() ? styles.statusDotActive : styles.statusDotIdle}`}
-            />
-            <span>{streamingSignal() ? 'Streaming...' : 'Ready'}</span>
+      <footer class="flex-shrink-0 px-6 py-2 border-t border-burgundy-500/10 bg-cream-50/80">
+        <div class="max-w-5xl mx-auto flex items-center justify-between text-xs">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2">
+              <span
+                class={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  streamingSignal() ? 'status-active' : 'status-idle'
+                }`}
+              />
+              <span class={`font-sans ${streamingSignal() ? 'text-sage-500' : 'text-charcoal-600'}`}>
+                {streamingSignal() ? 'Thinking...' : 'Ready'}
+              </span>
+            </div>
           </div>
-          <div class={styles.statusItem}>
+          <div class="flex items-center gap-4 text-charcoal-600">
             <span>{messageCount()} messages</span>
+            <div class="w-4 h-4 opacity-40">
+              <HarmonyLogo size={16} />
+            </div>
           </div>
         </div>
       </footer>
     </div>
+  );
+}
+
+// Main Shell component with HotkeyProvider wrapper
+export default function Shell() {
+  return (
+    <HotkeyProvider>
+      <ShellContent />
+    </HotkeyProvider>
   );
 }

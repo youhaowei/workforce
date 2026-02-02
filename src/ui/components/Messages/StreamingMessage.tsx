@@ -2,12 +2,17 @@
  * StreamingMessage - Live streaming message display
  *
  * Renders the currently streaming assistant response with:
- * - Batched token updates (max 30/sec)
  * - Cursor animation
  * - Smooth text appearance
+ *
+ * Reads from the messages store which is updated via HTTP SSE from the server.
+ *
+ * NOTE: In SolidJS, early returns don't work reactively. Use <Show> for
+ * conditional rendering to maintain fine-grained reactivity.
  */
 
-import { useTokenStream } from '@ui/hooks/useEventBus';
+import { Show } from 'solid-js';
+import { getStreamingContent, getIsStreaming } from '@ui/stores/messagesStore';
 
 const styles = {
   wrapper: 'py-4 px-6 bg-gray-50',
@@ -21,29 +26,29 @@ const styles = {
 };
 
 export default function StreamingMessage() {
-  const { tokens, isActive } = useTokenStream();
-
-  // Only render if there's content or we're actively streaming
-  if (!tokens() && !isActive()) {
-    return null;
-  }
+  // Read from the messages store (updated via HTTP SSE)
+  // These return signal accessors - call them in JSX for reactive updates
+  const content = getStreamingContent();
+  const isStreaming = getIsStreaming();
 
   return (
-    <div class={styles.wrapper}>
-      <div class={styles.container}>
-        <div class={styles.header}>
-          <span class={styles.role}>assistant</span>
-          <div class={styles.status}>
-            <div class={styles.spinner} />
-            <span>streaming...</span>
+    <Show when={content() || isStreaming()}>
+      <div class={styles.wrapper}>
+        <div class={styles.container}>
+          <div class={styles.header}>
+            <span class={styles.role}>assistant</span>
+            <div class={styles.status}>
+              <div class={styles.spinner} />
+              <span>streaming...</span>
+            </div>
+          </div>
+
+          <div class={styles.content}>
+            {content()}
+            <span class={styles.cursor} />
           </div>
         </div>
-
-        <div class={styles.content}>
-          {tokens()}
-          <span class={styles.cursor} />
-        </div>
       </div>
-    </div>
+    </Show>
   );
 }
