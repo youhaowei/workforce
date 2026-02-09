@@ -24,7 +24,7 @@ import { getEventBus } from '@shared/event-bus';
 // Configuration
 // =============================================================================
 
-const SESSIONS_DIR = join(homedir(), '.fuxi', 'sessions');
+const SESSIONS_DIR = join(homedir(), '.workforce', 'sessions');
 const SESSION_VERSION = 1;
 
 // =============================================================================

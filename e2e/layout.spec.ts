@@ -6,7 +6,7 @@ test.describe('Layout', () => {
   })
 
   test('has correct page title', async ({ page }) => {
-    await expect(page).toHaveTitle(/Fuxi/)
+    await expect(page).toHaveTitle(/Workforce/)
   })
 
   test('header shows profile badge', async ({ page }) => {

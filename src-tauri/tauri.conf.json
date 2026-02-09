@@ -1,7 +1,7 @@
 {
-  "productName": "Fuxi",
+  "productName": "Workforce",
   "version": "0.1.0",
-  "identifier": "com.fuxi.app",
+  "identifier": "com.workforce.app",
   "build": {
     "beforeDevCommand": "bun run vite",
     "beforeBuildCommand": "bun run vite build",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "Fuxi - Agentic Orchestrator",
+        "title": "Workforce - Agentic Orchestrator",
         "width": 1200,
         "height": 800,
         "minWidth": 800,

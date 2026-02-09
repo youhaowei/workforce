@@ -27,7 +27,7 @@ async function createFile(name: string, content: string) {
 
 beforeEach(async () => {
   // Create fresh test directory
-  testDir = join(tmpdir(), `fuxi-git-test-${Date.now()}`);
+  testDir = join(tmpdir(), `workforce-git-test-${Date.now()}`);
   await mkdir(testDir, { recursive: true });
 
   // Initialize git repo

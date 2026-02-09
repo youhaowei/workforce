@@ -1,7 +1,7 @@
 /**
  * Service Layer Type Definitions
  *
- * All service interfaces for the Fuxi desktop agentic orchestrator.
+ * All service interfaces for the Workforce desktop agentic orchestrator.
  * Services follow the lazy singleton pattern with explicit dispose().
  */
 

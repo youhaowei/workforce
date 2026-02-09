@@ -23,7 +23,7 @@ let testDir: string;
 
 beforeEach(async () => {
   // Create fresh test directory
-  testDir = join(tmpdir(), `fuxi-lsp-test-${Date.now()}`);
+  testDir = join(tmpdir(), `workforce-lsp-test-${Date.now()}`);
   await mkdir(testDir, { recursive: true });
   cancelAllPendingChecks();
 });

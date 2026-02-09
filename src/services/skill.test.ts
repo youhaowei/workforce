@@ -16,7 +16,7 @@ import {
 } from './skill';
 
 // Test directory for skill files
-const TEST_DIR = join(tmpdir(), 'fuxi-skill-test-' + Date.now());
+const TEST_DIR = join(tmpdir(), 'workforce-skill-test-' + Date.now());
 
 describe('SkillService', () => {
   beforeAll(async () => {

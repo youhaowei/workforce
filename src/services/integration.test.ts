@@ -19,7 +19,7 @@ import { execFileNoThrow } from '../utils/execFileNoThrow';
 let testDir: string;
 
 beforeEach(async () => {
-  testDir = join(tmpdir(), `fuxi-integration-test-${Date.now()}`);
+  testDir = join(tmpdir(), `workforce-integration-test-${Date.now()}`);
   await mkdir(testDir, { recursive: true });
 });
 
@@ -298,7 +298,7 @@ describe('execFileNoThrow', () => {
   it('uses custom cwd', async () => {
     const result = await execFileNoThrow('pwd', [], { cwd: testDir });
     expect(result.status).toBe('success');
-    expect(result.stdout).toContain('fuxi-integration-test');
+    expect(result.stdout).toContain('workforce-integration-test');
   });
 });
 

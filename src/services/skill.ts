@@ -2,7 +2,7 @@
  * SkillService - Skill injection system
  *
  * Provides:
- * - Dynamic skill loading/unloading from ~/.fuxi/skills/
+ * - Dynamic skill loading/unloading from ~/.workforce/skills/
  * - Skill discovery and validation
  * - Prompt injection for loaded skills
  * - Markdown frontmatter parsing
@@ -17,7 +17,7 @@ import type { SkillService, Skill } from './types';
 // Configuration
 // =============================================================================
 
-const SKILLS_DIR = join(homedir(), '.fuxi', 'skills');
+const SKILLS_DIR = join(homedir(), '.workforce', 'skills');
 const SKILL_EXTENSION = '.md';
 
 // =============================================================================

@@ -15,7 +15,7 @@ import {
 } from './session';
 
 // Test directory for session files
-const TEST_DIR = join(tmpdir(), 'fuxi-session-test-' + Date.now());
+const TEST_DIR = join(tmpdir(), 'workforce-session-test-' + Date.now());
 
 describe('SessionService', () => {
   beforeAll(async () => {

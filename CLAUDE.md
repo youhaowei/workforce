@@ -1,12 +1,12 @@
-# Fuxi - Desktop Agentic Orchestrator
+# Workforce - Desktop Agentic Orchestrator
 
 ## 📋 Project State & Documentation
 
 **For detailed project state, see Sisyphus planning files:**
-- **Plan**: `.sisyphus/plans/fuxi.md` - Full project plan with 18/18 tasks complete ✅
-- **Issues**: `.sisyphus/notepads/fuxi/issues.md` - Known issues and gotchas
-- **Learnings**: `.sisyphus/notepads/fuxi/learnings.md` - Performance metrics and patterns
-- **Decisions**: `.sisyphus/notepads/fuxi/decisions.md` - Architectural decisions
+- **Plan**: `.sisyphus/plans/workforce.md` - Full project plan with 18/18 tasks complete ✅
+- **Issues**: `.sisyphus/notepads/workforce/issues.md` - Known issues and gotchas
+- **Learnings**: `.sisyphus/notepads/workforce/learnings.md` - Performance metrics and patterns
+- **Decisions**: `.sisyphus/notepads/workforce/decisions.md` - Architectural decisions
 
 **Current Status**: All 18 tasks complete (100%) - Foundation, Orchestration, Parity Features, and Polish phases done.
 
@@ -101,7 +101,7 @@ tauri dev       # Terminal 2
 - **Backend** (In-process): Services run in same process, no serialization overhead
 - **Performance**: First-class concern - all implementations optimized for memory and CPU
 
-**Note**: Originally planned as sidecar pattern, but switched to in-process for better performance. See `.sisyphus/notepads/fuxi/decisions.md` for details.
+**Note**: Originally planned as sidecar pattern, but switched to in-process for better performance. See `.sisyphus/notepads/workforce/decisions.md` for details.
 
 ### Directory Structure
 
@@ -166,7 +166,7 @@ const agent = getAgentService();
 -   **E2E headed**: `bun run test:e2e:headed` (watch tests run)
 -   **E2E debug**: `bun run test:e2e:debug` (step through)
 
-**Test Coverage**: All HIGH/MEDIUM priority components tested. See `.sisyphus/plans/fuxi.md` Task 18 for details.
+**Test Coverage**: All HIGH/MEDIUM priority components tested. See `.sisyphus/plans/workforce.md` Task 18 for details.
 
 ## Tech Stack
 
@@ -189,7 +189,7 @@ const agent = getAgentService();
 | Stream throughput | - | 14.55 ms/1000 tokens | ✅ PASS |
 | Cold start (dev) | < 2s | ~5s | ⚠️ Dev mode only |
 
-**Note**: Cold start ~5s is dev mode overhead (Rust compilation). Production builds don't have this. See `.sisyphus/notepads/fuxi/learnings.md` for detailed performance analysis.
+**Note**: Cold start ~5s is dev mode overhead (Rust compilation). Production builds don't have this. See `.sisyphus/notepads/workforce/learnings.md` for detailed performance analysis.
 
 ## Gotchas
 
@@ -200,7 +200,7 @@ const agent = getAgentService();
 5. **Port 4096** - Server runs on this port
 6. **Build minifier** - Uses `esbuild` (not terser) in vite.config.ts
 7. **Path aliases** - Defined in tsconfig.json AND vite.config.ts (must sync)
-8. **ESLint warnings** - 12 warnings remain (mostly SolidJS reactivity issues). See `.sisyphus/notepads/fuxi/issues.md`
+8. **ESLint warnings** - 12 warnings remain (mostly SolidJS reactivity issues). See `.sisyphus/notepads/workforce/issues.md`
 9. **Cold start** - ~5s in dev mode (Tauri/Rust compilation). Production builds don't have this overhead.
 10. **Memory optimization** - All services implement `dispose()` pattern. Idle memory: 6 MB (target < 100 MB) ✅
 11. **Claude Agent SDK Auth** - SDK uses Claude CLI's auth from `~/.claude/.credentials.json`. Running server from terminal ensures proper shell environment for auth. The SDK handles token refresh internally.
@@ -214,4 +214,4 @@ const agent = getAgentService();
 19. **Virtualization** - Use `@tanstack/solid-virtual` (dynamic heights with `measureElement`) not `@solid-primitives/virtual` (fixed heights only).
 20. **Markdown rendering** - Use `marked` + `dompurify` for XSS-safe markdown. Component at `src/ui/components/Messages/Markdown.tsx`.
 
-**Known Issues**: See `.sisyphus/notepads/fuxi/issues.md` for detailed issues and resolutions.
+**Known Issues**: See `.sisyphus/notepads/workforce/issues.md` for detailed issues and resolutions.

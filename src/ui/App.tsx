@@ -1,5 +1,5 @@
 /**
- * App - Root component for Fuxi desktop application
+ * App - Root component for Workforce desktop application
  *
  * Renders the main Shell component which contains:
  * - Header with profile status

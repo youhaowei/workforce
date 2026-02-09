@@ -1,5 +1,5 @@
 {
-  "name": "fuxi",
+  "name": "workforce",
   "version": "0.1.0",
   "description": "High-performance desktop agentic orchestrator with Claude Code parity",
   "type": "module",

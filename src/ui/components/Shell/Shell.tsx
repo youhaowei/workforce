@@ -19,6 +19,7 @@ import {
   finishStreamingMessage,
 } from '@ui/stores/messagesStore';
 import { initToolStore } from '@ui/stores/toolStore';
+import { initSdkStore, cleanupSdkStore, getCumulativeUsage, getCurrentQueryStats } from '@ui/stores/sdkStore';
 import { initBridge, streamQuery } from '@bridge/index';
 import { getEventBus } from '@shared/event-bus';
 
@@ -68,6 +69,7 @@ function ShellContent() {
 
   onMount(() => {
     initToolStore();
+    initSdkStore();
 
     const checkConnection = async () => {
       const connected = await checkServerConnection();
@@ -79,7 +81,10 @@ function ShellContent() {
 
     checkConnection();
     const interval = setInterval(checkConnection, 5000);
-    onCleanup(() => clearInterval(interval));
+    onCleanup(() => {
+      clearInterval(interval);
+      cleanupSdkStore();
+    });
   });
 
   onMount(() => {
@@ -280,6 +285,24 @@ function ShellContent() {
             </div>
           </div>
           <div class="flex items-center gap-4 text-charcoal-600">
+            {/* Token usage display */}
+            <Show when={getCumulativeUsage().inputTokens > 0 || getCumulativeUsage().outputTokens > 0}>
+              <span class="text-charcoal-500" title="Input / Output tokens">
+                {getCumulativeUsage().inputTokens.toLocaleString()} / {getCumulativeUsage().outputTokens.toLocaleString()} tokens
+              </span>
+            </Show>
+            {/* Cost display */}
+            <Show when={getCumulativeUsage().totalCostUsd > 0}>
+              <span class="text-gold-600" title="Estimated cost">
+                ${getCumulativeUsage().totalCostUsd.toFixed(4)}
+              </span>
+            </Show>
+            {/* Query stats */}
+            <Show when={getCurrentQueryStats()}>
+              <span class="text-charcoal-500" title="Last query duration">
+                {(getCurrentQueryStats()!.durationMs / 1000).toFixed(1)}s
+              </span>
+            </Show>
             <span>{messageCount()} messages</span>
             <div class="w-4 h-4 opacity-40">
               <HarmonyLogo size={16} />

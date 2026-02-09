@@ -15,7 +15,7 @@ function init(): void {
 
   try {
     LOG_FILE = join(process.cwd(), 'debug.log');
-    writeFileSync(LOG_FILE, `=== Fuxi Debug Log Started ${new Date().toISOString()} ===\n`);
+    writeFileSync(LOG_FILE, `=== Workforce Debug Log Started ${new Date().toISOString()} ===\n`);
   } catch {
     // Ignore errors in browser environment
   }

@@ -119,7 +119,7 @@ export class LogService {
 
   constructor(options: LogServiceOptions = {}) {
     this.maxEntries = options.maxEntries ?? 1000;
-    this.logDir = options.logDir ?? join(homedir(), '.fuxi', 'logs');
+    this.logDir = options.logDir ?? join(homedir(), '.workforce', 'logs');
     this.flushIntervalMs = options.flushIntervalMs ?? 5 * 60 * 1000; // 5 minutes
     this.minLevel = options.minLevel ?? 'info';
   }
@@ -320,7 +320,7 @@ export class LogService {
 
     const entries = [...this.buffer];
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `fuxi-${timestamp}.log`;
+    const filename = `workforce-${timestamp}.log`;
     const filepath = join(this.logDir, filename);
 
     try {

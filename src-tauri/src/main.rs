@@ -12,8 +12,8 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             // App submenu (macOS shows this under the app name)
-            let app_menu = SubmenuBuilder::new(app, "Fuxi")
-                .text("about", "About Fuxi")
+            let app_menu = SubmenuBuilder::new(app, "Workforce")
+                .text("about", "About Workforce")
                 .separator()
                 .quit()
                 .build()?;

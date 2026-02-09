@@ -10,7 +10,7 @@ import { debugLog, getLogPath } from '../shared/debug-log'
 
 /**
  * Log auth-related diagnostics on server startup.
- * Helps debug auth issues when Tauri spawns the sidecar.
+ * Helps debug auth issues when Tauri spawns the Workforce.
  */
 function logAuthDiagnostics() {
   const home = process.env.HOME || homedir()
@@ -194,4 +194,4 @@ export default {
 
 // Log diagnostics on startup to help debug auth issues
 logAuthDiagnostics()
-console.log(`Fuxi server running on http://localhost:${port}`)
+console.log(`Workforce server running on http://localhost:${port}`)

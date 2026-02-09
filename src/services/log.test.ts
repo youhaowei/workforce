@@ -16,7 +16,7 @@ let service: LogService;
 
 beforeEach(async () => {
   // Create fresh test directory
-  testDir = join(tmpdir(), `fuxi-log-test-${Date.now()}`);
+  testDir = join(tmpdir(), `workforce-log-test-${Date.now()}`);
   await mkdir(testDir, { recursive: true });
 
   // Create service with test directory

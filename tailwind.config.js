@@ -3,7 +3,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Fuxi "Harmony" palette - warm, balanced, serene
+        // Workforce "Harmony" palette - warm, balanced, serene
         cream: {
           50: '#FFFCF7',
           100: '#F8F5EE',

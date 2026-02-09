@@ -1,1 +1,3 @@
-*.json
+# Local scratch files for planning experiments
+drafts/
+boulder.local.json

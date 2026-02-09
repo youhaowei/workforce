@@ -6,7 +6,7 @@ test.describe('Chat', () => {
   })
 
   test('displays app header', async ({ page }) => {
-    await expect(page.locator('h1')).toHaveText('Fuxi')
+    await expect(page.locator('h1')).toHaveText('Workforce')
     await expect(page.locator('text=Agentic Orchestrator')).toBeVisible()
   })
 
