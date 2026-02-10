@@ -14,6 +14,8 @@ import { execFileNoThrow, type ExecResult } from '../utils/execFileNoThrow';
 // Types
 // ============================================================================
 
+export type GitFileStatus = 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'unmerged';
+
 export interface GitStatus {
   branch: string;
   ahead: number;
@@ -26,7 +28,7 @@ export interface GitStatus {
 
 export interface GitFileChange {
   path: string;
-  status: 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'unmerged';
+  status: GitFileStatus;
   oldPath?: string; // For renamed files
 }
 
@@ -64,6 +66,67 @@ export interface PullRequest {
 export interface GitServiceOptions {
   cwd?: string;
   cacheTtlMs?: number;
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function parseStatusChar(char: string): GitFileStatus {
+  switch (char) {
+    case 'A': return 'added';
+    case 'M': return 'modified';
+    case 'D': return 'deleted';
+    case 'R': return 'renamed';
+    case 'C': return 'copied';
+    case 'U': return 'unmerged';
+    default: return 'modified';
+  }
+}
+
+function parseStatusEntries(stdout: string): {
+  staged: GitFileChange[];
+  unstaged: GitFileChange[];
+  untracked: string[];
+} {
+  const staged: GitFileChange[] = [];
+  const unstaged: GitFileChange[] = [];
+  const untracked: string[] = [];
+
+  const entries = stdout.split('\0').filter(Boolean);
+  let i = 0;
+  while (i < entries.length) {
+    const entry = entries[i];
+    if (!entry || entry.length < 3) {
+      i++;
+      continue;
+    }
+
+    const indexStatus = entry[0];
+    const worktreeStatus = entry[1];
+    const path = entry.slice(3);
+
+    let oldPath: string | undefined;
+    if (indexStatus === 'R' || indexStatus === 'C') {
+      i++;
+      oldPath = entries[i];
+    }
+
+    if (indexStatus === '?' && worktreeStatus === '?') {
+      untracked.push(path);
+    } else {
+      if (indexStatus !== ' ' && indexStatus !== '?') {
+        staged.push({ path, status: parseStatusChar(indexStatus), oldPath });
+      }
+      if (worktreeStatus !== ' ' && worktreeStatus !== '?') {
+        unstaged.push({ path, status: parseStatusChar(worktreeStatus) });
+      }
+    }
+
+    i++;
+  }
+
+  return { staged, unstaged, untracked };
 }
 
 // ============================================================================
@@ -155,55 +218,7 @@ export class GitService {
     const statusResult = await this.git('status', '--porcelain=v1', '-z');
     if (statusResult.status !== 'success') return null;
 
-    const staged: GitFileChange[] = [];
-    const unstaged: GitFileChange[] = [];
-    const untracked: string[] = [];
-
-    // Parse porcelain output (NUL-separated)
-    const entries = statusResult.stdout.split('\0').filter(Boolean);
-    let i = 0;
-    while (i < entries.length) {
-      const entry = entries[i];
-      if (!entry || entry.length < 3) {
-        i++;
-        continue;
-      }
-
-      const indexStatus = entry[0];
-      const worktreeStatus = entry[1];
-      const path = entry.slice(3);
-
-      // Handle rename (next entry is the old path)
-      let oldPath: string | undefined;
-      if (indexStatus === 'R' || indexStatus === 'C') {
-        i++;
-        oldPath = entries[i];
-      }
-
-      // Untracked
-      if (indexStatus === '?' && worktreeStatus === '?') {
-        untracked.push(path);
-      } else {
-        // Staged changes
-        if (indexStatus !== ' ' && indexStatus !== '?') {
-          staged.push({
-            path,
-            status: this.parseStatusChar(indexStatus),
-            oldPath,
-          });
-        }
-
-        // Unstaged changes
-        if (worktreeStatus !== ' ' && worktreeStatus !== '?') {
-          unstaged.push({
-            path,
-            status: this.parseStatusChar(worktreeStatus),
-          });
-        }
-      }
-
-      i++;
-    }
+    const { staged, unstaged, untracked } = parseStatusEntries(statusResult.stdout);
 
     const status: GitStatus = {
       branch,
@@ -219,30 +234,6 @@ export class GitService {
     this.statusCache = { data: status, timestamp: Date.now() };
 
     return status;
-  }
-
-  /**
-   * Parse git status character to status type.
-   */
-  private parseStatusChar(
-    char: string
-  ): 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'unmerged' {
-    switch (char) {
-      case 'A':
-        return 'added';
-      case 'M':
-        return 'modified';
-      case 'D':
-        return 'deleted';
-      case 'R':
-        return 'renamed';
-      case 'C':
-        return 'copied';
-      case 'U':
-        return 'unmerged';
-      default:
-        return 'modified';
-    }
   }
 
   /**

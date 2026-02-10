@@ -879,3 +879,9 @@ export interface OrchestrationService extends Disposable {
   getActiveInstances(): Map<string, unknown>;
   executeWorkflow(workflowId: string, workspaceId: string): Promise<Session>;
 }
+
+// =============================================================================
+// Form / Schema Types (re-exported from form-types.ts)
+// =============================================================================
+
+export type { FieldWidgetType, UiSchemaField, UiSchema, FormDefinition } from './form-types';

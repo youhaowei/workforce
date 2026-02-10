@@ -35,6 +35,7 @@ export function PlatformProvider({
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePlatform(): PlatformActions {
   return useContext(PlatformContext);
 }

@@ -10,7 +10,7 @@
  * Composes: SessionService, TemplateService, WorktreeService, AgentInstance
  */
 
-import { AgentInstance } from './agent';
+import { AgentInstance } from './agent-instance';
 import { getEventBus } from '@shared/event-bus';
 import type {
   OrchestrationService,
@@ -21,11 +21,16 @@ import type {
   TemplateService,
   WorktreeService,
   WorkflowService,
+  ReviewService,
+  ReviewAction,
 } from './types';
+import type { Unsubscribe, ReviewItemChangeEvent } from '@shared/event-bus';
 
 // =============================================================================
 // Implementation
 // =============================================================================
+
+const REVIEW_GATE_TIMEOUT_MS = 60 * 60 * 1000; // 1 hour
 
 class OrchestrationServiceImpl implements OrchestrationService {
   private instances = new Map<string, AgentInstance>();
@@ -34,7 +39,8 @@ class OrchestrationServiceImpl implements OrchestrationService {
     private sessionService: SessionService,
     private templateService: TemplateService,
     private worktreeService: WorktreeService,
-    private workflowService: WorkflowService | null
+    private workflowService: WorkflowService | null,
+    private reviewService: ReviewService | null = null
   ) {}
 
   async spawn(options: SpawnOptions): Promise<Session> {
@@ -286,11 +292,44 @@ class OrchestrationServiceImpl implements OrchestrationService {
   }
 
   /**
+   * Wait for a review item to be resolved via EventBus notification.
+   * Returns the resolution action, or throws on timeout.
+   */
+  private waitForReviewResolution(reviewItemId: string, workspaceId: string): Promise<ReviewAction> {
+    return new Promise<ReviewAction>((resolve, reject) => {
+      let unsubscribe: Unsubscribe | null = null;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+
+      const cleanup = () => {
+        if (unsubscribe) unsubscribe();
+        if (timer) clearTimeout(timer);
+      };
+
+      unsubscribe = getEventBus().on('ReviewItemChange', async (event: ReviewItemChangeEvent) => {
+        if (event.reviewItemId !== reviewItemId || event.action !== 'resolved') return;
+
+        cleanup();
+        const item = await this.reviewService!.get(reviewItemId, workspaceId);
+        if (item?.resolution) {
+          resolve(item.resolution.action);
+        } else {
+          resolve('approve');
+        }
+      });
+
+      timer = setTimeout(() => {
+        cleanup();
+        reject(new Error(`Review gate timed out after ${REVIEW_GATE_TIMEOUT_MS}ms for item ${reviewItemId}`));
+      }, REVIEW_GATE_TIMEOUT_MS);
+    });
+  }
+
+  /**
    * Execute workflow batches sequentially. Steps within each batch run in parallel.
    */
   private async runWorkflow(
     parentSessionId: string,
-    workflow: { steps: Array<{ id: string; type: string; templateId?: string; goal?: string; reviewPrompt?: string }> },
+    workflow: { id: string; steps: Array<{ id: string; type: string; templateId?: string; goal?: string; reviewPrompt?: string }> },
     batches: string[][],
     workspaceId: string
   ): Promise<void> {
@@ -305,27 +344,38 @@ class OrchestrationServiceImpl implements OrchestrationService {
           switch (step.type) {
             case 'agent': {
               if (!step.templateId) break;
+              const stepIndex = workflow.steps.findIndex((s) => s.id === stepId);
               await this.spawn({
                 templateId: step.templateId,
                 goal: step.goal ?? `Workflow step: ${step.id}`,
                 parentSessionId,
                 workspaceId,
-                workflowId: workflow.steps[0]?.id ? parentSessionId : undefined,
+                workflowId: workflow.id,
+                workflowStepIndex: stepIndex >= 0 ? stepIndex : undefined,
               });
               break;
             }
 
             case 'review_gate': {
-              // Review gates are handled by Phase 3 (ReviewService)
-              // For now, just log and continue
-              getEventBus().emit({
-                type: 'ReviewItemChange',
-                reviewItemId: `pending-${stepId}`,
+              if (!this.reviewService) {
+                throw new Error('ReviewService not available for review_gate step');
+              }
+
+              const reviewItem = await this.reviewService.create({
                 sessionId: parentSessionId,
                 workspaceId,
-                action: 'created',
-                timestamp: Date.now(),
+                workflowId: workflow.id,
+                workflowStepId: stepId,
+                type: 'approval',
+                title: `Review gate: ${step.reviewPrompt ?? step.goal ?? stepId}`,
+                summary: step.reviewPrompt ?? `Workflow paused at step ${stepId} for review`,
+                context: { workflowName: workflow.id, stepId },
               });
+
+              const action = await this.waitForReviewResolution(reviewItem.id, workspaceId);
+              if (action === 'reject') {
+                throw new Error(`Review gate rejected at step ${stepId}`);
+              }
               break;
             }
           }
@@ -361,12 +411,14 @@ export function createOrchestrationService(
   sessionService: SessionService,
   templateService: TemplateService,
   worktreeService: WorktreeService,
-  workflowService?: WorkflowService
+  workflowService?: WorkflowService,
+  reviewService?: ReviewService
 ): OrchestrationService {
   return new OrchestrationServiceImpl(
     sessionService,
     templateService,
     worktreeService,
-    workflowService ?? null
+    workflowService ?? null,
+    reviewService ?? null
   );
 }

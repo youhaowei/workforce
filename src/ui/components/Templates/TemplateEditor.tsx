@@ -30,6 +30,11 @@ interface TemplateEditorProps {
 type ReasoningIntensity = 'low' | 'medium' | 'high' | 'max';
 const INTENSITIES: ReasoningIntensity[] = ['low', 'medium', 'high', 'max'];
 
+function saveButtonLabel(isPending: boolean, isEditing: boolean): string {
+  if (isPending) return 'Saving...';
+  return isEditing ? 'Update' : 'Create';
+}
+
 export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -191,7 +196,7 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave} disabled={!name.trim() || !workspaceId || isPending}>
-            {isPending ? 'Saving...' : template ? 'Update' : 'Create'}
+            {saveButtonLabel(isPending, !!template)}
           </Button>
         </DialogFooter>
       </DialogContent>

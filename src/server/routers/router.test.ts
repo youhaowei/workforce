@@ -1,5 +1,10 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import { createCaller } from './index';
+import { resetSessionService } from '../../services/session';
+import { resetWorkspaceService } from '../../services/workspace';
+import { resetTodoService } from '../../services/todo';
+import { resetTemplateService } from '../../services/template';
+import { resetWorktreeService } from '../../services/worktree';
 
 /**
  * tRPC router integration tests.
@@ -13,6 +18,22 @@ describe('tRPC Routers', () => {
 
   beforeEach(() => {
     caller = createCaller({});
+  });
+
+  afterEach(() => {
+    resetSessionService();
+    resetWorkspaceService();
+    resetTodoService();
+    resetTemplateService();
+    resetWorktreeService();
+  });
+
+  afterAll(() => {
+    resetSessionService();
+    resetWorkspaceService();
+    resetTodoService();
+    resetTemplateService();
+    resetWorktreeService();
   });
 
   describe('health', () => {

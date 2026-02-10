@@ -33,6 +33,7 @@ function generateId(): string {
  * Topological sort using Kahn's algorithm.
  * Returns an array of parallel batches (each batch contains step IDs that can run concurrently).
  */
+// eslint-disable-next-line complexity
 function topologicalSort(steps: WorkflowStep[]): { batches: string[][]; errors: string[] } {
   const errors: string[] = [];
   const stepIds = new Set(steps.map((s) => s.id));

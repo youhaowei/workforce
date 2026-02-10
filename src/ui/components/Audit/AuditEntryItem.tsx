@@ -22,6 +22,12 @@ function typeVariant(type: string): 'default' | 'secondary' | 'destructive' | 'o
   }
 }
 
+function ExpandIcon({ hasData, expanded }: { hasData: boolean; expanded: boolean }) {
+  if (!hasData) return <span className="w-3 shrink-0" />;
+  if (expanded) return <ChevronDown className="h-3 w-3 shrink-0" />;
+  return <ChevronRight className="h-3 w-3 shrink-0" />;
+}
+
 export function AuditEntryItem({ entry }: AuditEntryItemProps) {
   const [expanded, setExpanded] = useState(false);
   const hasData = Object.keys(entry.data).length > 0;
@@ -29,11 +35,7 @@ export function AuditEntryItem({ entry }: AuditEntryItemProps) {
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
       <CollapsibleTrigger className="w-full flex items-center gap-3 text-xs p-2 hover:bg-muted rounded transition-colors text-left">
-        {hasData ? (
-          expanded ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />
-        ) : (
-          <span className="w-3 shrink-0" />
-        )}
+        <ExpandIcon hasData={hasData} expanded={expanded} />
         <span className="font-mono text-muted-foreground w-20 shrink-0">
           {new Date(entry.timestamp).toLocaleTimeString()}
         </span>

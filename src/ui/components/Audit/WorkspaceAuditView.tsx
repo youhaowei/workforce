@@ -74,9 +74,10 @@ export function WorkspaceAuditView() {
         </Select>
       </div>
 
-      {isLoading ? (
+      {isLoading && (
         <p className="text-sm text-muted-foreground text-center py-12">Loading...</p>
-      ) : entries.length > 0 ? (
+      )}
+      {!isLoading && entries.length > 0 && (
         <ScrollArea className="flex-1">
           <div className="space-y-0.5 max-w-3xl">
             {(entries as AuditEntry[]).map((entry) => (
@@ -84,7 +85,8 @@ export function WorkspaceAuditView() {
             ))}
           </div>
         </ScrollArea>
-      ) : (
+      )}
+      {!isLoading && entries.length === 0 && (
         <div className="text-center py-12">
           <History className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
           <p className="text-sm font-medium">No audit entries</p>

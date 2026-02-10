@@ -113,9 +113,10 @@ export function TemplateListView() {
       </div>
 
       <ScrollArea className="flex-1">
-        {isLoading ? (
+        {isLoading && (
           <p className="text-sm text-muted-foreground text-center py-12">Loading...</p>
-        ) : filtered.length > 0 ? (
+        )}
+        {!isLoading && filtered.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
             {(filtered as AgentTemplate[]).map((t) => (
               <TemplateCard
@@ -128,7 +129,8 @@ export function TemplateListView() {
               />
             ))}
           </div>
-        ) : (
+        )}
+        {!isLoading && filtered.length === 0 && (
           <div className="text-center py-12">
             <Blocks className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
             <p className="text-sm font-medium">

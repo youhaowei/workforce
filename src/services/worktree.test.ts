@@ -267,6 +267,87 @@ describe('WorktreeService', () => {
     });
   });
 
+  describe('merge conflict handling', () => {
+    it('should return conflicts when merge fails', async () => {
+      const repo = await createTestRepo('conflict-test');
+      const service = freshService('conflict-test');
+
+      const info = await service.create('sess_conflict', repo);
+
+      // Commit a change on the worktree branch
+      await writeFile(join(info.path, 'shared.txt'), 'worktree version\n');
+      await execFileNoThrow('git', ['add', '.'], { cwd: info.path });
+      await execFileNoThrow('git', ['commit', '-m', 'Worktree change'], { cwd: info.path });
+
+      // Commit a conflicting change on the main branch
+      await writeFile(join(repo, 'shared.txt'), 'main version\n');
+      await execFileNoThrow('git', ['add', '.'], { cwd: repo });
+      await execFileNoThrow('git', ['commit', '-m', 'Main change'], { cwd: repo });
+
+      // Merge should detect conflict and abort
+      const result = await service.merge('sess_conflict');
+      expect(result.success).toBe(false);
+      expect(result.conflicts).toBeDefined();
+      expect(result.conflicts!.length).toBeGreaterThan(0);
+      expect(result.conflicts).toContain('shared.txt');
+
+      service.dispose();
+    });
+
+    it('should allow archive after failed merge', async () => {
+      const repo = await createTestRepo('conflict-archive');
+      const service = freshService('conflict-archive');
+
+      const info = await service.create('sess_conf_arch', repo);
+
+      // Create conflict
+      await writeFile(join(info.path, 'file.txt'), 'worktree\n');
+      await execFileNoThrow('git', ['add', '.'], { cwd: info.path });
+      await execFileNoThrow('git', ['commit', '-m', 'WT'], { cwd: info.path });
+      await writeFile(join(repo, 'file.txt'), 'main\n');
+      await execFileNoThrow('git', ['add', '.'], { cwd: repo });
+      await execFileNoThrow('git', ['commit', '-m', 'Main'], { cwd: repo });
+
+      const mergeResult = await service.merge('sess_conf_arch');
+      expect(mergeResult.success).toBe(false);
+
+      // Worktree should still be active (merge was aborted)
+      const beforeArchive = service.getForSession('sess_conf_arch');
+      expect(beforeArchive?.status).toBe('active');
+
+      // Archive should work even after failed merge
+      await service.archive('sess_conf_arch');
+      const afterArchive = service.getForSession('sess_conf_arch');
+      expect(afterArchive?.status).toBe('archived');
+
+      service.dispose();
+    });
+
+    it('should allow delete after failed merge', async () => {
+      const repo = await createTestRepo('conflict-delete');
+      const service = freshService('conflict-delete');
+
+      const info = await service.create('sess_conf_del', repo);
+
+      // Create conflict
+      await writeFile(join(info.path, 'f.txt'), 'wt\n');
+      await execFileNoThrow('git', ['add', '.'], { cwd: info.path });
+      await execFileNoThrow('git', ['commit', '-m', 'WT'], { cwd: info.path });
+      await writeFile(join(repo, 'f.txt'), 'main\n');
+      await execFileNoThrow('git', ['add', '.'], { cwd: repo });
+      await execFileNoThrow('git', ['commit', '-m', 'Main'], { cwd: repo });
+
+      const mergeResult = await service.merge('sess_conf_del');
+      expect(mergeResult.success).toBe(false);
+
+      // Delete should work
+      await service.delete('sess_conf_del');
+      expect(service.getForSession('sess_conf_del')).toBeNull();
+
+      service.dispose();
+    });
+  });
+
   describe('persistence', () => {
     it('should persist and reload worktree state', async () => {
       const repo = await createTestRepo('persist-test');

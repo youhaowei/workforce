@@ -13,16 +13,16 @@
 
 import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import { execFileNoThrow } from '../utils/execFileNoThrow';
 import type { WorktreeInfo, WorktreeService } from './types';
 import { getEventBus } from '@shared/event-bus';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const DEFAULT_WORKTREE_BASE = join(homedir(), '.agents', 'worktrees');
+const DEFAULT_WORKTREE_BASE = join(getDataDir(), 'worktrees');
 
 // =============================================================================
 // Helpers

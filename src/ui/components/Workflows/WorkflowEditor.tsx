@@ -29,17 +29,28 @@ import { Plus } from 'lucide-react';
 import { WorkflowStepItem } from './WorkflowStepItem';
 import type { WorkflowTemplate, WorkflowStep, StepType } from '@services/types';
 
+function saveButtonLabel(isPending: boolean, isEditing: boolean): string {
+  if (isPending) return 'Saving...';
+  return isEditing ? 'Update' : 'Create';
+}
+
 interface WorkflowEditorProps {
   workflow?: WorkflowTemplate | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+function stepDefaultName(type: StepType, index: number): string {
+  if (type === 'review_gate') return 'Review Gate';
+  if (type === 'parallel_group') return 'Parallel Group';
+  return `Step ${index + 1}`;
+}
+
 function createStep(type: StepType, index: number): WorkflowStep {
   const id = `step_${Date.now()}_${index}`;
   return {
     id,
-    name: type === 'review_gate' ? 'Review Gate' : type === 'parallel_group' ? 'Parallel Group' : `Step ${index + 1}`,
+    name: stepDefaultName(type, index),
     type,
     dependsOn: [],
     goal: type === 'agent' ? '' : undefined,
@@ -182,7 +193,7 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSave} disabled={!name.trim() || !workspaceId || isPending}>
-            {isPending ? 'Saving...' : workflow ? 'Update' : 'Create'}
+            {saveButtonLabel(isPending, !!workflow)}
           </Button>
         </DialogFooter>
       </DialogContent>

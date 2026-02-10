@@ -1,215 +1,39 @@
 /**
  * OrchestrationService Tests
  *
- * Tests for agent spawning, lifecycle management, aggregate progress,
- * and workflow execution using mock dependencies.
+ * Tests for agent spawning, lifecycle management, and aggregate progress
+ * using mock dependencies.
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createOrchestrationService } from './orchestration';
 import type {
   OrchestrationService,
-  Session,
   SessionService,
   TemplateService,
   WorktreeService,
   WorkflowService,
-  AgentTemplate,
   WorkflowTemplate,
-  WorktreeInfo,
-  LifecycleState,
 } from './types';
-
-// =============================================================================
-// Mock Helpers
-// =============================================================================
-
-/** Counter for unique IDs in mocks */
-let idCounter = 0;
-
-function mockSession(overrides: Partial<Session> = {}): Session {
-  idCounter++;
-  return {
-    id: `sess_${idCounter}`,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    messages: [],
-    metadata: {},
-    ...overrides,
-  };
-}
-
-function mockTemplate(overrides: Partial<AgentTemplate> = {}): AgentTemplate {
-  return {
-    id: 'tpl_test',
-    name: 'Test Template',
-    description: 'A test template',
-    systemPrompt: 'You are a test agent',
-    skills: [],
-    tools: [],
-    constraints: ['Be concise'],
-    reasoningIntensity: 'medium',
-    archived: false,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    ...overrides,
-  };
-}
-
-function createMockSessionService(): SessionService {
-  const sessions = new Map<string, Session>();
-  let currentSession: Session | null = null;
-
-  return {
-    async create(title?: string) {
-      const session = mockSession({ title });
-      sessions.set(session.id, session);
-      return session;
-    },
-    async get(sessionId: string) {
-      return sessions.get(sessionId) ?? null;
-    },
-    async save(session: Session) {
-      sessions.set(session.id, session);
-    },
-    async resume(sessionId: string) {
-      const s = sessions.get(sessionId);
-      if (!s) throw new Error('Session not found');
-      return s;
-    },
-    async fork(sessionId: string) {
-      const parent = sessions.get(sessionId);
-      if (!parent) throw new Error('Session not found');
-      const child = mockSession({ parentId: parent.id });
-      sessions.set(child.id, child);
-      return child;
-    },
-    async list() {
-      return Array.from(sessions.values());
-    },
-    async search() {
-      return [];
-    },
-    async delete(sessionId: string) {
-      sessions.delete(sessionId);
-    },
-    getCurrent: () => currentSession,
-    setCurrent: (s: Session | null) => { currentSession = s; },
-    async createWorkAgent(config) {
-      const session = mockSession({
-        metadata: {
-          type: 'workagent',
-          lifecycle: { state: 'created', stateHistory: [] },
-          ...config,
-        },
-      });
-      sessions.set(session.id, session);
-      return session;
-    },
-    async transitionState(sessionId: string, newState: LifecycleState, reason: string, actor = 'system') {
-      const session = sessions.get(sessionId);
-      if (!session) throw new Error('Session not found');
-      const meta = session.metadata as Record<string, unknown>;
-      const lifecycle = (meta.lifecycle as Record<string, unknown>) ?? { state: 'created', stateHistory: [] };
-      const history = (lifecycle.stateHistory as Array<unknown>) ?? [];
-      history.push({ from: lifecycle.state, to: newState, reason, actor, timestamp: Date.now() });
-      lifecycle.state = newState;
-      lifecycle.stateHistory = history;
-      meta.lifecycle = lifecycle;
-      session.metadata = meta;
-      sessions.set(sessionId, session);
-      return session;
-    },
-    async listByState(state: LifecycleState) {
-      return Array.from(sessions.values()).filter((s) => {
-        const meta = s.metadata as Record<string, unknown>;
-        const lifecycle = meta.lifecycle as { state: string } | undefined;
-        return lifecycle?.state === state;
-      });
-    },
-    async getChildren(parentSessionId: string) {
-      return Array.from(sessions.values()).filter((s) => s.parentId === parentSessionId);
-    },
-    dispose() {
-      sessions.clear();
-    },
-  };
-}
-
-function createMockTemplateService(templates: AgentTemplate[] = [mockTemplate()]): TemplateService {
-  const map = new Map(templates.map((t) => [`${t.id}`, t]));
-
-  return {
-    async create() { return mockTemplate(); },
-    async get(_wsId: string, id: string) { return map.get(id) ?? null; },
-    async update() { return mockTemplate(); },
-    async duplicate() { return mockTemplate(); },
-    async archive() {},
-    async list() { return Array.from(map.values()); },
-    validate() { return { valid: true, errors: [], warnings: [] }; },
-    fromProfile() { return mockTemplate(); },
-    dispose() {},
-  };
-}
-
-function createMockWorktreeService(): WorktreeService {
-  const worktrees = new Map<string, WorktreeInfo>();
-
-  return {
-    async create(sessionId: string, repoRoot: string, branchName?: string) {
-      const info: WorktreeInfo = {
-        path: `/tmp/worktree-${sessionId}`,
-        branch: branchName ?? `workforce/${sessionId}`,
-        sessionId,
-        repoRoot,
-        createdAt: Date.now(),
-        status: 'active',
-      };
-      worktrees.set(sessionId, info);
-      return info;
-    },
-    async list() { return Array.from(worktrees.values()); },
-    async merge() { return { success: true }; },
-    async archive() {},
-    async delete() {},
-    getForSession(sessionId: string) { return worktrees.get(sessionId) ?? null; },
-    async getDiff() { return ''; },
-    dispose() { worktrees.clear(); },
-  };
-}
-
-function createMockWorkflowService(workflows: WorkflowTemplate[] = []): WorkflowService {
-  const map = new Map(workflows.map((w) => [w.id, w]));
-
-  return {
-    async create() { return workflows[0]!; },
-    async get(_wsId: string, id: string) { return map.get(id) ?? null; },
-    async update() { return workflows[0]!; },
-    async list() { return workflows; },
-    async archive() {},
-    validate() { return { valid: true, errors: [] }; },
-    async getExecutionOrder(_wsId: string, workflowId: string) {
-      const wf = map.get(workflowId);
-      if (!wf) throw new Error('Workflow not found');
-      // Simple: return each step in its own batch for testing
-      return wf.steps.map((s) => [s.id]);
-    },
-    dispose() {},
-  };
-}
+import {
+  resetIdCounter,
+  createMockSessionService,
+  createMockTemplateService,
+  createMockWorktreeService,
+  createMockWorkflowService,
+} from './__test__/orchestration-helpers';
 
 // =============================================================================
 // Mock the AgentInstance to avoid real SDK calls
 // =============================================================================
 
-// We need to mock the AgentInstance class since it calls sdkQuery()
 /**
  * Controllable mock agent: agents wait for `agentDelay` ms before yielding tokens.
  * Set agentDelay = 0 for instant completion, or higher to test pause/resume timing.
  */
 let agentDelay = 0;
 
-vi.mock('./agent', () => {
+vi.mock('./agent-instance', () => {
   return {
     AgentInstance: class MockAgentInstance {
       public readonly sessionId: string;
@@ -256,7 +80,7 @@ describe('OrchestrationService', () => {
   let service: OrchestrationService;
 
   beforeEach(() => {
-    idCounter = 0;
+    resetIdCounter();
     agentDelay = 0; // Default: instant completion
     sessionService = createMockSessionService();
     templateService = createMockTemplateService();
@@ -512,9 +336,6 @@ describe('OrchestrationService', () => {
         workspaceId: 'ws_1',
       });
 
-      // Instance may have already completed due to mock
-      // but at spawn time, there should have been an instance
-      // This is a basic smoke test
       const instances = service.getActiveInstances();
       expect(instances).toBeInstanceOf(Map);
     });

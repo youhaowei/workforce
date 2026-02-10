@@ -13,6 +13,12 @@ export interface TodoItemProps {
   onDelete?: (todoId: string) => void;
 }
 
+function statusColor(status: TodoStatus): string {
+  if (status === 'in_progress' || status === 'completed') return 'text-primary';
+  if (status === 'cancelled') return 'text-destructive';
+  return 'text-muted-foreground';
+}
+
 const STATUS_ICON: Record<TodoStatus, typeof Circle> = {
   pending: Circle,
   in_progress: CircleDot,
@@ -47,12 +53,7 @@ export function TodoItem({ todo, onStatusChange, onDelete }: TodoItemProps) {
     >
       {/* Status indicator */}
       <StatusIcon
-        className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
-          todo.status === 'in_progress' ? 'text-primary' :
-          todo.status === 'completed' ? 'text-primary' :
-          todo.status === 'cancelled' ? 'text-destructive' :
-          'text-muted-foreground'
-        }`}
+        className={`h-4 w-4 mt-0.5 flex-shrink-0 ${statusColor(todo.status)}`}
       />
 
       {/* Content */}

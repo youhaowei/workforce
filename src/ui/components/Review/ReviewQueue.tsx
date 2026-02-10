@@ -53,9 +53,10 @@ export function ReviewQueue() {
         </p>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {isLoading ? (
+        {isLoading && (
           <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
-        ) : items.length > 0 ? (
+        )}
+        {!isLoading && items.length > 0 && (
           <div className="space-y-3 max-w-2xl">
             {items.map((item: ReviewItem) => (
               <ReviewItemCard
@@ -65,7 +66,8 @@ export function ReviewQueue() {
               />
             ))}
           </div>
-        ) : (
+        )}
+        {!isLoading && items.length === 0 && (
           <div className="text-center py-12">
             <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-green-500/10 flex items-center justify-center">
               <CheckCircle className="h-5 w-5 text-green-600" />

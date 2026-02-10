@@ -26,6 +26,7 @@ export function getOrchestrationService() {
       getTemplateService(),
       getWorktreeService(),
       getWorkflowService(),
+      getReviewService(),
     );
   }
   return _orchestrationService;
