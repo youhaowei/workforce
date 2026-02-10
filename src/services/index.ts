@@ -58,14 +58,21 @@ export type {
   AgentTemplate,
   WorkflowTemplate,
   WorkflowStep,
+  WorkflowExecutionService,
+  WorkflowExecutionResult,
   WorkAgentSession,
   WorkAgentState,
+  WorkAgentOrchestrationService,
+  AggregateProgress,
   ReviewItem,
   ReviewAction,
   ReviewStatus,
   WorkOutput,
   WorkOutputDecision,
   WorkOutputStatus,
+  WorktreeStatus,
+  WorktreeInfo,
+  WorktreeService,
   SessionEvent,
   FieldWidgetType,
   UiSchema,
@@ -83,6 +90,15 @@ import { getBackgroundService, resetBackgroundService } from './background';
 import { getTodoService, resetTodoService } from './todo';
 import { getWorkspaceService, resetWorkspaceService } from './workspace';
 import { getDomainService, resetDomainService } from './domain';
+import {
+  getWorkAgentOrchestrationService,
+  resetWorkAgentOrchestrationService,
+} from './orchestration';
+import {
+  getWorkflowExecutionService,
+  resetWorkflowExecutionService,
+} from './workflow-execution';
+import { getWorktreeService, resetWorktreeService } from './worktree';
 import { getFormDefinitionService, resetFormDefinitionService } from './form-definition';
 import { getStorageAdapter, setStorageAdapter } from './storage';
 
@@ -107,6 +123,12 @@ export {
   resetWorkspaceService,
   getDomainService,
   resetDomainService,
+  getWorkAgentOrchestrationService,
+  resetWorkAgentOrchestrationService,
+  getWorkflowExecutionService,
+  resetWorkflowExecutionService,
+  getWorktreeService,
+  resetWorktreeService,
   getFormDefinitionService,
   resetFormDefinitionService,
   getStorageAdapter,
@@ -128,5 +150,8 @@ export function disposeAllServices(): void {
   resetTodoService();
   resetWorkspaceService();
   resetDomainService();
+  resetWorkAgentOrchestrationService();
+  resetWorkflowExecutionService();
+  resetWorktreeService();
   resetFormDefinitionService();
 }

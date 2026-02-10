@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { getDomainService } from '@services/domain';
+import { getWorkflowExecutionService } from '@services/workflow-execution';
 import { publicProcedure, t } from '../core';
 import { workflowTemplateInput } from '../schemas';
 
@@ -25,10 +26,6 @@ export const workflowTemplatesRouter = t.router({
         throw new TRPCError({ code: 'NOT_FOUND', message: `Workflow not found: ${input.id}` });
       }
 
-      return getDomainService().createWorkAgent({
-        title: `Workflow: ${workflow.name}`,
-        goal: input.goal,
-        workflowId: workflow.id,
-      });
+      return getWorkflowExecutionService().executeWorkflow(workflow.id, input.goal);
     }),
 });

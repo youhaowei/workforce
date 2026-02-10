@@ -137,73 +137,22 @@ export class GitService {
     const branch = branchResult.stdout.trim() || 'HEAD';
 
     // Get ahead/behind
-    let ahead = 0;
-    let behind = 0;
     const upstreamResult = await this.git(
       'rev-list',
       '--left-right',
       '--count',
       '@{upstream}...HEAD'
     );
-    if (upstreamResult.status === 'success') {
-      const [behindStr, aheadStr] = upstreamResult.stdout.trim().split(/\s+/);
-      behind = parseInt(behindStr, 10) || 0;
-      ahead = parseInt(aheadStr, 10) || 0;
-    }
+    const { ahead, behind } =
+      upstreamResult.status === 'success'
+        ? this.parseAheadBehind(upstreamResult.stdout)
+        : { ahead: 0, behind: 0 };
 
     // Get porcelain status
     const statusResult = await this.git('status', '--porcelain=v1', '-z');
     if (statusResult.status !== 'success') return null;
 
-    const staged: GitFileChange[] = [];
-    const unstaged: GitFileChange[] = [];
-    const untracked: string[] = [];
-
-    // Parse porcelain output (NUL-separated)
-    const entries = statusResult.stdout.split('\0').filter(Boolean);
-    let i = 0;
-    while (i < entries.length) {
-      const entry = entries[i];
-      if (!entry || entry.length < 3) {
-        i++;
-        continue;
-      }
-
-      const indexStatus = entry[0];
-      const worktreeStatus = entry[1];
-      const path = entry.slice(3);
-
-      // Handle rename (next entry is the old path)
-      let oldPath: string | undefined;
-      if (indexStatus === 'R' || indexStatus === 'C') {
-        i++;
-        oldPath = entries[i];
-      }
-
-      // Untracked
-      if (indexStatus === '?' && worktreeStatus === '?') {
-        untracked.push(path);
-      } else {
-        // Staged changes
-        if (indexStatus !== ' ' && indexStatus !== '?') {
-          staged.push({
-            path,
-            status: this.parseStatusChar(indexStatus),
-            oldPath,
-          });
-        }
-
-        // Unstaged changes
-        if (worktreeStatus !== ' ' && worktreeStatus !== '?') {
-          unstaged.push({
-            path,
-            status: this.parseStatusChar(worktreeStatus),
-          });
-        }
-      }
-
-      i++;
-    }
+    const { staged, unstaged, untracked } = this.parsePorcelainStatus(statusResult.stdout);
 
     const status: GitStatus = {
       branch,
@@ -219,6 +168,75 @@ export class GitService {
     this.statusCache = { data: status, timestamp: Date.now() };
 
     return status;
+  }
+
+  private parseAheadBehind(output: string): { ahead: number; behind: number } {
+    const [behindStr, aheadStr] = output.trim().split(/\s+/);
+    return {
+      behind: parseInt(behindStr, 10) || 0,
+      ahead: parseInt(aheadStr, 10) || 0,
+    };
+  }
+
+  private parsePorcelainStatus(output: string): {
+    staged: GitFileChange[];
+    unstaged: GitFileChange[];
+    untracked: string[];
+  } {
+    const staged: GitFileChange[] = [];
+    const unstaged: GitFileChange[] = [];
+    const untracked: string[] = [];
+
+    const entries = output.split('\0').filter(Boolean);
+    let i = 0;
+    while (i < entries.length) {
+      const entry = entries[i];
+      if (!entry || entry.length < 3) {
+        i++;
+        continue;
+      }
+
+      const indexStatus = entry[0];
+      const worktreeStatus = entry[1];
+      const path = entry.slice(3);
+      const oldPath = this.readOldPath(entries, indexStatus, i);
+
+      if (oldPath) {
+        i++;
+      }
+
+      if (indexStatus === '?' && worktreeStatus === '?') {
+        untracked.push(path);
+        i++;
+        continue;
+      }
+
+      if (indexStatus !== ' ' && indexStatus !== '?') {
+        staged.push({
+          path,
+          status: this.parseStatusChar(indexStatus),
+          oldPath,
+        });
+      }
+
+      if (worktreeStatus !== ' ' && worktreeStatus !== '?') {
+        unstaged.push({
+          path,
+          status: this.parseStatusChar(worktreeStatus),
+        });
+      }
+
+      i++;
+    }
+
+    return { staged, unstaged, untracked };
+  }
+
+  private readOldPath(entries: string[], indexStatus: string, index: number): string | undefined {
+    if (indexStatus !== 'R' && indexStatus !== 'C') {
+      return undefined;
+    }
+    return entries[index + 1];
   }
 
   /**

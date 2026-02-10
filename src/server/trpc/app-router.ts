@@ -11,6 +11,7 @@ import { outputsRouter } from './routers/outputs';
 import { historyRouter } from './routers/history';
 import { formDefinitionsRouter } from './routers/formDefinitions';
 import { streamRouter } from './routers/stream';
+import { orchestrationRouter } from './routers/orchestration';
 
 export const appRouter = t.router({
   workspace: workspaceRouter,
@@ -25,6 +26,7 @@ export const appRouter = t.router({
   history: historyRouter,
   formDefinitions: formDefinitionsRouter,
   stream: streamRouter,
+  orchestration: orchestrationRouter,
 });
 
 export type AppRouter = typeof appRouter;

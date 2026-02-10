@@ -35,4 +35,25 @@ describe('tRPC router', () => {
     const result = await caller.stream.cancel();
     expect(result.ok).toBe(true);
   });
+
+  it('supports orchestration spawn and progress query', async () => {
+    const caller = appRouter.createCaller({ requestId: 'test_req' });
+    const parent = await caller.workagents.create({
+      title: 'parent',
+      goal: 'parent goal',
+    });
+
+    const child = await caller.orchestration.spawn({
+      title: 'child',
+      goal: 'child goal',
+      parentId: parent.id,
+      activate: false,
+    });
+
+    expect(child.parentId).toBe(parent.id);
+
+    const progress = await caller.orchestration.progress({ sessionId: parent.id });
+    expect(progress.total).toBe(1);
+    expect(progress.created).toBe(1);
+  });
 });

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getDomainService } from '@services/domain';
+import { getWorkAgentOrchestrationService } from '@services/orchestration';
 import { publicProcedure, t } from '../core';
 
 export const workagentsRouter = t.router({
@@ -25,28 +26,27 @@ export const workagentsRouter = t.router({
         title: z.string().min(1),
         goal: z.string().min(1),
         templateId: z.string().optional(),
+        isolateWorktree: z.boolean().optional(),
+        repoRoot: z.string().min(1).optional(),
+        worktreeBaseRef: z.string().min(1).optional(),
       })
     )
-    .mutation(async ({ input }) => getDomainService().spawnChild(input.parentId, input)),
+    .mutation(async ({ input }) =>
+      getWorkAgentOrchestrationService().spawnChild(input.parentId, input)
+    ),
   pause: publicProcedure
     .input(z.object({ id: z.string().min(1), reason: z.string().min(1) }))
-    .mutation(async ({ input }) =>
-      getDomainService().updateWorkAgentState(input.id, 'paused', { pauseReason: input.reason })
-    ),
+    .mutation(async ({ input }) => getWorkAgentOrchestrationService().pause(input.id, input.reason)),
   resume: publicProcedure
     .input(z.object({ id: z.string().min(1) }))
-    .mutation(async ({ input }) => getDomainService().updateWorkAgentState(input.id, 'active')),
+    .mutation(async ({ input }) => getWorkAgentOrchestrationService().resume(input.id)),
   cancel: publicProcedure
     .input(z.object({ id: z.string().min(1) }))
-    .mutation(async ({ input }) => getDomainService().updateWorkAgentState(input.id, 'cancelled')),
+    .mutation(async ({ input }) => getWorkAgentOrchestrationService().cancel(input.id)),
   complete: publicProcedure
     .input(z.object({ id: z.string().min(1), progress: z.number().min(0).max(100).default(100) }))
-    .mutation(async ({ input }) =>
-      getDomainService().updateWorkAgentState(input.id, 'completed', { progress: input.progress })
-    ),
+    .mutation(async ({ input }) => getWorkAgentOrchestrationService().complete(input.id, input.progress)),
   fail: publicProcedure
     .input(z.object({ id: z.string().min(1), reason: z.string().optional() }))
-    .mutation(async ({ input }) =>
-      getDomainService().updateWorkAgentState(input.id, 'failed', { pauseReason: input.reason })
-    ),
+    .mutation(async ({ input }) => getWorkAgentOrchestrationService().fail(input.id, input.reason)),
 });

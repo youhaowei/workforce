@@ -588,6 +588,20 @@ export interface WorkflowTemplate {
   updatedAt: number;
 }
 
+export interface WorkflowExecutionResult {
+  workflowId: string;
+  parentAgentId: string;
+  spawnedChildIds: string[];
+  blockedByReview: boolean;
+  blockedStepId?: string;
+  blockedReviewId?: string;
+}
+
+export interface WorkflowExecutionService extends Disposable {
+  getExecutionOrder(workflow: WorkflowTemplate): string[][];
+  executeWorkflow(workflowId: string, goal?: string): Promise<WorkflowExecutionResult>;
+}
+
 export type WorkAgentState =
   | 'created'
   | 'active'
@@ -610,6 +624,50 @@ export interface WorkAgentSession {
   pauseReason?: string;
   createdAt: number;
   updatedAt: number;
+}
+
+export interface AggregateProgress {
+  total: number;
+  created: number;
+  active: number;
+  paused: number;
+  completed: number;
+  failed: number;
+  cancelled: number;
+  progress: number;
+}
+
+export interface WorkAgentOrchestrationService extends Disposable {
+  spawn(input: {
+    title: string;
+    goal: string;
+    workflowId?: string;
+    templateId?: string;
+    parentId?: string;
+    activate?: boolean;
+    isolateWorktree?: boolean;
+    repoRoot?: string;
+    worktreeBaseRef?: string;
+  }): Promise<WorkAgentSession>;
+  spawnChild(
+    parentId: string,
+    input: {
+      title: string;
+      goal: string;
+      templateId?: string;
+      workflowId?: string;
+      activate?: boolean;
+      isolateWorktree?: boolean;
+      repoRoot?: string;
+      worktreeBaseRef?: string;
+    }
+  ): Promise<WorkAgentSession>;
+  pause(id: string, reason: string): Promise<WorkAgentSession>;
+  resume(id: string): Promise<WorkAgentSession>;
+  cancel(id: string, reason?: string): Promise<WorkAgentSession>;
+  complete(id: string, progress?: number): Promise<WorkAgentSession>;
+  fail(id: string, reason?: string): Promise<WorkAgentSession>;
+  getAggregateProgress(parentId: string): Promise<AggregateProgress>;
 }
 
 export type ReviewAction = 'approve' | 'reject' | 'request_edit' | 'clarification';
@@ -642,6 +700,32 @@ export interface WorkOutput {
   decision?: WorkOutputDecision;
   createdAt: number;
   updatedAt: number;
+}
+
+export type WorktreeStatus = 'active' | 'archived' | 'deleted';
+
+export interface WorktreeInfo {
+  sessionId: string;
+  repoRoot: string;
+  path: string;
+  branch: string;
+  baseRef: string;
+  status: WorktreeStatus;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WorktreeService extends Disposable {
+  create(input: {
+    sessionId: string;
+    repoRoot: string;
+    branchName?: string;
+    baseRef?: string;
+  }): Promise<WorktreeInfo>;
+  getBySession(sessionId: string): Promise<WorktreeInfo | null>;
+  list(): Promise<WorktreeInfo[]>;
+  archive(sessionId: string): Promise<WorktreeInfo>;
+  delete(sessionId: string): Promise<void>;
 }
 
 export interface SessionEvent {
