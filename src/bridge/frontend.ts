@@ -1,3 +1,8 @@
+/**
+ * Legacy bridge - retained only for health-check initialization.
+ * All data fetching now goes through tRPC (see @bridge/trpc and @bridge/react).
+ */
+
 const BASE_URL = 'http://localhost:4096'
 
 export async function initBridge(): Promise<void> {
@@ -15,149 +20,6 @@ export async function initBridge(): Promise<void> {
     await new Promise((r) => setTimeout(r, 500))
   }
   throw new Error('Failed to connect to server')
-}
-
-export async function sendAction<T = unknown>(action: string, payload?: unknown): Promise<T> {
-  const routes: Record<string, { method: string; path: string | ((p: unknown) => string) }> = {
-    'cancel': { method: 'POST', path: '/cancel' },
-    'session:list': { method: 'GET', path: '/session' },
-    'session:create': { method: 'POST', path: '/session' },
-    'session:resume': { method: 'POST', path: (p) => `/session/${(p as { sessionId: string }).sessionId}/resume` },
-    'session:fork': { method: 'POST', path: (p) => `/session/${(p as { sessionId: string }).sessionId}/fork` },
-    'session:delete': { method: 'DELETE', path: (p) => `/session/${(p as { sessionId: string }).sessionId}` },
-  }
-
-  const route = routes[action]
-  if (!route) throw new Error(`Unknown action: ${action}`)
-
-  const path = typeof route.path === 'function' ? route.path(payload) : route.path
-  const url = `${BASE_URL}${path}`
-
-  const res = await fetch(url, {
-    method: route.method,
-    headers: route.method !== 'GET' ? { 'Content-Type': 'application/json' } : undefined,
-    body: route.method !== 'GET' && payload ? JSON.stringify(payload) : undefined,
-  })
-
-  if (!res.ok) {
-    throw new Error(`Action failed: ${res.statusText}`)
-  }
-
-  return res.json() as Promise<T>
-}
-
-export function streamQuery(
-  prompt: string,
-  onToken: (token: string) => void,
-  onDone: () => void,
-  onError: (err: string) => void
-): () => void {
-  const controller = new AbortController()
-
-  console.log('[streamQuery] Starting query:', prompt)
-
-  fetch(`${BASE_URL}/query`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt }),
-    signal: controller.signal,
-  }).then(async (res) => {
-    console.log('[streamQuery] Response status:', res.status, res.ok)
-    if (!res.ok || !res.body) {
-      console.error('[streamQuery] Failed to start stream:', res.status)
-      onError('Failed to start stream')
-      return
-    }
-
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let tokenCount = 0
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        console.log('[streamQuery] Stream ended, total tokens:', tokenCount)
-        break
-      }
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]
-        if (line.startsWith('event: error')) {
-          const nextLine = lines[i + 1]
-          const errorMsg = nextLine?.startsWith('data:')
-            ? nextLine.slice(5).trim()
-            : 'Unknown error'
-          console.error('[streamQuery] Stream error:', errorMsg)
-          onError(errorMsg || 'Stream error')
-          return
-        } else if (line.startsWith('event: done')) {
-          console.log('[streamQuery] Received done event, total tokens:', tokenCount)
-          onDone()
-          return
-        } else if (line.startsWith('data:')) {
-          // SSE format: "data: <content>" or "data:<content>"
-          // Remove "data:" prefix, then the optional single SSE space
-          const afterPrefix = line.slice(5)
-          // SSE spec: single space after "data:" is format, not content
-          const data = afterPrefix.startsWith(' ') ? afterPrefix.slice(1) : afterPrefix
-          // Preserve ALL whitespace in tokens - agent whitespace is intentional
-          tokenCount++
-          if (tokenCount <= 5) console.log('[streamQuery] Token:', JSON.stringify(data))
-          onToken(data)
-        }
-      }
-    }
-    onDone()
-  }).catch((err) => {
-    console.error('[streamQuery] Fetch error:', err)
-    if (err.name !== 'AbortError') {
-      onError(err.message)
-    }
-  })
-
-  return () => controller.abort()
-}
-
-export async function subscribeToEvents(
-  onEvent: (event: unknown) => void
-): Promise<() => void> {
-  const controller = new AbortController()
-
-  fetch(`${BASE_URL}/events`, { signal: controller.signal })
-    .then(async (res) => {
-      if (!res.body) return
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            const data = line.slice(5).trim()
-            if (data) {
-              try {
-                onEvent(JSON.parse(data))
-              } catch {}
-            }
-          }
-        }
-      }
-    })
-    .catch(() => {})
-
-  return () => controller.abort()
 }
 
 export const isBridgeInitialized = true

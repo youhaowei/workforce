@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@solidjs/testing-library';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TodoItem } from './TodoItem';
 import type { Todo } from '../../../services/types';
@@ -22,90 +22,88 @@ describe('TodoItem', () => {
   });
 
   it('renders todo title', () => {
-    render(() => <TodoItem todo={baseTodo} />);
+    render(<TodoItem todo={baseTodo} />);
     expect(screen.getByText('Test Todo')).toBeInTheDocument();
   });
 
   it('shows pending status icon', () => {
-    render(() => <TodoItem todo={{ ...baseTodo, status: 'pending' }} />);
-    expect(screen.getByText('○')).toBeInTheDocument();
+    const { container } = render(<TodoItem todo={{ ...baseTodo, status: 'pending' }} />);
+    expect(container.querySelector('.lucide-circle')).toBeInTheDocument();
   });
 
   it('shows in_progress status icon', () => {
-    render(() => <TodoItem todo={{ ...baseTodo, status: 'in_progress' }} />);
-    expect(screen.getByText('◐')).toBeInTheDocument();
+    const { container } = render(<TodoItem todo={{ ...baseTodo, status: 'in_progress' }} />);
+    expect(container.querySelector('.lucide-circle-dot')).toBeInTheDocument();
   });
 
   it('shows completed status icon', () => {
-    render(() => <TodoItem todo={{ ...baseTodo, status: 'completed' }} />);
-    expect(screen.getByText('●')).toBeInTheDocument();
+    const { container } = render(<TodoItem todo={{ ...baseTodo, status: 'completed' }} />);
+    expect(container.querySelector('.lucide-circle-check-big')).toBeInTheDocument();
   });
 
   it('shows cancelled status icon', () => {
-    render(() => <TodoItem todo={{ ...baseTodo, status: 'cancelled' }} />);
-    expect(screen.getByText('✕')).toBeInTheDocument();
+    const { container } = render(<TodoItem todo={{ ...baseTodo, status: 'cancelled' }} />);
+    expect(container.querySelector('.lucide-circle-x')).toBeInTheDocument();
   });
 
   it('shows Start button for pending todos', () => {
-    render(() => (
+    render(
       <TodoItem
         todo={{ ...baseTodo, status: 'pending' }}
         onStatusChange={mockOnStatusChange}
-      />
-    ));
+      />,
+    );
     expect(screen.getByTitle('Start')).toBeInTheDocument();
   });
 
-  it('calls onStatusChange with in_progress when Start clicked', async () => {
-    render(() => (
+  it('calls onStatusChange with in_progress when Start clicked', () => {
+    render(
       <TodoItem
         todo={{ ...baseTodo, status: 'pending' }}
         onStatusChange={mockOnStatusChange}
-      />
-    ));
+      />,
+    );
 
-    await fireEvent.click(screen.getByTitle('Start'));
+    fireEvent.click(screen.getByTitle('Start'));
     expect(mockOnStatusChange).toHaveBeenCalledWith('todo_1', 'in_progress');
   });
 
   it('shows Complete button for pending and in_progress todos', () => {
-    render(() => (
+    render(
       <TodoItem
         todo={{ ...baseTodo, status: 'in_progress' }}
         onStatusChange={mockOnStatusChange}
-      />
-    ));
+      />,
+    );
     expect(screen.getByTitle('Complete')).toBeInTheDocument();
   });
 
-  it('calls onStatusChange with completed when Complete clicked', async () => {
-    render(() => (
+  it('calls onStatusChange with completed when Complete clicked', () => {
+    render(
       <TodoItem
         todo={{ ...baseTodo, status: 'in_progress' }}
         onStatusChange={mockOnStatusChange}
-      />
-    ));
+      />,
+    );
 
-    await fireEvent.click(screen.getByTitle('Complete'));
+    fireEvent.click(screen.getByTitle('Complete'));
     expect(mockOnStatusChange).toHaveBeenCalledWith('todo_1', 'completed');
   });
 
-  it('calls onDelete when Delete clicked', async () => {
-    render(() => (
-      <TodoItem todo={baseTodo} onDelete={mockOnDelete} />
-    ));
+  it('calls onDelete when Delete clicked', () => {
+    render(<TodoItem todo={baseTodo} onDelete={mockOnDelete} />);
 
-    await fireEvent.click(screen.getByTitle('Delete'));
+    fireEvent.click(screen.getByTitle('Delete'));
     expect(mockOnDelete).toHaveBeenCalledWith('todo_1');
   });
 
   it('hides action buttons for completed todos except delete', () => {
-    render(() => (
+    render(
       <TodoItem
         todo={{ ...baseTodo, status: 'completed' }}
         onStatusChange={mockOnStatusChange}
-      />
-    ));
+      />,
+    );
 
     expect(screen.queryByTitle('Start')).not.toBeInTheDocument();
     expect(screen.queryByTitle('Complete')).not.toBeInTheDocument();

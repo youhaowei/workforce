@@ -1,10 +1,11 @@
 /**
- * ToolError - Tool error display with details
- *
- * Shows error information with expandable stack trace.
+ * ToolError - Tool error display with expandable details.
  */
 
-import { Show, createSignal } from 'solid-js';
+import { useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { AlertCircle } from 'lucide-react';
 
 interface ToolErrorProps {
   toolName: string;
@@ -13,56 +14,47 @@ interface ToolErrorProps {
   args?: unknown;
 }
 
-const styles = {
-  container: 'border border-red-200 rounded-md bg-red-50 overflow-hidden',
-  header: 'px-3 py-2 flex items-center gap-2',
-  icon: 'w-4 h-4 text-red-500 flex-shrink-0',
-  title: 'font-mono text-sm font-medium text-red-700',
-  message: 'px-3 py-2 text-sm text-red-600 border-t border-red-200 bg-white',
-  details: 'px-3 py-2 border-t border-red-200 bg-white',
-  detailsToggle: 'text-xs text-red-500 hover:text-red-700 cursor-pointer underline',
-  stackTrace: 'mt-2 font-mono text-xs text-red-600 whitespace-pre-wrap overflow-x-auto max-h-32 overflow-y-auto bg-red-50 p-2 rounded',
-  args: 'mt-2 font-mono text-xs text-gray-600 whitespace-pre-wrap overflow-x-auto',
-};
+export default function ToolError({ toolName, error, stackTrace, args }: ToolErrorProps) {
+  const [showDetails, setShowDetails] = useState(false);
 
-export default function ToolError(props: ToolErrorProps) {
-  const [showDetails, setShowDetails] = createSignal(false);
-
-  const hasDetails = () => Boolean(props.stackTrace || props.args);
+  const hasDetails = Boolean(stackTrace || args);
 
   return (
-    <div class={styles.container}>
-      <div class={styles.header}>
-        <svg class={styles.icon} viewBox="0 0 20 20" fill="currentColor">
-          <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-        </svg>
-        <span class={styles.title}>{props.toolName} failed</span>
-      </div>
+    <Alert variant="destructive">
+      <AlertCircle className="h-4 w-4" />
+      <AlertTitle className="font-mono text-sm">{toolName} failed</AlertTitle>
+      <AlertDescription className="mt-1">
+        <p className="text-sm">{error}</p>
 
-      <div class={styles.message}>{props.error}</div>
+        {hasDetails && (
+          <div className="mt-2">
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 text-xs"
+              onClick={() => setShowDetails((prev) => !prev)}
+            >
+              {showDetails ? 'Hide details' : 'Show details'}
+            </Button>
 
-      <Show when={hasDetails()}>
-        <div class={styles.details}>
-          <button
-            onClick={() => setShowDetails((prev) => !prev)}
-            class={styles.detailsToggle}
-          >
-            {showDetails() ? 'Hide details' : 'Show details'}
-          </button>
-
-          <Show when={showDetails()}>
-            <Show when={props.stackTrace}>
-              <div class={styles.stackTrace}>{props.stackTrace}</div>
-            </Show>
-            <Show when={props.args}>
-              <div class={styles.args}>
-                <strong>Arguments:</strong>
-                <pre>{JSON.stringify(props.args, null, 2)}</pre>
+            {showDetails && (
+              <div className="mt-2 space-y-2">
+                {stackTrace && (
+                  <pre className="font-mono text-xs whitespace-pre-wrap overflow-x-auto max-h-32 overflow-y-auto bg-destructive/10 p-2 rounded">
+                    {stackTrace}
+                  </pre>
+                )}
+                {args != null ? (
+                  <div className="font-mono text-xs">
+                    <strong>Arguments:</strong>
+                    <pre className="whitespace-pre-wrap overflow-x-auto">{String(JSON.stringify(args, null, 2))}</pre>
+                  </div>
+                ) : null}
               </div>
-            </Show>
-          </Show>
-        </div>
-      </Show>
-    </div>
+            )}
+          </div>
+        )}
+      </AlertDescription>
+    </Alert>
   );
 }

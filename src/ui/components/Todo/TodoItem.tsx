@@ -1,10 +1,10 @@
 /**
- * TodoItem - Individual todo item display
- *
- * Shows todo with status indicator, title, and action buttons.
+ * TodoItem - Individual todo with status indicator and hover actions.
  */
 
-import { type Component, Show, createMemo } from 'solid-js';
+import { useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Play, Check, XCircle, Trash2, Circle, CircleDot, CheckCircle } from 'lucide-react';
 import type { Todo, TodoStatus } from '../../../services/types';
 
 export interface TodoItemProps {
@@ -13,26 +13,18 @@ export interface TodoItemProps {
   onDelete?: (todoId: string) => void;
 }
 
-const STATUS_ICONS: Record<TodoStatus, string> = {
-  pending: '○',
-  in_progress: '◐',
-  completed: '●',
-  cancelled: '✕',
+const STATUS_ICON: Record<TodoStatus, typeof Circle> = {
+  pending: Circle,
+  in_progress: CircleDot,
+  completed: CheckCircle,
+  cancelled: XCircle,
 };
 
-const STATUS_COLORS: Record<TodoStatus, string> = {
-  pending: 'text-gray-400',
-  in_progress: 'text-blue-500',
-  completed: 'text-green-500',
-  cancelled: 'text-red-400',
-};
+export function TodoItem({ todo, onStatusChange, onDelete }: TodoItemProps) {
+  const StatusIcon = STATUS_ICON[todo.status];
 
-export const TodoItem: Component<TodoItemProps> = (props) => {
-  const statusIcon = createMemo(() => STATUS_ICONS[props.todo.status]);
-  const statusColor = createMemo(() => STATUS_COLORS[props.todo.status]);
-
-  const timeAgo = createMemo(() => {
-    const diff = Date.now() - props.todo.updatedAt;
+  const timeAgo = useMemo(() => {
+    const diff = Date.now() - todo.updatedAt;
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) return 'just now';
     if (minutes < 60) return `${minutes}m ago`;
@@ -40,104 +32,61 @@ export const TodoItem: Component<TodoItemProps> = (props) => {
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
     return `${days}d ago`;
-  });
+  }, [todo.updatedAt]);
 
-  const canStart = () => props.todo.status === 'pending';
-  const canComplete = () =>
-    props.todo.status === 'pending' || props.todo.status === 'in_progress';
-  const canCancel = () =>
-    props.todo.status === 'pending' || props.todo.status === 'in_progress';
-
-  const handleStart = () => {
-    props.onStatusChange?.(props.todo.id, 'in_progress');
-  };
-
-  const handleComplete = () => {
-    props.onStatusChange?.(props.todo.id, 'completed');
-  };
-
-  const handleCancel = () => {
-    props.onStatusChange?.(props.todo.id, 'cancelled');
-  };
-
-  const handleDelete = () => {
-    props.onDelete?.(props.todo.id);
-  };
+  const canStart = todo.status === 'pending';
+  const canComplete = todo.status === 'pending' || todo.status === 'in_progress';
+  const canCancel = todo.status === 'pending' || todo.status === 'in_progress';
+  const isDone = todo.status === 'completed' || todo.status === 'cancelled';
 
   return (
     <div
-      class={`group flex items-start gap-2 p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800 ${
-        props.todo.status === 'completed' || props.todo.status === 'cancelled'
-          ? 'opacity-60'
-          : ''
+      className={`group flex items-start gap-2 p-2 rounded hover:bg-accent ${
+        isDone ? 'opacity-60' : ''
       }`}
     >
       {/* Status indicator */}
-      <span class={`text-lg ${statusColor()}`} title={props.todo.status}>
-        {statusIcon()}
-      </span>
+      <StatusIcon
+        className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
+          todo.status === 'in_progress' ? 'text-primary' :
+          todo.status === 'completed' ? 'text-primary' :
+          todo.status === 'cancelled' ? 'text-destructive' :
+          'text-muted-foreground'
+        }`}
+      />
 
       {/* Content */}
-      <div class="flex-1 min-w-0">
-        <div
-          class={`font-medium ${
-            props.todo.status === 'completed' ? 'line-through' : ''
-          }`}
-        >
-          {props.todo.title}
+      <div className="flex-1 min-w-0">
+        <div className={`text-sm font-medium ${todo.status === 'completed' ? 'line-through' : ''}`}>
+          {todo.title}
         </div>
-
-        <Show when={props.todo.description}>
-          <div class="text-sm text-gray-500 dark:text-gray-400 truncate">
-            {props.todo.description}
-          </div>
-        </Show>
-
-        <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-          {timeAgo()}
-        </div>
+        {todo.description && (
+          <div className="text-xs text-muted-foreground truncate">{todo.description}</div>
+        )}
+        <div className="text-xs text-muted-foreground mt-0.5">{timeAgo}</div>
       </div>
 
       {/* Actions - visible on hover */}
-      <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <Show when={canStart()}>
-          <button
-            class="px-2 py-1 text-xs rounded bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300"
-            onClick={handleStart}
-            title="Start"
-          >
-            ▶
-          </button>
-        </Show>
-
-        <Show when={canComplete()}>
-          <button
-            class="px-2 py-1 text-xs rounded bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900 dark:text-green-300"
-            onClick={handleComplete}
-            title="Complete"
-          >
-            ✓
-          </button>
-        </Show>
-
-        <Show when={canCancel()}>
-          <button
-            class="px-2 py-1 text-xs rounded bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-900 dark:text-red-300"
-            onClick={handleCancel}
-            title="Cancel"
-          >
-            ✕
-          </button>
-        </Show>
-
-        <button
-          class="px-2 py-1 text-xs rounded bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300"
-          onClick={handleDelete}
-          title="Delete"
-        >
-          🗑
-        </button>
+      <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {canStart && (
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onStatusChange?.(todo.id, 'in_progress')} title="Start">
+            <Play className="h-3 w-3" />
+          </Button>
+        )}
+        {canComplete && (
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onStatusChange?.(todo.id, 'completed')} title="Complete">
+            <Check className="h-3 w-3" />
+          </Button>
+        )}
+        {canCancel && (
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onStatusChange?.(todo.id, 'cancelled')} title="Cancel">
+            <XCircle className="h-3 w-3" />
+          </Button>
+        )}
+        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => onDelete?.(todo.id)} title="Delete">
+          <Trash2 className="h-3 w-3" />
+        </Button>
       </div>
     </div>
   );
-};
+}

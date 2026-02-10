@@ -1,10 +1,12 @@
 /**
- * TodoPanel - Collapsible todo panel
- *
- * A side panel that shows todos and allows management.
+ * TodoPanel - Side panel for todo management.
  */
 
-import { type Component, Show, createSignal, createMemo, onMount, onCleanup } from 'solid-js';
+import { useState, useMemo, useEffect, type FormEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { X, Plus } from 'lucide-react';
 import type { TodoStatus } from '../../../services/types';
 import { getTodoService } from '@services/todo';
 import { TodoList } from './TodoList';
@@ -14,22 +16,20 @@ export interface TodoPanelProps {
   onClose?: () => void;
 }
 
-export const TodoPanel: Component<TodoPanelProps> = (props) => {
-  const [todos, setTodos] = createSignal(getTodoService().list());
-  const [newTodoTitle, setNewTodoTitle] = createSignal('');
+export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
+  const [todos, setTodos] = useState(getTodoService().list());
+  const [newTodoTitle, setNewTodoTitle] = useState('');
 
-  // Refresh todos periodically
-  let refreshInterval: ReturnType<typeof setInterval>;
-
-  onMount(() => {
-    refreshInterval = setInterval(() => {
+  useEffect(() => {
+    if (!isOpen) return;
+    setTodos(getTodoService().list());
+    const refreshInterval = setInterval(() => {
       setTodos(getTodoService().list());
     }, 1000);
-  });
-
-  onCleanup(() => {
-    clearInterval(refreshInterval);
-  });
+    return () => {
+      clearInterval(refreshInterval);
+    };
+  }, [isOpen]);
 
   const handleStatusChange = (todoId: string, status: TodoStatus) => {
     const service = getTodoService();
@@ -55,9 +55,9 @@ export const TodoPanel: Component<TodoPanelProps> = (props) => {
     setTodos(service.list());
   };
 
-  const handleAddTodo = (e: Event) => {
+  const handleAddTodo = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const title = newTodoTitle().trim();
+    const title = newTodoTitle.trim();
     if (!title) return;
 
     const service = getTodoService();
@@ -66,64 +66,53 @@ export const TodoPanel: Component<TodoPanelProps> = (props) => {
     setTodos(service.list());
   };
 
-  const pendingCount = createMemo(
+  const pendingCount = useMemo(
     () =>
-      todos().filter((t) => t.status === 'pending' || t.status === 'in_progress')
-        .length
+      todos.filter((t) => t.status === 'pending' || t.status === 'in_progress')
+        .length,
+    [todos]
   );
+
+  if (!isOpen) return null;
 
   return (
-    <Show when={props.isOpen}>
-      <div class="w-80 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
-        {/* Header */}
-        <div class="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
-          <h2 class="font-semibold text-gray-800 dark:text-gray-200">
-            Todos
-            <Show when={pendingCount() > 0}>
-              <span class="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-                {pendingCount()}
-              </span>
-            </Show>
-          </h2>
-          <button
-            class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-            onClick={props.onClose}
-            title="Close"
-          >
-            ✕
-          </button>
-        </div>
-
-        {/* Add todo form */}
-        <form
-          class="p-2 border-b border-gray-200 dark:border-gray-700"
-          onSubmit={handleAddTodo}
-        >
-          <div class="flex gap-2">
-            <input
-              type="text"
-              placeholder="Add a todo..."
-              value={newTodoTitle()}
-              onInput={(e) => setNewTodoTitle(e.currentTarget.value)}
-              class="flex-1 px-3 py-1.5 text-sm border rounded bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
-              class="px-3 py-1.5 text-sm font-medium rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
-              disabled={!newTodoTitle().trim()}
-            >
-              Add
-            </button>
-          </div>
-        </form>
-
-        {/* Todo list */}
-        <TodoList
-          todos={todos()}
-          onStatusChange={handleStatusChange}
-          onDelete={handleDelete}
-        />
+    <div className="w-80 border-l bg-card flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b">
+        <h2 className="font-semibold text-foreground flex items-center gap-2">
+          Todos
+          {pendingCount > 0 && (
+            <Badge variant="secondary" className="text-xs">{pendingCount}</Badge>
+          )}
+        </h2>
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} title="Close">
+          <X className="h-4 w-4" />
+        </Button>
       </div>
-    </Show>
+
+      {/* Add todo form */}
+      <form className="p-2 border-b" onSubmit={handleAddTodo}>
+        <div className="flex gap-2">
+          <Input
+            type="text"
+            placeholder="Add a todo..."
+            value={newTodoTitle}
+            onChange={(e) => setNewTodoTitle(e.currentTarget.value)}
+            className="h-8 text-sm"
+          />
+          <Button type="submit" size="sm" disabled={!newTodoTitle.trim()}>
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            Add
+          </Button>
+        </div>
+      </form>
+
+      {/* Todo list */}
+      <TodoList
+        todos={todos}
+        onStatusChange={handleStatusChange}
+        onDelete={handleDelete}
+      />
+    </div>
   );
-};
+}

@@ -17,7 +17,11 @@ import type {
   Session,
   SessionSearchResult,
   Message,
+  WorkAgentConfig,
+  LifecycleState,
+  SessionLifecycle,
 } from './types';
+import { VALID_TRANSITIONS } from './types';
 import { getEventBus } from '@shared/event-bus';
 
 // =============================================================================
@@ -372,6 +376,119 @@ class SessionServiceImpl implements SessionService {
 
   setCurrent(session: Session | null): void {
     this.currentSession = session;
+  }
+
+  async createWorkAgent(config: WorkAgentConfig): Promise<Session> {
+    await this.ensureInitialized();
+
+    const now = Date.now();
+    const lifecycle: SessionLifecycle = {
+      state: 'created',
+      stateHistory: [],
+    };
+
+    const session: Session = {
+      id: generateId(),
+      title: config.goal,
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+      metadata: {
+        type: 'workagent' as const,
+        lifecycle,
+        templateId: config.templateId,
+        goal: config.goal,
+        workflowId: config.workflowId,
+        workflowStepIndex: config.workflowStepIndex,
+        worktreePath: config.worktreePath,
+        workspaceId: config.workspaceId,
+      },
+    };
+
+    this.sessions.set(session.id, session);
+    await saveSessionToDir(this.sessionsDir, session);
+
+    getEventBus().emit({
+      type: 'SessionChange',
+      sessionId: session.id,
+      action: 'created',
+      timestamp: now,
+    });
+
+    return session;
+  }
+
+  async transitionState(
+    sessionId: string,
+    newState: LifecycleState,
+    reason: string,
+    actor: 'system' | 'user' | 'agent' = 'system'
+  ): Promise<Session> {
+    const session = await this.get(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+
+    const lifecycle = session.metadata.lifecycle as SessionLifecycle | undefined;
+    const currentState: LifecycleState = lifecycle?.state ?? 'created';
+
+    const allowed = VALID_TRANSITIONS[currentState];
+    if (!allowed.includes(newState)) {
+      throw new Error(
+        `Invalid state transition: ${currentState} → ${newState}. ` +
+        `Allowed transitions: ${allowed.join(', ') || 'none'}`
+      );
+    }
+
+    const now = Date.now();
+    const updatedLifecycle: SessionLifecycle = {
+      state: newState,
+      stateHistory: [
+        ...(lifecycle?.stateHistory ?? []),
+        { from: currentState, to: newState, reason, timestamp: now, actor },
+      ],
+      pauseReason: newState === 'paused' ? reason : undefined,
+      failureReason: newState === 'failed' ? reason : undefined,
+      completionSummary: newState === 'completed' ? reason : lifecycle?.completionSummary,
+    };
+
+    session.metadata = {
+      ...session.metadata,
+      lifecycle: updatedLifecycle,
+    };
+
+    await this.save(session);
+
+    getEventBus().emit({
+      type: 'LifecycleTransition',
+      sessionId,
+      from: currentState,
+      to: newState,
+      reason,
+      actor,
+      timestamp: now,
+    });
+
+    return session;
+  }
+
+  async listByState(state: LifecycleState, workspaceId?: string): Promise<Session[]> {
+    await this.ensureInitialized();
+
+    return Array.from(this.sessions.values()).filter((session) => {
+      const lifecycle = session.metadata.lifecycle as SessionLifecycle | undefined;
+      if (!lifecycle || lifecycle.state !== state) return false;
+      if (workspaceId && session.metadata.workspaceId !== workspaceId) return false;
+      return true;
+    });
+  }
+
+  async getChildren(parentSessionId: string): Promise<Session[]> {
+    await this.ensureInitialized();
+
+    return Array.from(this.sessions.values())
+      .filter((session) => session.parentId === parentSessionId)
+      .sort((a, b) => b.createdAt - a.createdAt);
   }
 
   dispose(): void {

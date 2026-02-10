@@ -1,0 +1,372 @@
+/**
+ * OrchestrationService - Multi-agent coordination and lifecycle management
+ *
+ * Provides:
+ * - Spawn WorkAgent sessions with optional worktree isolation
+ * - Cancel, pause, and resume agents
+ * - Track aggregate progress across child sessions
+ * - Execute workflow templates
+ *
+ * Composes: SessionService, TemplateService, WorktreeService, AgentInstance
+ */
+
+import { AgentInstance } from './agent';
+import { getEventBus } from '@shared/event-bus';
+import type {
+  OrchestrationService,
+  SpawnOptions,
+  AggregateProgress,
+  Session,
+  SessionService,
+  TemplateService,
+  WorktreeService,
+  WorkflowService,
+} from './types';
+
+// =============================================================================
+// Implementation
+// =============================================================================
+
+class OrchestrationServiceImpl implements OrchestrationService {
+  private instances = new Map<string, AgentInstance>();
+
+  constructor(
+    private sessionService: SessionService,
+    private templateService: TemplateService,
+    private worktreeService: WorktreeService,
+    private workflowService: WorkflowService | null
+  ) {}
+
+  async spawn(options: SpawnOptions): Promise<Session> {
+    const { templateId, goal, parentSessionId, workspaceId, isolateWorktree } = options;
+
+    // 1. Load template
+    const template = await this.templateService.get(workspaceId, templateId);
+    if (!template) {
+      throw new Error(`Template not found: ${templateId}`);
+    }
+
+    // 2. Create WorkAgent session
+    const session = await this.sessionService.createWorkAgent({
+      templateId,
+      goal,
+      workspaceId,
+      workflowId: options.workflowId,
+      workflowStepIndex: options.workflowStepIndex,
+    });
+
+    // Set parentId if provided
+    if (parentSessionId) {
+      session.parentId = parentSessionId;
+      await this.sessionService.save(session);
+    }
+
+    // 3. Create worktree if requested
+    let cwd = process.cwd();
+    if (isolateWorktree) {
+      const workspace = session.metadata as Record<string, unknown>;
+      const repoRoot = (workspace.repoRoot as string) ?? process.cwd();
+
+      const worktreeInfo = await this.worktreeService.create(session.id, repoRoot);
+      cwd = worktreeInfo.path;
+
+      // Update session metadata with worktree path
+      session.metadata = { ...session.metadata, worktreePath: worktreeInfo.path };
+      await this.sessionService.save(session);
+    }
+
+    // 4. Compose system prompt from template
+    const systemPrompt = this.buildSystemPrompt(template.systemPrompt, template.constraints, goal);
+
+    // 5. Create agent instance
+    const instance = new AgentInstance(session.id, { cwd, systemPrompt });
+    this.instances.set(session.id, instance);
+
+    // 6. Transition to active
+    await this.sessionService.transitionState(session.id, 'active', 'Agent spawned', 'system');
+
+    // Emit spawn event
+    getEventBus().emit({
+      type: 'AgentSpawned',
+      sessionId: session.id,
+      parentSessionId,
+      templateId,
+      goal,
+      workspaceId,
+      timestamp: Date.now(),
+    });
+
+    // 7. Start agent in background (fire-and-forget)
+    this.runAgent(session.id, goal);
+
+    return session;
+  }
+
+  async cancel(sessionId: string, reason?: string): Promise<void> {
+    const instance = this.instances.get(sessionId);
+    if (instance) {
+      instance.cancel();
+      instance.dispose();
+      this.instances.delete(sessionId);
+    }
+
+    await this.sessionService.transitionState(
+      sessionId,
+      'cancelled',
+      reason ?? 'Cancelled by user',
+      'user'
+    );
+  }
+
+  async pause(sessionId: string, reason: string): Promise<void> {
+    const instance = this.instances.get(sessionId);
+    if (instance) {
+      instance.cancel();
+    }
+
+    await this.sessionService.transitionState(sessionId, 'paused', reason, 'system');
+  }
+
+  async resume(sessionId: string): Promise<void> {
+    const session = await this.sessionService.get(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+
+    const metadata = session.metadata as Record<string, unknown>;
+    const lifecycle = metadata.lifecycle as { state: string } | undefined;
+    if (lifecycle?.state !== 'paused') {
+      throw new Error(`Cannot resume session in state: ${lifecycle?.state ?? 'unknown'}`);
+    }
+
+    // Transition back to active
+    await this.sessionService.transitionState(sessionId, 'active', 'Resumed', 'user');
+
+    // Re-create agent instance and restart
+    const goal = (metadata.goal as string) ?? '';
+    const cwd = (metadata.worktreePath as string) ?? process.cwd();
+    const systemPrompt = (metadata.systemPrompt as string) ?? undefined;
+
+    const instance = new AgentInstance(sessionId, { cwd, systemPrompt });
+    this.instances.set(sessionId, instance);
+
+    this.runAgent(sessionId, goal);
+  }
+
+  async getAggregateProgress(parentSessionId: string): Promise<AggregateProgress> {
+    const children = await this.sessionService.getChildren(parentSessionId);
+    const total = children.length;
+
+    let completed = 0;
+    let failed = 0;
+    let active = 0;
+    let paused = 0;
+
+    for (const child of children) {
+      const meta = child.metadata as Record<string, unknown>;
+      const lifecycle = meta.lifecycle as { state: string } | undefined;
+      const state = lifecycle?.state ?? 'created';
+
+      switch (state) {
+        case 'completed':
+          completed++;
+          break;
+        case 'failed':
+          failed++;
+          break;
+        case 'active':
+          active++;
+          break;
+        case 'paused':
+          paused++;
+          break;
+      }
+    }
+
+    const progress = total > 0 ? Math.round(((completed + failed) / total) * 100) : 0;
+
+    return { total, completed, failed, active, paused, progress };
+  }
+
+  async executeWorkflow(workflowId: string, workspaceId: string): Promise<Session> {
+    if (!this.workflowService) {
+      throw new Error('WorkflowService not available');
+    }
+
+    const workflow = await this.workflowService.get(workspaceId, workflowId);
+    if (!workflow) {
+      throw new Error(`Workflow not found: ${workflowId}`);
+    }
+
+    // Create a parent session for the workflow
+    const parentSession = await this.sessionService.createWorkAgent({
+      templateId: '',
+      goal: `Execute workflow: ${workflow.name}`,
+      workspaceId,
+      workflowId,
+    });
+
+    await this.sessionService.transitionState(parentSession.id, 'active', 'Workflow started', 'system');
+
+    // Get execution order (parallel batches)
+    const batches = await this.workflowService.getExecutionOrder(workspaceId, workflowId);
+
+    // Execute batches sequentially, steps within each batch in parallel
+    this.runWorkflow(parentSession.id, workflow, batches, workspaceId);
+
+    return parentSession;
+  }
+
+  getActiveInstances(): Map<string, AgentInstance> {
+    return new Map(this.instances);
+  }
+
+  dispose(): void {
+    for (const [, instance] of this.instances) {
+      instance.cancel();
+      instance.dispose();
+    }
+    this.instances.clear();
+  }
+
+  // ===========================================================================
+  // Private
+  // ===========================================================================
+
+  private buildSystemPrompt(base: string, constraints: string[], goal: string): string {
+    const parts = [base];
+
+    if (constraints.length > 0) {
+      parts.push('\n## Constraints');
+      for (const c of constraints) {
+        parts.push(`- ${c}`);
+      }
+    }
+
+    parts.push(`\n## Goal\n${goal}`);
+
+    return parts.join('\n');
+  }
+
+  /**
+   * Run the agent asynchronously. Drains the generator to completion,
+   * accumulates output, and transitions session state accordingly.
+   */
+  private async runAgent(sessionId: string, goal: string): Promise<void> {
+    const instance = this.instances.get(sessionId);
+    if (!instance) return;
+
+    try {
+      const tokens: string[] = [];
+      for await (const delta of instance.query(goal)) {
+        tokens.push(delta.token);
+      }
+
+      // Agent completed successfully
+      const output = tokens.join('');
+      const session = await this.sessionService.get(sessionId);
+      if (session) {
+        session.metadata = { ...session.metadata, output, completionSummary: output.slice(0, 500) };
+        await this.sessionService.save(session);
+      }
+
+      await this.sessionService.transitionState(sessionId, 'completed', 'Agent finished', 'system');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await this.sessionService.transitionState(sessionId, 'failed', message, 'system').catch(() => {
+        // Ignore if already transitioned (e.g. cancelled)
+      });
+    } finally {
+      const inst = this.instances.get(sessionId);
+      if (inst) {
+        inst.dispose();
+        this.instances.delete(sessionId);
+      }
+    }
+  }
+
+  /**
+   * Execute workflow batches sequentially. Steps within each batch run in parallel.
+   */
+  private async runWorkflow(
+    parentSessionId: string,
+    workflow: { steps: Array<{ id: string; type: string; templateId?: string; goal?: string; reviewPrompt?: string }> },
+    batches: string[][],
+    workspaceId: string
+  ): Promise<void> {
+    try {
+      const stepMap = new Map(workflow.steps.map((s) => [s.id, s]));
+
+      for (const batch of batches) {
+        const batchPromises = batch.map(async (stepId) => {
+          const step = stepMap.get(stepId);
+          if (!step) return;
+
+          switch (step.type) {
+            case 'agent': {
+              if (!step.templateId) break;
+              await this.spawn({
+                templateId: step.templateId,
+                goal: step.goal ?? `Workflow step: ${step.id}`,
+                parentSessionId,
+                workspaceId,
+                workflowId: workflow.steps[0]?.id ? parentSessionId : undefined,
+              });
+              break;
+            }
+
+            case 'review_gate': {
+              // Review gates are handled by Phase 3 (ReviewService)
+              // For now, just log and continue
+              getEventBus().emit({
+                type: 'ReviewItemChange',
+                reviewItemId: `pending-${stepId}`,
+                sessionId: parentSessionId,
+                workspaceId,
+                action: 'created',
+                timestamp: Date.now(),
+              });
+              break;
+            }
+          }
+        });
+
+        await Promise.all(batchPromises);
+      }
+
+      // Workflow completed
+      await this.sessionService.transitionState(
+        parentSessionId,
+        'completed',
+        'Workflow completed',
+        'system'
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await this.sessionService.transitionState(
+        parentSessionId,
+        'failed',
+        `Workflow failed: ${message}`,
+        'system'
+      ).catch(() => {});
+    }
+  }
+}
+
+// =============================================================================
+// Factory
+// =============================================================================
+
+export function createOrchestrationService(
+  sessionService: SessionService,
+  templateService: TemplateService,
+  worktreeService: WorktreeService,
+  workflowService?: WorkflowService
+): OrchestrationService {
+  return new OrchestrationServiceImpl(
+    sessionService,
+    templateService,
+    worktreeService,
+    workflowService ?? null
+  );
+}

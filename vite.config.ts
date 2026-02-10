@@ -1,11 +1,13 @@
 import { defineConfig } from 'vite';
-import solid from 'vite-plugin-solid';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 
 export default defineConfig({
-  plugins: [solid()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
+      '@': resolve(__dirname, 'src'),
       '@ui': resolve(__dirname, 'src/ui'),
       '@services': resolve(__dirname, 'src/services'),
       '@shared': resolve(__dirname, 'src/shared'),

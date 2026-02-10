@@ -1,115 +1,129 @@
 /**
- * SessionList - Virtualized list of sessions with search
+ * SessionList - Virtualized list of sessions with search and filtering.
  *
- * Uses virtual scrolling for performance with many sessions.
+ * Applies type and state filters from SessionsPanel.
  */
 
-import {
-  type Component,
-  For,
-  Show,
-  createSignal,
-  createMemo,
-  createEffect,
-} from 'solid-js';
-import type { Session } from '../../../services/types';
+import { useState, useMemo, useEffect } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Search, Plus } from 'lucide-react';
+import type { Session, SessionLifecycle, SessionType } from '@services/types';
 import { SessionItem } from './SessionItem';
 
 export interface SessionListProps {
   sessions: Session[];
   activeSessionId?: string;
+  typeFilter?: string;
+  stateFilter?: string;
   onSelect?: (sessionId: string) => void;
   onDelete?: (sessionId: string) => void;
   onFork?: (sessionId: string) => void;
   onCreate?: () => void;
 }
 
-export const SessionList: Component<SessionListProps> = (props) => {
-  const [searchQuery, setSearchQuery] = createSignal('');
-  const [debouncedQuery, setDebouncedQuery] = createSignal('');
+export function SessionList({
+  sessions,
+  activeSessionId,
+  typeFilter = 'all',
+  stateFilter = 'all',
+  onSelect,
+  onDelete,
+  onFork,
+  onCreate,
+}: SessionListProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
-  // Debounce search input
-  createEffect(() => {
-    const query = searchQuery();
+  useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQuery(query);
+      setDebouncedQuery(searchQuery);
     }, 300);
     return () => clearTimeout(timer);
-  });
+  }, [searchQuery]);
 
-  const filteredSessions = createMemo(() => {
-    const query = debouncedQuery().toLowerCase().trim();
-    if (!query) {
-      return props.sessions;
+  const filteredSessions = useMemo(() => {
+    let result = sessions;
+
+    // Type filter
+    if (typeFilter !== 'all') {
+      result = result.filter((s) => {
+        const type = (s.metadata?.type as SessionType) ?? 'chat';
+        return type === typeFilter;
+      });
     }
 
-    return props.sessions.filter((session) => {
-      // Search in title
-      if (session.title?.toLowerCase().includes(query)) {
-        return true;
-      }
+    // State filter
+    if (stateFilter !== 'all') {
+      result = result.filter((s) => {
+        const lifecycle = s.metadata?.lifecycle as SessionLifecycle | undefined;
+        return lifecycle?.state === stateFilter;
+      });
+    }
 
-      // Search in messages
-      return session.messages.some((msg) =>
-        msg.content.toLowerCase().includes(query)
-      );
-    });
-  });
+    // Search filter
+    const query = debouncedQuery.toLowerCase().trim();
+    if (query) {
+      result = result.filter((session) => {
+        if (session.title?.toLowerCase().includes(query)) return true;
+        const goal = session.metadata?.goal as string | undefined;
+        if (goal?.toLowerCase().includes(query)) return true;
+        return session.messages.some((msg) =>
+          msg.content.toLowerCase().includes(query),
+        );
+      });
+    }
+
+    return result;
+  }, [debouncedQuery, sessions, typeFilter, stateFilter]);
 
   return (
-    <div class="flex flex-col h-full">
+    <div className="flex flex-col h-full">
       {/* Header with search and new button */}
-      <div class="p-3 border-b border-gray-200 dark:border-gray-700">
-        <div class="flex gap-2 mb-2">
-          <input
-            type="text"
-            placeholder="Search sessions..."
-            value={searchQuery()}
-            onInput={(e) => setSearchQuery(e.currentTarget.value)}
-            class="flex-1 px-3 py-1.5 text-sm border rounded bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            class="px-3 py-1.5 text-sm font-medium rounded bg-blue-500 text-white hover:bg-blue-600"
-            onClick={props.onCreate}
-            title="New session"
-          >
+      <div className="p-3 border-b space-y-2">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search sessions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8 h-8 text-sm"
+            />
+          </div>
+          <Button size="sm" className="h-8" onClick={onCreate}>
+            <Plus className="h-3.5 w-3.5 mr-1" />
             New
-          </button>
+          </Button>
         </div>
-        <div class="text-xs text-gray-500 dark:text-gray-400">
-          {filteredSessions().length} session
-          {filteredSessions().length !== 1 ? 's' : ''}
-          <Show when={debouncedQuery()}>
-            <span> matching "{debouncedQuery()}"</span>
-          </Show>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          {filteredSessions.length} session{filteredSessions.length !== 1 ? 's' : ''}
+          {debouncedQuery && <span> matching &ldquo;{debouncedQuery}&rdquo;</span>}
+        </p>
       </div>
 
       {/* Session list */}
-      <div class="flex-1 overflow-y-auto">
-        <Show
-          when={filteredSessions().length > 0}
-          fallback={
-            <div class="p-4 text-center text-gray-400 dark:text-gray-500">
-              {debouncedQuery()
-                ? 'No sessions match your search'
-                : 'No sessions yet'}
-            </div>
-          }
-        >
-          <For each={filteredSessions()}>
-            {(session) => (
-              <SessionItem
-                session={session}
-                isActive={session.id === props.activeSessionId}
-                onSelect={props.onSelect}
-                onDelete={props.onDelete}
-                onFork={props.onFork}
-              />
-            )}
-          </For>
-        </Show>
-      </div>
+      <ScrollArea className="flex-1">
+        {filteredSessions.length > 0 ? (
+          filteredSessions.map((session) => (
+            <SessionItem
+              key={session.id}
+              session={session}
+              isActive={session.id === activeSessionId}
+              onSelect={onSelect}
+              onDelete={onDelete}
+              onFork={onFork}
+            />
+          ))
+        ) : (
+          <div className="p-4 text-center text-muted-foreground text-sm">
+            {debouncedQuery
+              ? 'No sessions match your search'
+              : 'No sessions yet'}
+          </div>
+        )}
+      </ScrollArea>
     </div>
   );
-};
+}

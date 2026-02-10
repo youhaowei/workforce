@@ -269,6 +269,70 @@ export interface RawSdkMessageEvent {
   timestamp: number;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Workforce Orchestration Events
+// ─────────────────────────────────────────────────────────────
+
+/** Workspace lifecycle events */
+export interface WorkspaceChangeEvent {
+  type: 'WorkspaceChange';
+  workspaceId: string;
+  action: 'created' | 'updated' | 'deleted' | 'switched';
+  timestamp: number;
+}
+
+/** Session lifecycle state transitions */
+export interface LifecycleTransitionEvent {
+  type: 'LifecycleTransition';
+  sessionId: string;
+  from: string;
+  to: string;
+  reason: string;
+  actor: 'system' | 'user' | 'agent';
+  timestamp: number;
+}
+
+/** Review queue item changes */
+export interface ReviewItemChangeEvent {
+  type: 'ReviewItemChange';
+  reviewItemId: string;
+  sessionId: string;
+  workspaceId: string;
+  action: 'created' | 'resolved';
+  timestamp: number;
+}
+
+/** Git worktree lifecycle events */
+export interface WorktreeChangeEvent {
+  type: 'WorktreeChange';
+  sessionId: string;
+  worktreePath: string;
+  action: 'created' | 'merged' | 'archived' | 'deleted';
+  timestamp: number;
+}
+
+/** Agent spawned notification */
+export interface AgentSpawnedEvent {
+  type: 'AgentSpawned';
+  sessionId: string;
+  parentSessionId?: string;
+  templateId: string;
+  goal: string;
+  workspaceId: string;
+  timestamp: number;
+}
+
+/** Audit entry recorded */
+export interface AuditEntryEvent {
+  type: 'AuditEntry';
+  entryId: string;
+  sessionId: string;
+  workspaceId: string;
+  auditType: string;
+  description: string;
+  timestamp: number;
+}
+
 export type BusEvent =
   | TokenDeltaEvent
   | ToolStartEvent
@@ -295,7 +359,14 @@ export type BusEvent =
   | HookResponseEvent
   | TaskNotificationEvent
   | AuthStatusEvent
-  | RawSdkMessageEvent;
+  | RawSdkMessageEvent
+  // Workforce orchestration events
+  | WorkspaceChangeEvent
+  | LifecycleTransitionEvent
+  | ReviewItemChangeEvent
+  | WorktreeChangeEvent
+  | AgentSpawnedEvent
+  | AuditEntryEvent;
 
 export const EventType = {
   TokenDelta: 'TokenDelta',
@@ -324,6 +395,13 @@ export const EventType = {
   TaskNotification: 'TaskNotification',
   AuthStatus: 'AuthStatus',
   RawSdkMessage: 'RawSdkMessage',
+  // Workforce orchestration events
+  WorkspaceChange: 'WorkspaceChange',
+  LifecycleTransition: 'LifecycleTransition',
+  ReviewItemChange: 'ReviewItemChange',
+  WorktreeChange: 'WorktreeChange',
+  AgentSpawned: 'AgentSpawned',
+  AuditEntry: 'AuditEntry',
   Wildcard: '*',
 } as const;
 

@@ -95,6 +95,55 @@ export interface AgentService extends Disposable {
 }
 
 // =============================================================================
+// Session Lifecycle Types (declared before SessionService which references them)
+// =============================================================================
+
+export type SessionType = 'chat' | 'workagent';
+
+export type LifecycleState =
+  | 'created'
+  | 'active'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+export interface StateTransition {
+  from: LifecycleState;
+  to: LifecycleState;
+  reason: string;
+  timestamp: number;
+  actor: 'system' | 'user' | 'agent';
+}
+
+export interface SessionLifecycle {
+  state: LifecycleState;
+  stateHistory: StateTransition[];
+  pauseReason?: string;
+  failureReason?: string;
+  completionSummary?: string;
+}
+
+export interface WorkAgentConfig {
+  templateId: string;
+  goal: string;
+  workflowId?: string;
+  workflowStepIndex?: number;
+  worktreePath?: string;
+  workspaceId: string;
+}
+
+/** Valid lifecycle state transitions */
+export const VALID_TRANSITIONS: Record<LifecycleState, LifecycleState[]> = {
+  created: ['active'],
+  active: ['paused', 'completed', 'failed', 'cancelled'],
+  paused: ['active', 'cancelled'],
+  completed: [],
+  failed: [],
+  cancelled: [],
+};
+
+// =============================================================================
 // Session Service Types
 // =============================================================================
 
@@ -173,6 +222,32 @@ export interface SessionService extends Disposable {
    * Set the current active session.
    */
   setCurrent(session: Session | null): void;
+
+  /**
+   * Create a WorkAgent session with lifecycle tracking.
+   */
+  createWorkAgent(config: WorkAgentConfig): Promise<Session>;
+
+  /**
+   * Transition a session's lifecycle state.
+   * Validates the transition and records history.
+   */
+  transitionState(
+    sessionId: string,
+    newState: LifecycleState,
+    reason: string,
+    actor?: 'system' | 'user' | 'agent'
+  ): Promise<Session>;
+
+  /**
+   * List sessions filtered by lifecycle state.
+   */
+  listByState(state: LifecycleState, workspaceId?: string): Promise<Session[]>;
+
+  /**
+   * Get all child sessions of a parent.
+   */
+  getChildren(parentSessionId: string): Promise<Session[]>;
 }
 
 // =============================================================================
@@ -534,4 +609,273 @@ export interface TodoService extends Disposable {
    * Flush changes to disk.
    */
   flush(): Promise<void>;
+}
+
+// =============================================================================
+// Workspace Types
+// =============================================================================
+
+export interface Workspace {
+  id: string;
+  name: string;
+  description?: string;
+  /** Absolute path to the project root directory */
+  rootPath: string;
+  createdAt: number;
+  updatedAt: number;
+  settings: WorkspaceSettings;
+}
+
+export interface WorkspaceSettings {
+  /** Tool names allowed in this workspace */
+  allowedTools: string[];
+  /** Default agent template for new sessions */
+  defaultTemplateId?: string;
+  /** Cost warning threshold in USD */
+  costWarningThreshold?: number;
+  /** Cost hard cap in USD (optional) */
+  costHardCap?: number;
+}
+
+export interface WorkspaceService extends Disposable {
+  create(name: string, rootPath: string): Promise<Workspace>;
+  get(id: string): Promise<Workspace | null>;
+  update(id: string, updates: Partial<Omit<Workspace, 'id' | 'createdAt'>>): Promise<Workspace>;
+  list(): Promise<Workspace[]>;
+  delete(id: string): Promise<void>;
+  getCurrent(): Workspace | null;
+  setCurrent(workspace: Workspace | null): void;
+}
+
+// =============================================================================
+// Agent Template Types
+// =============================================================================
+
+export interface AgentTemplate {
+  id: string;
+  name: string;
+  description: string;
+  systemPrompt: string;
+  /** Skill names from SkillService */
+  skills: string[];
+  /** Tool names from ToolService */
+  tools: string[];
+  /** Natural-language constraints */
+  constraints: string[];
+  reasoningIntensity: 'low' | 'medium' | 'high' | 'max';
+  maxTokens?: number;
+  temperature?: number;
+  archived: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TemplateValidation {
+  valid: boolean;
+  errors: Array<{ field: string; message: string }>;
+  warnings: Array<{ field: string; message: string }>;
+}
+
+export interface TemplateService extends Disposable {
+  create(
+    workspaceId: string,
+    template: Omit<AgentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'archived'>
+  ): Promise<AgentTemplate>;
+  get(workspaceId: string, id: string): Promise<AgentTemplate | null>;
+  update(workspaceId: string, id: string, updates: Partial<AgentTemplate>): Promise<AgentTemplate>;
+  duplicate(workspaceId: string, id: string): Promise<AgentTemplate>;
+  archive(workspaceId: string, id: string): Promise<void>;
+  list(workspaceId: string, options?: { includeArchived?: boolean }): Promise<AgentTemplate[]>;
+  validate(template: Partial<AgentTemplate>): TemplateValidation;
+  /** Convert a legacy AgentProfile to an AgentTemplate */
+  fromProfile(profile: AgentProfile): AgentTemplate;
+}
+
+// =============================================================================
+// Workflow Template Types
+// =============================================================================
+
+export type StepType = 'agent' | 'review_gate' | 'parallel_group';
+
+export interface WorkflowStep {
+  id: string;
+  name: string;
+  type: StepType;
+  /** Agent template to use (for 'agent' type) */
+  templateId?: string;
+  /** Step-level goal override */
+  goal?: string;
+  /** Step IDs that must complete first */
+  dependsOn: string[];
+  /** For parallel_group: child step IDs that run concurrently */
+  parallelStepIds?: string[];
+  /** For review_gate: what needs review */
+  reviewPrompt?: string;
+}
+
+export interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description: string;
+  steps: WorkflowStep[];
+  createdAt: number;
+  updatedAt: number;
+  archived: boolean;
+}
+
+export interface WorkflowExecution {
+  workflowId: string;
+  stepStates: Record<
+    string,
+    {
+      state: LifecycleState;
+      sessionId?: string;
+      reviewItemId?: string;
+      startedAt?: number;
+      completedAt?: number;
+      error?: string;
+    }
+  >;
+  startedAt: number;
+  completedAt?: number;
+}
+
+export interface WorkflowService extends Disposable {
+  create(
+    workspaceId: string,
+    template: Omit<WorkflowTemplate, 'id' | 'createdAt' | 'updatedAt' | 'archived'>
+  ): Promise<WorkflowTemplate>;
+  get(workspaceId: string, id: string): Promise<WorkflowTemplate | null>;
+  update(workspaceId: string, id: string, updates: Partial<WorkflowTemplate>): Promise<WorkflowTemplate>;
+  list(workspaceId: string, options?: { includeArchived?: boolean }): Promise<WorkflowTemplate[]>;
+  archive(workspaceId: string, id: string): Promise<void>;
+  validate(template: Partial<WorkflowTemplate>): { valid: boolean; errors: string[] };
+  /** Get execution order respecting dependencies (array of parallel batches) */
+  getExecutionOrder(workspaceId: string, workflowId: string): Promise<string[][]>;
+}
+
+// =============================================================================
+// Review Queue Types
+// =============================================================================
+
+export type ReviewAction = 'approve' | 'reject' | 'edit' | 'clarify';
+
+export interface ReviewItem {
+  id: string;
+  /** Source agent session */
+  sessionId: string;
+  workspaceId: string;
+  workflowId?: string;
+  workflowStepId?: string;
+  type: 'approval' | 'clarification' | 'review';
+  title: string;
+  summary: string;
+  recommendation?: string;
+  /** Additional context: diffs, artifact references, etc. */
+  context: Record<string, unknown>;
+  status: 'pending' | 'resolved';
+  resolution?: {
+    action: ReviewAction;
+    comment?: string;
+    resolvedAt: number;
+  };
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface ReviewService extends Disposable {
+  create(item: Omit<ReviewItem, 'id' | 'status' | 'createdAt' | 'updatedAt'>): Promise<ReviewItem>;
+  get(id: string, workspaceId: string): Promise<ReviewItem | null>;
+  listPending(workspaceId: string): Promise<ReviewItem[]>;
+  list(options?: { status?: 'pending' | 'resolved'; workspaceId?: string }): Promise<ReviewItem[]>;
+  resolve(id: string, workspaceId: string, action: ReviewAction, comment?: string): Promise<ReviewItem>;
+  pendingCount(workspaceId: string): Promise<number>;
+}
+
+// =============================================================================
+// Audit Types
+// =============================================================================
+
+export type AuditEntryType =
+  | 'state_change'
+  | 'tool_use'
+  | 'review_decision'
+  | 'agent_spawn'
+  | 'worktree_action';
+
+export interface AuditEntry {
+  id: string;
+  sessionId: string;
+  workspaceId: string;
+  type: AuditEntryType;
+  description: string;
+  data: Record<string, unknown>;
+  timestamp: number;
+}
+
+export interface AuditService extends Disposable {
+  record(entry: Omit<AuditEntry, 'id' | 'timestamp'>): Promise<AuditEntry>;
+  getForSession(sessionId: string, workspaceId: string): Promise<AuditEntry[]>;
+  getForWorkspace(
+    workspaceId: string,
+    options?: { limit?: number; offset?: number; type?: AuditEntryType }
+  ): Promise<AuditEntry[]>;
+}
+
+// =============================================================================
+// Worktree Types
+// =============================================================================
+
+export interface WorktreeInfo {
+  path: string;
+  branch: string;
+  sessionId: string;
+  /** Original repository root that this worktree was created from */
+  repoRoot: string;
+  createdAt: number;
+  status: 'active' | 'merged' | 'archived' | 'deleted';
+}
+
+export interface WorktreeService extends Disposable {
+  create(sessionId: string, repoRoot: string, branchName?: string): Promise<WorktreeInfo>;
+  list(repoRoot: string): Promise<WorktreeInfo[]>;
+  merge(sessionId: string, strategy?: 'merge' | 'rebase'): Promise<{ success: boolean; conflicts?: string[] }>;
+  archive(sessionId: string): Promise<void>;
+  delete(sessionId: string): Promise<void>;
+  getForSession(sessionId: string): WorktreeInfo | null;
+  getDiff(sessionId: string): Promise<string>;
+}
+
+// =============================================================================
+// Orchestration Types
+// =============================================================================
+
+export interface SpawnOptions {
+  templateId: string;
+  goal: string;
+  parentSessionId?: string;
+  workspaceId: string;
+  isolateWorktree?: boolean;
+  workflowId?: string;
+  workflowStepIndex?: number;
+}
+
+export interface AggregateProgress {
+  total: number;
+  completed: number;
+  failed: number;
+  active: number;
+  paused: number;
+  /** 0-100 */
+  progress: number;
+}
+
+export interface OrchestrationService extends Disposable {
+  spawn(options: SpawnOptions): Promise<Session>;
+  cancel(sessionId: string, reason?: string): Promise<void>;
+  pause(sessionId: string, reason: string): Promise<void>;
+  resume(sessionId: string): Promise<void>;
+  getAggregateProgress(parentSessionId: string): Promise<AggregateProgress>;
+  getActiveInstances(): Map<string, unknown>;
+  executeWorkflow(workflowId: string, workspaceId: string): Promise<Session>;
 }

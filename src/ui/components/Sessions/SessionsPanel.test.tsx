@@ -1,31 +1,28 @@
-import { render, screen, waitFor } from '@solidjs/testing-library';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SessionsPanel } from './SessionsPanel';
 
-const mockSessions = [
-  {
-    id: 'sess_1',
-    messages: [],
-    metadata: { createdAt: Date.now() - 3600000, updatedAt: Date.now() },
-  },
-  {
-    id: 'sess_2',
-    messages: [{ role: 'user', content: 'Hello' }],
-    metadata: { createdAt: Date.now() - 7200000, updatedAt: Date.now() - 1800000 },
-  },
-];
+// Mock tRPC + React Query hooks used by SessionsPanel
+const mockQueryData = {
+  data: [],
+  isLoading: false,
+};
 
-const mockCurrentSession = { id: 'sess_1', messages: [], metadata: { createdAt: Date.now(), updatedAt: Date.now() } };
+vi.mock('@tanstack/react-query', () => ({
+  useQuery: vi.fn(() => mockQueryData),
+  useMutation: vi.fn(() => ({ mutate: vi.fn(), isLoading: false })),
+  useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
+}));
 
-vi.mock('@services/session', () => ({
-  getSessionService: vi.fn(() => ({
-    list: vi.fn(() => Promise.resolve(mockSessions)),
-    getCurrent: vi.fn(() => mockCurrentSession),
-    setCurrent: vi.fn(),
-    create: vi.fn(() => Promise.resolve({ id: 'sess_new', messages: [], metadata: { createdAt: Date.now(), updatedAt: Date.now() } })),
-    resume: vi.fn(() => Promise.resolve()),
-    delete: vi.fn(() => Promise.resolve()),
-    fork: vi.fn(() => Promise.resolve({ id: 'sess_fork', messages: [], metadata: { createdAt: Date.now(), updatedAt: Date.now() } })),
+vi.mock('@bridge/react', () => ({
+  useTRPC: vi.fn(() => ({
+    session: {
+      list: { queryOptions: vi.fn(() => ({})) },
+      resume: { mutationOptions: vi.fn(() => ({})) },
+      delete: { mutationOptions: vi.fn(() => ({})) },
+      fork: { mutationOptions: vi.fn(() => ({})) },
+      create: { mutationOptions: vi.fn(() => ({})) },
+    },
   })),
 }));
 
@@ -33,39 +30,30 @@ describe('SessionsPanel', () => {
   const mockOnClose = vi.fn();
 
   beforeEach(() => {
-    vi.useFakeTimers();
     mockOnClose.mockClear();
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
+    mockQueryData.data = [];
+    mockQueryData.isLoading = false;
   });
 
   it('renders nothing when closed', () => {
-    render(() => <SessionsPanel isOpen={false} onClose={mockOnClose} />);
+    render(<SessionsPanel isOpen={false} onClose={mockOnClose} />);
     expect(screen.queryByText('Sessions')).not.toBeInTheDocument();
   });
 
   it('renders panel with title when open', () => {
-    render(() => <SessionsPanel isOpen={true} onClose={mockOnClose} />);
+    render(<SessionsPanel isOpen={true} onClose={mockOnClose} />);
     expect(screen.getByText('Sessions')).toBeInTheDocument();
   });
 
-  it('shows loading state initially', () => {
-    render(() => <SessionsPanel isOpen={true} onClose={mockOnClose} />);
+  it('shows loading state when isLoading', () => {
+    mockQueryData.isLoading = true;
+    render(<SessionsPanel isOpen={true} onClose={mockOnClose} />);
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('loads and displays sessions', async () => {
-    render(() => <SessionsPanel isOpen={true} onClose={mockOnClose} />);
-
-    await waitFor(() => {
-      expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
-    });
-  });
-
-  it('shows close button', () => {
-    render(() => <SessionsPanel isOpen={true} onClose={mockOnClose} />);
-    expect(screen.getByTitle('Close')).toBeInTheDocument();
+  it('shows session list when loaded', () => {
+    render(<SessionsPanel isOpen={true} onClose={mockOnClose} />);
+    // Should show "No sessions yet" since data is empty
+    expect(screen.getByText('No sessions yet')).toBeInTheDocument();
   });
 });

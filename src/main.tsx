@@ -1,4 +1,5 @@
-import { render } from 'solid-js/web';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
 import App from './ui/App';
 import './index.css';
 
@@ -10,4 +11,8 @@ if (!(root instanceof HTMLElement)) {
   );
 }
 
-render(() => <App />, root!);
+createRoot(root).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);

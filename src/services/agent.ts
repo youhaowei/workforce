@@ -458,6 +458,160 @@ class AgentServiceImpl implements AgentService {
   }
 }
 
+// =============================================================================
+// AgentInstance - Per-session agent for multi-agent orchestration
+// =============================================================================
+
+export interface AgentInstanceOptions {
+  cwd: string;
+  systemPrompt?: string;
+  env?: Record<string, string | undefined>;
+}
+
+/**
+ * An individual agent instance tied to a specific session.
+ * Each instance has its own AbortController and working directory,
+ * enabling concurrent agents with worktree isolation.
+ */
+export class AgentInstance {
+  private abortController: AbortController;
+  private queryInProgress = false;
+
+  constructor(
+    public readonly sessionId: string,
+    private options: AgentInstanceOptions
+  ) {
+    this.abortController = new AbortController();
+  }
+
+  async *query(prompt: string): StreamResult<TokenDelta> {
+    if (this.queryInProgress) {
+      throw new AgentError('Query already in progress for this instance', 'UNKNOWN');
+    }
+
+    this.queryInProgress = true;
+    this.abortController = new AbortController();
+    const bus = getEventBus();
+    let tokenIndex = 0;
+
+    try {
+      const fullPrompt = this.options.systemPrompt
+        ? `${this.options.systemPrompt}\n\n${prompt}`
+        : prompt;
+
+      const sdkOptions = {
+        abortController: this.abortController,
+        cwd: this.options.cwd,
+        env: this.options.env ?? buildSdkEnv(),
+        includePartialMessages: true,
+      };
+
+      const queryStream = sdkQuery({ prompt: fullPrompt, options: sdkOptions });
+
+      for await (const message of queryStream) {
+        const now = Date.now();
+
+        bus.emit({
+          type: 'RawSdkMessage',
+          sdkMessageType: message.type,
+          payload: message,
+          timestamp: now,
+        });
+
+        switch (message.type) {
+          case 'stream_event': {
+            const event = message.event;
+
+            if (event.type === 'content_block_delta' && 'delta' in event) {
+              const delta = event.delta as { type: string; text?: string };
+
+              if (delta.type === 'text_delta' && delta.text) {
+                const tokenDelta: TokenDelta = {
+                  token: delta.text,
+                  index: tokenIndex++,
+                };
+                bus.emit({
+                  type: 'TokenDelta',
+                  token: tokenDelta.token,
+                  index: tokenDelta.index,
+                  timestamp: now,
+                });
+                yield tokenDelta;
+              }
+            }
+            break;
+          }
+
+          case 'result': {
+            bus.emit({
+              type: 'QueryResult',
+              subtype: message.subtype,
+              durationMs: message.duration_ms,
+              durationApiMs: message.duration_api_ms,
+              numTurns: message.num_turns,
+              totalCostUsd: message.total_cost_usd,
+              result: 'result' in message ? message.result : undefined,
+              structuredOutput: 'structured_output' in message ? message.structured_output : undefined,
+              usage: {
+                inputTokens: message.usage.input_tokens,
+                outputTokens: message.usage.output_tokens,
+                cacheReadInputTokens: message.usage.cache_read_input_tokens,
+                cacheCreationInputTokens: message.usage.cache_creation_input_tokens,
+              },
+              modelUsage: Object.fromEntries(
+                Object.entries(message.modelUsage).map(([model, usage]) => [
+                  model,
+                  {
+                    inputTokens: usage.inputTokens,
+                    outputTokens: usage.outputTokens,
+                    cacheReadInputTokens: usage.cacheReadInputTokens,
+                    cacheCreationInputTokens: usage.cacheCreationInputTokens,
+                    webSearchRequests: usage.webSearchRequests,
+                    costUSD: usage.costUSD,
+                    contextWindow: usage.contextWindow,
+                    maxOutputTokens: usage.maxOutputTokens,
+                  },
+                ])
+              ),
+              errors: 'errors' in message ? message.errors : undefined,
+              timestamp: now,
+            });
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      if (this.abortController.signal.aborted) {
+        yield { token: ' [cancelled]', index: tokenIndex++ };
+      } else {
+        throw new AgentError(
+          err instanceof Error ? err.message : String(err),
+          isAuthError(err) ? 'AUTH_ERROR' : 'STREAM_FAILED',
+          err
+        );
+      }
+    } finally {
+      this.queryInProgress = false;
+    }
+  }
+
+  cancel(): void {
+    this.abortController.abort();
+  }
+
+  isQuerying(): boolean {
+    return this.queryInProgress;
+  }
+
+  dispose(): void {
+    this.cancel();
+  }
+}
+
+// =============================================================================
+// Singleton AgentService (for main chat)
+// =============================================================================
+
 let _instance: AgentServiceImpl | null = null;
 
 export function getAgentService(): AgentService {

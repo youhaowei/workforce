@@ -1,11 +1,16 @@
 /**
  * SessionItem - Individual session display
  *
- * Shows session title, preview, and timestamp.
+ * Shows session title, preview, timestamp, lifecycle state, and session type
+ * with hover actions for fork/delete.
  */
 
-import { type Component, Show, createMemo } from 'solid-js';
-import type { Session } from '../../../services/types';
+import { useMemo, type MouseEvent } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { GitFork, Trash2, Bot, MessageSquare } from 'lucide-react';
+import { stateVariant } from '@ui/lib/stateVariant';
+import type { Session, SessionLifecycle, SessionType } from '@services/types';
 
 export interface SessionItemProps {
   session: Session;
@@ -15,9 +20,15 @@ export interface SessionItemProps {
   onFork?: (sessionId: string) => void;
 }
 
-export const SessionItem: Component<SessionItemProps> = (props) => {
-  const timeAgo = createMemo(() => {
-    const diff = Date.now() - props.session.updatedAt;
+export function SessionItem({
+  session,
+  isActive,
+  onSelect,
+  onDelete,
+  onFork,
+}: SessionItemProps) {
+  const timeAgo = useMemo(() => {
+    const diff = Date.now() - session.updatedAt;
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) return 'just now';
     if (minutes < 60) return `${minutes}m ago`;
@@ -25,86 +36,82 @@ export const SessionItem: Component<SessionItemProps> = (props) => {
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
     return `${days}d ago`;
-  });
+  }, [session.updatedAt]);
 
-  const messageCount = createMemo(() => props.session.messages.length);
+  const messageCount = useMemo(() => session.messages.length, [session.messages.length]);
 
-  const preview = createMemo(() => {
-    const lastMessage = props.session.messages[props.session.messages.length - 1];
+  const preview = useMemo(() => {
+    const lastMessage = session.messages[session.messages.length - 1];
     if (!lastMessage) return 'No messages';
     const content = lastMessage.content;
     return content.length > 100 ? content.slice(0, 100) + '...' : content;
-  });
+  }, [session.messages]);
 
-  const handleSelect = () => {
-    props.onSelect?.(props.session.id);
+  const sessionType = (session.metadata?.type as SessionType) ?? 'chat';
+  const lifecycle = session.metadata?.lifecycle as SessionLifecycle | undefined;
+  const lifecycleState = lifecycle?.state;
+
+  const handleDelete = (e: MouseEvent) => {
+    e.stopPropagation();
+    onDelete?.(session.id);
   };
 
-  const handleDelete = (e: Event) => {
+  const handleFork = (e: MouseEvent) => {
     e.stopPropagation();
-    props.onDelete?.(props.session.id);
-  };
-
-  const handleFork = (e: Event) => {
-    e.stopPropagation();
-    props.onFork?.(props.session.id);
+    onFork?.(session.id);
   };
 
   return (
     <div
-      class={`group p-3 cursor-pointer border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 ${
-        props.isActive
-          ? 'bg-blue-50 dark:bg-blue-900/30 border-l-2 border-l-blue-500'
-          : ''
+      className={`group p-3 cursor-pointer border-b hover:bg-muted/50 transition-colors ${
+        isActive ? 'bg-primary/5 border-l-2 border-l-primary' : ''
       }`}
-      onClick={handleSelect}
+      onClick={() => onSelect?.(session.id)}
     >
       {/* Header */}
-      <div class="flex items-center justify-between mb-1">
-        <h3
-          class={`font-medium truncate ${
-            props.isActive ? 'text-blue-700 dark:text-blue-300' : ''
-          }`}
-        >
-          {props.session.title || 'Untitled Session'}
-        </h3>
-        <span class="text-xs text-gray-400 dark:text-gray-500 flex-shrink-0 ml-2">
-          {timeAgo()}
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          {sessionType === 'workagent' ? (
+            <Bot className="h-3 w-3 text-muted-foreground shrink-0" />
+          ) : (
+            <MessageSquare className="h-3 w-3 text-muted-foreground shrink-0" />
+          )}
+          <h3 className={`text-sm font-medium truncate ${isActive ? 'text-primary' : ''}`}>
+            {session.title || (sessionType === 'workagent' ? (session.metadata?.goal as string) ?? 'Agent' : 'Untitled Session')}
+          </h3>
+        </div>
+        <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+          {timeAgo}
         </span>
       </div>
 
       {/* Preview */}
-      <p class="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
-        {preview()}
-      </p>
+      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{preview}</p>
 
       {/* Footer */}
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-          <span>{messageCount()} messages</span>
-          <Show when={props.session.parentId}>
-            <span class="text-purple-500">forked</span>
-          </Show>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>{messageCount} messages</span>
+          {session.parentId && (
+            <Badge variant="secondary" className="text-[10px] h-4 px-1">forked</Badge>
+          )}
+          {lifecycleState && lifecycleState !== 'created' && (
+            <Badge variant={stateVariant(lifecycleState)} className="text-[10px] h-4 px-1">
+              {lifecycleState}
+            </Badge>
+          )}
         </div>
 
         {/* Actions - visible on hover */}
-        <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            class="px-2 py-0.5 text-xs rounded bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300"
-            onClick={handleFork}
-            title="Fork session"
-          >
-            Fork
-          </button>
-          <button
-            class="px-2 py-0.5 text-xs rounded bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
-            onClick={handleDelete}
-            title="Delete session"
-          >
-            Delete
-          </button>
+        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleFork} title="Fork session">
+            <GitFork className="h-3 w-3" />
+          </Button>
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={handleDelete} title="Delete session">
+            <Trash2 className="h-3 w-3" />
+          </Button>
         </div>
       </div>
     </div>
   );
-};
+}
