@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { tmpdir } from 'os';
 
 export default defineConfig({
   plugins: [react()],
@@ -17,6 +18,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    env: {
+      // Redirect service writes to temp dir so tests don't touch ~/.workforce
+      WORKFORCE_DATA_DIR: path.join(tmpdir(), `workforce-test-${process.pid}`),
+    },
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     environmentMatchGlobs: [
       ['src/ui/**/*.test.tsx', 'jsdom'],

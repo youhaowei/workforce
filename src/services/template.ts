@@ -12,19 +12,19 @@
 
 import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import type {
   AgentTemplate,
   AgentProfile,
   TemplateValidation,
   TemplateService,
 } from './types';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const WORKSPACES_DIR = join(homedir(), '.workforce', 'workspaces');
+const WORKSPACES_DIR = join(getDataDir(), 'workspaces');
 
 // =============================================================================
 // Helpers

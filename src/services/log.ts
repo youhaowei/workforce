@@ -10,8 +10,8 @@
 
 import { mkdir, writeFile, appendFile } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import { getEventBus } from '../shared/event-bus';
+import { getDataDir } from './data-dir';
 
 // ============================================================================
 // Types
@@ -119,7 +119,7 @@ export class LogService {
 
   constructor(options: LogServiceOptions = {}) {
     this.maxEntries = options.maxEntries ?? 1000;
-    this.logDir = options.logDir ?? join(homedir(), '.workforce', 'logs');
+    this.logDir = options.logDir ?? join(getDataDir(), 'logs');
     this.flushIntervalMs = options.flushIntervalMs ?? 5 * 60 * 1000; // 5 minutes
     this.minLevel = options.minLevel ?? 'info';
   }

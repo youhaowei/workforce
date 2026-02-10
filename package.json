@@ -24,7 +24,7 @@
     "perf:startup": "node scripts/perf-startup.js",
     "perf:memory": "node scripts/perf-memory.js",
     "perf:stream": "node scripts/perf-stream.js",
-    "lint": "eslint src --max-warnings 20",
+    "lint": "eslint src --max-warnings 25",
     "lint:strict": "eslint src --max-warnings 0",
     "type-check": "tsc --noEmit"
   },

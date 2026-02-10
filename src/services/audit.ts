@@ -11,15 +11,15 @@
 
 import { readFile, appendFile, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import type { AuditEntry, AuditEntryType, AuditService } from './types';
 import { getEventBus } from '@shared/event-bus';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const DEFAULT_WORKSPACES_DIR = join(homedir(), '.workforce', 'workspaces');
+const DEFAULT_WORKSPACES_DIR = join(getDataDir(), 'workspaces');
 
 // =============================================================================
 // Helpers

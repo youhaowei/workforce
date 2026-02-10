@@ -11,7 +11,6 @@
 
 import { readFile, writeFile, readdir, mkdir, rename, unlink } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import type {
   SessionService,
   Session,
@@ -23,12 +22,13 @@ import type {
 } from './types';
 import { VALID_TRANSITIONS } from './types';
 import { getEventBus } from '@shared/event-bus';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const SESSIONS_DIR = join(homedir(), '.workforce', 'sessions');
+const SESSIONS_DIR = join(getDataDir(), 'sessions');
 const SESSION_VERSION = 1;
 
 // =============================================================================

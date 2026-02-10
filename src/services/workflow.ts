@@ -12,14 +12,14 @@
 
 import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import type { WorkflowTemplate, WorkflowStep, WorkflowService } from './types';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const DEFAULT_WORKSPACES_DIR = join(homedir(), '.workforce', 'workspaces');
+const DEFAULT_WORKSPACES_DIR = join(getDataDir(), 'workspaces');
 
 // =============================================================================
 // Helpers

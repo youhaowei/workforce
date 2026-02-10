@@ -494,6 +494,7 @@ app.get('/events', async (c) => {
 
     stream.onAbort(() => unsubscribe())
 
+    // eslint-disable-next-line no-constant-condition -- intentional SSE keep-alive
     while (true) {
       await stream.sleep(30000)
     }

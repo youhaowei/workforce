@@ -11,15 +11,15 @@
 
 import { readFile, writeFile, readdir, mkdir, rm } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import type { Workspace, WorkspaceSettings, WorkspaceService } from './types';
 import { getEventBus } from '@shared/event-bus';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const WORKSPACES_DIR = join(homedir(), '.workforce', 'workspaces');
+const WORKSPACES_DIR = join(getDataDir(), 'workspaces');
 
 // =============================================================================
 // Helpers

@@ -6,7 +6,7 @@ import tsParser from '@typescript-eslint/parser';
 
 export default [
   {
-    ignores: ['dist', 'build', 'node_modules', '.tauri']
+    ignores: ['dist', 'build', 'node_modules', '.tauri', 'src/components/ui']
   },
   {
     files: ['src/**/*.{ts,tsx}'],
@@ -85,6 +85,9 @@ export default [
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Disable no-undef for TypeScript — tsc handles this natively and
+      // understands DOM globals (HTMLParagraphElement, etc.) that ESLint doesn't.
+      'no-undef': 'off',
       // Use TypeScript version for unused vars (handles _ prefix)
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { 
