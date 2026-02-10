@@ -261,6 +261,15 @@ export interface AuthStatusEvent {
   timestamp: number;
 }
 
+/** Dynamic form definition changed on disk */
+export interface FormDefinitionChangedEvent {
+  type: 'FormDefinitionChanged';
+  workspaceId: string;
+  entity: string;
+  version: string;
+  timestamp: number;
+}
+
 /** Raw SDK message passthrough for advanced use cases */
 export interface RawSdkMessageEvent {
   type: 'RawSdkMessage';
@@ -295,6 +304,7 @@ export type BusEvent =
   | HookResponseEvent
   | TaskNotificationEvent
   | AuthStatusEvent
+  | FormDefinitionChangedEvent
   | RawSdkMessageEvent;
 
 export const EventType = {
@@ -323,6 +333,7 @@ export const EventType = {
   HookResponse: 'HookResponse',
   TaskNotification: 'TaskNotification',
   AuthStatus: 'AuthStatus',
+  FormDefinitionChanged: 'FormDefinitionChanged',
   RawSdkMessage: 'RawSdkMessage',
   Wildcard: '*',
 } as const;

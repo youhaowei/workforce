@@ -54,6 +54,22 @@ export type {
   Todo,
   TodoFilter,
   TodoStatus,
+  Workspace,
+  AgentTemplate,
+  WorkflowTemplate,
+  WorkflowStep,
+  WorkAgentSession,
+  WorkAgentState,
+  ReviewItem,
+  ReviewAction,
+  ReviewStatus,
+  WorkOutput,
+  WorkOutputDecision,
+  WorkOutputStatus,
+  SessionEvent,
+  FieldWidgetType,
+  UiSchema,
+  FormDefinition,
 } from './types';
 
 // Service getters (lazy singletons)
@@ -65,6 +81,10 @@ import { getSkillService, resetSkillService } from './skill';
 import { getHookService, resetHookService } from './hook';
 import { getBackgroundService, resetBackgroundService } from './background';
 import { getTodoService, resetTodoService } from './todo';
+import { getWorkspaceService, resetWorkspaceService } from './workspace';
+import { getDomainService, resetDomainService } from './domain';
+import { getFormDefinitionService, resetFormDefinitionService } from './form-definition';
+import { getStorageAdapter, setStorageAdapter } from './storage';
 
 export {
   getAgentService,
@@ -83,6 +103,14 @@ export {
   resetBackgroundService,
   getTodoService,
   resetTodoService,
+  getWorkspaceService,
+  resetWorkspaceService,
+  getDomainService,
+  resetDomainService,
+  getFormDefinitionService,
+  resetFormDefinitionService,
+  getStorageAdapter,
+  setStorageAdapter,
 };
 
 /**
@@ -98,4 +126,7 @@ export function disposeAllServices(): void {
   resetHookService();
   resetBackgroundService();
   resetTodoService();
+  resetWorkspaceService();
+  resetDomainService();
+  resetFormDefinitionService();
 }

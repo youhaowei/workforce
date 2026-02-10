@@ -5,19 +5,19 @@ test.describe('Sessions Panel', () => {
     await page.goto('/')
   })
 
-  test('History button toggles sessions panel', async ({ page }) => {
-    const historyButton = page.locator('button:has-text("History")')
-    await expect(historyButton).toBeVisible()
+  test('Sessions button toggles sessions panel', async ({ page }) => {
+    const sessionsButton = page.locator('button:has-text("Sessions")')
+    await expect(sessionsButton).toBeVisible()
 
-    await historyButton.click()
+    await sessionsButton.click()
     await expect(page.locator('h2:has-text("Sessions")')).toBeVisible()
 
-    await historyButton.click()
+    await sessionsButton.click()
     await expect(page.locator('h2:has-text("Sessions")')).not.toBeVisible()
   })
 
   test('sessions panel has close button', async ({ page }) => {
-    await page.locator('button:has-text("History")').click()
+    await page.locator('button:has-text("Sessions")').click()
 
     const closeButton = page.locator('button[title="Close"]').first()
     await expect(closeButton).toBeVisible()
@@ -27,7 +27,7 @@ test.describe('Sessions Panel', () => {
   })
 
   test('sessions panel shows content after loading', async ({ page }) => {
-    await page.locator('button:has-text("History")').click()
+    await page.locator('button:has-text("Sessions")').click()
     await expect(page.locator('h2:has-text("Sessions")')).toBeVisible()
     
     const panel = page.locator('.w-80').first()

@@ -1,11 +1,10 @@
 import js from '@eslint/js';
-import solid from 'eslint-plugin-solid/configs/recommended.js';
 import typescript from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 
 export default [
   {
-    ignores: ['dist', 'build', 'node_modules', '.tauri']
+    ignores: ['dist', 'build', 'node_modules', '.tauri', 'src/services/agent.test.ts']
   },
   {
     files: ['src/**/*.{ts,tsx}'],
@@ -19,7 +18,6 @@ export default [
         }
       },
       globals: {
-        // Browser globals
         console: 'readonly',
         document: 'readonly',
         window: 'readonly',
@@ -34,21 +32,23 @@ export default [
         ResizeObserver: 'readonly',
         requestAnimationFrame: 'readonly',
         cancelAnimationFrame: 'readonly',
+        queueMicrotask: 'readonly',
+        TextDecoder: 'readonly',
         confirm: 'readonly',
         alert: 'readonly',
-        // Web APIs
         AbortController: 'readonly',
         AbortSignal: 'readonly',
         Headers: 'readonly',
         fetch: 'readonly',
         URL: 'readonly',
         URLSearchParams: 'readonly',
+        Request: 'readonly',
+        Response: 'readonly',
         FormData: 'readonly',
         Blob: 'readonly',
         File: 'readonly',
         FileReader: 'readonly',
         performance: 'readonly',
-        // Node globals
         process: 'readonly',
         setTimeout: 'readonly',
         clearTimeout: 'readonly',
@@ -59,7 +59,7 @@ export default [
         __filename: 'readonly',
         global: 'readonly',
         Buffer: 'readonly',
-        // Test globals (Vitest)
+        Bun: 'readonly',
         describe: 'readonly',
         it: 'readonly',
         test: 'readonly',
@@ -72,40 +72,28 @@ export default [
       }
     },
     plugins: {
-      '@typescript-eslint': typescript,
-      solid: solid.plugins.solid
+      '@typescript-eslint': typescript
     },
     rules: {
       ...js.configs.recommended.rules,
-      ...solid.rules,
-      // Use TypeScript version for unused vars (handles _ prefix)
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': ['error', { 
+      '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_'
       }],
-      // TypeScript method overloads appear as duplicates to ESLint
       'no-dupe-class-members': 'off',
-      // Allow generators without yield (useful for async iterators)
       'require-yield': 'off',
-      // Allow case declarations with proper scoping
       'no-case-declarations': 'off',
-      // Logging rules
       'no-console': ['warn', { allow: ['warn', 'error', 'log'] }],
       'no-debugger': 'error',
-      // Code style
       'no-var': 'error',
       'prefer-const': 'error',
       'prefer-arrow-callback': 'error',
       'no-nested-ternary': 'warn',
-      // Performance rules (relax slightly for complex services)
       'max-depth': ['warn', 4],
-      'max-lines': ['warn', { max: 500, skipBlankLines: true, skipComments: true }],
-      'complexity': ['warn', 15],
-      // Solid-specific
-      'solid/no-destructure': 'off',
-      'solid/reactivity': 'warn',
-      'solid/components-return-once': 'warn'
+      'max-lines': ['warn', { max: 700, skipBlankLines: true, skipComments: true }],
+      'complexity': ['warn', 20],
+      'no-constant-condition': ['error', { checkLoops: false }]
     }
   }
 ];

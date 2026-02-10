@@ -1,61 +1,30 @@
-/* Fuxi Design System - Harmony Theme */
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* Harmony palette */
-  --cream-50: #FFFCF7;
-  --cream-100: #F8F5EE;
-  --cream-200: #F0EBE0;
-
-  --burgundy-600: #6B1D29;
-  --burgundy-500: #8B2635;
-  --burgundy-400: #A83042;
-
-  --gold-500: #C9A227;
-  --gold-400: #D4B340;
-  --gold-300: #E5C965;
-
-  --sage-600: #3D6B4A;
-  --sage-500: #4A7C59;
-  --sage-400: #5C9469;
-
-  --charcoal-900: #1F2324;
-  --charcoal-800: #2D3436;
-  --charcoal-700: #404546;
-  --charcoal-600: #6B7280;
-
-  /* Semantic tokens */
-  --bg-primary: var(--cream-100);
-  --bg-elevated: #FFFFFF;
-  --bg-hover: var(--cream-200);
-
-  --text-primary: var(--charcoal-800);
-  --text-secondary: var(--charcoal-600);
-  --text-muted: #9CA3AF;
-
-  --accent-primary: var(--burgundy-500);
-  --accent-secondary: var(--gold-500);
-  --accent-tertiary: var(--sage-500);
-
-  --border-subtle: rgba(139, 38, 53, 0.1);
-  --border-visible: rgba(139, 38, 53, 0.2);
-}
-
 @layer base {
-  html, body {
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    @apply border-zinc-200;
+  }
+
+  html,
+  body {
     width: 100%;
     height: 100%;
-    overflow: hidden;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-family: 'Source Sans 3', system-ui, sans-serif;
-    font-weight: 400;
+    margin: 0;
+    background: #f4f4f5;
+    color: #18181b;
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    overflow: hidden;
   }
 
   #root {
@@ -63,275 +32,9 @@
     height: 100%;
   }
 
-  /* Custom scrollbar - subtle burgundy accent */
-  ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: rgba(139, 38, 53, 0.15);
-    border-radius: 3px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background: rgba(139, 38, 53, 0.25);
-  }
-
-  /* Selection color - gold accent */
-  ::selection {
-    background: var(--gold-500);
-    color: white;
-  }
-}
-
-@layer components {
-  /* Subtle cross pattern texture */
-  .harmony-texture {
-    position: relative;
-  }
-
-  .harmony-texture::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0.02;
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  }
-
-  /* Streaming text cursor - burgundy */
-  .streaming-cursor::after {
-    content: '▋';
-    display: inline-block;
-    color: var(--burgundy-500);
-    animation: cursor-blink 0.8s ease-in-out infinite;
-    margin-left: 2px;
-  }
-
-  @keyframes cursor-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-
-  /* Message bubbles */
-  .message-user {
-    background: white;
-    border: 1px solid var(--border-subtle);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-  }
-
-  .message-assistant {
-    background: linear-gradient(135deg, rgba(139, 38, 53, 0.03) 0%, rgba(201, 162, 39, 0.02) 100%);
-    border-left: 3px solid var(--burgundy-500);
-  }
-
-  /* Status indicator */
-  .status-idle {
-    background: var(--charcoal-600);
-    opacity: 0.4;
-  }
-
-  .status-active {
-    background: var(--sage-500);
-    box-shadow: 0 0 8px var(--sage-500);
-    animation: pulse-soft 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse-soft {
-    0%, 100% { box-shadow: 0 0 8px rgba(74, 124, 89, 0.4); }
-    50% { box-shadow: 0 0 16px rgba(74, 124, 89, 0.6); }
-  }
-
-  /* Yin-yang logo container */
-  .logo-container {
-    transition: transform 0.7s ease;
-  }
-
-  .logo-container:hover {
-    transform: rotate(180deg);
-  }
-
-  /* Card hover lift effect */
-  .card-lift {
-    transition: all 0.3s ease;
-  }
-
-  .card-lift:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
-  }
-
-  /* Golden accent line that expands on hover */
-  .accent-line-gold {
-    position: relative;
-  }
-
-  .accent-line-gold::after {
-    content: '';
-    position: absolute;
-    bottom: -4px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 2px;
-    background: var(--gold-500);
-    border-radius: 1px;
-    transition: width 0.3s ease;
-  }
-
-  .accent-line-gold:hover::after,
-  .accent-line-gold.active::after {
-    width: 24px;
-  }
-
-  /* Markdown content styling */
-  .markdown-content {
-    line-height: 1.6;
-  }
-
-  .markdown-content p {
-    margin-bottom: 0.75em;
-  }
-
-  .markdown-content p:last-child {
-    margin-bottom: 0;
-  }
-
-  .markdown-content strong {
-    font-weight: 600;
-  }
-
-  .markdown-content em {
-    font-style: italic;
-  }
-
-  .markdown-content code {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.875em;
-    background: rgba(139, 38, 53, 0.08);
-    padding: 0.15em 0.4em;
-    border-radius: 4px;
-  }
-
-  .markdown-content pre {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.8125em;
-    background: var(--charcoal-800);
-    color: var(--cream-100);
-    padding: 1em;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin: 0.75em 0;
-  }
-
-  .markdown-content pre code {
-    background: transparent;
-    padding: 0;
-    font-size: inherit;
-  }
-
-  .markdown-content h1, .markdown-content h2, .markdown-content h3,
-  .markdown-content h4, .markdown-content h5, .markdown-content h6 {
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 600;
-    margin-top: 1em;
-    margin-bottom: 0.5em;
-    color: var(--charcoal-800);
-  }
-
-  .markdown-content h1 { font-size: 1.5em; }
-  .markdown-content h2 { font-size: 1.25em; }
-  .markdown-content h3 { font-size: 1.125em; }
-
-  .markdown-content ul, .markdown-content ol {
-    margin: 0.5em 0;
-    padding-left: 1.5em;
-  }
-
-  .markdown-content li {
-    margin: 0.25em 0;
-  }
-
-  .markdown-content ul li {
-    list-style-type: disc;
-  }
-
-  .markdown-content ol li {
-    list-style-type: decimal;
-  }
-
-  .markdown-content blockquote {
-    border-left: 3px solid var(--burgundy-500);
-    padding-left: 1em;
-    margin: 0.75em 0;
-    color: var(--charcoal-600);
-    font-style: italic;
-  }
-
-  .markdown-content a {
-    color: var(--burgundy-500);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-
-  .markdown-content a:hover {
-    color: var(--burgundy-600);
-  }
-
-  .markdown-content hr {
-    border: none;
-    border-top: 1px solid var(--border-subtle);
-    margin: 1em 0;
-  }
-
-  .markdown-content table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0.75em 0;
-    font-size: 0.875em;
-  }
-
-  .markdown-content th, .markdown-content td {
-    border: 1px solid var(--border-subtle);
-    padding: 0.5em 0.75em;
-    text-align: left;
-  }
-
-  .markdown-content th {
-    background: var(--cream-100);
-    font-weight: 600;
-  }
-
-  .markdown-content input[type="checkbox"] {
-    margin-right: 0.5em;
-  }
-}
-
-@layer utilities {
-  .text-gradient-burgundy {
-    background: linear-gradient(135deg, var(--burgundy-400) 0%, var(--burgundy-600) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .text-gradient-gold {
-    background: linear-gradient(135deg, var(--gold-300) 0%, var(--gold-500) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .border-burgundy-subtle {
-    border-color: rgba(139, 38, 53, 0.15);
-  }
-
-  .bg-gradient-harmony {
-    background: linear-gradient(180deg, var(--cream-50) 0%, var(--cream-100) 100%);
+  code,
+  pre {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+      monospace;
   }
 }

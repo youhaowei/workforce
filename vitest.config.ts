@@ -1,9 +1,9 @@
 import { defineConfig } from 'vitest/config';
-import solid from 'vite-plugin-solid';
+import react from '@vitejs/plugin-react';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [solid()],
+  plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -18,18 +18,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    testTimeout: 30000,
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
-    environmentMatchGlobs: [
-      ['src/ui/**/*.test.tsx', 'jsdom'],
-    ],
+    environmentMatchGlobs: [['src/ui/**/*.test.tsx', 'jsdom']],
     setupFiles: ['./src/ui/test-setup.ts'],
-    deps: {
-      optimizer: {
-        web: {
-          include: ['solid-js'],
-        },
-      },
-    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

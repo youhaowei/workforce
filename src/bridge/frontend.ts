@@ -1,49 +1,54 @@
-const BASE_URL = 'http://localhost:4096'
+import { trpcClient, BASE_URL } from './trpc';
 
 export async function initBridge(): Promise<void> {
-  const maxRetries = 10
+  const maxRetries = 10;
   for (let i = 0; i < maxRetries; i++) {
     try {
-      const res = await fetch(`${BASE_URL}/health`)
+      const res = await fetch(`${BASE_URL}/health`);
       if (res.ok) {
-        console.log('[Bridge] Connected to server')
-        return
+        console.log('[Bridge] Connected to server');
+        return;
       }
     } catch {
-      console.warn(`[Bridge] Server not available, retry ${i + 1}/${maxRetries}...`)
+      console.warn(`[Bridge] Server not available, retry ${i + 1}/${maxRetries}...`);
     }
-    await new Promise((r) => setTimeout(r, 500))
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
-  throw new Error('Failed to connect to server')
+  throw new Error('Failed to connect to server');
 }
 
+/**
+ * Legacy action shim backed by tRPC procedures.
+ * Non-streaming calls are routed through typed RPC.
+ */
 export async function sendAction<T = unknown>(action: string, payload?: unknown): Promise<T> {
-  const routes: Record<string, { method: string; path: string | ((p: unknown) => string) }> = {
-    'cancel': { method: 'POST', path: '/cancel' },
-    'session:list': { method: 'GET', path: '/session' },
-    'session:create': { method: 'POST', path: '/session' },
-    'session:resume': { method: 'POST', path: (p) => `/session/${(p as { sessionId: string }).sessionId}/resume` },
-    'session:fork': { method: 'POST', path: (p) => `/session/${(p as { sessionId: string }).sessionId}/fork` },
-    'session:delete': { method: 'DELETE', path: (p) => `/session/${(p as { sessionId: string }).sessionId}` },
+  switch (action) {
+    case 'cancel':
+      await trpcClient.stream.cancel.mutate();
+      return { ok: true } as T;
+
+    case 'session:list':
+      return (await trpcClient.sessions.list.query()) as T;
+
+    case 'session:create': {
+      const created = await trpcClient.sessions.create.mutate();
+      return ({ sessionId: created.id } as T);
+    }
+
+    case 'session:resume':
+      return (await trpcClient.sessions.resume.mutate(payload as { sessionId: string })) as T;
+
+    case 'session:fork':
+      return (await trpcClient.sessions.fork.mutate(payload as { sessionId: string })) as T;
+
+    case 'session:delete': {
+      await trpcClient.sessions.delete.mutate(payload as { sessionId: string });
+      return { ok: true } as T;
+    }
+
+    default:
+      throw new Error(`Unknown action: ${action}`);
   }
-
-  const route = routes[action]
-  if (!route) throw new Error(`Unknown action: ${action}`)
-
-  const path = typeof route.path === 'function' ? route.path(payload) : route.path
-  const url = `${BASE_URL}${path}`
-
-  const res = await fetch(url, {
-    method: route.method,
-    headers: route.method !== 'GET' ? { 'Content-Type': 'application/json' } : undefined,
-    body: route.method !== 'GET' && payload ? JSON.stringify(payload) : undefined,
-  })
-
-  if (!res.ok) {
-    throw new Error(`Action failed: ${res.statusText}`)
-  }
-
-  return res.json() as Promise<T>
 }
 
 export function streamQuery(
@@ -52,112 +57,72 @@ export function streamQuery(
   onDone: () => void,
   onError: (err: string) => void
 ): () => void {
-  const controller = new AbortController()
+  let cancelled = false;
+  let completed = false;
 
-  console.log('[streamQuery] Starting query:', prompt)
+  const subscription = trpcClient.stream.query.subscribe(
+    { prompt },
+    {
+      onData(event: unknown) {
+        if (cancelled || completed) return;
 
-  fetch(`${BASE_URL}/query`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt }),
-    signal: controller.signal,
-  }).then(async (res) => {
-    console.log('[streamQuery] Response status:', res.status, res.ok)
-    if (!res.ok || !res.body) {
-      console.error('[streamQuery] Failed to start stream:', res.status)
-      onError('Failed to start stream')
-      return
-    }
+        if (!event || typeof event !== 'object' || !('type' in event)) return;
+        const streamEvent = event as
+          | { type: 'token'; token: string }
+          | { type: 'done' }
+          | { type: 'error'; message: string };
 
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let tokenCount = 0
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) {
-        console.log('[streamQuery] Stream ended, total tokens:', tokenCount)
-        break
-      }
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]
-        if (line.startsWith('event: error')) {
-          const nextLine = lines[i + 1]
-          const errorMsg = nextLine?.startsWith('data:')
-            ? nextLine.slice(5).trim()
-            : 'Unknown error'
-          console.error('[streamQuery] Stream error:', errorMsg)
-          onError(errorMsg || 'Stream error')
-          return
-        } else if (line.startsWith('event: done')) {
-          console.log('[streamQuery] Received done event, total tokens:', tokenCount)
-          onDone()
-          return
-        } else if (line.startsWith('data:')) {
-          // SSE format: "data: <content>" or "data:<content>"
-          // Remove "data:" prefix, then the optional single SSE space
-          const afterPrefix = line.slice(5)
-          // SSE spec: single space after "data:" is format, not content
-          const data = afterPrefix.startsWith(' ') ? afterPrefix.slice(1) : afterPrefix
-          // Preserve ALL whitespace in tokens - agent whitespace is intentional
-          tokenCount++
-          if (tokenCount <= 5) console.log('[streamQuery] Token:', JSON.stringify(data))
-          onToken(data)
+        switch (streamEvent.type) {
+          case 'token':
+            onToken(streamEvent.token);
+            return;
+          case 'done':
+            completed = true;
+            onDone();
+            return;
+          case 'error':
+            completed = true;
+            onError(streamEvent.message);
+            return;
         }
-      }
+      },
+      onError(err) {
+        if (cancelled || completed) return;
+        completed = true;
+        onError(err.message);
+      },
+      onComplete() {
+        if (cancelled || completed) return;
+        completed = true;
+        onDone();
+      },
     }
-    onDone()
-  }).catch((err) => {
-    console.error('[streamQuery] Fetch error:', err)
-    if (err.name !== 'AbortError') {
-      onError(err.message)
-    }
-  })
+  );
 
-  return () => controller.abort()
+  return () => {
+    cancelled = true;
+    subscription.unsubscribe();
+    void trpcClient.stream.cancel.mutate().catch(() => {
+      // best effort in case stream subscription already stopped
+    });
+  };
 }
 
 export async function subscribeToEvents(
   onEvent: (event: unknown) => void
 ): Promise<() => void> {
-  const controller = new AbortController()
+  const subscription = trpcClient.stream.events.subscribe(undefined, {
+    onData(event) {
+      onEvent(event);
+    },
+    onError() {
+      // event stream is best-effort
+    },
+  });
 
-  fetch(`${BASE_URL}/events`, { signal: controller.signal })
-    .then(async (res) => {
-      if (!res.body) return
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || ''
-
-        for (const line of lines) {
-          if (line.startsWith('data:')) {
-            const data = line.slice(5).trim()
-            if (data) {
-              try {
-                onEvent(JSON.parse(data))
-              } catch {}
-            }
-          }
-        }
-      }
-    })
-    .catch(() => {})
-
-  return () => controller.abort()
+  return () => {
+    subscription.unsubscribe();
+  };
 }
 
-export const isBridgeInitialized = true
+export const isBridgeInitialized = true;

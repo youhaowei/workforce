@@ -165,6 +165,11 @@ export interface SessionService extends Disposable {
   delete(sessionId: string): Promise<void>;
 
   /**
+   * Append a message to a session.
+   */
+  addMessage(sessionId: string, message: Message): Promise<void>;
+
+  /**
    * Get the current active session.
    */
   getCurrent(): Session | null;
@@ -534,4 +539,153 @@ export interface TodoService extends Disposable {
    * Flush changes to disk.
    */
   flush(): Promise<void>;
+}
+
+// =============================================================================
+// MVP Domain Types (P0)
+// =============================================================================
+
+export interface Workspace {
+  id: string;
+  name: string;
+  rootPath: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AgentTemplate {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description: string;
+  skills: string[];
+  tools: string[];
+  constraints: string[];
+  reasoningIntensity: 'low' | 'medium' | 'high';
+  archived: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface WorkflowStep {
+  id: string;
+  name: string;
+  templateId?: string;
+  dependsOn: string[];
+  parallelGroup?: string;
+  reviewGate?: boolean;
+  config?: Record<string, unknown>;
+}
+
+export interface WorkflowTemplate {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description: string;
+  steps: WorkflowStep[];
+  archived: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type WorkAgentState =
+  | 'created'
+  | 'active'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
+
+export interface WorkAgentSession {
+  id: string;
+  workspaceId: string;
+  title: string;
+  goal: string;
+  state: WorkAgentState;
+  parentId?: string;
+  childIds: string[];
+  workflowId?: string;
+  templateId?: string;
+  progress: number;
+  pauseReason?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type ReviewAction = 'approve' | 'reject' | 'request_edit' | 'clarification';
+export type ReviewStatus = 'pending' | 'resolved';
+
+export interface ReviewItem {
+  id: string;
+  workspaceId: string;
+  sourceAgentId: string;
+  workflowId?: string;
+  summary: string;
+  recommendation?: string;
+  status: ReviewStatus;
+  resolutionAction?: ReviewAction;
+  resolutionNote?: string;
+  createdAt: number;
+  resolvedAt?: number;
+}
+
+export type WorkOutputDecision = 'merge' | 'keep' | 'archive';
+export type WorkOutputStatus = 'pending' | 'merged' | 'kept' | 'archived';
+
+export interface WorkOutput {
+  id: string;
+  workspaceId: string;
+  agentId: string;
+  branchName: string;
+  worktreePath: string;
+  status: WorkOutputStatus;
+  decision?: WorkOutputDecision;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface SessionEvent {
+  id: string;
+  workspaceId: string;
+  stream: string;
+  entityId: string;
+  action: string;
+  payload: Record<string, unknown>;
+  timestamp: number;
+}
+
+export type FieldWidgetType =
+  | 'text'
+  | 'textarea'
+  | 'select'
+  | 'multiselect'
+  | 'number'
+  | 'checkbox'
+  | 'switch'
+  | 'tags'
+  | 'json';
+
+export interface UiSchemaField {
+  widget?: FieldWidgetType;
+  label?: string;
+  description?: string;
+  placeholder?: string;
+  section?: string;
+  order?: number;
+  options?: Array<{ label: string; value: string }>;
+}
+
+export interface UiSchema {
+  title?: string;
+  description?: string;
+  order?: string[];
+  fields: Record<string, UiSchemaField>;
+}
+
+export interface FormDefinition {
+  entity: string;
+  schema: Record<string, unknown>;
+  uiSchema: UiSchema;
+  version: string;
+  updatedAt: number;
 }
