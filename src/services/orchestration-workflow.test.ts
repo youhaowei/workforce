@@ -176,6 +176,7 @@ describe('executeWorkflow (regression)', () => {
       templateService,
       worktreeService,
       workflowService,
+      undefined,
       reviewService
     );
 
@@ -203,6 +204,48 @@ describe('executeWorkflow (regression)', () => {
     reviewService.dispose();
   });
 
+  it('should execute parallel_group by running child steps concurrently', async () => {
+    const wf = makeWorkflow([
+      { id: 'a1', name: 'Agent 1', type: 'agent', templateId: 'tpl_test', dependsOn: [], goal: 'First' },
+      { id: 'a2', name: 'Agent 2', type: 'agent', templateId: 'tpl_test', dependsOn: [], goal: 'Second' },
+      { id: 'pg', name: 'Parallel', type: 'parallel_group', dependsOn: [], parallelStepIds: ['a1', 'a2'] },
+    ]);
+
+    workflowService.dispose();
+    // Return parallel_group as a single batch (the child steps are expanded at runtime)
+    workflowService = createMockWorkflowService([wf]);
+    // Override getExecutionOrder to only return the parallel_group step
+    workflowService.getExecutionOrder = async (_wsId: string, workflowId: string) => {
+      // Only the parallel_group appears in the execution order; children are expanded
+      const wfInner = await workflowService.get(_wsId, workflowId);
+      if (!wfInner) throw new Error('Workflow not found');
+      return [['pg']];
+    };
+
+    service.dispose();
+    service = createOrchestrationService(
+      sessionService,
+      templateService,
+      worktreeService,
+      workflowService
+    );
+
+    const parentSession = await service.executeWorkflow('wf_reg', 'ws_1');
+
+    // Wait for all async agents to complete
+    await new Promise((r) => setTimeout(r, 100));
+
+    const children = await sessionService.getChildren(parentSession.id);
+    // Should have 2 child agent sessions (spawned by the parallel_group)
+    expect(children.length).toBe(2);
+
+    // Parent workflow should complete
+    const parentState = await sessionService.get(parentSession.id);
+    const meta = parentState?.metadata as Record<string, unknown>;
+    const lifecycle = meta?.lifecycle as { state: string };
+    expect(lifecycle.state).toBe('completed');
+  });
+
   it('should fail workflow when review gate is rejected', async () => {
     const reviewService = createMockReviewService();
 
@@ -219,6 +262,7 @@ describe('executeWorkflow (regression)', () => {
       templateService,
       worktreeService,
       workflowService,
+      undefined,
       reviewService
     );
 

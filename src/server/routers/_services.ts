@@ -12,6 +12,7 @@ import { createAuditService } from '@services/audit';
 import { getSessionService } from '@services/session';
 import { getTemplateService } from '@services/template';
 import { getWorktreeService } from '@services/worktree';
+import { getWorkspaceService } from '@services/workspace';
 
 let _workflowService: ReturnType<typeof createWorkflowService> | null = null;
 export function getWorkflowService() {
@@ -26,6 +27,7 @@ export function getOrchestrationService() {
       getTemplateService(),
       getWorktreeService(),
       getWorkflowService(),
+      getWorkspaceService(),
       getReviewService(),
     );
   }

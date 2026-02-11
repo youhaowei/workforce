@@ -9,6 +9,8 @@ import type {
   TemplateService,
   WorktreeService,
   WorkflowService,
+  WorkspaceService,
+  Workspace,
   ReviewService,
   ReviewItem,
   ReviewAction,
@@ -193,6 +195,39 @@ export function createMockWorkflowService(workflows: WorkflowTemplate[] = []): W
       return wf.steps.map((s) => [s.id]);
     },
     dispose() {},
+  };
+}
+
+export function createMockWorkspaceService(workspaces: Workspace[] = []): WorkspaceService {
+  const map = new Map(workspaces.map((w) => [w.id, w]));
+  let current: Workspace | null = null;
+
+  return {
+    async create(name: string, rootPath: string) {
+      const ws: Workspace = {
+        id: `ws_${++_idCounter}`,
+        name,
+        rootPath,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        settings: { allowedTools: [] },
+      };
+      map.set(ws.id, ws);
+      return ws;
+    },
+    async get(id: string) { return map.get(id) ?? null; },
+    async update(id: string, updates: Partial<Omit<Workspace, 'id' | 'createdAt'>>) {
+      const ws = map.get(id);
+      if (!ws) throw new Error('Workspace not found');
+      const updated = { ...ws, ...updates, id: ws.id, createdAt: ws.createdAt, updatedAt: Date.now() };
+      map.set(id, updated);
+      return updated;
+    },
+    async list() { return Array.from(map.values()); },
+    async delete(id: string) { map.delete(id); },
+    getCurrent: () => current,
+    setCurrent: (ws: Workspace | null) => { current = ws; },
+    dispose() { map.clear(); current = null; },
   };
 }
 

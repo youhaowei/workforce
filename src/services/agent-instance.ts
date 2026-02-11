@@ -63,6 +63,8 @@ export interface AgentInstanceOptions {
   cwd: string;
   systemPrompt?: string;
   env?: Record<string, string | undefined>;
+  /** Workspace-level tool allowlist — passed to SDK if non-empty */
+  allowedTools?: string[];
 }
 
 /**
@@ -97,12 +99,16 @@ export class AgentInstance {
         ? `${this.options.systemPrompt}\n\n${prompt}`
         : prompt;
 
-      const sdkOptions = {
+      const sdkOptions: Record<string, unknown> = {
         abortController: this.abortController,
         cwd: this.options.cwd,
         env: this.options.env ?? buildSdkEnv(),
         includePartialMessages: true,
       };
+
+      if (this.options.allowedTools?.length) {
+        sdkOptions.allowedTools = this.options.allowedTools;
+      }
 
       const queryStream = sdkQuery({ prompt: fullPrompt, options: sdkOptions });
 

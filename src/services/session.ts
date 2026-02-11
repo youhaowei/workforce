@@ -402,6 +402,7 @@ class SessionServiceImpl implements SessionService {
         workflowStepIndex: config.workflowStepIndex,
         worktreePath: config.worktreePath,
         workspaceId: config.workspaceId,
+        repoRoot: config.repoRoot,
       },
     };
 

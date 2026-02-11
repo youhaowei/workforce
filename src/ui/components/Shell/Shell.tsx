@@ -28,8 +28,6 @@ import { useWorkspaceStore } from '@ui/stores/useWorkspaceStore';
 import { useTRPC } from '@bridge/react';
 import { trpc as trpcClient } from '@bridge/trpc';
 import { getEventBus } from '@shared/event-bus';
-import type { Session } from '@services/types';
-
 import AppHeader from './AppHeader';
 import StatusBar from './StatusBar';
 
@@ -48,7 +46,7 @@ async function checkServerConnection(): Promise<boolean> {
 
 function ShellContent() {
   const [currentView, setCurrentView] = useState<ViewType>('board');
-  const [selectedAgent, setSelectedAgent] = useState<Session | null>(null);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [todoPanelOpen, setTodoPanelOpen] = useState(false);
   const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
@@ -78,13 +76,13 @@ function ShellContent() {
     }
   }, [currentWorkspace, workspaceId, setCurrentWorkspaceId]);
 
-  const navigateToDetail = useCallback((session: Session) => {
-    setSelectedAgent(session);
+  const navigateToDetail = useCallback((sessionId: string) => {
+    setSelectedAgentId(sessionId);
     setCurrentView('detail');
   }, []);
 
   const navigateBack = useCallback(() => {
-    setSelectedAgent(null);
+    setSelectedAgentId(null);
     setCurrentView('board');
   }, []);
 
@@ -166,8 +164,8 @@ function ShellContent() {
       case 'queue':
         return <ReviewQueue />;
       case 'detail':
-        return selectedAgent ? (
-          <AgentDetailView session={selectedAgent} onBack={navigateBack} onNavigateToChild={navigateToDetail} />
+        return selectedAgentId ? (
+          <AgentDetailView sessionId={selectedAgentId} onBack={navigateBack} onNavigateToChild={navigateToDetail} />
         ) : null;
       case 'chat':
         return (

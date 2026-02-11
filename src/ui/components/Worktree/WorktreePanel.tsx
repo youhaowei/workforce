@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { GitBranch, GitMerge, Archive, ChevronDown, ChevronRight } from 'lucide-react';
+import { GitBranch, GitMerge, Archive, Clock, ChevronDown, ChevronRight } from 'lucide-react';
 import { DiffViewer } from './DiffViewer';
 import { MergeDialog } from './MergeDialog';
 
@@ -43,6 +43,15 @@ export function WorktreePanel({ sessionId }: WorktreePanelProps) {
     }),
   );
 
+  const keepMutation = useMutation(
+    trpc.worktree.keep.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['worktree'] });
+        queryClient.invalidateQueries({ queryKey: ['session'] });
+      },
+    }),
+  );
+
   if (isError || !worktree) return null;
 
   return (
@@ -57,21 +66,30 @@ export function WorktreePanel({ sessionId }: WorktreePanelProps) {
             </div>
             <div className="flex gap-1.5">
               {worktree.status === 'active' && (
-                <Button size="sm" variant="default" onClick={() => setMergeOpen(true)}>
-                  <GitMerge className="h-3 w-3 mr-1" />
-                  Merge
-                </Button>
-              )}
-              {worktree.status === 'active' && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => archiveMutation.mutate({ sessionId })}
-                  disabled={archiveMutation.isPending}
-                >
-                  <Archive className="h-3 w-3 mr-1" />
-                  Archive
-                </Button>
+                <>
+                  <Button size="sm" variant="default" onClick={() => setMergeOpen(true)}>
+                    <GitMerge className="h-3 w-3 mr-1" />
+                    Merge
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => keepMutation.mutate({ sessionId })}
+                    disabled={keepMutation.isPending}
+                  >
+                    <Clock className="h-3 w-3 mr-1" />
+                    Keep
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => archiveMutation.mutate({ sessionId })}
+                    disabled={archiveMutation.isPending}
+                  >
+                    <Archive className="h-3 w-3 mr-1" />
+                    Archive
+                  </Button>
+                </>
               )}
             </div>
           </div>

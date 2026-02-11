@@ -14,7 +14,7 @@ import type { Session, SessionLifecycle } from '@services/types';
 
 interface AgentOverviewProps {
   session: Session;
-  onChildClick?: (child: Session) => void;
+  onChildClick?: (childSessionId: string) => void;
 }
 
 export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
@@ -111,7 +111,7 @@ export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
                   <Card
                     key={child.id}
                     className="cursor-pointer hover:shadow-sm transition-shadow"
-                    onClick={() => onChildClick?.(child)}
+                    onClick={() => onChildClick?.(child.id)}
                   >
                     <CardContent className="p-3 flex items-center gap-3">
                       <Badge variant={stateVariant(childState)} className="text-[10px] shrink-0">

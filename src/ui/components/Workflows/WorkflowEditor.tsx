@@ -177,6 +177,7 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
                     key={step.id}
                     step={step}
                     index={i}
+                    allSteps={steps}
                     onChange={(s) => updateStep(i, s)}
                     onDelete={() => deleteStep(i)}
                   />

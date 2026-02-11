@@ -13,6 +13,8 @@ import type {
   TemplateService,
   WorktreeService,
   WorkflowService,
+  WorkspaceService,
+  Workspace,
   WorkflowTemplate,
 } from './types';
 import {
@@ -21,6 +23,7 @@ import {
   createMockTemplateService,
   createMockWorktreeService,
   createMockWorkflowService,
+  createMockWorkspaceService,
 } from './__test__/orchestration-helpers';
 
 // =============================================================================
@@ -77,7 +80,17 @@ describe('OrchestrationService', () => {
   let templateService: TemplateService;
   let worktreeService: WorktreeService;
   let workflowService: WorkflowService;
+  let workspaceService: WorkspaceService;
   let service: OrchestrationService;
+
+  const defaultWorkspace: Workspace = {
+    id: 'ws_1',
+    name: 'Test Workspace',
+    rootPath: '/projects/test-repo',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    settings: { allowedTools: [] },
+  };
 
   beforeEach(() => {
     resetIdCounter();
@@ -86,11 +99,13 @@ describe('OrchestrationService', () => {
     templateService = createMockTemplateService();
     worktreeService = createMockWorktreeService();
     workflowService = createMockWorkflowService();
+    workspaceService = createMockWorkspaceService([defaultWorkspace]);
     service = createOrchestrationService(
       sessionService,
       templateService,
       worktreeService,
-      workflowService
+      workflowService,
+      workspaceService
     );
   });
 
@@ -100,6 +115,7 @@ describe('OrchestrationService', () => {
     templateService.dispose();
     worktreeService.dispose();
     workflowService.dispose();
+    workspaceService.dispose();
   });
 
   describe('spawn', () => {
@@ -170,6 +186,57 @@ describe('OrchestrationService', () => {
       // Check session metadata has worktree path
       const meta = session.metadata as Record<string, unknown>;
       expect(meta.worktreePath).toBeTruthy();
+    });
+
+    it('should use workspace.rootPath for worktree isolation instead of cwd', async () => {
+      const session = await service.spawn({
+        templateId: 'tpl_test',
+        goal: 'Isolated task',
+        workspaceId: 'ws_1',
+        isolateWorktree: true,
+      });
+
+      // The worktree should have been created with workspace rootPath
+      const wt = worktreeService.getForSession(session.id);
+      expect(wt).not.toBeNull();
+      expect(wt!.repoRoot).toBe('/projects/test-repo');
+
+      // Session metadata should also have repoRoot
+      const meta = session.metadata as Record<string, unknown>;
+      expect(meta.repoRoot).toBe('/projects/test-repo');
+    });
+
+    it('should pass allowedTools from workspace settings to agent', async () => {
+      // Create workspace with allowed tools
+      const restrictedWs: Workspace = {
+        id: 'ws_restricted',
+        name: 'Restricted',
+        rootPath: '/projects/restricted',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        settings: { allowedTools: ['bash', 'read'] },
+      };
+      workspaceService.dispose();
+      workspaceService = createMockWorkspaceService([defaultWorkspace, restrictedWs]);
+      service.dispose();
+      service = createOrchestrationService(
+        sessionService,
+        templateService,
+        worktreeService,
+        workflowService,
+        workspaceService
+      );
+
+      const session = await service.spawn({
+        templateId: 'tpl_test',
+        goal: 'Restricted task',
+        workspaceId: 'ws_restricted',
+      });
+
+      // Session should be created successfully
+      expect(session.id).toBeTruthy();
+      const meta = session.metadata as Record<string, unknown>;
+      expect(meta.repoRoot).toBe('/projects/restricted');
     });
 
     it('should eventually transition to completed after agent finishes', async () => {
@@ -346,7 +413,9 @@ describe('OrchestrationService', () => {
       const serviceNoWf = createOrchestrationService(
         sessionService,
         templateService,
-        worktreeService
+        worktreeService,
+        undefined,
+        workspaceService
       );
 
       await expect(
@@ -382,7 +451,8 @@ describe('OrchestrationService', () => {
         sessionService,
         templateService,
         worktreeService,
-        workflowService
+        workflowService,
+        workspaceService
       );
 
       const parentSession = await service.executeWorkflow('wf_exec', 'ws_1');

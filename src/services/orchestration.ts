@@ -21,6 +21,7 @@ import type {
   TemplateService,
   WorktreeService,
   WorkflowService,
+  WorkspaceService,
   ReviewService,
   ReviewAction,
 } from './types';
@@ -40,6 +41,7 @@ class OrchestrationServiceImpl implements OrchestrationService {
     private templateService: TemplateService,
     private worktreeService: WorktreeService,
     private workflowService: WorkflowService | null,
+    private workspaceService: WorkspaceService | null = null,
     private reviewService: ReviewService | null = null
   ) {}
 
@@ -52,6 +54,12 @@ class OrchestrationServiceImpl implements OrchestrationService {
       throw new Error(`Template not found: ${templateId}`);
     }
 
+    // 1b. Fetch workspace to get rootPath and settings
+    const workspace = this.workspaceService
+      ? await this.workspaceService.get(workspaceId)
+      : null;
+    const repoRoot = workspace?.rootPath ?? process.cwd();
+
     // 2. Create WorkAgent session
     const session = await this.sessionService.createWorkAgent({
       templateId,
@@ -59,6 +67,7 @@ class OrchestrationServiceImpl implements OrchestrationService {
       workspaceId,
       workflowId: options.workflowId,
       workflowStepIndex: options.workflowStepIndex,
+      repoRoot,
     });
 
     // Set parentId if provided
@@ -68,11 +77,8 @@ class OrchestrationServiceImpl implements OrchestrationService {
     }
 
     // 3. Create worktree if requested
-    let cwd = process.cwd();
+    let cwd = repoRoot;
     if (isolateWorktree) {
-      const workspace = session.metadata as Record<string, unknown>;
-      const repoRoot = (workspace.repoRoot as string) ?? process.cwd();
-
       const worktreeInfo = await this.worktreeService.create(session.id, repoRoot);
       cwd = worktreeInfo.path;
 
@@ -84,8 +90,13 @@ class OrchestrationServiceImpl implements OrchestrationService {
     // 4. Compose system prompt from template
     const systemPrompt = this.buildSystemPrompt(template.systemPrompt, template.constraints, goal);
 
-    // 5. Create agent instance
-    const instance = new AgentInstance(session.id, { cwd, systemPrompt });
+    // 5. Create agent instance — pass allowed tools from workspace settings
+    const allowedTools = workspace?.settings.allowedTools;
+    const instance = new AgentInstance(session.id, {
+      cwd,
+      systemPrompt,
+      allowedTools: allowedTools?.length ? allowedTools : undefined,
+    });
     this.instances.set(session.id, instance);
 
     // 6. Transition to active
@@ -150,10 +161,22 @@ class OrchestrationServiceImpl implements OrchestrationService {
 
     // Re-create agent instance and restart
     const goal = (metadata.goal as string) ?? '';
-    const cwd = (metadata.worktreePath as string) ?? process.cwd();
+    const cwd = (metadata.worktreePath as string)
+      ?? (metadata.repoRoot as string)
+      ?? process.cwd();
     const systemPrompt = (metadata.systemPrompt as string) ?? undefined;
 
-    const instance = new AgentInstance(sessionId, { cwd, systemPrompt });
+    // Re-fetch workspace settings for allowedTools
+    const wsId = metadata.workspaceId as string | undefined;
+    let allowedTools: string[] | undefined;
+    if (wsId && this.workspaceService) {
+      const workspace = await this.workspaceService.get(wsId);
+      if (workspace?.settings.allowedTools.length) {
+        allowedTools = workspace.settings.allowedTools;
+      }
+    }
+
+    const instance = new AgentInstance(sessionId, { cwd, systemPrompt, allowedTools });
     this.instances.set(sessionId, instance);
 
     this.runAgent(sessionId, goal);
@@ -329,59 +352,70 @@ class OrchestrationServiceImpl implements OrchestrationService {
    */
   private async runWorkflow(
     parentSessionId: string,
-    workflow: { id: string; steps: Array<{ id: string; type: string; templateId?: string; goal?: string; reviewPrompt?: string }> },
+    workflow: { id: string; steps: Array<{ id: string; type: string; templateId?: string; goal?: string; reviewPrompt?: string; parallelStepIds?: string[] }> },
     batches: string[][],
     workspaceId: string
   ): Promise<void> {
     try {
       const stepMap = new Map(workflow.steps.map((s) => [s.id, s]));
+      const executedSteps = new Set<string>();
+
+      const executeStep = async (stepId: string) => {
+        // Deduplicate: parallel_group children may also appear in batches
+        if (executedSteps.has(stepId)) return;
+        executedSteps.add(stepId);
+
+        const step = stepMap.get(stepId);
+        if (!step) return;
+
+        switch (step.type) {
+          case 'agent': {
+            if (!step.templateId) break;
+            const stepIndex = workflow.steps.findIndex((s) => s.id === stepId);
+            await this.spawn({
+              templateId: step.templateId,
+              goal: step.goal ?? `Workflow step: ${step.id}`,
+              parentSessionId,
+              workspaceId,
+              workflowId: workflow.id,
+              workflowStepIndex: stepIndex >= 0 ? stepIndex : undefined,
+            });
+            break;
+          }
+
+          case 'review_gate': {
+            if (!this.reviewService) {
+              throw new Error('ReviewService not available for review_gate step');
+            }
+
+            const reviewItem = await this.reviewService.create({
+              sessionId: parentSessionId,
+              workspaceId,
+              workflowId: workflow.id,
+              workflowStepId: stepId,
+              type: 'approval',
+              title: `Review gate: ${step.reviewPrompt ?? step.goal ?? stepId}`,
+              summary: step.reviewPrompt ?? `Workflow paused at step ${stepId} for review`,
+              context: { workflowName: workflow.id, stepId },
+            });
+
+            const action = await this.waitForReviewResolution(reviewItem.id, workspaceId);
+            if (action === 'reject') {
+              throw new Error(`Review gate rejected at step ${stepId}`);
+            }
+            break;
+          }
+
+          case 'parallel_group': {
+            const childIds = step.parallelStepIds ?? [];
+            await Promise.all(childIds.map((childId) => executeStep(childId)));
+            break;
+          }
+        }
+      };
 
       for (const batch of batches) {
-        const batchPromises = batch.map(async (stepId) => {
-          const step = stepMap.get(stepId);
-          if (!step) return;
-
-          switch (step.type) {
-            case 'agent': {
-              if (!step.templateId) break;
-              const stepIndex = workflow.steps.findIndex((s) => s.id === stepId);
-              await this.spawn({
-                templateId: step.templateId,
-                goal: step.goal ?? `Workflow step: ${step.id}`,
-                parentSessionId,
-                workspaceId,
-                workflowId: workflow.id,
-                workflowStepIndex: stepIndex >= 0 ? stepIndex : undefined,
-              });
-              break;
-            }
-
-            case 'review_gate': {
-              if (!this.reviewService) {
-                throw new Error('ReviewService not available for review_gate step');
-              }
-
-              const reviewItem = await this.reviewService.create({
-                sessionId: parentSessionId,
-                workspaceId,
-                workflowId: workflow.id,
-                workflowStepId: stepId,
-                type: 'approval',
-                title: `Review gate: ${step.reviewPrompt ?? step.goal ?? stepId}`,
-                summary: step.reviewPrompt ?? `Workflow paused at step ${stepId} for review`,
-                context: { workflowName: workflow.id, stepId },
-              });
-
-              const action = await this.waitForReviewResolution(reviewItem.id, workspaceId);
-              if (action === 'reject') {
-                throw new Error(`Review gate rejected at step ${stepId}`);
-              }
-              break;
-            }
-          }
-        });
-
-        await Promise.all(batchPromises);
+        await Promise.all(batch.map(executeStep));
       }
 
       // Workflow completed
@@ -412,6 +446,7 @@ export function createOrchestrationService(
   templateService: TemplateService,
   worktreeService: WorktreeService,
   workflowService?: WorkflowService,
+  workspaceService?: WorkspaceService,
   reviewService?: ReviewService
 ): OrchestrationService {
   return new OrchestrationServiceImpl(
@@ -419,6 +454,7 @@ export function createOrchestrationService(
     templateService,
     worktreeService,
     workflowService ?? null,
+    workspaceService ?? null,
     reviewService ?? null
   );
 }

@@ -19,7 +19,7 @@ import type { Session, SessionLifecycle } from '@services/types';
 
 export interface AgentCardProps {
   session: Session;
-  onClick?: (session: Session) => void;
+  onClick?: (sessionId: string) => void;
   onAction?: (sessionId: string, action: 'pause' | 'resume' | 'cancel') => void;
 }
 
@@ -34,7 +34,7 @@ export function AgentCard({ session, onClick, onAction }: AgentCardProps) {
   return (
     <Card
       className="cursor-pointer hover:shadow-md transition-shadow"
-      onClick={() => onClick?.(session)}
+      onClick={() => onClick?.(session.id)}
     >
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-2 mb-2">

@@ -12,7 +12,7 @@ import { BoardFilters } from './BoardFilters';
 import type { Session, SessionLifecycle } from '@services/types';
 
 export interface BoardViewProps {
-  onSelectAgent?: (session: Session) => void;
+  onSelectAgent?: (sessionId: string) => void;
 }
 
 const LIFECYCLE_COLUMNS = ['active', 'paused', 'completed', 'failed', 'cancelled'] as const;

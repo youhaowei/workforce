@@ -12,7 +12,7 @@ export interface BoardColumnProps {
   title: string;
   sessions: Session[];
   state: string;
-  onCardClick?: (session: Session) => void;
+  onCardClick?: (sessionId: string) => void;
   onCardAction?: (sessionId: string, action: 'pause' | 'resume' | 'cancel') => void;
 }
 

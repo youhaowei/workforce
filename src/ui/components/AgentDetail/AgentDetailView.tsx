@@ -3,10 +3,13 @@
  *
  * Tabs: Overview | Messages | Actions | Audit
  * Delegates to sub-tab components for content. Handles agent lifecycle mutations.
+ *
+ * Accepts `sessionId` and fetches session via tRPC query — this makes the
+ * component reactive to cache invalidations from mutations (cancel/pause/resume).
  */
 
 import { useCallback } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@bridge/react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -17,23 +20,27 @@ import { AgentOverview } from './AgentOverview';
 import { AgentMessages } from './AgentMessages';
 import { AgentActions } from './AgentActions';
 import { AgentAudit } from './AgentAudit';
-import type { Session, SessionLifecycle } from '@services/types';
+import type { SessionLifecycle } from '@services/types';
 
 export interface AgentDetailViewProps {
-  session: Session;
+  sessionId: string;
   onBack?: () => void;
-  onNavigateToChild?: (child: Session) => void;
+  onNavigateToChild?: (childSessionId: string) => void;
 }
 
-export function AgentDetailView({ session, onBack, onNavigateToChild }: AgentDetailViewProps) {
+export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentDetailViewProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
-  const lifecycle = session.metadata?.lifecycle as SessionLifecycle | undefined;
+  const { data: session } = useQuery(
+    trpc.session.get.queryOptions({ sessionId }),
+  );
+
+  const lifecycle = session?.metadata?.lifecycle as SessionLifecycle | undefined;
   const state = lifecycle?.state ?? 'created';
-  const goal = (session.metadata?.goal as string) ?? 'No goal set';
-  const templateId = session.metadata?.templateId as string | undefined;
-  const workspaceId = session.metadata?.workspaceId as string | undefined;
+  const goal = (session?.metadata?.goal as string) ?? 'No goal set';
+  const templateId = session?.metadata?.templateId as string | undefined;
+  const workspaceId = session?.metadata?.workspaceId as string | undefined;
 
   const cancelMutation = useMutation(
     trpc.orchestration.cancelAgent.mutationOptions({
@@ -61,13 +68,13 @@ export function AgentDetailView({ session, onBack, onNavigateToChild }: AgentDet
 
   const handleAction = useCallback((action: string) => {
     if (action === 'cancel') {
-      cancelMutation.mutate({ sessionId: session.id, reason: 'User cancelled' });
+      cancelMutation.mutate({ sessionId, reason: 'User cancelled' });
     } else if (action === 'pause') {
-      pauseMutation.mutate({ sessionId: session.id, reason: 'User paused' });
+      pauseMutation.mutate({ sessionId, reason: 'User paused' });
     } else if (action === 'resume') {
-      resumeMutation.mutate({ sessionId: session.id });
+      resumeMutation.mutate({ sessionId });
     }
-  }, [session.id, cancelMutation, pauseMutation, resumeMutation]);
+  }, [sessionId, cancelMutation, pauseMutation, resumeMutation]);
 
   const handleSpawnChild = useCallback(() => {
     if (!workspaceId || !templateId) return;
@@ -75,9 +82,17 @@ export function AgentDetailView({ session, onBack, onNavigateToChild }: AgentDet
       workspaceId,
       templateId,
       goal: 'Sub-task',
-      parentSessionId: session.id,
+      parentSessionId: sessionId,
     });
-  }, [workspaceId, templateId, session.id, spawnMutation]);
+  }, [workspaceId, templateId, sessionId, spawnMutation]);
+
+  if (!session) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-sm text-muted-foreground">Loading session...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden p-6">

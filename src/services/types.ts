@@ -131,6 +131,8 @@ export interface WorkAgentConfig {
   workflowStepIndex?: number;
   worktreePath?: string;
   workspaceId: string;
+  /** Absolute path to the workspace project root (for worktree isolation) */
+  repoRoot?: string;
 }
 
 /** Valid lifecycle state transitions */
