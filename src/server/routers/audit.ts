@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { getAuditService } from './_services';
-import type { AuditEntryType } from '../../services/types';
+import type { AuditEntryType } from '@services/types';
 
 export const auditRouter = router({
   workspace: publicProcedure

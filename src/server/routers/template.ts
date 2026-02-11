@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { getTemplateService } from '../../services/template';
+import { getTemplateService } from '@services/template';
 
 export const templateRouter = router({
   list: publicProcedure
@@ -55,7 +56,7 @@ export const templateRouter = router({
     .input(z.object({ workspaceId: z.string(), id: z.string() }))
     .query(async ({ input }) => {
       const template = await getTemplateService().get(input.workspaceId, input.id);
-      if (!template) throw new Error('Template not found');
+      if (!template) throw new TRPCError({ code: 'NOT_FOUND', message: 'Template not found' });
       return getTemplateService().validate(template);
     }),
 });

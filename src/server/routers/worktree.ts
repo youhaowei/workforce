@@ -1,13 +1,14 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { getWorktreeService } from '../../services/worktree';
+import { getWorktreeService } from '@services/worktree';
 
 export const worktreeRouter = router({
   get: publicProcedure
     .input(z.object({ sessionId: z.string() }))
     .query(({ input }) => {
       const info = getWorktreeService().getForSession(input.sessionId);
-      if (!info) throw new Error('No worktree for session');
+      if (!info) throw new TRPCError({ code: 'NOT_FOUND', message: 'No worktree for session' });
       return info;
     }),
 

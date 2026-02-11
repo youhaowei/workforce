@@ -1,6 +1,7 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { getWorkspaceService } from '../../services/workspace';
+import { getWorkspaceService } from '@services/workspace';
 
 export const workspaceRouter = router({
   list: publicProcedure.query(() => getWorkspaceService().list()),
@@ -28,7 +29,7 @@ export const workspaceRouter = router({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       const ws = await getWorkspaceService().get(input.id);
-      if (!ws) throw new Error('Workspace not found');
+      if (!ws) throw new TRPCError({ code: 'NOT_FOUND', message: 'Workspace not found' });
       getWorkspaceService().setCurrent(ws);
       return ws;
     }),

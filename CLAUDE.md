@@ -30,7 +30,7 @@
 - ✅ Full tool suite (via Anthropic Agent SDK)
 - ✅ Virtual scrolling UI with streaming support
 
-**Metrics**: 387 tests passing (1 skipped), ESLint clean (19 warnings), TypeScript strict mode, 6 MB idle memory.
+**Metrics**: 391 tests passing (3 skipped), ESLint clean (0 warnings), TypeScript strict mode, 6 MB idle memory.
 
 ## ⚠️ IMPORTANT: Do NOT Auto-Run Dev Server
 
@@ -41,7 +41,7 @@ Always ask the user before starting the dev server or building the app.
 
 ```bash
 bun install        # Install dependencies
-bun run test       # Run unit tests (387 tests, 1 skipped)
+bun run test       # Run unit tests (391 tests, 3 skipped)
 bun run test:e2e   # Run Playwright E2E tests (28 tests)
 bun run lint       # Lint code
 bun run type-check # TypeScript check
@@ -109,12 +109,12 @@ tauri dev       # Terminal 2
 src/
 ├── ui/           # React 19 components (browser-safe only)
 │   ├── components/
-│   ├── stores/   # Zustand stores + legacy SolidJS stores (migration WIP)
-│   ├── hooks/    # React hooks (useEventBus, useTokenStream, etc.)
+│   ├── stores/   # Zustand stores
+│   ├── hooks/    # React hooks (useEventBus, etc.)
 │   ├── context/  # PlatformProvider, HotkeyProvider
 │   └── lib/      # Utilities (cn helper)
 ├── server/       # Hono HTTP server + tRPC routers
-│   ├── index.ts  # CORS + tRPC mount at /api/trpc/*
+│   ├── index.ts  # CORS, tRPC mount, diagnostic routes (/health, /debug-log, /auth-check)
 │   ├── trpc.ts   # initTRPC with superjson
 │   └── routers/  # Domain routers (session, workspace, agent, etc.)
 ├── services/     # Backend services (Bun runtime only)
@@ -122,12 +122,10 @@ src/
 │   ├── session.ts
 │   ├── todo.ts
 │   └── git.ts
-├── bridge/       # tRPC client + legacy HTTP client
+├── bridge/       # tRPC client
 │   ├── trpc.ts      # Vanilla tRPC client (splitLink)
 │   ├── react.ts     # React Query tRPC proxy
-│   ├── query-client.ts  # TanStack QueryClient
-│   ├── frontend.ts  # Legacy HTTP client (being phased out)
-│   └── index.ts     # Re-exports
+│   └── query-client.ts  # TanStack QueryClient
 └── shared/       # Shared code (no Node APIs)
     └── event-bus.ts
 
@@ -157,7 +155,7 @@ import { useMessagesStore } from '@ui/stores/useMessagesStore';
 const messages = useMessagesStore((s) => s.messages);
 ```
 
-**Note**: Services are lazy-initialized singletons. All services implement `dispose()` for cleanup.
+**Note**: Services are lazy-initialized singletons. All services implement `dispose()` for cleanup. The service barrel (`src/services/index.ts`) re-exports all getters, reset functions, and factory functions. `server/index.ts` contains only CORS, tRPC mount, and 3 diagnostic routes — all domain logic lives in tRPC routers.
 
 ### Path Aliases
 
@@ -171,7 +169,7 @@ const messages = useMessagesStore((s) => s.messages);
 
 ## Testing
 
--   **Unit tests**: `bun run test` (Vitest, 387 tests passing, 1 skipped)
+-   **Unit tests**: `bun run test` (Vitest, 391 tests passing, 3 skipped)
   - 339 service/hook/router tests
   - 48 component tests (React Testing Library)
 -   **E2E tests**: `bun run test:e2e` (Playwright, 28 tests)
@@ -212,7 +210,7 @@ const messages = useMessagesStore((s) => s.messages);
 5. **Port 4096** - Server runs on this port
 6. **Build minifier** - Uses `esbuild` (not terser) in vite.config.ts
 7. **Path aliases** - Defined in tsconfig.json AND vite.config.ts (must sync)
-8. **ESLint warnings** - 19 warnings remain (complexity, max-depth, react-refresh). See `.sisyphus/notepads/workforce/issues.md`
+8. **ESLint warnings** - 0 warnings. See `.sisyphus/notepads/workforce/issues.md`
 9. **Cold start** - ~5s in dev mode (Tauri/Rust compilation). Production builds don't have this overhead.
 10. **Memory optimization** - All services implement `dispose()` pattern. Idle memory: 6 MB (target < 100 MB) ✅
 11. **Claude Agent SDK Auth** - SDK uses Claude CLI's auth from `~/.claude/.credentials.json`. Running server from terminal ensures proper shell environment for auth. The SDK handles token refresh internally.
@@ -225,7 +223,7 @@ const messages = useMessagesStore((s) => s.messages);
 18. **Native clipboard** - Use Tauri's native Edit menu for clipboard ops, not JS handlers. See `src-tauri/src/main.rs` for `SubmenuBuilder` setup.
 19. **Virtualization** - Use `react-virtuoso` for virtual scrolling (replaced `@tanstack/solid-virtual`).
 20. **Markdown rendering** - Use `marked` + `dompurify` for XSS-safe markdown. Component at `src/ui/components/Messages/Markdown.tsx`.
-21. **Legacy SolidJS stores** - 4 stores remain (`reviewStore`, `workspaceStore`, `boardStore`, `toolStore`) using SolidJS signals. React components access them via `as unknown as` casts. Will be replaced by tRPC queries.
+21. **Service barrel export** - `src/services/index.ts` re-exports all services with `getXxxService()`/`resetXxxService()` pattern. `disposeAllServices()` resets all singletons for test cleanup.
 22. **vitest.config.ts separate from vite.config.ts** - Both must use `@vitejs/plugin-react`. If vitest uses wrong plugin, React hooks fail with `Cannot read properties of null (reading 'useState')`.
 23. **`vi.useFakeTimers()` + `waitFor()` deadlock** - React Testing Library's `waitFor` uses `setTimeout` for polling. Fake timers intercept this. Use `vi.useRealTimers()` before async tests.
 24. **tRPC client splitLink** - Queries/mutations use `httpBatchLink`, subscriptions use `httpSubscriptionLink` (SSE). Both configured in `src/bridge/trpc.ts`.

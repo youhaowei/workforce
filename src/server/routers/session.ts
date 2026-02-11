@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
-import { getSessionService } from '../../services/session';
+import { getSessionService } from '@services/session';
 import { getOrchestrationService } from './_services';
-import type { LifecycleState } from '../../services/types';
+import type { LifecycleState } from '@services/types';
 
 export const sessionRouter = router({
   list: publicProcedure

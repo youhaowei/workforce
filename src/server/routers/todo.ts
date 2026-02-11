@@ -1,7 +1,8 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { getTodoService } from '../../services/todo';
-import type { TodoStatus } from '../../services/types';
+import { getTodoService } from '@services/todo';
+import type { TodoStatus } from '@services/types';
 
 export const todoRouter = router({
   list: publicProcedure
@@ -20,7 +21,7 @@ export const todoRouter = router({
     .input(z.object({ id: z.string() }))
     .query(({ input }) => {
       const todo = getTodoService().get(input.id);
-      if (!todo) throw new Error('Todo not found');
+      if (!todo) throw new TRPCError({ code: 'NOT_FOUND', message: 'Todo not found' });
       return todo;
     }),
 

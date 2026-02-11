@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
-import { createCaller } from './index';
-import { resetSessionService } from '../../services/session';
-import { resetWorkspaceService } from '../../services/workspace';
-import { resetTodoService } from '../../services/todo';
-import { resetTemplateService } from '../../services/template';
-import { resetWorktreeService } from '../../services/worktree';
+import { createCaller, resetRouterServices } from './index';
+import { resetSessionService } from '@services/session';
+import { resetWorkspaceService } from '@services/workspace';
+import { resetTodoService } from '@services/todo';
+import { resetTemplateService } from '@services/template';
+import { resetWorktreeService } from '@services/worktree';
 
 /**
  * tRPC router integration tests.
@@ -26,6 +26,7 @@ describe('tRPC Routers', () => {
     resetTodoService();
     resetTemplateService();
     resetWorktreeService();
+    resetRouterServices();
   });
 
   afterAll(() => {
@@ -34,6 +35,7 @@ describe('tRPC Routers', () => {
     resetTodoService();
     resetTemplateService();
     resetWorktreeService();
+    resetRouterServices();
   });
 
   describe('health', () => {

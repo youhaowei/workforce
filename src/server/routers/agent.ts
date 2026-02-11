@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
-import { getAgentService } from '../../services/agent';
-import { debugLog } from '../../shared/debug-log';
+import { getAgentService } from '@services/agent';
+import { debugLog } from '@shared/debug-log';
 
 export const agentRouter = router({
   /**

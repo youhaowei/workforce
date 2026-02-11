@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
-import { getLogPath } from '../../shared/debug-log';
+import { getLogPath } from '@shared/debug-log';
 import { readFileSync, existsSync } from 'fs';
 import { homedir } from 'os';
 

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { getReviewService } from './_services';
-import type { ReviewAction } from '../../services/types';
+import type { ReviewAction } from '@services/types';
 
 export const reviewRouter = router({
   list: publicProcedure

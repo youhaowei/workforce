@@ -1,1 +1,0 @@
-export { initBridge } from './frontend';

@@ -30,3 +30,6 @@ export const appRouter = router({
 export type AppRouter = typeof appRouter;
 
 export const createCaller = createCallerFactory(appRouter);
+
+// Re-export for test cleanup
+export { resetRouterServices } from './_services';

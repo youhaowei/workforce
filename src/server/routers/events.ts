@@ -1,20 +1,25 @@
 import { router, publicProcedure } from '../trpc';
-import { getEventBus } from '../../shared/event-bus';
-import type { BusEvent } from '../../shared/event-bus';
+import { getEventBus } from '@shared/event-bus';
+import type { BusEvent } from '@shared/event-bus';
+
+const MAX_QUEUE_SIZE = 1000;
 
 export const eventsRouter = router({
   /**
    * SSE subscription that forwards all EventBus events to the client.
-   * Uses a push-based pattern: EventBus callback → queue → async generator yield.
+   * Uses a push-based pattern: EventBus callback → bounded queue → async generator yield.
+   * Queue drops oldest events when backpressure exceeds MAX_QUEUE_SIZE.
    */
   subscribe: publicProcedure.subscription(async function* ({ signal }) {
     const bus = getEventBus();
 
-    // Bounded queue to buffer events between yields
     const queue: BusEvent[] = [];
     let resolve: (() => void) | null = null;
 
     const unsubscribe = bus.on('*', (event) => {
+      if (queue.length >= MAX_QUEUE_SIZE) {
+        queue.shift(); // drop oldest under backpressure
+      }
       queue.push(event);
       if (resolve) {
         resolve();
