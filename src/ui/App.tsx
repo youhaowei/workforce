@@ -13,6 +13,7 @@ import { TRPCProvider } from '@/bridge/react';
 import { trpc } from '@/bridge/trpc';
 import { PlatformProvider, type PlatformActions } from './context/PlatformProvider';
 import { HotkeyProvider } from './hotkeys/HotkeyProvider';
+import { AppContextMenu } from './components/Shell/AppContextMenu';
 import { useEventBusInit } from './hooks/useEventBusInit';
 import Shell from './components/Shell/Shell';
 
@@ -34,7 +35,9 @@ export default function App() {
       <TRPCProvider trpcClient={trpc} queryClient={queryClient}>
         <PlatformProvider actions={platformActions}>
           <HotkeyProvider>
-            <AppInner />
+            <AppContextMenu>
+              <AppInner />
+            </AppContextMenu>
           </HotkeyProvider>
         </PlatformProvider>
       </TRPCProvider>
