@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GripVertical, Trash2, X } from 'lucide-react';
-import type { WorkflowStep } from '@services/types';
+import type { WorkflowStep } from '@/services/types';
 
 interface WorkflowStepItemProps {
   step: WorkflowStep;

@@ -5,8 +5,8 @@
 import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
-import type { ToolUIStatus } from '@ui/stores/useToolStore';
-import { formatToolResult } from '@ui/formatters';
+import type { ToolUIStatus } from '@/ui/stores/useToolStore';
+import { formatToolResult } from '@/ui/formatters';
 
 interface ToolOutputProps {
   toolName: string;

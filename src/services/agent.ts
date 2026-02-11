@@ -2,8 +2,8 @@ import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { homedir } from 'os';
 import type { AgentService, QueryOptions, TokenDelta, StreamResult } from './types';
-import { getEventBus } from '@shared/event-bus';
-import { debugLog } from '@shared/debug-log';
+import { getEventBus } from '@/shared/event-bus';
+import { debugLog } from '@/shared/debug-log';
 import { buildSdkEnv, isAuthError, AgentError } from './agent-instance';
 import type { AgentErrorCode } from './agent-instance';
 

@@ -4,8 +4,8 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
-import { useWorkspaceStore } from '@ui/stores/useWorkspaceStore';
+import { useTRPC } from '@/bridge/react';
+import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Play } from 'lucide-react';
-import type { AgentTemplate } from '@services/types';
+import type { AgentTemplate } from '@/services/types';
 
 interface LaunchFromTemplateDialogProps {
   template: AgentTemplate | null;

@@ -21,7 +21,7 @@ import type {
   SessionLifecycle,
 } from './types';
 import { VALID_TRANSITIONS } from './types';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 import { getDataDir } from './data-dir';
 
 // =============================================================================

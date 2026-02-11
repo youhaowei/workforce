@@ -12,7 +12,7 @@
 import { readFile, writeFile, readdir, mkdir, rm } from 'fs/promises';
 import { join } from 'path';
 import type { Workspace, WorkspaceSettings, WorkspaceService } from './types';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 import { getDataDir } from './data-dir';
 
 // =============================================================================

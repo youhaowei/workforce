@@ -13,7 +13,7 @@
 import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
 import { join } from 'path';
 import type { ReviewItem, ReviewAction, ReviewService } from './types';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 import { getDataDir } from './data-dir';
 
 // =============================================================================

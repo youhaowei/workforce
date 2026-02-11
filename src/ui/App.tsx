@@ -8,9 +8,9 @@
  */
 
 import { QueryClientProvider } from '@tanstack/react-query';
-import { queryClient } from '@bridge/query-client';
-import { TRPCProvider } from '@bridge/react';
-import { trpc } from '@bridge/trpc';
+import { queryClient } from '@/bridge/query-client';
+import { TRPCProvider } from '@/bridge/react';
+import { trpc } from '@/bridge/trpc';
 import { PlatformProvider, type PlatformActions } from './context/PlatformProvider';
 import { HotkeyProvider } from './hotkeys/HotkeyProvider';
 import { useEventBusInit } from './hooks/useEventBusInit';

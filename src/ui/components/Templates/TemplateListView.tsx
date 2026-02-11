@@ -5,8 +5,8 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
-import { useWorkspaceStore } from '@ui/stores/useWorkspaceStore';
+import { useTRPC } from '@/bridge/react';
+import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -14,7 +14,7 @@ import { Plus, Search, Blocks } from 'lucide-react';
 import { TemplateCard } from './TemplateCard';
 import { TemplateEditor } from './TemplateEditor';
 import { LaunchFromTemplateDialog } from './LaunchFromTemplateDialog';
-import type { AgentTemplate } from '@services/types';
+import type { AgentTemplate } from '@/services/types';
 
 export function TemplateListView() {
   const trpc = useTRPC();

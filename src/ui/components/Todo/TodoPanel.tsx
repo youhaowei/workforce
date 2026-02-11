@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { X, Plus } from 'lucide-react';
 import type { TodoStatus } from '../../../services/types';
-import { getTodoService } from '@services/todo';
+import { getTodoService } from '@/services/todo';
 import { TodoList } from './TodoList';
 
 export interface TodoPanelProps {
@@ -73,10 +73,14 @@ export function TodoPanel({ isOpen, onClose }: TodoPanelProps) {
     [todos]
   );
 
-  if (!isOpen) return null;
-
   return (
-    <div className="w-80 border-l bg-card flex flex-col">
+    <div
+      className={`flex-shrink-0 flex flex-col bg-card border-l transition-[width] duration-200 ease-in-out overflow-hidden ${
+        isOpen ? 'w-80' : 'w-0 border-l-0'
+      }`}
+      aria-hidden={!isOpen}
+      inert={!isOpen ? true : undefined}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b">
         <h2 className="font-semibold text-foreground flex items-center gap-2">

@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MoreVertical, Play, Copy, Pencil, Archive } from 'lucide-react';
-import type { AgentTemplate } from '@services/types';
+import type { AgentTemplate } from '@/services/types';
 
 interface TemplateCardProps {
   template: AgentTemplate;

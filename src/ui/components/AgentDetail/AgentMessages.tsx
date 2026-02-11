@@ -3,7 +3,7 @@
  */
 
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { Session } from '@services/types';
+import type { Session } from '@/services/types';
 
 interface AgentMessagesProps {
   session: Session;

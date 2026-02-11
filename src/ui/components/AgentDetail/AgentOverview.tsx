@@ -3,14 +3,14 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
+import { useTRPC } from '@/bridge/react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowRight, GitBranch } from 'lucide-react';
-import { stateVariant } from '@ui/lib/stateVariant';
+import { stateVariant } from '@/ui/lib/stateVariant';
 import { WorktreePanel } from '../Worktree';
-import type { Session, SessionLifecycle } from '@services/types';
+import type { Session, SessionLifecycle } from '@/services/types';
 
 interface AgentOverviewProps {
   session: Session;

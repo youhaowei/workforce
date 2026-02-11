@@ -1,6 +1,6 @@
 import { router, publicProcedure } from '../trpc';
-import { getEventBus } from '@shared/event-bus';
-import type { BusEvent } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
+import type { BusEvent } from '@/shared/event-bus';
 
 const MAX_QUEUE_SIZE = 1000;
 

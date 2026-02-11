@@ -1,7 +1,7 @@
 import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
 import { homedir } from 'os';
 import type { StreamResult, TokenDelta } from './types';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 
 /**
  * Build environment variables for the SDK subprocess.

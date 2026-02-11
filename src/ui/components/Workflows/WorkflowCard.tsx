@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MoreVertical, Play, Pencil, Archive } from 'lucide-react';
-import type { WorkflowTemplate, StepType } from '@services/types';
+import type { WorkflowTemplate, StepType } from '@/services/types';
 
 interface WorkflowCardProps {
   workflow: WorkflowTemplate;

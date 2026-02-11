@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ChevronDown, ChevronRight } from 'lucide-react';
-import type { AuditEntry } from '@services/types';
+import type { AuditEntry } from '@/services/types';
 
 interface AuditEntryItemProps {
   entry: AuditEntry;

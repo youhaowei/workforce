@@ -8,13 +8,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
-      '@ui': resolve(__dirname, 'src/ui'),
-      '@services': resolve(__dirname, 'src/services'),
-      '@shared': resolve(__dirname, 'src/shared'),
-      '@hooks': resolve(__dirname, 'src/hooks'),
-      '@mcp': resolve(__dirname, 'src/mcp'),
-      '@bridge': resolve(__dirname, 'src/bridge'),
-      '@utils': resolve(__dirname, 'src/utils'),
     },
   },
   server: {

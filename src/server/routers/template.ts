@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { getTemplateService } from '@services/template';
+import { getTemplateService } from '@/services/template';
 
 export const templateRouter = router({
   list: publicProcedure

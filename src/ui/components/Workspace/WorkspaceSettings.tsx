@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
+import { useTRPC } from '@/bridge/react';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import type { Workspace } from '@services/types';
+import type { Workspace } from '@/services/types';
 
 interface WorkspaceSettingsProps {
   workspace: Workspace;

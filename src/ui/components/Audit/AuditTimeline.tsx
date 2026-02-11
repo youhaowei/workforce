@@ -4,7 +4,7 @@
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AuditEntryItem } from './AuditEntryItem';
-import type { AuditEntry } from '@services/types';
+import type { AuditEntry } from '@/services/types';
 
 interface AuditTimelineProps {
   entries: AuditEntry[];

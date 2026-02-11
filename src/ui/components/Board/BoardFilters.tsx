@@ -23,6 +23,7 @@ interface BoardFiltersProps {
 
 const STATUS_OPTIONS = [
   { value: 'all', label: 'All statuses' },
+  { value: 'created', label: 'Created' },
   { value: 'active', label: 'Active' },
   { value: 'paused', label: 'Paused' },
   { value: 'completed', label: 'Completed' },
@@ -37,6 +38,11 @@ export function BoardFilters({
   onStatusFilterChange,
 }: BoardFiltersProps) {
   const [localKeyword, setLocalKeyword] = useState(keyword);
+
+  // Sync local state when parent resets keyword externally
+  useEffect(() => {
+    setLocalKeyword(keyword);
+  }, [keyword]);
 
   useEffect(() => {
     const timer = setTimeout(() => {

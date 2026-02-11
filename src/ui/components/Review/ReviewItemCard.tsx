@@ -5,7 +5,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ReviewActions } from './ReviewActions';
-import type { ReviewItem } from '@services/types';
+import type { ReviewItem } from '@/services/types';
 
 export interface ReviewItemCardProps {
   item: ReviewItem;

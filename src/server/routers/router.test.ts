@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import { createCaller, resetRouterServices } from './index';
-import { resetSessionService } from '@services/session';
-import { resetWorkspaceService } from '@services/workspace';
-import { resetTodoService } from '@services/todo';
-import { resetTemplateService } from '@services/template';
-import { resetWorktreeService } from '@services/worktree';
+import { resetSessionService } from '@/services/session';
+import { resetWorkspaceService } from '@/services/workspace';
+import { resetTodoService } from '@/services/todo';
+import { resetTemplateService } from '@/services/template';
+import { resetWorktreeService } from '@/services/worktree';
 
 /**
  * tRPC router integration tests.

@@ -5,11 +5,11 @@
 
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
-import { useWorkspaceStore } from '@ui/stores/useWorkspaceStore';
+import { useTRPC } from '@/bridge/react';
+import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
 import { ReviewItemCard } from './ReviewItemCard';
 import { CheckCircle } from 'lucide-react';
-import type { ReviewItem } from '@services/types';
+import type { ReviewItem } from '@/services/types';
 
 export function ReviewQueue() {
   const trpc = useTRPC();

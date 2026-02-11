@@ -1,8 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TodoPanel } from './TodoPanel';
 
-vi.mock('@services/todo', () => ({
+vi.mock('@/services/todo', () => ({
   getTodoService: vi.fn(() => ({
     list: vi.fn(() => []),
     create: vi.fn((content: string) => ({
@@ -25,17 +25,15 @@ describe('TodoPanel', () => {
   const mockOnClose = vi.fn();
 
   beforeEach(() => {
-    vi.useFakeTimers();
     mockOnClose.mockClear();
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it('renders nothing when closed', () => {
-    render(<TodoPanel isOpen={false} onClose={mockOnClose} />);
-    expect(screen.queryByText('Todos')).not.toBeInTheDocument();
+  it('renders collapsed when closed', () => {
+    const { container } = render(<TodoPanel isOpen={false} onClose={mockOnClose} />);
+    // Panel is mounted but collapsed to w-0 with aria-hidden
+    const panel = container.firstElementChild as HTMLElement;
+    expect(panel).toHaveAttribute('aria-hidden', 'true');
+    expect(panel.className).toContain('w-0');
   });
 
   it('renders panel when open', () => {
@@ -89,7 +87,7 @@ describe('TodoPanel', () => {
   });
 
   it('does not add todo with whitespace-only input', async () => {
-    const { getTodoService } = await import('@services/todo');
+    const { getTodoService } = await import('@/services/todo');
     const mockService = getTodoService();
 
     render(<TodoPanel isOpen={true} onClose={mockOnClose} />);

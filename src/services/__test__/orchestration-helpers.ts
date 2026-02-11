@@ -2,7 +2,7 @@
  * Shared mock helpers for OrchestrationService tests.
  */
 
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 import type {
   Session,
   SessionService,

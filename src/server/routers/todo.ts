@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { getTodoService } from '@services/todo';
-import type { TodoStatus } from '@services/types';
+import { getTodoService } from '@/services/todo';
+import type { TodoStatus } from '@/services/types';
 
 export const todoRouter = router({
   list: publicProcedure

@@ -9,7 +9,7 @@ import { mkdir, rm, readFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { createWorkspaceService } from './workspace';
-import { createEventBus, type EventBus } from '@shared/event-bus';
+import { createEventBus, type EventBus } from '@/shared/event-bus';
 
 const TEST_DIR = join(tmpdir(), 'workforce-workspace-test-' + Date.now());
 

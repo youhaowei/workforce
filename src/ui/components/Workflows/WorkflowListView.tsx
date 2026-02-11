@@ -4,15 +4,15 @@
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
-import { useWorkspaceStore } from '@ui/stores/useWorkspaceStore';
+import { useTRPC } from '@/bridge/react';
+import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Plus, Search, Workflow } from 'lucide-react';
 import { WorkflowCard } from './WorkflowCard';
 import { WorkflowEditor } from './WorkflowEditor';
-import type { WorkflowTemplate } from '@services/types';
+import type { WorkflowTemplate } from '@/services/types';
 
 export function WorkflowListView() {
   const trpc = useTRPC();

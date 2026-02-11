@@ -1,28 +1,25 @@
 /**
  * BoardView - Kanban-style supervision board showing agents grouped by lifecycle state.
- * Uses tRPC queries with BoardFilters for filtering.
+ * Filter state is lifted to Shell and passed as props (shared with TopBar center pill).
  */
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
-import { useWorkspaceStore } from '@ui/stores/useWorkspaceStore';
+import { useTRPC } from '@/bridge/react';
 import { BoardColumn } from './BoardColumn';
-import { BoardFilters } from './BoardFilters';
-import type { Session, SessionLifecycle } from '@services/types';
+import type { Session, SessionLifecycle } from '@/services/types';
 
 export interface BoardViewProps {
   onSelectAgent?: (sessionId: string) => void;
+  keyword: string;
+  statusFilter: string;
 }
 
-const LIFECYCLE_COLUMNS = ['active', 'paused', 'completed', 'failed', 'cancelled'] as const;
+const LIFECYCLE_COLUMNS = ['created', 'active', 'paused', 'completed', 'failed', 'cancelled'] as const;
 
-export function BoardView({ onSelectAgent }: BoardViewProps) {
+export function BoardView({ onSelectAgent, keyword, statusFilter }: BoardViewProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const [keyword, setKeyword] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
 
   const { data: sessions = [] } = useQuery(
     trpc.session.list.queryOptions(undefined, {
@@ -61,10 +58,10 @@ export function BoardView({ onSelectAgent }: BoardViewProps) {
     [cancelMutation, pauseMutation, resumeMutation],
   );
 
-  // Filter to WorkAgent sessions for this workspace
+  // Show all agents (no workspace filter — board shows everything)
   const workAgents = useMemo(() => {
     let agents = sessions.filter(
-      (s: Session) => s.metadata?.workspaceId === workspaceId && s.metadata?.type === 'workagent',
+      (s: Session) => s.metadata?.type === 'workagent',
     );
     if (keyword) {
       const kw = keyword.toLowerCase();
@@ -75,7 +72,7 @@ export function BoardView({ onSelectAgent }: BoardViewProps) {
       );
     }
     return agents;
-  }, [sessions, workspaceId, keyword]);
+  }, [sessions, keyword]);
 
   const sessionsByState = useMemo(() => {
     const map = new Map<string, Session[]>();
@@ -94,18 +91,6 @@ export function BoardView({ onSelectAgent }: BoardViewProps) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden p-6">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Supervision Board</h2>
-          <p className="text-xs text-muted-foreground">Monitor and manage your agents</p>
-        </div>
-        <BoardFilters
-          keyword={keyword}
-          onKeywordChange={setKeyword}
-          statusFilter={statusFilter}
-          onStatusFilterChange={setStatusFilter}
-        />
-      </div>
       <div className="flex-1 flex gap-4 overflow-x-auto">
         {visibleColumns.map((state) => (
           <BoardColumn

@@ -8,7 +8,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { ToolCall, ToolResult } from '@services/types';
+import type { ToolCall, ToolResult } from '@/services/types';
 
 // =============================================================================
 // Types

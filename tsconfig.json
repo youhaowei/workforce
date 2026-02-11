@@ -16,15 +16,7 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@ui/*": ["src/ui/*"],
-      "@services/*": ["src/services/*"],
-      "@tools/*": ["src/tools/*"],
-      "@shared/*": ["src/shared/*"],
-      "@bridge/*": ["src/bridge/*"],
-      "@hooks/*": ["src/hooks/*"],
-      "@mcp/*": ["src/mcp/*"],
-      "@utils/*": ["src/utils/*"]
+      "@/*": ["src/*"]
     },
     "types": ["vitest/globals", "vite/client", "node"]
   },

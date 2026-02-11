@@ -142,7 +142,7 @@ UI components use tRPC queries/mutations via TanStack React Query:
 
 ```typescript
 // ✅ Correct - use tRPC for data fetching
-import { trpc } from '@bridge/react';
+import { trpc } from '@/bridge/react';
 const { data: sessions } = trpc.session.list.useQuery();
 
 // ✅ Mutations with cache invalidation
@@ -151,7 +151,7 @@ const deleteMutation = trpc.session.delete.useMutation({
 });
 
 // ✅ Zustand for client-only state
-import { useMessagesStore } from '@ui/stores/useMessagesStore';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 const messages = useMessagesStore((s) => s.messages);
 ```
 
@@ -159,13 +159,9 @@ const messages = useMessagesStore((s) => s.messages);
 
 ### Path Aliases
 
-| Alias       | Path            |
-| ----------- | --------------- |
-| `@ui`       | `src/ui/`       |
-| `@services` | `src/services/` |
-| `@bridge`   | `src/bridge/`   |
-| `@shared`   | `src/shared/`   |
-| `@hooks`    | `src/hooks/`    |
+| Alias | Path   |
+| ----- | ------ |
+| `@/*` | `src/*` |
 
 ## Testing
 

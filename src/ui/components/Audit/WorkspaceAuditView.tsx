@@ -5,8 +5,8 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
-import { useWorkspaceStore } from '@ui/stores/useWorkspaceStore';
+import { useTRPC } from '@/bridge/react';
+import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
 import {
   Select,
   SelectContent,
@@ -17,7 +17,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { History } from 'lucide-react';
 import { AuditEntryItem } from './AuditEntryItem';
-import type { AuditEntry, AuditEntryType } from '@services/types';
+import type { AuditEntry, AuditEntryType } from '@/services/types';
 
 const AUDIT_TYPES: Array<{ value: string; label: string }> = [
   { value: 'all', label: 'All types' },

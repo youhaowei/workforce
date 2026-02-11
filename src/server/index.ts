@@ -3,7 +3,7 @@ import { cors } from 'hono/cors'
 import { trpcServer } from '@hono/trpc-server'
 import { existsSync } from 'fs'
 import { homedir } from 'os'
-import { getLogPath } from '@shared/debug-log'
+import { getLogPath } from '@/shared/debug-log'
 import { appRouter } from './routers'
 
 /**

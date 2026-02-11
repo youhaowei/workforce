@@ -130,6 +130,14 @@
   ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/30; }
 }
 
+/* Glass pill - floating top bar groups */
+@layer components {
+  .glass-pill {
+    @apply px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-md
+           border border-border/50 shadow-sm;
+  }
+}
+
 /* Streaming cursor for chat */
 @layer components {
   .streaming-cursor::after {

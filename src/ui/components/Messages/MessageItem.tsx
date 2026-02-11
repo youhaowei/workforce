@@ -3,7 +3,7 @@
  */
 
 import { useMemo } from 'react';
-import { useMessagesStore } from '@ui/stores/useMessagesStore';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import ToolOutput from '../Tools/ToolOutput';
 import Markdown from './Markdown';
 

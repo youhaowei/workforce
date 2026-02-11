@@ -11,7 +11,7 @@
  */
 
 import { AgentInstance } from './agent-instance';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 import type {
   OrchestrationService,
   SpawnOptions,
@@ -25,7 +25,7 @@ import type {
   ReviewService,
   ReviewAction,
 } from './types';
-import type { Unsubscribe, ReviewItemChangeEvent } from '@shared/event-bus';
+import type { Unsubscribe, ReviewItemChangeEvent } from '@/shared/event-bus';
 
 // =============================================================================
 // Implementation

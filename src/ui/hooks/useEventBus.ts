@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { getEventBus, type EventTypeName, type EventPayload } from '@shared/event-bus';
+import { getEventBus, type EventTypeName, type EventPayload } from '@/shared/event-bus';
 
 /**
  * Subscribe to a single EventBus event with React lifecycle cleanup.

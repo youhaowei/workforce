@@ -5,8 +5,8 @@
 import { AgentCard } from './AgentCard';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { stateVariant } from '@ui/lib/stateVariant';
-import type { Session } from '@services/types';
+import { stateVariant } from '@/ui/lib/stateVariant';
+import type { Session } from '@/services/types';
 
 export interface BoardColumnProps {
   title: string;

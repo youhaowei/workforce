@@ -12,7 +12,7 @@
 import { readFile, appendFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import type { AuditEntry, AuditEntryType, AuditService } from './types';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 import { getDataDir } from './data-dir';
 
 // =============================================================================

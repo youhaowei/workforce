@@ -5,7 +5,7 @@
  * Services follow the lazy singleton pattern with explicit dispose().
  */
 
-import type { BusEvent } from '@shared/event-bus';
+import type { BusEvent } from '@/shared/event-bus';
 
 // =============================================================================
 // Common Types

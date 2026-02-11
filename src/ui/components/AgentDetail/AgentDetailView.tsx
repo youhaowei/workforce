@@ -10,17 +10,17 @@
 
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
+import { useTRPC } from '@/bridge/react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Pause, Play, XCircle, Plus } from 'lucide-react';
-import { stateVariant } from '@ui/lib/stateVariant';
+import { stateVariant } from '@/ui/lib/stateVariant';
 import { AgentOverview } from './AgentOverview';
 import { AgentMessages } from './AgentMessages';
 import { AgentActions } from './AgentActions';
 import { AgentAudit } from './AgentAudit';
-import type { SessionLifecycle } from '@services/types';
+import type { SessionLifecycle } from '@/services/types';
 
 export interface AgentDetailViewProps {
   sessionId: string;

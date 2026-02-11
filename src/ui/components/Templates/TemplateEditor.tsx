@@ -4,8 +4,8 @@
 
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
-import { useWorkspaceStore } from '@ui/stores/useWorkspaceStore';
+import { useTRPC } from '@/bridge/react';
+import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { AgentTemplate } from '@services/types';
+import type { AgentTemplate } from '@/services/types';
 
 interface TemplateEditorProps {
   template?: AgentTemplate | null;

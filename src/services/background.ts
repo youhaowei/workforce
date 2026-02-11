@@ -14,7 +14,7 @@ import type {
   BackgroundTaskOptions,
   TaskStatus,
 } from './types';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 
 function generateTaskId(): string {
   return `task_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;

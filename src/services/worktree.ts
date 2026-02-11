@@ -15,7 +15,7 @@ import { readFile, writeFile, mkdir, rm } from 'fs/promises';
 import { join } from 'path';
 import { execFileNoThrow } from '../utils/execFileNoThrow';
 import type { WorktreeInfo, WorktreeService } from './types';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 import { getDataDir } from './data-dir';
 
 // =============================================================================

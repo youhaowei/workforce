@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { getWorktreeService } from '@services/worktree';
-import { getSessionService } from '@services/session';
+import { getWorktreeService } from '@/services/worktree';
+import { getSessionService } from '@/services/session';
 import { getOrchestrationService } from './_services';
 
 export const worktreeRouter = router({

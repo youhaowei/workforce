@@ -9,7 +9,7 @@
  */
 
 import { useEffect } from 'react';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 import type {
   SystemInitEvent,
   QueryResultEvent,
@@ -21,7 +21,7 @@ import type {
   HookResponseEvent,
   ToolStartEvent,
   ToolEndEvent,
-} from '@shared/event-bus';
+} from '@/shared/event-bus';
 import { useSdkStore } from '../stores/useSdkStore';
 import { useToolStore } from '../stores/useToolStore';
 

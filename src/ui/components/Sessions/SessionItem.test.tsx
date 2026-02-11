@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SessionItem } from './SessionItem';
-import type { Session } from '@services/types';
+import type { Session } from '@/services/types';
 
 describe('SessionItem', () => {
   const mockOnSelect = vi.fn();

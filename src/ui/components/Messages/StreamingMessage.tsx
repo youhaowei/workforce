@@ -2,7 +2,7 @@
  * StreamingMessage - Live streaming message indicator with content preview.
  */
 
-import { useMessagesStore } from '@ui/stores/useMessagesStore';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import { Loader2 } from 'lucide-react';
 
 export default function StreamingMessage() {

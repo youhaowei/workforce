@@ -3,9 +3,9 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
+import { useTRPC } from '@/bridge/react';
 import { AuditTimeline } from '../Audit';
-import type { AuditEntry } from '@services/types';
+import type { AuditEntry } from '@/services/types';
 
 interface AgentAuditProps {
   sessionId: string;

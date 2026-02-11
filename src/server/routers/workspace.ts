@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
-import { getWorkspaceService } from '@services/workspace';
+import { getWorkspaceService } from '@/services/workspace';
 
 export const workspaceRouter = router({
   list: publicProcedure.query(() => getWorkspaceService().list()),

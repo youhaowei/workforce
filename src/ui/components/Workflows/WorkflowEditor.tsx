@@ -5,8 +5,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
-import { useWorkspaceStore } from '@ui/stores/useWorkspaceStore';
+import { useTRPC } from '@/bridge/react';
+import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
 import {
   Dialog,
   DialogContent,
@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Plus } from 'lucide-react';
 import { WorkflowStepItem } from './WorkflowStepItem';
-import type { WorkflowTemplate, WorkflowStep, StepType } from '@services/types';
+import type { WorkflowTemplate, WorkflowStep, StepType } from '@/services/types';
 
 function saveButtonLabel(isPending: boolean, isEditing: boolean): string {
   if (isPending) return 'Saving...';

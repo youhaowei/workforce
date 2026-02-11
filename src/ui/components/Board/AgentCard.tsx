@@ -14,8 +14,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Pause, Play, XCircle, Users } from 'lucide-react';
-import { stateVariant } from '@ui/lib/stateVariant';
-import type { Session, SessionLifecycle } from '@services/types';
+import { stateVariant } from '@/ui/lib/stateVariant';
+import type { Session, SessionLifecycle } from '@/services/types';
 
 export interface AgentCardProps {
   session: Session;

@@ -1,11 +1,13 @@
 /**
- * SessionsPanel - Side panel for managing chat sessions.
+ * SessionsPanel - Persistent left panel for session management.
+ * Always visible adjacent to the nav sidebar. Collapsible to save space.
  * Uses tRPC queries/mutations with type and state filtering.
  */
 
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
+import { ChevronsLeft } from 'lucide-react';
+import { useTRPC } from '@/bridge/react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -14,18 +16,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { X } from 'lucide-react';
 import { SessionList } from './SessionList';
 
 export interface SessionsPanelProps {
-  isOpen: boolean;
-  onClose?: () => void;
+  collapsed: boolean;
+  activeSessionId?: string;
+  onSelectSession?: (sessionId: string) => void;
+  onCreateSession?: () => void;
+  onCollapse?: () => void;
 }
 
-export function SessionsPanel({ isOpen, onClose }: SessionsPanelProps) {
+export function SessionsPanel({
+  collapsed,
+  activeSessionId,
+  onSelectSession,
+  onCreateSession,
+  onCollapse,
+}: SessionsPanelProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const [activeSessionId, setActiveSessionId] = useState<string | undefined>(undefined);
   const [typeFilter, setTypeFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState('all');
 
@@ -51,21 +60,12 @@ export function SessionsPanel({ isOpen, onClose }: SessionsPanelProps) {
     }),
   );
 
-  const createMutation = useMutation(
-    trpc.session.create.mutationOptions({
-      onSuccess: (data) => {
-        if (data && typeof data === 'object' && 'id' in data) {
-          setActiveSessionId(data.id as string);
-        }
-        queryClient.invalidateQueries({ queryKey: ['session'] });
-      },
-    }),
-  );
-
   const handleSelect = useCallback((sessionId: string) => {
-    resumeMutation.mutate({ sessionId });
-    setActiveSessionId(sessionId);
-  }, [resumeMutation]);
+    if (sessionId !== activeSessionId) {
+      resumeMutation.mutate({ sessionId });
+    }
+    onSelectSession?.(sessionId);
+  }, [activeSessionId, resumeMutation, onSelectSession]);
 
   const handleDelete = useCallback((sessionId: string) => {
     deleteMutation.mutate({ sessionId });
@@ -76,19 +76,31 @@ export function SessionsPanel({ isOpen, onClose }: SessionsPanelProps) {
   }, [forkMutation]);
 
   const handleCreate = useCallback(() => {
-    createMutation.mutate(undefined);
-  }, [createMutation]);
-
-  if (!isOpen) return null;
+    onCreateSession?.();
+  }, [onCreateSession]);
 
   return (
-    <div className="w-80 border-l flex flex-col bg-background">
+    <div
+      className={`flex-shrink-0 flex flex-col bg-background border-r transition-[width] duration-200 ease-in-out overflow-hidden ${
+        collapsed ? 'w-0 border-r-0' : 'w-72'
+      }`}
+      aria-hidden={collapsed}
+      inert={collapsed ? true : undefined}
+    >
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b">
         <h2 className="font-semibold text-sm">Sessions</h2>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
-          <X className="h-4 w-4" />
-        </Button>
+        {onCollapse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            onClick={onCollapse}
+            aria-label="Hide sessions"
+          >
+            <ChevronsLeft className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
 
       {/* Filters */}

@@ -4,7 +4,7 @@
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
+import { useTRPC } from '@/bridge/react';
 import {
   Dialog,
   DialogContent,

@@ -9,8 +9,8 @@ import { useMemo, type MouseEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GitFork, Trash2, Bot, MessageSquare } from 'lucide-react';
-import { stateVariant } from '@ui/lib/stateVariant';
-import type { Session, SessionLifecycle, SessionType } from '@services/types';
+import { stateVariant } from '@/ui/lib/stateVariant';
+import type { Session, SessionLifecycle, SessionType } from '@/services/types';
 
 export interface SessionItemProps {
   session: Session;

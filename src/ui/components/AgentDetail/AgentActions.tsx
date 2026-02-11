@@ -3,11 +3,11 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { useTRPC } from '@bridge/react';
+import { useTRPC } from '@/bridge/react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Wrench, FileText } from 'lucide-react';
-import type { AuditEntry } from '@services/types';
+import type { AuditEntry } from '@/services/types';
 
 interface AgentActionsProps {
   sessionId: string;

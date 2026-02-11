@@ -1,8 +1,8 @@
 /**
  * Shell - Main application layout.
  *
- * Provides 6-tab navigation (Board, Queue, Chat, Templates, Workflows, Audit),
- * side panels for sessions and todos, workspace selector, and a status bar.
+ * Four-column layout: sidebar | sessions panel | content column (TopBar → banners → main → StatusBar) | todo panel.
+ * Sessions and todo panels are persistent full-height siblings. Board filters are lifted to TopBar.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -12,28 +12,33 @@ import { AlertCircle, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
-import { MessageList, MessageInput } from '../Messages';
 import { TodoPanel } from '../Todo';
-import { SessionsPanel } from '../Sessions';
+import { SessionsPanel, SessionsView } from '../Sessions';
 import { BoardView } from '../Board';
 import { ReviewQueue } from '../Review';
 import { AgentDetailView } from '../AgentDetail';
 import { TemplateListView } from '../Templates';
 import { WorkflowListView } from '../Workflows';
 import { WorkspaceAuditView } from '../Audit';
-import { useHotkey } from '@ui/hotkeys';
-import { useMessagesStore } from '@ui/stores/useMessagesStore';
-import { useSdkStore } from '@ui/stores/useSdkStore';
-import { useWorkspaceStore } from '@ui/stores/useWorkspaceStore';
-import { useTRPC } from '@bridge/react';
-import { trpc as trpcClient } from '@bridge/trpc';
-import { getEventBus } from '@shared/event-bus';
-import AppHeader from './AppHeader';
+import { WorkspacesListView } from '../Workspace/WorkspacesListView';
+import { HomeView } from '../Home';
+import { useHotkey } from '@/ui/hotkeys';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
+import { useSdkStore } from '@/ui/stores/useSdkStore';
+import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
+import { useTRPC } from '@/bridge/react';
+import { trpc as trpcClient } from '@/bridge/trpc';
+import { getEventBus } from '@/shared/event-bus';
+import AppSidebar from './AppSidebar';
+import TopBar from './AppHeader';
 import StatusBar from './StatusBar';
 
-export type ViewType = 'board' | 'queue' | 'chat' | 'templates' | 'workflows' | 'audit' | 'detail';
+export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'templates' | 'workflows' | 'workspaces' | 'audit' | 'detail';
+export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
 
 const SERVER_URL = 'http://localhost:4096';
+const SIDEBAR_STORAGE_KEY = 'workforce-sidebar-mode';
+const SESSIONS_PANEL_STORAGE_KEY = 'workforce-sessions-collapsed';
 
 async function checkServerConnection(): Promise<boolean> {
   try {
@@ -45,13 +50,27 @@ async function checkServerConnection(): Promise<boolean> {
 }
 
 function ShellContent() {
-  const [currentView, setCurrentView] = useState<ViewType>('board');
+  const [currentView, setCurrentView] = useState<ViewType>('home');
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [todoPanelOpen, setTodoPanelOpen] = useState(false);
-  const [sessionsPanelOpen, setSessionsPanelOpen] = useState(false);
+  const [sessionsPanelCollapsed, setSessionsPanelCollapsed] = useState(
+    () => localStorage.getItem(SESSIONS_PANEL_STORAGE_KEY) === 'true',
+  );
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [serverConnected, setServerConnected] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
+    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    // Backward compat: old key stored 'true'/'false'
+    if (stored === 'true') return 'collapsed';
+    if (stored === 'collapsed' || stored === 'hidden') return stored;
+    return 'expanded';
+  });
   const cancelStreamRef = useRef<(() => void) | null>(null);
+
+  // Board filter state — lifted here so TopBar and BoardView share it
+  const [boardKeyword, setBoardKeyword] = useState('');
+  const [boardStatusFilter, setBoardStatusFilter] = useState('all');
 
   const trpc = useTRPC();
   const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
@@ -63,6 +82,8 @@ function ShellContent() {
   const startAssistantMessage = useMessagesStore((s) => s.startAssistantMessage);
   const appendToStreamingMessage = useMessagesStore((s) => s.appendToStreamingMessage);
   const finishStreamingMessage = useMessagesStore((s) => s.finishStreamingMessage);
+  const clearMessages = useMessagesStore((s) => s.clearMessages);
+  const setActiveSession = useMessagesStore((s) => s.setActiveSession);
   const cumulativeUsage = useSdkStore((s) => s.cumulativeUsage);
   const currentQueryStats = useSdkStore((s) => s.currentQueryStats);
 
@@ -87,7 +108,6 @@ function ShellContent() {
   }, []);
 
   const handleCancel = useCallback(() => {
-    // Signal the backend to abort the in-flight agent query before detaching SSE
     trpcClient.agent.cancel.mutate().catch(() => {/* best-effort */});
     if (cancelStreamRef.current) {
       cancelStreamRef.current();
@@ -96,11 +116,59 @@ function ShellContent() {
     finishStreamingMessage();
   }, [finishStreamingMessage]);
 
-  useHotkey('toggleHistory', () => setSessionsPanelOpen((prev) => !prev));
+  const toggleSidebarSize = useCallback(() => {
+    setSidebarMode((prev) => {
+      const next: SidebarMode = prev === 'expanded' ? 'collapsed' : 'expanded';
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const toggleSidebarVisibility = useCallback(() => {
+    setSidebarMode((prev) => {
+      const next: SidebarMode = prev === 'hidden' ? 'expanded' : 'hidden';
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const toggleSessionsPanel = useCallback(() => {
+    setSessionsPanelCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  const handleSelectSession = useCallback((sessionId: string) => {
+    if (sessionId === selectedSessionId) return;
+    clearMessages();
+    setActiveSession(sessionId);
+    setSelectedSessionId(sessionId);
+    setCurrentView('sessions');
+  }, [selectedSessionId, clearMessages, setActiveSession]);
+
+  const handleCreateSession = useCallback(() => {
+    // Cancel any active stream (client + server) before starting fresh
+    trpcClient.agent.cancel.mutate().catch(() => {/* best-effort */});
+    if (cancelStreamRef.current) {
+      cancelStreamRef.current();
+      cancelStreamRef.current = null;
+    }
+    // clearMessages resets messages, streamingMessageId, streamingContent, and isStreaming
+    clearMessages();
+    setActiveSession(null);
+    setSelectedSessionId(null);
+    setCurrentView('sessions');
+    // Ensure sessions panel is visible
+    setSessionsPanelCollapsed(false);
+    localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, 'false');
+  }, [clearMessages, setActiveSession]);
+
+  useHotkey('toggleHistory', toggleSessionsPanel);
   useHotkey('toggleTasks', () => setTodoPanelOpen((prev) => !prev));
   useHotkey('cancelStream', handleCancel, isStreaming);
 
-  // Clean up any active tRPC subscription on unmount
   useEffect(() => {
     return () => {
       cancelStreamRef.current?.();
@@ -160,24 +228,44 @@ function ShellContent() {
   const renderMainView = () => {
     switch (currentView) {
       case 'board':
-        return <BoardView onSelectAgent={navigateToDetail} />;
+        return (
+          <BoardView
+            onSelectAgent={navigateToDetail}
+            keyword={boardKeyword}
+            statusFilter={boardStatusFilter}
+          />
+        );
       case 'queue':
         return <ReviewQueue />;
       case 'detail':
         return selectedAgentId ? (
           <AgentDetailView sessionId={selectedAgentId} onBack={navigateBack} onNavigateToChild={navigateToDetail} />
         ) : null;
-      case 'chat':
+      case 'home':
         return (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <MessageList messages={messages} isStreaming={isStreaming} />
-            <MessageInput onSubmit={handleSubmit} onCancel={handleCancel} isStreaming={isStreaming} />
-          </div>
+          <HomeView
+            onStartChat={handleCreateSession}
+            onNavigate={setCurrentView}
+            onSelectSession={handleSelectSession}
+          />
+        );
+      case 'sessions':
+        return (
+          <SessionsView
+            sessionId={selectedSessionId}
+            messages={messages}
+            isStreaming={isStreaming}
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+            onStartNewChat={handleCreateSession}
+          />
         );
       case 'templates':
         return <TemplateListView />;
       case 'workflows':
         return <WorkflowListView />;
+      case 'workspaces':
+        return <WorkspacesListView />;
       case 'audit':
         return <WorkspaceAuditView />;
       default:
@@ -187,60 +275,86 @@ function ShellContent() {
 
   return (
     <TooltipProvider>
-      <div className="h-screen flex flex-col bg-background overflow-hidden">
-        <AppHeader
+      <div className="h-screen flex bg-background overflow-hidden">
+        <AppSidebar
           currentView={currentView}
           onViewChange={setCurrentView}
-          sessionsPanelOpen={sessionsPanelOpen}
-          onToggleSessions={() => setSessionsPanelOpen((prev) => !prev)}
-          todoPanelOpen={todoPanelOpen}
-          onToggleTodo={() => setTodoPanelOpen((prev) => !prev)}
+          mode={sidebarMode}
+          onToggleSize={toggleSidebarSize}
         />
 
-        {/* Server Not Connected Banner */}
-        {!serverConnected && (
-          <div className="px-4 py-3 bg-muted/50 border-b flex items-center gap-3">
-            <WifiOff className="h-4 w-4 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium">Server not connected</p>
-              <p className="text-xs text-muted-foreground">
-                Run <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">bun run server</code> to start
-              </p>
-            </div>
-          </div>
-        )}
+        {/* Sessions panel — full height, same level as sidebar */}
+        <SessionsPanel
+          collapsed={sessionsPanelCollapsed}
+          activeSessionId={selectedSessionId ?? undefined}
+          onSelectSession={handleSelectSession}
+          onCreateSession={handleCreateSession}
+          onCollapse={toggleSessionsPanel}
+        />
 
-        {/* Error Banner */}
-        {error && (
-          <div className="px-4 py-2 bg-destructive/10 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-destructive" />
-              <span className="text-sm text-destructive">{error}</span>
-            </div>
-            <Button variant="ghost" size="sm" onClick={dismissError} className="text-destructive h-7">
-              Dismiss
-            </Button>
-          </div>
-        )}
-
-        {/* Main Content */}
-        <main className="flex-1 flex overflow-hidden">
-          <SessionsPanel
-            isOpen={sessionsPanelOpen}
-            onClose={() => setSessionsPanelOpen(false)}
+        {/* Content column — TopBar only spans this area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <TopBar
+            currentView={currentView}
+            onBack={currentView === 'detail' ? navigateBack : undefined}
+            sidebarHidden={sidebarMode === 'hidden'}
+            onToggleSidebar={toggleSidebarVisibility}
+            sessionsPanelCollapsed={sessionsPanelCollapsed}
+            onToggleSessionsPanel={toggleSessionsPanel}
+            todoPanelOpen={todoPanelOpen}
+            onToggleTodo={() => setTodoPanelOpen((prev) => !prev)}
+            onQuickCreate={handleCreateSession}
+            boardKeyword={boardKeyword}
+            onBoardKeywordChange={setBoardKeyword}
+            boardStatusFilter={boardStatusFilter}
+            onBoardStatusFilterChange={setBoardStatusFilter}
           />
-          {renderMainView()}
-          <TodoPanel
-            isOpen={todoPanelOpen}
-            onClose={() => setTodoPanelOpen(false)}
-          />
-        </main>
 
-        <StatusBar
-          isStreaming={isStreaming}
-          cumulativeUsage={cumulativeUsage}
-          currentQueryStats={currentQueryStats}
-          messageCount={messages.length}
+          {/* Server Not Connected Banner */}
+          {!serverConnected && (
+            <div className="px-4 py-3 bg-muted/50 border-b flex items-center gap-3">
+              <WifiOff className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">Server not connected</p>
+                <p className="text-xs text-muted-foreground">
+                  Run <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">bun run server</code> to start
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Error Banner */}
+          {error && (
+            <div className="px-4 py-2 bg-destructive/10 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                <span className="text-sm text-destructive">{error}</span>
+              </div>
+              <Button variant="ghost" size="sm" onClick={dismissError} className="text-destructive h-7">
+                Dismiss
+              </Button>
+            </div>
+          )}
+
+          {/* Main Content */}
+          <main className="flex-1 overflow-hidden">
+            {renderMainView()}
+          </main>
+
+          {currentView === 'sessions' && (
+            <StatusBar
+              isStreaming={isStreaming}
+              cumulativeUsage={cumulativeUsage}
+              currentQueryStats={currentQueryStats}
+              messageCount={messages.length}
+            />
+          )}
+        </div>
+
+        {/* Todo panel — full height, same level as sidebar and sessions */}
+        <TodoPanel
+          isOpen={todoPanelOpen}
+          onClose={() => setTodoPanelOpen(false)}
         />
       </div>
     </TooltipProvider>
