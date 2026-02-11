@@ -7,6 +7,9 @@ import type {
   WorkflowTemplate,
 } from './types';
 
+type DomainGateway = ReturnType<typeof getDomainService>;
+type OrchestrationGateway = ReturnType<typeof getWorkAgentOrchestrationService>;
+
 function getExecutionOrder(workflow: WorkflowTemplate): string[][] {
   const stepIds = new Set(workflow.steps.map((step) => step.id));
 
@@ -87,19 +90,23 @@ function stepIsolation(step: WorkflowStep): {
 }
 
 class WorkflowExecutionServiceImpl implements WorkflowExecutionService {
+  constructor(
+    private readonly domain: DomainGateway = getDomainService(),
+    private readonly orchestration: OrchestrationGateway = getWorkAgentOrchestrationService()
+  ) {}
+
   getExecutionOrder(workflow: WorkflowTemplate): string[][] {
     return getExecutionOrder(workflow);
   }
 
   async executeWorkflow(workflowId: string, goal?: string): Promise<WorkflowExecutionResult> {
-    const workflows = await getDomainService().listWorkflowTemplates();
+    const workflows = await this.domain.listWorkflowTemplates();
     const workflow = workflows.find((item) => item.id === workflowId);
     if (!workflow) {
       throw new Error(`Workflow not found: ${workflowId}`);
     }
 
-    const orchestration = getWorkAgentOrchestrationService();
-    const parent = await orchestration.spawn({
+    const parent = await this.orchestration.spawn({
       title: `Workflow: ${workflow.name}`,
       goal: goal ?? workflow.description,
       workflowId: workflow.id,
@@ -116,14 +123,14 @@ class WorkflowExecutionServiceImpl implements WorkflowExecutionService {
         if (!step) continue;
 
         if (step.reviewGate) {
-          const review = await getDomainService().createReview({
+          const review = await this.domain.createReview({
             sourceAgentId: parent.id,
             workflowId: workflow.id,
             summary: `Review gate: ${step.name}`,
             recommendation: `Approve to continue workflow "${workflow.name}".`,
           });
 
-          await orchestration.pause(parent.id, `Waiting for review on step "${step.name}"`);
+          await this.orchestration.pause(parent.id, `Waiting for review on step "${step.name}"`);
 
           return {
             workflowId: workflow.id,
@@ -135,7 +142,7 @@ class WorkflowExecutionServiceImpl implements WorkflowExecutionService {
           };
         }
 
-        const child = await orchestration.spawnChild(parent.id, {
+        const child = await this.orchestration.spawnChild(parent.id, {
           title: step.name,
           goal: stepGoal(step),
           templateId: step.templateId,
@@ -147,7 +154,7 @@ class WorkflowExecutionServiceImpl implements WorkflowExecutionService {
       }
     }
 
-    await orchestration.complete(parent.id, 100);
+    await this.orchestration.complete(parent.id, 100);
 
     return {
       workflowId: workflow.id,

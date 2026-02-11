@@ -7,6 +7,9 @@ import type {
   WorkAgentState,
 } from './types';
 
+type DomainGateway = ReturnType<typeof getDomainService>;
+type WorktreeGateway = ReturnType<typeof getWorktreeService>;
+
 type SpawnInput = {
   title: string;
   goal: string;
@@ -20,8 +23,13 @@ type SpawnInput = {
 };
 
 class WorkAgentOrchestrationServiceImpl implements WorkAgentOrchestrationService {
+  constructor(
+    private readonly domain: DomainGateway = getDomainService(),
+    private readonly worktrees: WorktreeGateway = getWorktreeService()
+  ) {}
+
   async spawn(input: SpawnInput): Promise<WorkAgentSession> {
-    const created = await getDomainService().createWorkAgent({
+    const created = await this.domain.createWorkAgent({
       title: input.title,
       goal: input.goal,
       workflowId: input.workflowId,
@@ -29,25 +37,13 @@ class WorkAgentOrchestrationServiceImpl implements WorkAgentOrchestrationService
       parentId: input.parentId,
     });
 
-    if (input.isolateWorktree) {
-      const repoRoot = input.repoRoot ?? process.cwd();
-      const worktree = await getWorktreeService().create({
-        sessionId: created.id,
-        repoRoot,
-        baseRef: input.worktreeBaseRef,
-      });
-      await getDomainService().createOutput({
-        agentId: created.id,
-        branchName: worktree.branch,
-        worktreePath: worktree.path,
-      });
-    }
+    await this.setupWorktreeIsolationIfNeeded(created.id, input);
 
     if (input.activate === false) {
       return created;
     }
 
-    return getDomainService().updateWorkAgentState(created.id, 'active', {
+    return this.domain.updateWorkAgentState(created.id, 'active', {
       progress: Math.max(created.progress, 1),
     });
   }
@@ -65,7 +61,7 @@ class WorkAgentOrchestrationServiceImpl implements WorkAgentOrchestrationService
       worktreeBaseRef?: string;
     }
   ): Promise<WorkAgentSession> {
-    const parent = await getDomainService().getWorkAgent(parentId);
+    const parent = await this.domain.getWorkAgent(parentId);
     if (!parent) {
       throw new Error(`Parent WorkAgent not found: ${parentId}`);
     }
@@ -84,42 +80,32 @@ class WorkAgentOrchestrationServiceImpl implements WorkAgentOrchestrationService
   }
 
   async pause(id: string, reason: string): Promise<WorkAgentSession> {
-    return getDomainService().updateWorkAgentState(id, 'paused', { pauseReason: reason });
+    return this.domain.updateWorkAgentState(id, 'paused', { pauseReason: reason });
   }
 
   async resume(id: string): Promise<WorkAgentSession> {
-    return getDomainService().updateWorkAgentState(id, 'active');
+    return this.domain.updateWorkAgentState(id, 'active');
   }
 
   async cancel(id: string, reason?: string): Promise<WorkAgentSession> {
-    const updated = await getDomainService().updateWorkAgentState(id, 'cancelled', {
-      pauseReason: reason,
-    });
-    await this.archiveWorktreeIfPresent(id);
-    return updated;
+    return this.transitionAndArchive(id, 'cancelled', { pauseReason: reason });
   }
 
   async complete(id: string, progress = 100): Promise<WorkAgentSession> {
-    const updated = await getDomainService().updateWorkAgentState(id, 'completed', { progress });
-    await this.archiveWorktreeIfPresent(id);
-    return updated;
+    return this.transitionAndArchive(id, 'completed', { progress });
   }
 
   async fail(id: string, reason?: string): Promise<WorkAgentSession> {
-    const updated = await getDomainService().updateWorkAgentState(id, 'failed', {
-      pauseReason: reason,
-    });
-    await this.archiveWorktreeIfPresent(id);
-    return updated;
+    return this.transitionAndArchive(id, 'failed', { pauseReason: reason });
   }
 
   async getAggregateProgress(parentId: string): Promise<AggregateProgress> {
-    const parent = await getDomainService().getWorkAgent(parentId);
+    const parent = await this.domain.getWorkAgent(parentId);
     if (!parent) {
       throw new Error(`WorkAgent not found: ${parentId}`);
     }
 
-    const allAgents = await getDomainService().listWorkAgents();
+    const allAgents = await this.domain.listWorkAgents();
     const children = allAgents.filter((agent) => agent.parentId === parent.id);
 
     const counts: Record<WorkAgentState, number> = {
@@ -153,12 +139,43 @@ class WorkAgentOrchestrationServiceImpl implements WorkAgentOrchestrationService
 
   dispose(): void {}
 
+  private async setupWorktreeIsolationIfNeeded(
+    sessionId: string,
+    input: Pick<SpawnInput, 'isolateWorktree' | 'repoRoot' | 'worktreeBaseRef'>
+  ): Promise<void> {
+    if (!input.isolateWorktree) {
+      return;
+    }
+
+    const repoRoot = input.repoRoot ?? process.cwd();
+    const worktree = await this.worktrees.create({
+      sessionId,
+      repoRoot,
+      baseRef: input.worktreeBaseRef,
+    });
+    await this.domain.createOutput({
+      agentId: sessionId,
+      branchName: worktree.branch,
+      worktreePath: worktree.path,
+    });
+  }
+
+  private async transitionAndArchive(
+    id: string,
+    state: 'cancelled' | 'completed' | 'failed',
+    options: { pauseReason?: string; progress?: number }
+  ): Promise<WorkAgentSession> {
+    const updated = await this.domain.updateWorkAgentState(id, state, options);
+    await this.archiveWorktreeIfPresent(id);
+    return updated;
+  }
+
   private async archiveWorktreeIfPresent(sessionId: string): Promise<void> {
-    const worktree = await getWorktreeService().getBySession(sessionId);
+    const worktree = await this.worktrees.getBySession(sessionId);
     if (!worktree || worktree.status !== 'active') {
       return;
     }
-    await getWorktreeService().archive(sessionId);
+    await this.worktrees.archive(sessionId);
   }
 }
 
