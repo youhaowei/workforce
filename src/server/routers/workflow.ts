@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 import { getWorkflowService, getOrchestrationService } from './_services';
 
@@ -56,7 +57,7 @@ export const workflowRouter = router({
     .input(z.object({ workspaceId: z.string(), id: z.string() }))
     .query(async ({ input }) => {
       const wf = await getWorkflowService().get(input.workspaceId, input.id);
-      if (!wf) throw new Error('Workflow not found');
+      if (!wf) throw new TRPCError({ code: 'NOT_FOUND', message: 'Workflow not found' });
       return getWorkflowService().validate(wf);
     }),
 

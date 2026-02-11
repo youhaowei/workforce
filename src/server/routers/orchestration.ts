@@ -2,8 +2,6 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { getOrchestrationService } from './_services';
 
-export { getOrchestrationService };
-
 export const orchestrationRouter = router({
   spawn: publicProcedure
     .input(z.object({

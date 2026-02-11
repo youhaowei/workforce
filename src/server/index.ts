@@ -27,16 +27,21 @@ function logAuthDiagnostics() {
 const app = new Hono()
 
 // Trusted-local threat model: server binds to localhost:4096, only the local
-// Tauri webview (or dev browser on localhost) should access it.  Restrict CORS
-// origin to localhost to prevent cross-origin requests from remote sites.
+// Tauri webview (or dev browser on localhost) should access it.
+// Allow localhost, 127.0.0.1, and Tauri v2 production origins (tauri.localhost,
+// tauri://localhost) to prevent CORS rejection in the packaged app.
+const ALLOWED_ORIGINS = new Set(['localhost', '127.0.0.1', 'tauri.localhost']);
+
 app.use('*', cors({
   origin: (origin) => {
-    if (!origin) return origin ?? '';  // same-origin / non-browser
+    if (!origin) return origin as string;  // same-origin / non-browser
+    // Tauri custom protocol: tauri://localhost
+    if (origin === 'tauri://localhost') return origin;
     try {
       const url = new URL(origin);
-      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') return origin;
+      if (ALLOWED_ORIGINS.has(url.hostname)) return origin;
     } catch { /* invalid origin */ }
-    return '';  // reject
+    return undefined as unknown as string;  // reject — no ACAO header
   },
 }))
 
