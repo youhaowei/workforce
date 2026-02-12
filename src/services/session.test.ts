@@ -210,6 +210,31 @@ describe('SessionService', () => {
       expect(page1.length).toBeLessThanOrEqual(2);
       expect(page2.length).toBeLessThanOrEqual(2);
     });
+
+    it('should filter by orgId', async () => {
+      const dir = join(TEST_DIR, 'list-org-filter');
+      const service = createSessionService(dir);
+
+      // Create workagent sessions in different orgs
+      await service.createWorkAgent({ templateId: 't', goal: 'Org1 task', orgId: 'org_a' });
+      await service.createWorkAgent({ templateId: 't', goal: 'Org2 task', orgId: 'org_b' });
+      // Chat session (no orgId)
+      await service.create('Chat session');
+
+      const org1 = await service.list({ orgId: 'org_a' });
+      expect(org1).toHaveLength(1);
+      expect(org1[0].metadata.orgId).toBe('org_a');
+
+      const org2 = await service.list({ orgId: 'org_b' });
+      expect(org2).toHaveLength(1);
+      expect(org2[0].metadata.orgId).toBe('org_b');
+
+      // No filter returns all 3
+      const all = await service.list();
+      expect(all).toHaveLength(3);
+
+      service.dispose();
+    });
   });
 
   describe('search', () => {

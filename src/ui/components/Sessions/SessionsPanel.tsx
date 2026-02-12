@@ -8,6 +8,7 @@ import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronsLeft } from 'lucide-react';
 import { useTRPC } from '@/bridge/react';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -35,11 +36,15 @@ export function SessionsPanel({
 }: SessionsPanelProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const orgId = useOrgStore((s) => s.currentOrgId);
   const [typeFilter, setTypeFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState('all');
 
   const { data: sessions = [], isLoading } = useQuery(
-    trpc.session.list.queryOptions(undefined, { refetchInterval: 5000 }),
+    trpc.session.list.queryOptions(
+      orgId ? { orgId } : undefined,
+      { refetchInterval: 5000 },
+    ),
   );
 
   const resumeMutation = useMutation(

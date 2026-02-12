@@ -1,10 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
+import { mkdir, rm, writeFile } from 'fs/promises';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import { createCaller, resetRouterServices } from './index';
 import { resetSessionService } from '@/services/session';
 import { resetOrgService } from '@/services/org';
 import { resetTaskService } from '@/services/task';
 import { resetTemplateService } from '@/services/template';
-import { resetWorktreeService } from '@/services/worktree';
+import { getWorktreeService, resetWorktreeService } from '@/services/worktree';
+import { execFileNoThrow } from '@/utils/execFileNoThrow';
 
 /**
  * tRPC router integration tests.
@@ -198,26 +202,58 @@ describe('tRPC Routers', () => {
   });
 
   describe('worktree', () => {
-    it('keep transitions session to completed but leaves worktree active', async () => {
-      // Create an org
-      const ws = await caller.org.create({
-        name: 'keep-test',
-        rootPath: '/tmp/keep-test',
-      });
+    it('keep rejects when no worktree exists', async () => {
+      const session = await caller.session.create({ title: 'keep-guard' });
 
-      // Create a workagent session (needs lifecycle state for transition)
-      const session = await caller.session.create({ title: 'keep-session' });
-
-      // Manually set up as workagent with lifecycle — keep requires worktree
-      // Since we can't easily create real worktrees in tests, verify the mutation
-      // throws NOT_FOUND when no worktree exists (validates the guard check)
       await expect(
         caller.worktree.keep({ sessionId: session.id }),
       ).rejects.toThrow();
 
-      // Cleanup
-      await caller.org.delete({ id: ws.id });
       await caller.session.delete({ sessionId: session.id });
+    });
+
+    it('keep transitions session to completed and leaves worktree active', async () => {
+      // Set up a temp git repo for a real worktree
+      const testDir = join(tmpdir(), 'workforce-keep-test-' + Date.now());
+      const repoPath = join(testDir, 'repo');
+      await mkdir(repoPath, { recursive: true });
+      await execFileNoThrow('git', ['init'], { cwd: repoPath });
+      await execFileNoThrow('git', ['config', 'user.email', 'test@test.com'], { cwd: repoPath });
+      await execFileNoThrow('git', ['config', 'user.name', 'Test'], { cwd: repoPath });
+      await writeFile(join(repoPath, 'README.md'), '# Test\n');
+      await execFileNoThrow('git', ['add', '.'], { cwd: repoPath });
+      await execFileNoThrow('git', ['commit', '-m', 'init'], { cwd: repoPath });
+
+      // Create session and transition to active (keep requires active → completed)
+      const session = await caller.session.create({ title: 'keep-happy' });
+      await caller.session.transition({
+        sessionId: session.id,
+        state: 'active',
+        reason: 'test',
+      });
+
+      // Create a real worktree for this session
+      const worktreeService = getWorktreeService();
+      await worktreeService.create(session.id, repoPath);
+
+      // Call keep
+      const result = await caller.worktree.keep({ sessionId: session.id });
+      expect(result).toEqual({ success: true });
+
+      // Session should be completed
+      const updated = await caller.session.get({ sessionId: session.id });
+      expect(updated).not.toBeNull();
+      const lifecycle = updated!.metadata.lifecycle as { state: string } | undefined;
+      expect(lifecycle?.state).toBe('completed');
+
+      // Worktree should still exist
+      const wtInfo = worktreeService.getForSession(session.id);
+      expect(wtInfo).not.toBeNull();
+      expect(wtInfo!.status).toBe('active');
+
+      // Cleanup
+      await caller.session.delete({ sessionId: session.id });
+      await rm(testDir, { recursive: true, force: true });
     });
   });
 

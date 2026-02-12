@@ -6,6 +6,7 @@
 import { useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { BoardColumn } from './BoardColumn';
 import type { Session, SessionLifecycle } from '@/services/types';
 
@@ -20,11 +21,13 @@ const LIFECYCLE_COLUMNS = ['created', 'active', 'paused', 'completed', 'failed',
 export function BoardView({ onSelectAgent, keyword, statusFilter }: BoardViewProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const orgId = useOrgStore((s) => s.currentOrgId);
 
   const { data: sessions = [] } = useQuery(
-    trpc.session.list.queryOptions(undefined, {
-      refetchInterval: 5000,
-    }),
+    trpc.session.list.queryOptions(
+      orgId ? { orgId } : undefined,
+      { refetchInterval: 5000 },
+    ),
   );
 
   const cancelMutation = useMutation(
@@ -58,7 +61,7 @@ export function BoardView({ onSelectAgent, keyword, statusFilter }: BoardViewPro
     [cancelMutation, pauseMutation, resumeMutation],
   );
 
-  // Show all agents (no org filter — board shows everything)
+  // Extract work agents from org-scoped session list
   const workAgents = useMemo(() => {
     let agents = sessions.filter(
       (s: Session) => s.metadata?.type === 'workagent',

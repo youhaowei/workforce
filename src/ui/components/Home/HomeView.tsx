@@ -30,7 +30,10 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
   const orgId = useOrgStore((s) => s.currentOrgId);
 
   const { data: sessions = [] } = useQuery(
-    trpc.session.list.queryOptions(undefined, { refetchInterval: 5000 }),
+    trpc.session.list.queryOptions(
+      orgId ? { orgId } : undefined,
+      { refetchInterval: 5000 },
+    ),
   );
 
   const { data: pendingReviews = 0 } = useQuery(

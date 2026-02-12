@@ -6,7 +6,11 @@ import type { LifecycleState } from '@/services/types';
 
 export const sessionRouter = router({
   list: publicProcedure
-    .input(z.object({ limit: z.number().optional(), offset: z.number().optional() }).optional())
+    .input(z.object({
+      limit: z.number().optional(),
+      offset: z.number().optional(),
+      orgId: z.string().optional(),
+    }).optional())
     .query(({ input }) => getSessionService().list(input ?? undefined)),
 
   get: publicProcedure

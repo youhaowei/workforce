@@ -201,9 +201,10 @@ export interface SessionService extends Disposable {
   fork(sessionId: string): Promise<Session>;
 
   /**
-   * List all sessions with optional pagination.
+   * List sessions with optional pagination and org scoping.
+   * When orgId is provided, only sessions with matching metadata.orgId are returned.
    */
-  list(options?: { limit?: number; offset?: number }): Promise<Session[]>;
+  list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<Session[]>;
 
   /**
    * Search sessions by content.

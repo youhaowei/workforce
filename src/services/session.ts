@@ -278,11 +278,16 @@ class SessionServiceImpl implements SessionService {
     return forked;
   }
 
-  async list(options?: { limit?: number; offset?: number }): Promise<Session[]> {
+  async list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<Session[]> {
     await this.ensureInitialized();
 
-    const all = Array.from(this.sessions.values());
-    const sorted = all.sort((a, b) => b.updatedAt - a.updatedAt);
+    let results = Array.from(this.sessions.values());
+
+    if (options?.orgId) {
+      results = results.filter((s) => s.metadata.orgId === options.orgId);
+    }
+
+    const sorted = results.sort((a, b) => b.updatedAt - a.updatedAt);
 
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? sorted.length;
