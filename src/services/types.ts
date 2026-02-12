@@ -4,6 +4,7 @@
  * All service interfaces for the Workforce desktop agentic orchestrator.
  * Services follow the lazy singleton pattern with explicit dispose().
  */
+/* eslint-disable max-lines */
 
 import type { BusEvent } from '@/shared/event-bus';
 
@@ -183,12 +184,23 @@ export interface SessionService extends Disposable {
   /**
    * Get a session by ID.
    */
-  get(sessionId: string): Promise<Session | null>;
+  get(sessionId: string, options?: { includeMessages?: boolean }): Promise<Session | null>;
+  getMessages(sessionId: string, options?: { limit?: number; offset?: number }): Promise<Message[]>;
 
   /**
    * Save/update a session (incremental append).
    */
   save(session: Session): Promise<void>;
+  addMessage(sessionId: string, message: Message): Promise<void>;
+  startAssistantStream(sessionId: string, messageId: string, meta?: Record<string, unknown>): Promise<void>;
+  appendAssistantDelta(sessionId: string, messageId: string, delta: string, seq: number): Promise<void>;
+  finalizeAssistantMessage(
+    sessionId: string,
+    messageId: string,
+    fullContent: string,
+    stopReason: string
+  ): Promise<void>;
+  abortAssistantStream(sessionId: string, messageId: string, reason: string): Promise<void>;
 
   /**
    * Resume an existing session.
@@ -864,4 +876,3 @@ export interface OrchestrationService extends Disposable {
   getActiveInstances(): Map<string, unknown>;
   executeWorkflow(workflowId: string, orgId: string): Promise<Session>;
 }
-

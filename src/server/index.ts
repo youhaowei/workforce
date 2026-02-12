@@ -4,6 +4,7 @@ import { trpcServer } from '@hono/trpc-server'
 import { existsSync } from 'fs'
 import { homedir } from 'os'
 import { getLogPath } from '@/shared/debug-log'
+import { runDefaultStartupMigrations } from '@/services/startup-migrations'
 import { appRouter } from './routers'
 
 /**
@@ -23,6 +24,12 @@ function logAuthDiagnostics() {
   console.log('  PID:', process.pid)
   console.log('  PPID:', process.ppid)
 }
+
+async function runStartupMigrationPreflight(): Promise<void> {
+  await runDefaultStartupMigrations()
+}
+
+await runStartupMigrationPreflight()
 
 const app = new Hono()
 

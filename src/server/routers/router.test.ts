@@ -128,6 +128,62 @@ describe('tRPC Routers', () => {
         }),
       ).rejects.toThrow();
     });
+
+    it('supports includeMessages and messages endpoint', async () => {
+      const session = await caller.session.create({ title: 'messages-test' });
+      await caller.session.addMessage({
+        sessionId: session.id,
+        message: {
+          id: 'msg_user_1',
+          role: 'user',
+          content: 'hello',
+          timestamp: Date.now(),
+        },
+      });
+
+      const withoutMessages = await caller.session.get({
+        sessionId: session.id,
+        includeMessages: false,
+      });
+      expect(withoutMessages).not.toBeNull();
+      expect(withoutMessages!.messages).toEqual([]);
+
+      const messages = await caller.session.messages({ sessionId: session.id });
+      expect(messages).toHaveLength(1);
+      expect(messages[0].content).toBe('hello');
+    });
+
+    it('supports assistant stream lifecycle routes', async () => {
+      const session = await caller.session.create({ title: 'stream-test' });
+
+      await caller.session.startAssistantStream({
+        sessionId: session.id,
+        messageId: 'msg_assistant_1',
+      });
+      await caller.session.appendAssistantDelta({
+        sessionId: session.id,
+        messageId: 'msg_assistant_1',
+        delta: 'hel',
+        seq: 0,
+      });
+      await caller.session.appendAssistantDelta({
+        sessionId: session.id,
+        messageId: 'msg_assistant_1',
+        delta: 'lo',
+        seq: 1,
+      });
+      await caller.session.finalizeAssistantMessage({
+        sessionId: session.id,
+        messageId: 'msg_assistant_1',
+        fullContent: 'hello',
+        stopReason: 'end_turn',
+      });
+
+      const messages = await caller.session.messages({ sessionId: session.id });
+      const assistant = messages.find((m) => m.id === 'msg_assistant_1');
+      expect(assistant).toBeTruthy();
+      expect(assistant!.content).toBe('hello');
+    });
   });
 
   describe('task', () => {

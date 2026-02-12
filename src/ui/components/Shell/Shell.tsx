@@ -68,6 +68,12 @@ function ShellContent() {
   });
   const cancelStreamRef = useRef<(() => void) | null>(null);
   const intendedSessionRef = useRef<string | null>(null);
+  const streamSessionIdRef = useRef<string | null>(null);
+  const streamMessageIdRef = useRef<string | null>(null);
+  const streamSeqRef = useRef(0);
+  const streamContentRef = useRef('');
+  const streamPersistChainRef = useRef<Promise<void>>(Promise.resolve());
+  const streamFinalizedRef = useRef(false);
 
   // Board filter state — lifted here so TopBar and BoardView share it
   const [boardKeyword, setBoardKeyword] = useState('');
@@ -109,14 +115,62 @@ function ShellContent() {
     setCurrentView('board');
   }, []);
 
+  const resetStreamPersistence = useCallback(() => {
+    streamSessionIdRef.current = null;
+    streamMessageIdRef.current = null;
+    streamSeqRef.current = 0;
+    streamContentRef.current = '';
+    streamPersistChainRef.current = Promise.resolve();
+    streamFinalizedRef.current = false;
+  }, []);
+
+  const finalizeStreamPersistence = useCallback(
+    (kind: 'final' | 'abort', reason?: string) => {
+      const sessionId = streamSessionIdRef.current;
+      const messageId = streamMessageIdRef.current;
+      if (!sessionId || !messageId || streamFinalizedRef.current) {
+        return;
+      }
+
+      streamFinalizedRef.current = true;
+      const fullContent = streamContentRef.current.trim();
+
+      streamPersistChainRef.current = streamPersistChainRef.current
+        .then(async () => {
+          if (kind === 'final') {
+            await trpcClient.session.finalizeAssistantMessage.mutate({
+              sessionId,
+              messageId,
+              fullContent,
+              stopReason: reason ?? 'end_turn',
+            });
+          } else {
+            await trpcClient.session.abortAssistantStream.mutate({
+              sessionId,
+              messageId,
+              reason: reason ?? 'stream interrupted',
+            });
+          }
+        })
+        .catch(() => {
+          // Best-effort persistence.
+        })
+        .finally(() => {
+          resetStreamPersistence();
+        });
+    },
+    [resetStreamPersistence],
+  );
+
   const handleCancel = useCallback(() => {
     trpcClient.agent.cancel.mutate().catch(() => {/* best-effort */});
     if (cancelStreamRef.current) {
       cancelStreamRef.current();
       cancelStreamRef.current = null;
     }
+    finalizeStreamPersistence('abort', 'cancelled by user');
     finishStreamingMessage();
-  }, [finishStreamingMessage]);
+  }, [finishStreamingMessage, finalizeStreamPersistence]);
 
   const toggleSidebarSize = useCallback(() => {
     setSidebarMode((prev) => {
@@ -142,18 +196,31 @@ function ShellContent() {
     });
   }, []);
 
-  const handleSelectSession = useCallback((sessionId: string, messages?: Array<{ id: string; role: string; content: string; timestamp: number }>) => {
-    if (sessionId === intendedSessionRef.current) return;
-    intendedSessionRef.current = sessionId;
-    clearMessages();
-    setActiveSession(sessionId);
-    setSelectedSessionId(sessionId);
-    setCurrentView('sessions');
-    // Load messages passed from the caller (already fetched via session.list)
-    if (messages?.length) {
-      loadMessages(messages);
-    }
-  }, [clearMessages, setActiveSession, loadMessages]);
+  const handleSelectSession = useCallback(
+    (
+      sessionId: string,
+      messages?: Array<{ id: string; role: string; content: string; timestamp: number }>,
+    ) => {
+      if (sessionId === intendedSessionRef.current) return;
+      intendedSessionRef.current = sessionId;
+      clearMessages();
+      setActiveSession(sessionId);
+      setSelectedSessionId(sessionId);
+      setCurrentView('sessions');
+
+      void trpcClient.session.messages
+        .query({ sessionId })
+        .then((sessionMessages) => {
+          loadMessages(sessionMessages);
+        })
+        .catch(() => {
+          if (messages?.length) {
+            loadMessages(messages);
+          }
+        });
+    },
+    [clearMessages, setActiveSession, loadMessages],
+  );
 
   const handleCreateSession = useCallback(() => {
     // Cancel any active stream (client + server) before starting fresh
@@ -166,11 +233,13 @@ function ShellContent() {
     clearMessages();
     setActiveSession(null);
     setSelectedSessionId(null);
+    intendedSessionRef.current = null;
+    resetStreamPersistence();
     setCurrentView('sessions');
     // Ensure sessions panel is visible
     setSessionsPanelCollapsed(false);
     localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, 'false');
-  }, [clearMessages, setActiveSession]);
+  }, [clearMessages, setActiveSession, resetStreamPersistence]);
 
   useHotkey('toggleHistory', toggleSessionsPanel);
   useHotkey('toggleTasks', () => setTaskPanelOpen((prev) => !prev));
@@ -179,8 +248,9 @@ function ShellContent() {
   useEffect(() => {
     return () => {
       cancelStreamRef.current?.();
+      finalizeStreamPersistence('abort', 'component unmounted');
     };
-  }, []);
+  }, [finalizeStreamPersistence]);
 
   useEffect(() => {
     const checkConnection = async () => {
@@ -202,33 +272,108 @@ function ShellContent() {
   }, []);
 
   const handleSubmit = useCallback((content: string) => {
-    addUserMessage(content);
-    startAssistantMessage();
+    void (async () => {
+      const userMessageId = addUserMessage(content);
+      const assistantMessageId = startAssistantMessage();
 
-    const subscription = trpcClient.agent.query.subscribe(
-      { prompt: content },
-      {
-        onData: (data) => {
-          if (data.type === 'token') {
-            appendToStreamingMessage(data.data);
-          } else if (data.type === 'done') {
-            finishStreamingMessage();
-            cancelStreamRef.current = null;
-          } else if (data.type === 'error') {
-            finishStreamingMessage();
-            setError(data.data);
-            cancelStreamRef.current = null;
-          }
+      let sessionId = selectedSessionId;
+      if (!sessionId) {
+        const created = await trpcClient.session.create.mutate({
+          title: content.trim().slice(0, 80) || undefined,
+        });
+        sessionId = created.id;
+        intendedSessionRef.current = sessionId;
+        setSelectedSessionId(sessionId);
+        setActiveSession(sessionId);
+      }
+
+      const messageTimestamp = Date.now();
+      await trpcClient.session.addMessage.mutate({
+        sessionId,
+        message: {
+          id: userMessageId,
+          role: 'user',
+          content,
+          timestamp: messageTimestamp,
         },
-        onError: (err) => {
-          finishStreamingMessage();
-          setError(err instanceof Error ? err.message : String(err));
-          cancelStreamRef.current = null;
+      });
+
+      await trpcClient.session.startAssistantStream.mutate({
+        sessionId,
+        messageId: assistantMessageId,
+      });
+
+      streamSessionIdRef.current = sessionId;
+      streamMessageIdRef.current = assistantMessageId;
+      streamSeqRef.current = 0;
+      streamContentRef.current = '';
+      streamPersistChainRef.current = Promise.resolve();
+      streamFinalizedRef.current = false;
+
+      const enqueuePersist = (operation: () => Promise<unknown>) => {
+        streamPersistChainRef.current = streamPersistChainRef.current
+          .then(() => operation().then(() => undefined))
+          .catch(() => {
+            // Best-effort persistence.
+          });
+      };
+
+      const subscription = trpcClient.agent.query.subscribe(
+        { prompt: content },
+        {
+          onData: (data) => {
+            if (data.type === 'token') {
+              appendToStreamingMessage(data.data);
+              streamContentRef.current += data.data;
+              const seq = streamSeqRef.current++;
+              enqueuePersist(() =>
+                trpcClient.session.appendAssistantDelta.mutate({
+                  sessionId,
+                  messageId: assistantMessageId,
+                  delta: data.data,
+                  seq,
+                }),
+              );
+            } else if (data.type === 'done') {
+              finishStreamingMessage();
+              finalizeStreamPersistence('final', 'end_turn');
+              cancelStreamRef.current = null;
+            } else if (data.type === 'error') {
+              finishStreamingMessage();
+              setError(data.data);
+              finalizeStreamPersistence('abort', data.data);
+              cancelStreamRef.current = null;
+            }
+          },
+          onError: (err) => {
+            finishStreamingMessage();
+            const message = err instanceof Error ? err.message : String(err);
+            setError(message);
+            finalizeStreamPersistence('abort', message);
+            cancelStreamRef.current = null;
+          },
         },
-      },
-    );
-    cancelStreamRef.current = () => subscription.unsubscribe();
-  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage]);
+      );
+
+      cancelStreamRef.current = () => {
+        subscription.unsubscribe();
+        finalizeStreamPersistence('abort', 'subscription cancelled');
+      };
+    })().catch((err) => {
+      finishStreamingMessage();
+      setError(err instanceof Error ? err.message : String(err));
+      finalizeStreamPersistence('abort', 'submit failed');
+      cancelStreamRef.current = null;
+    });
+  }, [
+    addUserMessage,
+    appendToStreamingMessage,
+    finalizeStreamPersistence,
+    finishStreamingMessage,
+    selectedSessionId,
+    setActiveSession,
+    startAssistantMessage,
+  ]);
 
   const dismissError = useCallback(() => setError(null), []);
 

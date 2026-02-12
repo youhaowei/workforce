@@ -66,12 +66,68 @@ export function createMockSessionService(): SessionService {
       sessions.set(session.id, session);
       return session;
     },
-    async get(sessionId: string) {
-      return sessions.get(sessionId) ?? null;
+    async get(sessionId: string, options?: { includeMessages?: boolean }) {
+      const session = sessions.get(sessionId) ?? null;
+      if (!session) return null;
+      if (options?.includeMessages === false) {
+        return { ...session, messages: [] };
+      }
+      return session;
+    },
+    async getMessages(sessionId: string, options?: { limit?: number; offset?: number }) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      const offset = options?.offset ?? 0;
+      const limit = options?.limit ?? session.messages.length;
+      return session.messages.slice(offset, offset + limit);
     },
     async save(session: Session) {
       sessions.set(session.id, session);
     },
+    async addMessage(sessionId: string, message) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      session.messages.push(message);
+      session.updatedAt = Date.now();
+      sessions.set(session.id, session);
+    },
+    async startAssistantStream(sessionId: string, messageId: string) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      session.messages.push({
+        id: messageId,
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+      });
+      session.updatedAt = Date.now();
+      sessions.set(session.id, session);
+    },
+    async appendAssistantDelta(sessionId: string, messageId: string, delta: string) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      let msg = session.messages.find((m) => m.id === messageId);
+      if (!msg) {
+        msg = { id: messageId, role: 'assistant', content: '', timestamp: Date.now() };
+        session.messages.push(msg);
+      }
+      msg.content += delta;
+      session.updatedAt = Date.now();
+      sessions.set(session.id, session);
+    },
+    async finalizeAssistantMessage(sessionId: string, messageId: string, fullContent: string) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      let msg = session.messages.find((m) => m.id === messageId);
+      if (!msg) {
+        msg = { id: messageId, role: 'assistant', content: '', timestamp: Date.now() };
+        session.messages.push(msg);
+      }
+      msg.content = fullContent;
+      session.updatedAt = Date.now();
+      sessions.set(session.id, session);
+    },
+    async abortAssistantStream(_sessionId: string, _messageId: string, _reason: string) {},
     async resume(sessionId: string) {
       const s = sessions.get(sessionId);
       if (!s) throw new Error('Session not found');
