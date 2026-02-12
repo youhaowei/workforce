@@ -68,6 +68,7 @@ function ShellContent() {
   });
   const cancelStreamRef = useRef<(() => void) | null>(null);
   const intendedSessionRef = useRef<string | null>(null);
+  const streamSeqRef = useRef(0);
 
   // Board filter state — lifted here so TopBar and BoardView share it
   const [boardKeyword, setBoardKeyword] = useState('');
@@ -115,8 +116,16 @@ function ShellContent() {
       cancelStreamRef.current();
       cancelStreamRef.current = null;
     }
+    // Abort persistent stream if active
+    const msgId = useMessagesStore.getState().streamingMessageId;
+    const sessId = selectedSessionId;
+    if (sessId && msgId) {
+      trpcClient.session.streamAbort.mutate({
+        sessionId: sessId, messageId: msgId, reason: 'user_cancelled',
+      }).catch(() => {/* best-effort */});
+    }
     finishStreamingMessage();
-  }, [finishStreamingMessage]);
+  }, [finishStreamingMessage, selectedSessionId]);
 
   const toggleSidebarSize = useCallback(() => {
     setSidebarMode((prev) => {
@@ -202,8 +211,22 @@ function ShellContent() {
   }, []);
 
   const handleSubmit = useCallback((content: string) => {
-    addUserMessage(content);
-    startAssistantMessage();
+    const userMsgId = addUserMessage(content);
+    const assistantMsgId = startAssistantMessage();
+    streamSeqRef.current = 0;
+
+    const sessId = selectedSessionId;
+
+    // Persist user message + start assistant stream (best-effort, don't block UI)
+    if (sessId) {
+      trpcClient.session.addMessage.mutate({
+        sessionId: sessId,
+        message: { id: userMsgId, role: 'user' as const, content, timestamp: Date.now() },
+      }).catch(() => {/* best-effort */});
+      trpcClient.session.streamStart.mutate({
+        sessionId: sessId, messageId: assistantMsgId,
+      }).catch(() => {/* best-effort */});
+    }
 
     const subscription = trpcClient.agent.query.subscribe(
       { prompt: content },
@@ -211,24 +234,55 @@ function ShellContent() {
         onData: (data) => {
           if (data.type === 'token') {
             appendToStreamingMessage(data.data);
+            // Persist delta (fire-and-forget)
+            if (sessId) {
+              const seq = streamSeqRef.current++;
+              trpcClient.session.streamDelta.mutate({
+                sessionId: sessId, messageId: assistantMsgId, delta: data.data, seq,
+              }).catch(() => {/* best-effort */});
+            }
           } else if (data.type === 'done') {
+            // Assemble full content before finishing (Zustand hasn't committed yet)
+            const fullContent = useMessagesStore.getState().streamingContent;
             finishStreamingMessage();
             cancelStreamRef.current = null;
+            // Persist finalized message
+            if (sessId) {
+              trpcClient.session.streamFinalize.mutate({
+                sessionId: sessId,
+                messageId: assistantMsgId,
+                fullContent: fullContent.trim(),
+                stopReason: 'end_turn',
+              }).catch(() => {/* best-effort */});
+            }
           } else if (data.type === 'error') {
             finishStreamingMessage();
             setError(data.data);
             cancelStreamRef.current = null;
+            // Persist abort
+            if (sessId) {
+              trpcClient.session.streamAbort.mutate({
+                sessionId: sessId, messageId: assistantMsgId, reason: data.data,
+              }).catch(() => {/* best-effort */});
+            }
           }
         },
         onError: (err) => {
           finishStreamingMessage();
           setError(err instanceof Error ? err.message : String(err));
           cancelStreamRef.current = null;
+          // Persist abort
+          if (sessId) {
+            trpcClient.session.streamAbort.mutate({
+              sessionId: sessId, messageId: assistantMsgId,
+              reason: err instanceof Error ? err.message : String(err),
+            }).catch(() => {/* best-effort */});
+          }
         },
       },
     );
     cancelStreamRef.current = () => subscription.unsubscribe();
-  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage]);
+  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, selectedSessionId]);
 
   const dismissError = useCallback(() => setError(null), []);
 

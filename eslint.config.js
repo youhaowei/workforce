@@ -114,5 +114,12 @@ export default [
       'complexity': ['warn', 15],
       // React-specific (rules-of-hooks and exhaustive-deps are above)
     }
+  },
+  // Relax max-lines for test files and type definition barrels
+  {
+    files: ['src/**/*.test.{ts,tsx}', 'src/**/types.ts'],
+    rules: {
+      'max-lines': 'off',
+    }
   }
 ];

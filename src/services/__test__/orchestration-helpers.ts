@@ -6,6 +6,7 @@ import { getEventBus } from '@/shared/event-bus';
 import type {
   Session,
   SessionService,
+  Message,
   TemplateService,
   WorktreeService,
   WorkflowService,
@@ -129,6 +130,24 @@ export function createMockSessionService(): SessionService {
     },
     async getChildren(parentSessionId: string) {
       return Array.from(sessions.values()).filter((s) => s.parentId === parentSessionId);
+    },
+    async addMessage(sessionId: string, message: Message) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      session.messages.push(message);
+    },
+    async startAssistantStream() { /* no-op for mock */ },
+    async appendAssistantDelta() { /* no-op for mock */ },
+    async finalizeAssistantMessage(sessionId: string, messageId: string, fullContent: string) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      session.messages.push({ id: messageId, role: 'assistant', content: fullContent, timestamp: Date.now() });
+    },
+    async abortAssistantStream() { /* no-op for mock */ },
+    async getMessages(sessionId: string) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      return session.messages;
     },
     dispose() {
       sessions.clear();

@@ -174,6 +174,86 @@ export interface SessionSearchResult {
   score: number;
 }
 
+// =============================================================================
+// JSONL Record Types (Session Persistence)
+// =============================================================================
+
+/** Session identity + base metadata — always the first line in a .jsonl file. */
+export interface JournalHeader {
+  t: 'header';
+  v: number;
+  id: string;
+  title?: string;
+  createdAt: number;
+  updatedAt: number;
+  parentId?: string;
+  metadata: Record<string, unknown>;
+}
+
+/** A complete non-streaming message (user or system). */
+export interface JournalMessage {
+  t: 'message';
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  toolCalls?: ToolCall[];
+  toolResults?: ToolResult[];
+}
+
+/** Marks the start of an assistant streaming response. */
+export interface JournalMessageStart {
+  t: 'message_start';
+  id: string;
+  role: 'assistant';
+  timestamp: number;
+  meta?: Record<string, unknown>;
+}
+
+/** A single token/chunk delta for an in-progress stream. */
+export interface JournalMessageDelta {
+  t: 'message_delta';
+  id: string;
+  delta: string;
+  seq: number;
+}
+
+/** Authoritative final content for a completed assistant message. */
+export interface JournalMessageFinal {
+  t: 'message_final';
+  id: string;
+  role: 'assistant';
+  content: string;
+  timestamp: number;
+  stopReason: string;
+  toolCalls?: ToolCall[];
+  toolResults?: ToolResult[];
+}
+
+/** Stream aborted/interrupted marker. */
+export interface JournalMessageAbort {
+  t: 'message_abort';
+  id: string;
+  reason: string;
+  timestamp: number;
+}
+
+/** Metadata patch (title change, lifecycle transition, etc.). */
+export interface JournalMeta {
+  t: 'meta';
+  updatedAt: number;
+  patch: Record<string, unknown>;
+}
+
+export type JournalRecord =
+  | JournalHeader
+  | JournalMessage
+  | JournalMessageStart
+  | JournalMessageDelta
+  | JournalMessageFinal
+  | JournalMessageAbort
+  | JournalMeta;
+
 export interface SessionService extends Disposable {
   /**
    * Create a new session.
@@ -251,6 +331,50 @@ export interface SessionService extends Disposable {
    * Get all child sessions of a parent.
    */
   getChildren(parentSessionId: string): Promise<Session[]>;
+
+  /**
+   * Add a single message to a session (user/system messages).
+   * Appends a `message` record to the JSONL file.
+   */
+  addMessage(sessionId: string, message: Message): Promise<void>;
+
+  // ---------------------------------------------------------------------------
+  // Streaming Persistence (JSONL delta tracking)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Mark the start of an assistant streaming response.
+   * Appends a `message_start` record to the JSONL file.
+   */
+  startAssistantStream(sessionId: string, messageId: string, meta?: Record<string, unknown>): Promise<void>;
+
+  /**
+   * Append a streaming token delta.
+   * Appends a `message_delta` record with a sequence number.
+   */
+  appendAssistantDelta(sessionId: string, messageId: string, delta: string, seq: number): Promise<void>;
+
+  /**
+   * Finalize an assistant message with the full authoritative content.
+   * Appends a `message_final` record. This is the source of truth on replay.
+   */
+  finalizeAssistantMessage(
+    sessionId: string,
+    messageId: string,
+    fullContent: string,
+    stopReason: string,
+  ): Promise<void>;
+
+  /**
+   * Abort an in-progress assistant stream.
+   * Appends a `message_abort` record with the reason.
+   */
+  abortAssistantStream(sessionId: string, messageId: string, reason: string): Promise<void>;
+
+  /**
+   * Read messages for a session with optional pagination.
+   */
+  getMessages(sessionId: string, options?: { limit?: number; offset?: number }): Promise<Message[]>;
 }
 
 // =============================================================================
