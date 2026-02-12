@@ -1,117 +1,73 @@
 /**
- * HotkeyProvider - Central hotkey management for the app
+ * HotkeyProvider — React context for keyboard shortcuts.
  *
- * Registers global keyboard shortcuts and provides actions to components.
- * Uses solid-primitives/keyboard for reactive shortcut handling.
+ * Uses react-hotkeys-hook for shortcut registration.
+ * Components bind via `useHotkey(name, callback)`.
  */
 
-import { createContext, useContext, JSX } from 'solid-js';
-import { createShortcut } from '@solid-primitives/keyboard';
+import { createContext, useContext, useCallback, type ReactNode } from 'react';
+import { useHotkeys } from 'react-hotkeys-hook';
+import { HOTKEYS, type HotkeyName } from './config';
 
-export type HotkeyActions = {
-  /** Register the chat input element for focus actions */
-  registerInput: (el: HTMLTextAreaElement | null) => void;
-  /** Register panel toggle functions */
-  registerPanelToggles: (toggles: {
-    history?: () => void;
-    tasks?: () => void;
-  }) => void;
-  /** Register new chat action */
-  registerNewChat: (fn: () => void) => void;
-  /** Register cancel stream action */
-  registerCancelStream: (fn: () => void) => void;
-};
-
-const HotkeyContext = createContext<HotkeyActions>();
-
-export function useHotkeys(): HotkeyActions {
-  const ctx = useContext(HotkeyContext);
-  // Return no-op functions if context not available (prevents crashes)
-  if (!ctx) {
-    console.warn('[useHotkeys] Called outside HotkeyProvider, returning no-ops');
-    return {
-      registerInput: () => {},
-      registerPanelToggles: () => {},
-      registerNewChat: () => {},
-      registerCancelStream: () => {},
-    };
-  }
-  return ctx;
+/** Convert our key array format to react-hotkeys-hook string format. */
+function toHotkeyString(keys: readonly string[]): string {
+  return keys
+    .map((k) => {
+      if (k === 'Meta') return 'mod';
+      if (k === 'Control') return 'ctrl';
+      return k.toLowerCase();
+    })
+    .join('+');
 }
 
-interface HotkeyProviderProps {
-  children: JSX.Element;
+interface HotkeyContextValue {
+  /** Get the keyboard shortcut display string for a named hotkey. */
+  getHotkeyString: (name: HotkeyName) => string;
 }
 
-export function HotkeyProvider(props: HotkeyProviderProps) {
-  // Registered elements and callbacks
-  let inputRef: HTMLTextAreaElement | null = null;
-  let toggleHistory: (() => void) | undefined;
-  let toggleTasks: (() => void) | undefined;
-  let newChatFn: (() => void) | undefined;
-  let cancelStreamFn: (() => void) | undefined;
+const HotkeyContext = createContext<HotkeyContextValue>({
+  getHotkeyString: () => '',
+});
 
-  // Actions that components can call to register themselves
-  const actions: HotkeyActions = {
-    registerInput: (el) => {
-      inputRef = el;
-    },
-    registerPanelToggles: (toggles) => {
-      toggleHistory = toggles.history;
-      toggleTasks = toggles.tasks;
-    },
-    registerNewChat: (fn) => {
-      newChatFn = fn;
-    },
-    registerCancelStream: (fn) => {
-      cancelStreamFn = fn;
-    },
-  };
-
-  // NOTE: Paste is handled natively by the browser/Tauri
-  // We don't intercept paste events to avoid breaking clipboard functionality
-
-  // Focus input: Cmd+/ or Ctrl+/
-  createShortcut(['Meta', '/'], () => {
-    inputRef?.focus();
-  }, { preventDefault: true });
-
-  createShortcut(['Control', '/'], () => {
-    inputRef?.focus();
-  }, { preventDefault: true });
-
-  // Toggle history panel: Cmd+Shift+H
-  createShortcut(['Meta', 'Shift', 'H'], () => {
-    toggleHistory?.();
-  }, { preventDefault: true });
-
-  // Toggle tasks panel: Cmd+Shift+T
-  createShortcut(['Meta', 'Shift', 'T'], () => {
-    toggleTasks?.();
-  }, { preventDefault: true });
-
-  // New chat: Cmd+N or Ctrl+N
-  createShortcut(['Meta', 'n'], () => {
-    newChatFn?.();
-  }, { preventDefault: true });
-
-  createShortcut(['Control', 'n'], () => {
-    newChatFn?.();
-  }, { preventDefault: true });
-
-  // Escape: Cancel stream or clear input
-  createShortcut(['Escape'], () => {
-    if (cancelStreamFn) {
-      cancelStreamFn();
-    } else if (inputRef) {
-      inputRef.value = '';
-      inputRef.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  }, { preventDefault: false });
+export function HotkeyProvider({ children }: { children: ReactNode }) {
+  const getHotkeyString = useCallback((name: HotkeyName) => {
+    const def = HOTKEYS[name];
+    return def ? toHotkeyString(def.keys) : '';
+  }, []);
 
   return (
-    <HotkeyContext.Provider value={actions}>
-      {props.children}
+    <HotkeyContext.Provider value={{ getHotkeyString }}>
+      {children}
     </HotkeyContext.Provider>
   );
+}
+
+/**
+ * Bind a named hotkey to a callback.
+ *
+ * Uses the centralized HOTKEYS config for key definitions,
+ * respecting the `global` flag for form-enabled shortcuts.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function useHotkey(name: HotkeyName, callback: () => void, enabled = true) {
+  const def = HOTKEYS[name];
+  const hotkeyStr = toHotkeyString(def.keys);
+  const isGlobal = 'global' in def && def.global;
+
+  useHotkeys(
+    hotkeyStr,
+    (e) => {
+      e.preventDefault();
+      callback();
+    },
+    {
+      enabled,
+      enableOnFormTags: isGlobal ? ['INPUT', 'TEXTAREA', 'SELECT'] : undefined,
+    },
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useHotkeyContext() {
+  return useContext(HotkeyContext);
 }

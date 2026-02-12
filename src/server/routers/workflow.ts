@@ -1,0 +1,75 @@
+import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
+import { router, publicProcedure } from '../trpc';
+import { getWorkflowService, getOrchestrationService } from './_services';
+
+export const workflowRouter = router({
+  list: publicProcedure
+    .input(z.object({
+      orgId: z.string(),
+      includeArchived: z.boolean().optional(),
+    }))
+    .query(({ input }) =>
+      getWorkflowService().list(input.orgId, { includeArchived: input.includeArchived }),
+    ),
+
+  get: publicProcedure
+    .input(z.object({ orgId: z.string(), id: z.string() }))
+    .query(({ input }) => getWorkflowService().get(input.orgId, input.id)),
+
+  create: publicProcedure
+    .input(z.object({
+      orgId: z.string(),
+      template: z.object({
+        name: z.string(),
+        description: z.string(),
+        steps: z.array(z.object({
+          id: z.string(),
+          name: z.string(),
+          type: z.enum(['agent', 'review_gate', 'parallel_group']),
+          templateId: z.string().optional(),
+          goal: z.string().optional(),
+          dependsOn: z.array(z.string()),
+          parallelStepIds: z.array(z.string()).optional(),
+          reviewPrompt: z.string().optional(),
+        })),
+      }),
+    }))
+    .mutation(({ input }) =>
+      getWorkflowService().create(input.orgId, input.template),
+    ),
+
+  update: publicProcedure
+    .input(z.object({
+      orgId: z.string(),
+      id: z.string(),
+      updates: z.record(z.unknown()),
+    }))
+    .mutation(({ input }) =>
+      getWorkflowService().update(input.orgId, input.id, input.updates as Record<string, unknown>),
+    ),
+
+  archive: publicProcedure
+    .input(z.object({ orgId: z.string(), id: z.string() }))
+    .mutation(({ input }) => getWorkflowService().archive(input.orgId, input.id)),
+
+  validate: publicProcedure
+    .input(z.object({ orgId: z.string(), id: z.string() }))
+    .query(async ({ input }) => {
+      const wf = await getWorkflowService().get(input.orgId, input.id);
+      if (!wf) throw new TRPCError({ code: 'NOT_FOUND', message: 'Workflow not found' });
+      return getWorkflowService().validate(wf);
+    }),
+
+  execute: publicProcedure
+    .input(z.object({ orgId: z.string(), id: z.string() }))
+    .mutation(({ input }) =>
+      getOrchestrationService().executeWorkflow(input.id, input.orgId),
+    ),
+
+  executionOrder: publicProcedure
+    .input(z.object({ orgId: z.string(), workflowId: z.string() }))
+    .query(({ input }) =>
+      getWorkflowService().getExecutionOrder(input.orgId, input.workflowId),
+    ),
+});

@@ -1,19 +1,14 @@
 /**
- * ToolOutput - Tool execution status and output display
- *
- * Renders tool status with:
- * - Status badges (pending, running, success, failed)
- * - Formatted output per tool type (file, bash, search)
- * - Expandable/collapsible sections
- * - Elapsed time for running tools
+ * ToolOutput - Expandable tool execution status and output display.
  */
 
-import { Show, createMemo, createSignal, createEffect, onCleanup } from 'solid-js';
-import type { ToolUIStatus } from '@ui/stores/toolStore';
-import { formatToolResult } from '@ui/formatters';
+import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
+import type { ToolUIStatus } from '@/ui/stores/useToolStore';
+import { formatToolResult } from '@/ui/formatters';
 
 interface ToolOutputProps {
-  toolId: string;
   toolName: string;
   args: unknown;
   result?: unknown;
@@ -23,156 +18,104 @@ interface ToolOutputProps {
   startTime?: number;
 }
 
-const styles = {
-  container: 'border rounded-md overflow-hidden text-sm',
-  containerPending: 'border-gray-300 bg-gray-50',
-  containerRunning: 'border-blue-300 bg-blue-50',
-  containerSuccess: 'border-green-300 bg-green-50',
-  containerFailed: 'border-red-300 bg-red-50',
-  header: 'flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-opacity-80',
-  headerLeft: 'flex items-center gap-2 flex-1 min-w-0',
-  toolName: 'font-mono font-medium truncate',
-  status: 'text-xs px-2 py-0.5 rounded-full flex-shrink-0',
-  statusPending: 'bg-gray-200 text-gray-600',
-  statusRunning: 'bg-blue-200 text-blue-700',
-  statusSuccess: 'bg-green-200 text-green-700',
-  statusFailed: 'bg-red-200 text-red-700',
-  duration: 'text-xs text-gray-500 flex-shrink-0',
-  content: 'px-3 py-2 border-t border-gray-200 bg-white',
-  summary: 'text-xs text-gray-600 mb-2',
-  args: 'font-mono text-xs text-gray-600 overflow-x-auto whitespace-pre-wrap',
-  result: 'font-mono text-xs text-gray-800 overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto',
-  error: 'text-xs text-red-600 font-medium',
-  spinner: 'w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin flex-shrink-0',
-  expandIcon: 'text-gray-400 text-xs flex-shrink-0',
-  argsSection: 'mb-2',
-  argsSummary: 'cursor-pointer text-xs text-gray-500 hover:text-gray-700',
-};
-
-function getStatusStyles(status: ToolOutputProps['status']) {
+function statusVariant(status: ToolOutputProps['status']): 'default' | 'secondary' | 'destructive' | 'outline' {
   switch (status) {
-    case 'pending':
-      return { container: styles.containerPending, badge: styles.statusPending };
-    case 'running':
-      return { container: styles.containerRunning, badge: styles.statusRunning };
-    case 'success':
-      return { container: styles.containerSuccess, badge: styles.statusSuccess };
+    case 'running': return 'default';
+    case 'success': return 'secondary';
     case 'failed':
-    case 'cancelled':
-      return { container: styles.containerFailed, badge: styles.statusFailed };
-    default:
-      return { container: styles.containerPending, badge: styles.statusPending };
+    case 'cancelled': return 'destructive';
+    default: return 'outline';
   }
 }
 
-export default function ToolOutput(props: ToolOutputProps) {
-  const [isExpanded, setIsExpanded] = createSignal(props.status === 'failed');
-  const [elapsedTime, setElapsedTime] = createSignal(0);
+export default function ToolOutput({ toolName, args, result, error, status, duration, startTime }: ToolOutputProps) {
+  const [isExpanded, setIsExpanded] = useState(status === 'failed');
+  const [elapsedTime, setElapsedTime] = useState(0);
 
-  const statusStyles = createMemo(() => getStatusStyles(props.status));
-
-  // Update elapsed time for running tools
-  createEffect(() => {
-    if (props.status === 'running' && props.startTime) {
+  useEffect(() => {
+    if (status === 'running' && startTime) {
       const interval = setInterval(() => {
-        setElapsedTime(Date.now() - props.startTime!);
+        setElapsedTime(Date.now() - startTime);
       }, 100);
-
-      onCleanup(() => clearInterval(interval));
+      return () => clearInterval(interval);
     }
-  });
+  }, [status, startTime]);
 
-  // Format the result using appropriate formatter
-  const formattedResult = createMemo(() => {
-    if (props.error) {
-      return { summary: '', detail: '', isError: true };
-    }
-    if (props.result === undefined) {
-      return { summary: '', detail: '', isError: false };
-    }
-    return formatToolResult(props.toolName, props.result);
-  });
+  const formattedResult = useMemo(() => {
+    if (error) return { summary: '', detail: '', isError: true };
+    if (result === undefined) return { summary: '', detail: '', isError: false };
+    return formatToolResult(toolName, result);
+  }, [error, result, toolName]);
 
-  const formattedArgs = createMemo(() => {
+  const formattedArgs = useMemo(() => {
     try {
-      if (!props.args || Object.keys(props.args as object).length === 0) {
-        return '';
-      }
-      return JSON.stringify(props.args, null, 2);
+      if (!args || Object.keys(args as object).length === 0) return '';
+      return JSON.stringify(args, null, 2);
     } catch {
-      return String(props.args);
+      return String(args);
     }
-  });
+  }, [args]);
 
-  const displayDuration = createMemo(() => {
-    if (props.duration !== undefined) {
-      return `${props.duration}ms`;
-    }
-    if (props.status === 'running' && elapsedTime() > 0) {
-      return `${Math.round(elapsedTime() / 100) / 10}s`;
-    }
+  const displayDuration = useMemo(() => {
+    if (duration !== undefined) return `${duration}ms`;
+    if (status === 'running' && elapsedTime > 0) return `${Math.round(elapsedTime / 100) / 10}s`;
     return null;
-  });
+  }, [duration, status, elapsedTime]);
 
-  const toggleExpanded = () => {
-    setIsExpanded((prev) => !prev);
-  };
+  const hasContent = Boolean(formattedArgs || formattedResult.detail || error);
 
-  const hasContent = createMemo(() => {
-    return Boolean(formattedArgs() || formattedResult().detail || props.error);
-  });
+  const toggle = useCallback(() => setIsExpanded((prev) => !prev), []);
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggle();
+    }
+  }, [toggle]);
 
   return (
-    <div class={`${styles.container} ${statusStyles().container}`}>
-      {/* Header - clickable to expand/collapse */}
-      <div class={styles.header} onClick={toggleExpanded}>
-        <div class={styles.headerLeft}>
-          <Show when={props.status === 'running'}>
-            <div class={styles.spinner} />
-          </Show>
-          <span class={styles.toolName} title={props.toolName}>
-            {props.toolName}
-          </span>
-          <span class={`${styles.status} ${statusStyles().badge}`}>{props.status}</span>
+    <div className="border rounded-md overflow-hidden text-sm bg-card">
+      {/* Header */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-expanded={isExpanded}
+        aria-label={`Toggle ${toolName} details`}
+        className="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-accent/50"
+        onClick={toggle}
+        onKeyDown={handleKeyDown}
+      >
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {status === 'running' && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
+          <span className="font-mono font-medium truncate" title={toolName}>{toolName}</span>
+          <Badge variant={statusVariant(status)} className="text-[10px]">{status}</Badge>
         </div>
-
-        <div class="flex items-center gap-2">
-          <Show when={displayDuration()}>
-            <span class={styles.duration}>{displayDuration()}</span>
-          </Show>
-          <Show when={hasContent()}>
-            <span class={styles.expandIcon}>{isExpanded() ? '▼' : '▶'}</span>
-          </Show>
+        <div className="flex items-center gap-2">
+          {displayDuration && <span className="text-xs text-muted-foreground">{displayDuration}</span>}
+          {hasContent && (isExpanded ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />)}
         </div>
       </div>
 
       {/* Expandable Content */}
-      <Show when={isExpanded() && hasContent()}>
-        <div class={styles.content}>
-          {/* Summary line */}
-          <Show when={formattedResult().summary}>
-            <div class={styles.summary}>{formattedResult().summary}</div>
-          </Show>
+      {isExpanded && hasContent && (
+        <div className="px-3 py-2 border-t bg-background">
+          {formattedResult.summary && !error && (
+            <div className="text-xs text-muted-foreground mb-2">{formattedResult.summary}</div>
+          )}
 
-          {/* Arguments (collapsible) */}
-          <Show when={formattedArgs()}>
-            <details class={styles.argsSection}>
-              <summary class={styles.argsSummary}>Arguments</summary>
-              <pre class={styles.args}>{formattedArgs()}</pre>
+          {formattedArgs && (
+            <details className="mb-2">
+              <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">Arguments</summary>
+              <pre className="font-mono text-xs text-muted-foreground overflow-x-auto whitespace-pre-wrap mt-1">{formattedArgs}</pre>
             </details>
-          </Show>
+          )}
 
-          {/* Error display */}
-          <Show when={props.error}>
-            <div class={styles.error}>{props.error}</div>
-          </Show>
+          {error && <div className="text-xs text-destructive font-medium">{error}</div>}
 
-          {/* Result display */}
-          <Show when={!props.error && formattedResult().detail}>
-            <pre class={styles.result}>{formattedResult().detail}</pre>
-          </Show>
+          {!error && formattedResult.detail && (
+            <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">{formattedResult.detail}</pre>
+          )}
         </div>
-      </Show>
+      )}
     </div>
   );
 }

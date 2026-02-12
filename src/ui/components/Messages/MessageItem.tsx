@@ -1,102 +1,90 @@
 /**
- * MessageItem - Individual message display component
- *
- * Harmony-themed message styling:
- * - User messages: Right-aligned, white cards
- * - Assistant messages: Left-aligned, subtle background
- * - Full markdown support
+ * MessageItem - Individual message display with role-based styling.
  */
 
-import { Show, For } from 'solid-js';
-import type { MessageState } from '@ui/stores/messagesStore';
-import { getStreamingContent } from '@ui/stores/messagesStore';
+import { useMemo } from 'react';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import ToolOutput from '../Tools/ToolOutput';
 import Markdown from './Markdown';
 
 interface MessageItemProps {
-  message: MessageState;
+  message: {
+    id: string;
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp: number;
+    isStreaming: boolean;
+    toolCalls?: Array<{ id: string; name: string; args: unknown }>;
+    toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>;
+  };
 }
 
-export default function MessageItem(props: MessageItemProps) {
-  const streamingContent = getStreamingContent();
+export default function MessageItem({ message }: MessageItemProps) {
+  const streamingContent = useMessagesStore((s) => s.streamingContent);
 
-  const isUser = () => props.message.role === 'user';
+  const isUser = message.role === 'user';
 
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const formatTime = (timestamp: number) =>
+    new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  const displayContent = () =>
-    props.message.isStreaming ? streamingContent() : props.message.content;
+  const displayContent = useMemo(
+    () => (message.isStreaming ? streamingContent : message.content),
+    [message.isStreaming, message.content, streamingContent],
+  );
 
   return (
-    <div
-      class={`py-4 px-6 ${isUser() ? '' : 'bg-cream-100/50'}`}
-    >
-      <div class={`max-w-3xl mx-auto flex ${isUser() ? 'justify-end' : 'justify-start'}`}>
-        {/* Message bubble */}
+    <div className={`py-4 px-6 ${isUser ? '' : 'bg-muted/30'}`}>
+      <div className={`max-w-3xl mx-auto flex ${isUser ? 'justify-end' : 'justify-start'}`}>
         <div
-          class={`relative max-w-[85%] ${
-            isUser()
-              ? 'bg-burgundy-500 text-white rounded-2xl rounded-br-md px-4 py-3'
-              : 'bg-white border border-burgundy-500/10 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm'
+          className={`relative max-w-[85%] ${
+            isUser
+              ? 'bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3'
+              : 'bg-card border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm'
           }`}
         >
-          {/* Header - name and time */}
-          <div class={`flex items-center gap-2 mb-2 text-xs ${
-            isUser() ? 'text-white/70 justify-end' : 'text-charcoal-600/60'
-          }`}>
-            <span class="font-medium">
-              {isUser() ? 'You' : 'Fuxi'}
-            </span>
-            <span>·</span>
-            <span>{formatTime(props.message.timestamp)}</span>
-
-            {/* Streaming indicator */}
-            <Show when={props.message.isStreaming}>
-              <span class="flex items-center gap-1.5 ml-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-sage-500 animate-pulse" />
-                <span class="text-sage-500">thinking</span>
+          {/* Header */}
+          <div
+            className={`flex items-center gap-2 mb-2 text-xs ${
+              isUser ? 'text-primary-foreground/70 justify-end' : 'text-muted-foreground'
+            }`}
+          >
+            <span className="font-medium">{isUser ? 'You' : 'Workforce'}</span>
+            <span>&middot;</span>
+            <span>{formatTime(message.timestamp)}</span>
+            {message.isStreaming && (
+              <span className="flex items-center gap-1.5 ml-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                <span className="text-muted-foreground">thinking</span>
               </span>
-            </Show>
+            )}
           </div>
 
           {/* Content */}
-          <div class={`text-sm leading-relaxed ${
-            props.message.isStreaming ? 'streaming-cursor' : ''
-          }`}>
-            <Show
-              when={!isUser()}
-              fallback={<div class="whitespace-pre-wrap">{displayContent()}</div>}
-            >
-              <Markdown content={displayContent()} />
-            </Show>
+          <div className={`text-sm leading-relaxed ${message.isStreaming ? 'streaming-cursor' : ''}`}>
+            {isUser ? (
+              <div className="whitespace-pre-wrap">{displayContent}</div>
+            ) : (
+              <Markdown content={displayContent} />
+            )}
           </div>
 
           {/* Tool Calls */}
-          <Show when={props.message.toolCalls && props.message.toolCalls.length > 0}>
-            <div class="mt-3 space-y-2">
-              <For each={props.message.toolCalls}>
-                {(toolCall) => (
-                  <ToolOutput
-                    toolId={toolCall.id}
-                    toolName={toolCall.name}
-                    args={toolCall.args}
-                    result={props.message.toolResults?.find((r) => r.toolCallId === toolCall.id)?.result}
-                    error={props.message.toolResults?.find((r) => r.toolCallId === toolCall.id)?.error}
-                    status={
-                      props.message.toolResults?.find((r) => r.toolCallId === toolCall.id)
-                        ? 'success'
-                        : 'running'
-                    }
-                  />
-                )}
-              </For>
+          {message.toolCalls && message.toolCalls.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {message.toolCalls.map((toolCall) => (
+                <ToolOutput
+                  key={toolCall.id}
+                  toolName={toolCall.name}
+                  args={toolCall.args}
+                  result={message.toolResults?.find((r) => r.toolCallId === toolCall.id)?.result}
+                  error={message.toolResults?.find((r) => r.toolCallId === toolCall.id)?.error}
+                  status={
+                    message.toolResults?.find((r) => r.toolCallId === toolCall.id) ? 'success' : 'running'
+                  }
+                />
+              ))}
             </div>
-          </Show>
+          )}
         </div>
       </div>
     </div>

@@ -10,14 +10,14 @@
 
 import { readFile, readdir, stat } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import type { SkillService, Skill } from './types';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const SKILLS_DIR = join(homedir(), '.workforce', 'skills');
+const SKILLS_DIR = join(getDataDir(), 'skills');
 const SKILL_EXTENSION = '.md';
 
 // =============================================================================

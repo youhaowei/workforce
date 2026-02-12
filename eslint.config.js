@@ -1,11 +1,12 @@
 import js from '@eslint/js';
-import solid from 'eslint-plugin-solid/configs/recommended.js';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
 import typescript from '@typescript-eslint/eslint-plugin';
 import tsParser from '@typescript-eslint/parser';
 
 export default [
   {
-    ignores: ['dist', 'build', 'node_modules', '.tauri']
+    ignores: ['dist', 'build', 'node_modules', '.tauri', 'src/components/ui']
   },
   {
     files: ['src/**/*.{ts,tsx}'],
@@ -47,6 +48,9 @@ export default [
         Blob: 'readonly',
         File: 'readonly',
         FileReader: 'readonly',
+        TextDecoder: 'readonly',
+        TextEncoder: 'readonly',
+        ReadableStream: 'readonly',
         performance: 'readonly',
         // Node globals
         process: 'readonly',
@@ -73,11 +77,17 @@ export default [
     },
     plugins: {
       '@typescript-eslint': typescript,
-      solid: solid.plugins.solid
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh
     },
     rules: {
       ...js.configs.recommended.rules,
-      ...solid.rules,
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Disable no-undef for TypeScript — tsc handles this natively and
+      // understands DOM globals (HTMLParagraphElement, etc.) that ESLint doesn't.
+      'no-undef': 'off',
       // Use TypeScript version for unused vars (handles _ prefix)
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { 
@@ -102,10 +112,7 @@ export default [
       'max-depth': ['warn', 4],
       'max-lines': ['warn', { max: 500, skipBlankLines: true, skipComments: true }],
       'complexity': ['warn', 15],
-      // Solid-specific
-      'solid/no-destructure': 'off',
-      'solid/reactivity': 'warn',
-      'solid/components-return-once': 'warn'
+      // React-specific (rules-of-hooks and exhaustive-deps are above)
     }
   }
 ];

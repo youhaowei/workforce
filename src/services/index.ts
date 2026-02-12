@@ -23,6 +23,8 @@ export type {
   Session,
   Message,
   SessionSearchResult,
+  SessionType,
+  LifecycleState,
   // Tool
   ToolService,
   ToolHandler,
@@ -47,13 +49,36 @@ export type {
   BackgroundService,
   BackgroundTask,
   BackgroundTaskOptions,
-  TaskPriority,
+  BackgroundTaskPriority,
+  BackgroundTaskStatus,
+  // Task
+  TaskService,
+  Task,
+  TaskFilter,
   TaskStatus,
-  // Todo
-  TodoService,
-  Todo,
-  TodoFilter,
-  TodoStatus,
+  // Org
+  Org,
+  OrgSettings,
+  OrgService,
+  // Template
+  AgentTemplate,
+  TemplateValidation,
+  TemplateService,
+  // Worktree
+  WorktreeInfo,
+  WorktreeService,
+  // Workflow
+  WorkflowTemplate,
+  WorkflowStep,
+  WorkflowService,
+  // Review
+  ReviewItem,
+  ReviewAction,
+  ReviewService,
+  // Audit
+  AuditEntry,
+  AuditEntryType,
+  AuditService,
 } from './types';
 
 // Service getters (lazy singletons)
@@ -64,7 +89,19 @@ import { getOrchestratorService, resetOrchestratorService } from './orchestrator
 import { getSkillService, resetSkillService } from './skill';
 import { getHookService, resetHookService } from './hook';
 import { getBackgroundService, resetBackgroundService } from './background';
-import { getTodoService, resetTodoService } from './todo';
+import { getTaskService, resetTaskService } from './task';
+import { getOrgService, resetOrgService } from './org';
+import { getTemplateService, resetTemplateService } from './template';
+import { getWorktreeService, resetWorktreeService } from './worktree';
+
+// Factory functions (for services that require composition)
+import { createOrchestrationService } from './orchestration';
+import { createWorkflowService } from './workflow';
+import { createReviewService } from './review';
+import { createAuditService } from './audit';
+
+// Router-level factory-cached services (orchestration, workflow, review, audit)
+import { resetRouterServices } from '../server/routers/_services';
 
 export {
   getAgentService,
@@ -81,8 +118,18 @@ export {
   resetHookService,
   getBackgroundService,
   resetBackgroundService,
-  getTodoService,
-  resetTodoService,
+  getTaskService,
+  resetTaskService,
+  getOrgService,
+  resetOrgService,
+  getTemplateService,
+  resetTemplateService,
+  getWorktreeService,
+  resetWorktreeService,
+  createOrchestrationService,
+  createWorkflowService,
+  createReviewService,
+  createAuditService,
 };
 
 /**
@@ -90,6 +137,7 @@ export {
  * Useful for cleanup in tests or application shutdown.
  */
 export function disposeAllServices(): void {
+  resetRouterServices(); // dispose factory-cached router services first (orchestration, workflow, review, audit)
   resetAgentService();
   resetSessionService();
   resetToolService();
@@ -97,5 +145,8 @@ export function disposeAllServices(): void {
   resetSkillService();
   resetHookService();
   resetBackgroundService();
-  resetTodoService();
+  resetTaskService();
+  resetOrgService();
+  resetTemplateService();
+  resetWorktreeService();
 }

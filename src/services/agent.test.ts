@@ -6,9 +6,7 @@
  * Integration tests should be used instead.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { getEventBus, EventBus } from '@shared/event-bus';
-import type { TokenDeltaEvent, ToolStartEvent, ToolEndEvent } from '@shared/event-bus';
+import { describe, it, expect } from 'vitest';
 
 describe.skip('AgentService (skipped - uses Claude Agent SDK)', () => {
   it('placeholder', () => {

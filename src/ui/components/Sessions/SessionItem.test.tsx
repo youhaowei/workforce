@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@solidjs/testing-library';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SessionItem } from './SessionItem';
-import type { Session } from '../../../services/types';
+import type { Session } from '@/services/types';
 
 describe('SessionItem', () => {
   const mockOnSelect = vi.fn();
@@ -27,79 +27,79 @@ describe('SessionItem', () => {
   });
 
   it('renders session title', () => {
-    render(() => <SessionItem session={baseSession} />);
+    render(<SessionItem session={baseSession} />);
     expect(screen.getByText('Test Session')).toBeInTheDocument();
   });
 
   it('renders Untitled Session when no title', () => {
-    render(() => (
-      <SessionItem session={{ ...baseSession, title: undefined }} />
-    ));
+    render(
+      <SessionItem session={{ ...baseSession, title: undefined }} />,
+    );
     expect(screen.getByText('Untitled Session')).toBeInTheDocument();
   });
 
   it('shows message count', () => {
-    render(() => <SessionItem session={baseSession} />);
+    render(<SessionItem session={baseSession} />);
     expect(screen.getByText('2 messages')).toBeInTheDocument();
   });
 
   it('shows preview of last message', () => {
-    render(() => <SessionItem session={baseSession} />);
+    render(<SessionItem session={baseSession} />);
     expect(screen.getByText('Hi! How can I help?')).toBeInTheDocument();
   });
 
   it('shows No messages when empty', () => {
-    render(() => (
-      <SessionItem session={{ ...baseSession, messages: [] }} />
-    ));
+    render(
+      <SessionItem session={{ ...baseSession, messages: [] }} />,
+    );
     expect(screen.getByText('No messages')).toBeInTheDocument();
   });
 
-  it('calls onSelect when clicked', async () => {
-    render(() => (
-      <SessionItem session={baseSession} onSelect={mockOnSelect} />
-    ));
+  it('calls onSelect when clicked', () => {
+    render(
+      <SessionItem session={baseSession} onSelect={mockOnSelect} />,
+    );
 
     const item = screen.getByText('Test Session').closest('div[class*="cursor-pointer"]')!;
-    await fireEvent.click(item);
+    fireEvent.click(item);
 
     expect(mockOnSelect).toHaveBeenCalledWith('sess_1');
   });
 
   it('shows Fork and Delete buttons', () => {
-    render(() => (
+    render(
       <SessionItem
         session={baseSession}
         onFork={mockOnFork}
         onDelete={mockOnDelete}
-      />
-    ));
+      />,
+    );
 
     expect(screen.getByTitle('Fork session')).toBeInTheDocument();
     expect(screen.getByTitle('Delete session')).toBeInTheDocument();
   });
 
-  it('calls onFork when Fork clicked', async () => {
-    render(() => (
-      <SessionItem session={baseSession} onFork={mockOnFork} />
-    ));
+  it('calls onFork when Fork clicked', () => {
+    render(
+      <SessionItem session={baseSession} onFork={mockOnFork} />,
+    );
 
-    await fireEvent.click(screen.getByTitle('Fork session'));
+    fireEvent.click(screen.getByTitle('Fork session'));
     expect(mockOnFork).toHaveBeenCalledWith('sess_1');
   });
 
-  it('calls onDelete when Delete clicked', async () => {
-    render(() => (
-      <SessionItem session={baseSession} onDelete={mockOnDelete} />
-    ));
+  it('calls onDelete when Delete clicked', () => {
+    render(
+      <SessionItem session={baseSession} onDelete={mockOnDelete} />,
+    );
 
-    await fireEvent.click(screen.getByTitle('Delete session'));
+    fireEvent.click(screen.getByTitle('Delete session'));
     expect(mockOnDelete).toHaveBeenCalledWith('sess_1');
   });
 
   it('applies active styling when isActive', () => {
-    render(() => <SessionItem session={baseSession} isActive={true} />);
+    render(<SessionItem session={baseSession} isActive={true} />);
     const container = screen.getByText('Test Session').closest('div[class*="cursor-pointer"]')!;
-    expect(container.className).toContain('bg-blue-50');
+    expect(container.className).toContain('bg-primary/5');
   });
 });

@@ -7,7 +7,7 @@
  * - Memoized for streaming performance
  */
 
-import { createMemo } from 'solid-js';
+import { useMemo } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -19,20 +19,20 @@ marked.setOptions({
 
 interface MarkdownProps {
   content: string;
-  class?: string;
+  className?: string;
 }
 
-export default function Markdown(props: MarkdownProps) {
-  const html = createMemo(() => {
-    if (!props.content) return '';
-    const parsed = marked.parse(props.content, { async: false }) as string;
+export default function Markdown({ content, className }: MarkdownProps) {
+  const html = useMemo(() => {
+    if (!content) return '';
+    const parsed = marked.parse(content, { async: false }) as string;
     return DOMPurify.sanitize(parsed);
-  });
+  }, [content]);
 
   return (
     <div
-      class={`markdown-content ${props.class ?? ''}`}
-      innerHTML={html()}
+      className={`markdown-content ${className ?? ''}`}
+      dangerouslySetInnerHTML={{ __html: html }}
     />
   );
 }

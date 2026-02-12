@@ -1,15 +1,46 @@
 /**
- * App - Root component for Workforce desktop application
+ * App — Root component with full provider stack.
  *
- * Renders the main Shell component which contains:
- * - Header with profile status
- * - Message list with virtual scrolling
- * - Message input
- * - Status bar
+ * Provider order (outer → inner):
+ *   QueryClientProvider → TRPCProvider → PlatformProvider → HotkeyProvider → Shell
+ *
+ * EventBus → Zustand wiring is initialized via useEventBusInit().
  */
 
-import { Shell } from './components/Shell';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '@/bridge/query-client';
+import { TRPCProvider } from '@/bridge/react';
+import { trpc } from '@/bridge/trpc';
+import { PlatformProvider, type PlatformActions } from './context/PlatformProvider';
+import { HotkeyProvider } from './hotkeys/HotkeyProvider';
+import { AppContextMenu } from './components/Shell/AppContextMenu';
+import { useEventBusInit } from './hooks/useEventBusInit';
+import Shell from './components/Shell/Shell';
+
+// Detect Tauri runtime
+const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+const platformActions: PlatformActions = {
+  isTauri,
+};
+
+function AppInner() {
+  useEventBusInit();
+  return <Shell />;
+}
 
 export default function App() {
-  return <Shell />;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TRPCProvider trpcClient={trpc} queryClient={queryClient}>
+        <PlatformProvider actions={platformActions}>
+          <HotkeyProvider>
+            <AppContextMenu>
+              <AppInner />
+            </AppContextMenu>
+          </HotkeyProvider>
+        </PlatformProvider>
+      </TRPCProvider>
+    </QueryClientProvider>
+  );
 }

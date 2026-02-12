@@ -13,7 +13,7 @@ import type {
   AgentProfile,
   RoutingDecision,
 } from './types';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 
 // =============================================================================
 // Profile Definitions

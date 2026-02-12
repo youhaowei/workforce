@@ -11,20 +11,24 @@
 
 import { readFile, writeFile, readdir, mkdir, rename, unlink } from 'fs/promises';
 import { join } from 'path';
-import { homedir } from 'os';
 import type {
   SessionService,
   Session,
   SessionSearchResult,
   Message,
+  WorkAgentConfig,
+  LifecycleState,
+  SessionLifecycle,
 } from './types';
-import { getEventBus } from '@shared/event-bus';
+import { VALID_TRANSITIONS } from './types';
+import { getEventBus } from '@/shared/event-bus';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const SESSIONS_DIR = join(homedir(), '.workforce', 'sessions');
+const SESSIONS_DIR = join(getDataDir(), 'sessions');
 const SESSION_VERSION = 1;
 
 // =============================================================================
@@ -274,11 +278,16 @@ class SessionServiceImpl implements SessionService {
     return forked;
   }
 
-  async list(options?: { limit?: number; offset?: number }): Promise<Session[]> {
+  async list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<Session[]> {
     await this.ensureInitialized();
 
-    const all = Array.from(this.sessions.values());
-    const sorted = all.sort((a, b) => b.updatedAt - a.updatedAt);
+    let results = Array.from(this.sessions.values());
+
+    if (options?.orgId) {
+      results = results.filter((s) => s.metadata.orgId === options.orgId);
+    }
+
+    const sorted = results.sort((a, b) => b.updatedAt - a.updatedAt);
 
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? sorted.length;
@@ -372,6 +381,120 @@ class SessionServiceImpl implements SessionService {
 
   setCurrent(session: Session | null): void {
     this.currentSession = session;
+  }
+
+  async createWorkAgent(config: WorkAgentConfig): Promise<Session> {
+    await this.ensureInitialized();
+
+    const now = Date.now();
+    const lifecycle: SessionLifecycle = {
+      state: 'created',
+      stateHistory: [],
+    };
+
+    const session: Session = {
+      id: generateId(),
+      title: config.goal,
+      createdAt: now,
+      updatedAt: now,
+      messages: [],
+      metadata: {
+        type: 'workagent' as const,
+        lifecycle,
+        templateId: config.templateId,
+        goal: config.goal,
+        workflowId: config.workflowId,
+        workflowStepIndex: config.workflowStepIndex,
+        worktreePath: config.worktreePath,
+        orgId: config.orgId,
+        repoRoot: config.repoRoot,
+      },
+    };
+
+    this.sessions.set(session.id, session);
+    await saveSessionToDir(this.sessionsDir, session);
+
+    getEventBus().emit({
+      type: 'SessionChange',
+      sessionId: session.id,
+      action: 'created',
+      timestamp: now,
+    });
+
+    return session;
+  }
+
+  async transitionState(
+    sessionId: string,
+    newState: LifecycleState,
+    reason: string,
+    actor: 'system' | 'user' | 'agent' = 'system'
+  ): Promise<Session> {
+    const session = await this.get(sessionId);
+    if (!session) {
+      throw new Error(`Session not found: ${sessionId}`);
+    }
+
+    const lifecycle = session.metadata.lifecycle as SessionLifecycle | undefined;
+    const currentState: LifecycleState = lifecycle?.state ?? 'created';
+
+    const allowed = VALID_TRANSITIONS[currentState];
+    if (!allowed.includes(newState)) {
+      throw new Error(
+        `Invalid state transition: ${currentState} → ${newState}. ` +
+        `Allowed transitions: ${allowed.join(', ') || 'none'}`
+      );
+    }
+
+    const now = Date.now();
+    const updatedLifecycle: SessionLifecycle = {
+      state: newState,
+      stateHistory: [
+        ...(lifecycle?.stateHistory ?? []),
+        { from: currentState, to: newState, reason, timestamp: now, actor },
+      ],
+      pauseReason: newState === 'paused' ? reason : undefined,
+      failureReason: newState === 'failed' ? reason : undefined,
+      completionSummary: newState === 'completed' ? reason : lifecycle?.completionSummary,
+    };
+
+    session.metadata = {
+      ...session.metadata,
+      lifecycle: updatedLifecycle,
+    };
+
+    await this.save(session);
+
+    getEventBus().emit({
+      type: 'LifecycleTransition',
+      sessionId,
+      from: currentState,
+      to: newState,
+      reason,
+      actor,
+      timestamp: now,
+    });
+
+    return session;
+  }
+
+  async listByState(state: LifecycleState, orgId?: string): Promise<Session[]> {
+    await this.ensureInitialized();
+
+    return Array.from(this.sessions.values()).filter((session) => {
+      const lifecycle = session.metadata.lifecycle as SessionLifecycle | undefined;
+      if (!lifecycle || lifecycle.state !== state) return false;
+      if (orgId && session.metadata.orgId !== orgId) return false;
+      return true;
+    });
+  }
+
+  async getChildren(parentSessionId: string): Promise<Session[]> {
+    await this.ensureInitialized();
+
+    return Array.from(this.sessions.values())
+      .filter((session) => session.parentId === parentSessionId)
+      .sort((a, b) => b.createdAt - a.createdAt);
   }
 
   dispose(): void {

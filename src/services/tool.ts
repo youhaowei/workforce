@@ -14,7 +14,7 @@ import type {
   ToolExecutionContext,
   ToolExecutionResult,
 } from './types';
-import { getEventBus } from '@shared/event-bus';
+import { getEventBus } from '@/shared/event-bus';
 
 interface RegisteredTool {
   definition: ToolDefinition;

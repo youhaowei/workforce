@@ -210,6 +210,31 @@ describe('SessionService', () => {
       expect(page1.length).toBeLessThanOrEqual(2);
       expect(page2.length).toBeLessThanOrEqual(2);
     });
+
+    it('should filter by orgId', async () => {
+      const dir = join(TEST_DIR, 'list-org-filter');
+      const service = createSessionService(dir);
+
+      // Create workagent sessions in different orgs
+      await service.createWorkAgent({ templateId: 't', goal: 'Org1 task', orgId: 'org_a' });
+      await service.createWorkAgent({ templateId: 't', goal: 'Org2 task', orgId: 'org_b' });
+      // Chat session (no orgId)
+      await service.create('Chat session');
+
+      const org1 = await service.list({ orgId: 'org_a' });
+      expect(org1).toHaveLength(1);
+      expect(org1[0].metadata.orgId).toBe('org_a');
+
+      const org2 = await service.list({ orgId: 'org_b' });
+      expect(org2).toHaveLength(1);
+      expect(org2[0].metadata.orgId).toBe('org_b');
+
+      // No filter returns all 3
+      const all = await service.list();
+      expect(all).toHaveLength(3);
+
+      service.dispose();
+    });
   });
 
   describe('search', () => {
@@ -416,6 +441,156 @@ describe('SessionService', () => {
 
       service.setCurrent(null);
       expect(service.getCurrent()).toBeNull();
+    });
+  });
+
+  describe('createWorkAgent', () => {
+    it('should create a WorkAgent session with lifecycle metadata', async () => {
+      const service = createSessionService(join(TEST_DIR, 'workagent-create'));
+      const session = await service.createWorkAgent({
+        templateId: 'tmpl_test',
+        goal: 'Review PR #42',
+        orgId: 'ws_test',
+      });
+
+      expect(session.id).toMatch(/^sess_/);
+      expect(session.title).toBe('Review PR #42');
+      expect(session.metadata.type).toBe('workagent');
+      expect(session.metadata.templateId).toBe('tmpl_test');
+      expect(session.metadata.orgId).toBe('ws_test');
+
+      const lifecycle = session.metadata.lifecycle as { state: string; stateHistory: unknown[] };
+      expect(lifecycle.state).toBe('created');
+      expect(lifecycle.stateHistory).toEqual([]);
+    });
+  });
+
+  describe('transitionState', () => {
+    it('should transition created → active', async () => {
+      const service = createSessionService(join(TEST_DIR, 'transition-valid'));
+      const session = await service.createWorkAgent({
+        templateId: 'tmpl_test',
+        goal: 'Test task',
+        orgId: 'ws_test',
+      });
+
+      const updated = await service.transitionState(session.id, 'active', 'Starting work');
+
+      const lifecycle = updated.metadata.lifecycle as { state: string; stateHistory: Array<{ from: string; to: string }> };
+      expect(lifecycle.state).toBe('active');
+      expect(lifecycle.stateHistory).toHaveLength(1);
+      expect(lifecycle.stateHistory[0].from).toBe('created');
+      expect(lifecycle.stateHistory[0].to).toBe('active');
+    });
+
+    it('should reject invalid transitions', async () => {
+      const service = createSessionService(join(TEST_DIR, 'transition-invalid'));
+      const session = await service.createWorkAgent({
+        templateId: 'tmpl_test',
+        goal: 'Test task',
+        orgId: 'ws_test',
+      });
+
+      // created → completed is not allowed
+      await expect(
+        service.transitionState(session.id, 'completed', 'Skip to done')
+      ).rejects.toThrow('Invalid state transition');
+    });
+
+    it('should allow active → paused → active', async () => {
+      const service = createSessionService(join(TEST_DIR, 'transition-pause'));
+      const session = await service.createWorkAgent({
+        templateId: 'tmpl_test',
+        goal: 'Test task',
+        orgId: 'ws_test',
+      });
+
+      await service.transitionState(session.id, 'active', 'Start');
+      await service.transitionState(session.id, 'paused', 'Waiting for review');
+      const resumed = await service.transitionState(session.id, 'active', 'Review done');
+
+      const lifecycle = resumed.metadata.lifecycle as { state: string; stateHistory: unknown[] };
+      expect(lifecycle.state).toBe('active');
+      expect(lifecycle.stateHistory).toHaveLength(3);
+    });
+
+    it('should reject transitions from terminal states', async () => {
+      const service = createSessionService(join(TEST_DIR, 'transition-terminal'));
+      const session = await service.createWorkAgent({
+        templateId: 'tmpl_test',
+        goal: 'Test task',
+        orgId: 'ws_test',
+      });
+
+      await service.transitionState(session.id, 'active', 'Start');
+      await service.transitionState(session.id, 'completed', 'Done');
+
+      await expect(
+        service.transitionState(session.id, 'active', 'Try again')
+      ).rejects.toThrow('Invalid state transition');
+    });
+  });
+
+  describe('listByState', () => {
+    it('should filter sessions by lifecycle state', async () => {
+      const dir = join(TEST_DIR, 'listByState');
+      const service = createSessionService(dir);
+
+      const s1 = await service.createWorkAgent({ templateId: 't', goal: 'Task 1', orgId: 'ws1' });
+      const s2 = await service.createWorkAgent({ templateId: 't', goal: 'Task 2', orgId: 'ws1' });
+      await service.createWorkAgent({ templateId: 't', goal: 'Task 3', orgId: 'ws1' });
+
+      await service.transitionState(s1.id, 'active', 'Start');
+      await service.transitionState(s2.id, 'active', 'Start');
+      await service.transitionState(s2.id, 'completed', 'Done');
+
+      const active = await service.listByState('active');
+      expect(active).toHaveLength(1);
+      expect(active[0].id).toBe(s1.id);
+
+      const created = await service.listByState('created');
+      expect(created).toHaveLength(1);
+
+      const completed = await service.listByState('completed');
+      expect(completed).toHaveLength(1);
+      expect(completed[0].id).toBe(s2.id);
+    });
+
+    it('should filter by orgId', async () => {
+      const dir = join(TEST_DIR, 'listByState-ws');
+      const service = createSessionService(dir);
+
+      await service.createWorkAgent({ templateId: 't', goal: 'WS1 task', orgId: 'ws1' });
+      await service.createWorkAgent({ templateId: 't', goal: 'WS2 task', orgId: 'ws2' });
+
+      const ws1Created = await service.listByState('created', 'ws1');
+      expect(ws1Created).toHaveLength(1);
+      expect(ws1Created[0].metadata.orgId).toBe('ws1');
+    });
+  });
+
+  describe('getChildren', () => {
+    it('should return child sessions', async () => {
+      const dir = join(TEST_DIR, 'children');
+      const service = createSessionService(dir);
+
+      const parent = await service.create('Parent');
+      const child1 = await service.fork(parent.id);
+      const child2 = await service.fork(parent.id);
+
+      const children = await service.getChildren(parent.id);
+      expect(children).toHaveLength(2);
+      expect(children.map((c) => c.id)).toContain(child1.id);
+      expect(children.map((c) => c.id)).toContain(child2.id);
+    });
+
+    it('should return empty array for no children', async () => {
+      const dir = join(TEST_DIR, 'no-children');
+      const service = createSessionService(dir);
+
+      const session = await service.create('Alone');
+      const children = await service.getChildren(session.id);
+      expect(children).toEqual([]);
     });
   });
 

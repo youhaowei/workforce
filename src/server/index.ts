@@ -1,12 +1,10 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { streamSSE } from 'hono/streaming'
+import { trpcServer } from '@hono/trpc-server'
 import { existsSync } from 'fs'
 import { homedir } from 'os'
-import { getAgentService } from '../services/agent'
-import { getSessionService } from '../services/session'
-import { getEventBus } from '../shared/event-bus'
-import { debugLog, getLogPath } from '../shared/debug-log'
+import { getLogPath } from '@/shared/debug-log'
+import { appRouter } from './routers'
 
 /**
  * Log auth-related diagnostics on server startup.
@@ -28,7 +26,27 @@ function logAuthDiagnostics() {
 
 const app = new Hono()
 
-app.use('*', cors())
+// Trusted-local threat model: server binds to localhost:4096, only the local
+// Tauri webview (or dev browser on localhost) should access it.
+// Allow localhost, 127.0.0.1, and Tauri v2 production origins (tauri.localhost,
+// tauri://localhost) to prevent CORS rejection in the packaged app.
+const ALLOWED_ORIGINS = new Set(['localhost', '127.0.0.1', 'tauri.localhost']);
+
+app.use('*', cors({
+  origin: (origin) => {
+    if (!origin) return origin as string;  // same-origin / non-browser
+    // Tauri custom protocol: tauri://localhost
+    if (origin === 'tauri://localhost') return origin;
+    try {
+      const url = new URL(origin);
+      if (ALLOWED_ORIGINS.has(url.hostname)) return origin;
+    } catch { /* invalid origin */ }
+    return undefined as unknown as string;  // reject — no ACAO header
+  },
+}))
+
+// tRPC endpoint — all routers available at /api/trpc/*
+app.use('/api/trpc/*', trpcServer({ router: appRouter }))
 
 app.get('/health', (c) => c.json({ ok: true }))
 
@@ -109,77 +127,6 @@ app.get('/auth-check', async (c) => {
   }
 
   return c.json({ authenticated: hasAnyAuth, ...result }, hasAnyAuth ? 200 : 401)
-})
-
-app.post('/query', async (c) => {
-  const { prompt } = await c.req.json<{ prompt: string }>()
-  debugLog('Server', '/query received', { prompt: prompt.slice(0, 100) })
-  const agent = getAgentService()
-
-  return streamSSE(c, async (stream) => {
-    let tokenCount = 0
-    try {
-      debugLog('Server', 'Starting agent.query iteration')
-      for await (const delta of agent.query(prompt)) {
-        tokenCount++
-        if (tokenCount <= 5) debugLog('Server', 'Token received', { index: tokenCount, preview: delta.token.slice(0, 50) })
-        await stream.writeSSE({ data: delta.token })
-      }
-      debugLog('Server', 'Stream complete', { totalTokens: tokenCount })
-      await stream.writeSSE({ event: 'done', data: '' })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      debugLog('Server', 'Query error', { error: message })
-      await stream.writeSSE({ event: 'error', data: message })
-    }
-  })
-})
-
-app.post('/cancel', (c) => {
-  const agent = getAgentService()
-  agent.cancel()
-  return c.json({ ok: true })
-})
-
-app.get('/session', async (c) => {
-  const sessions = await getSessionService().list()
-  return c.json(sessions)
-})
-
-app.post('/session', async (c) => {
-  const session = await getSessionService().create()
-  return c.json(session)
-})
-
-app.post('/session/:id/resume', async (c) => {
-  const session = await getSessionService().resume(c.req.param('id'))
-  return c.json(session)
-})
-
-app.post('/session/:id/fork', async (c) => {
-  const session = await getSessionService().fork(c.req.param('id'))
-  return c.json(session)
-})
-
-app.delete('/session/:id', async (c) => {
-  await getSessionService().delete(c.req.param('id'))
-  return c.json({ ok: true })
-})
-
-app.get('/events', async (c) => {
-  const bus = getEventBus()
-
-  return streamSSE(c, async (stream) => {
-    const unsubscribe = bus.on('*', (event) => {
-      stream.writeSSE({ data: JSON.stringify(event) })
-    })
-
-    stream.onAbort(() => unsubscribe())
-
-    while (true) {
-      await stream.sleep(30000)
-    }
-  })
 })
 
 const port = parseInt(process.env.PORT || '4096')

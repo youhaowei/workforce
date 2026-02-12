@@ -1,29 +1,44 @@
 /**
- * Shell - Main application layout
+ * Shell - Main application layout.
  *
- * Harmony-themed design inspired by balance, serenity, and Eastern philosophy.
- * Features yin-yang motifs, warm cream backgrounds, and burgundy/gold accents.
+ * Four-column layout: sidebar | sessions panel | content column (TopBar → banners → main → StatusBar) | task panel.
+ * Sessions and task panels are persistent full-height siblings. Board filters are lifted to TopBar.
  */
 
-import { createSignal, Show, onMount, onCleanup } from 'solid-js';
-import { MessageList, MessageInput } from '../Messages';
-import { TodoPanel } from '../Todo';
-import { SessionsPanel } from '../Sessions';
-import { HotkeyProvider, useHotkeys } from '@ui/hotkeys';
-import {
-  getMessages,
-  getIsStreaming,
-  addUserMessage,
-  startAssistantMessage,
-  appendToStreamingMessage,
-  finishStreamingMessage,
-} from '@ui/stores/messagesStore';
-import { initToolStore } from '@ui/stores/toolStore';
-import { initSdkStore, cleanupSdkStore, getCumulativeUsage, getCurrentQueryStats } from '@ui/stores/sdkStore';
-import { initBridge, streamQuery } from '@bridge/index';
-import { getEventBus } from '@shared/event-bus';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { AlertCircle, WifiOff } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { TooltipProvider } from '@/components/ui/tooltip';
+
+import { TaskPanel } from '../Task';
+import { SessionsPanel, SessionsView } from '../Sessions';
+import { BoardView } from '../Board';
+import { ReviewQueue } from '../Review';
+import { AgentDetailView } from '../AgentDetail';
+import { TemplateListView } from '../Templates';
+import { WorkflowListView } from '../Workflows';
+import { AuditView } from '../Audit';
+import { OrgListView } from '../Org/OrgListView';
+import { HomeView } from '../Home';
+import { useHotkey } from '@/ui/hotkeys';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
+import { useSdkStore } from '@/ui/stores/useSdkStore';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useTRPC } from '@/bridge/react';
+import { trpc as trpcClient } from '@/bridge/trpc';
+import { getEventBus } from '@/shared/event-bus';
+import AppSidebar from './AppSidebar';
+import TopBar from './AppHeader';
+import StatusBar from './StatusBar';
+
+export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'templates' | 'workflows' | 'orgs' | 'audit' | 'detail';
+export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
 
 const SERVER_URL = 'http://localhost:4096';
+const SIDEBAR_STORAGE_KEY = 'workforce-sidebar-mode';
+const SESSIONS_PANEL_STORAGE_KEY = 'workforce-sessions-collapsed';
 
 async function checkServerConnection(): Promise<boolean> {
   try {
@@ -34,291 +49,326 @@ async function checkServerConnection(): Promise<boolean> {
   }
 }
 
-// Harmony Logo component (inline SVG for best control)
-function HarmonyLogo(props: { size?: number; class?: string }) {
-  const size = props.size || 48;
-  return (
-    <svg width={size} height={size} viewBox="0 0 48 48" class={props.class} fill="none">
-      <circle cx="24" cy="24" r="22.08" stroke="#8B2635" stroke-width="0.72" />
-      <path
-        d="M24,1.92 C36.1944473,1.92 46.08,11.8055527 46.08,24 C46.08,36.1944473 36.1944473,46.08 24,46.08 C17.9027764,46.08 12.96,41.1372236 12.96,35.04 C12.96,28.9427764 17.9027764,24 24,24 C30.0972236,24 35.04,19.0572236 35.04,12.96 C35.04,6.86277636 30.0972236,1.92 24,1.92"
-        fill="#8B2635"
-      />
-      <circle cx="24" cy="12.96" r="2.4" fill="#F8F5EE" />
-      <circle cx="24" cy="35.04" r="2.4" fill="#8B2635" />
-      <path
-        d="M24,42.24 C34.0736738,42.24 42.24,34.0736738 42.24,24 C42.24,13.9263262 34.0736738,5.76 24,5.76 C13.9263262,5.76 5.76,13.9263262 5.76,24 C5.76,34.0736738 13.9263262,42.24 24,42.24 Z"
-        stroke="#C9A227"
-        stroke-width="0.24"
-        stroke-dasharray="1.92"
-      />
-    </svg>
-  );
-}
-
-// Inner shell component that can use hotkey hooks
 function ShellContent() {
-  const hotkeys = useHotkeys();
-  const [currentProfile, _setCurrentProfile] = createSignal('coder');
-  const [error, setError] = createSignal<string | null>(null);
-  const [messageCount, setMessageCount] = createSignal(0);
-  const [todoPanelOpen, setTodoPanelOpen] = createSignal(false);
-  const [sessionsPanelOpen, setSessionsPanelOpen] = createSignal(false);
-  const [serverConnected, setServerConnected] = createSignal(false);
-  let cancelStream: (() => void) | null = null;
+  const [currentView, setCurrentView] = useState<ViewType>('home');
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [sessionsPanelCollapsed, setSessionsPanelCollapsed] = useState(
+    () => localStorage.getItem(SESSIONS_PANEL_STORAGE_KEY) === 'true',
+  );
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [serverConnected, setServerConnected] = useState(false);
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
+    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    // Backward compat: old key stored 'true'/'false'
+    if (stored === 'true') return 'collapsed';
+    if (stored === 'collapsed' || stored === 'hidden') return stored;
+    return 'expanded';
+  });
+  const cancelStreamRef = useRef<(() => void) | null>(null);
+  const intendedSessionRef = useRef<string | null>(null);
 
-  onMount(() => {
-    initToolStore();
-    initSdkStore();
+  // Board filter state — lifted here so TopBar and BoardView share it
+  const [boardKeyword, setBoardKeyword] = useState('');
+  const [boardStatusFilter, setBoardStatusFilter] = useState('all');
 
+  const trpc = useTRPC();
+  const orgId = useOrgStore((s) => s.currentOrgId);
+  const setCurrentOrgId = useOrgStore((s) => s.setCurrentOrgId);
+
+  const messages = useMessagesStore((s) => s.messages);
+  const isStreaming = useMessagesStore((s) => s.isStreaming);
+  const addUserMessage = useMessagesStore((s) => s.addUserMessage);
+  const startAssistantMessage = useMessagesStore((s) => s.startAssistantMessage);
+  const appendToStreamingMessage = useMessagesStore((s) => s.appendToStreamingMessage);
+  const finishStreamingMessage = useMessagesStore((s) => s.finishStreamingMessage);
+  const clearMessages = useMessagesStore((s) => s.clearMessages);
+  const setActiveSession = useMessagesStore((s) => s.setActiveSession);
+  const loadMessages = useMessagesStore((s) => s.loadMessages);
+  const cumulativeUsage = useSdkStore((s) => s.cumulativeUsage);
+  const currentQueryStats = useSdkStore((s) => s.currentQueryStats);
+
+  const { data: currentOrg } = useQuery(
+    trpc.org.getCurrent.queryOptions(undefined, { enabled: serverConnected }),
+  );
+
+  useEffect(() => {
+    if (currentOrg?.id && !orgId) {
+      setCurrentOrgId(currentOrg.id);
+    }
+  }, [currentOrg, orgId, setCurrentOrgId]);
+
+  const navigateToDetail = useCallback((sessionId: string) => {
+    setSelectedAgentId(sessionId);
+    setCurrentView('detail');
+  }, []);
+
+  const navigateBack = useCallback(() => {
+    setSelectedAgentId(null);
+    setCurrentView('board');
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    trpcClient.agent.cancel.mutate().catch(() => {/* best-effort */});
+    if (cancelStreamRef.current) {
+      cancelStreamRef.current();
+      cancelStreamRef.current = null;
+    }
+    finishStreamingMessage();
+  }, [finishStreamingMessage]);
+
+  const toggleSidebarSize = useCallback(() => {
+    setSidebarMode((prev) => {
+      const next: SidebarMode = prev === 'expanded' ? 'collapsed' : 'expanded';
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const toggleSidebarVisibility = useCallback(() => {
+    setSidebarMode((prev) => {
+      const next: SidebarMode = prev === 'hidden' ? 'expanded' : 'hidden';
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const toggleSessionsPanel = useCallback(() => {
+    setSessionsPanelCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  const handleSelectSession = useCallback((sessionId: string, messages?: Array<{ id: string; role: string; content: string; timestamp: number }>) => {
+    if (sessionId === intendedSessionRef.current) return;
+    intendedSessionRef.current = sessionId;
+    clearMessages();
+    setActiveSession(sessionId);
+    setSelectedSessionId(sessionId);
+    setCurrentView('sessions');
+    // Load messages passed from the caller (already fetched via session.list)
+    if (messages?.length) {
+      loadMessages(messages);
+    }
+  }, [clearMessages, setActiveSession, loadMessages]);
+
+  const handleCreateSession = useCallback(() => {
+    // Cancel any active stream (client + server) before starting fresh
+    trpcClient.agent.cancel.mutate().catch(() => {/* best-effort */});
+    if (cancelStreamRef.current) {
+      cancelStreamRef.current();
+      cancelStreamRef.current = null;
+    }
+    // clearMessages resets messages, streamingMessageId, streamingContent, and isStreaming
+    clearMessages();
+    setActiveSession(null);
+    setSelectedSessionId(null);
+    setCurrentView('sessions');
+    // Ensure sessions panel is visible
+    setSessionsPanelCollapsed(false);
+    localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, 'false');
+  }, [clearMessages, setActiveSession]);
+
+  useHotkey('toggleHistory', toggleSessionsPanel);
+  useHotkey('toggleTasks', () => setTaskPanelOpen((prev) => !prev));
+  useHotkey('cancelStream', handleCancel, isStreaming);
+
+  useEffect(() => {
+    return () => {
+      cancelStreamRef.current?.();
+    };
+  }, []);
+
+  useEffect(() => {
     const checkConnection = async () => {
       const connected = await checkServerConnection();
       setServerConnected(connected);
-      if (connected) {
-        initBridge().catch(console.error);
-      }
     };
-
     checkConnection();
     const interval = setInterval(checkConnection, 5000);
-    onCleanup(() => {
-      clearInterval(interval);
-      cleanupSdkStore();
-    });
-  });
+    return () => clearInterval(interval);
+  }, []);
 
-  onMount(() => {
+  useEffect(() => {
     const bus = getEventBus();
-
     const unsubError = bus.on('BridgeError', (event) => {
-      setError(event.error);
+      setError((event as { error: string }).error);
       setTimeout(() => setError(null), 5000);
     });
+    return unsubError;
+  }, []);
 
-    onCleanup(() => {
-      unsubError();
-    });
-  });
-
-  // Register hotkey actions
-  onMount(() => {
-    hotkeys.registerPanelToggles({
-      history: () => setSessionsPanelOpen((prev) => !prev),
-      tasks: () => setTodoPanelOpen((prev) => !prev),
-    });
-    hotkeys.registerCancelStream(() => handleCancel());
-  });
-
-  const messages = () => {
-    const msgs = getMessages();
-    setMessageCount(msgs.length);
-    return msgs;
-  };
-
-  const streamingSignal = getIsStreaming();
-
-  const handleSubmit = (content: string) => {
-    console.log('[Shell] handleSubmit called:', content.slice(0, 50));
-    console.log('[Shell] Current streaming state:', streamingSignal());
-
+  const handleSubmit = useCallback((content: string) => {
     addUserMessage(content);
-    const msgId = startAssistantMessage();
-    console.log('[Shell] Started assistant message:', msgId);
+    startAssistantMessage();
 
-    cancelStream = streamQuery(
-      content,
-      (token) => {
-        console.log('[Shell] onToken callback:', token.slice(0, 50));
-        appendToStreamingMessage(token);
+    const subscription = trpcClient.agent.query.subscribe(
+      { prompt: content },
+      {
+        onData: (data) => {
+          if (data.type === 'token') {
+            appendToStreamingMessage(data.data);
+          } else if (data.type === 'done') {
+            finishStreamingMessage();
+            cancelStreamRef.current = null;
+          } else if (data.type === 'error') {
+            finishStreamingMessage();
+            setError(data.data);
+            cancelStreamRef.current = null;
+          }
+        },
+        onError: (err) => {
+          finishStreamingMessage();
+          setError(err instanceof Error ? err.message : String(err));
+          cancelStreamRef.current = null;
+        },
       },
-      () => {
-        console.log('[Shell] onDone callback');
-        finishStreamingMessage();
-        cancelStream = null;
-      },
-      (err) => {
-        console.log('[Shell] onError callback:', err);
-        finishStreamingMessage();
-        setError(err);
-        cancelStream = null;
-      }
     );
-  };
+    cancelStreamRef.current = () => subscription.unsubscribe();
+  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage]);
 
-  const handleCancel = () => {
-    if (cancelStream) {
-      cancelStream();
-      cancelStream = null;
+  const dismissError = useCallback(() => setError(null), []);
+
+  const renderMainView = () => {
+    switch (currentView) {
+      case 'board':
+        return (
+          <BoardView
+            onSelectAgent={navigateToDetail}
+            keyword={boardKeyword}
+            statusFilter={boardStatusFilter}
+          />
+        );
+      case 'queue':
+        return <ReviewQueue />;
+      case 'detail':
+        return selectedAgentId ? (
+          <AgentDetailView sessionId={selectedAgentId} onBack={navigateBack} onNavigateToChild={navigateToDetail} />
+        ) : null;
+      case 'home':
+        return (
+          <HomeView
+            onStartChat={handleCreateSession}
+            onNavigate={setCurrentView}
+            onSelectSession={handleSelectSession}
+          />
+        );
+      case 'sessions':
+        return (
+          <SessionsView
+            sessionId={selectedSessionId}
+            messages={messages}
+            isStreaming={isStreaming}
+            onSubmit={handleSubmit}
+            onCancel={handleCancel}
+          />
+        );
+      case 'templates':
+        return <TemplateListView />;
+      case 'workflows':
+        return <WorkflowListView />;
+      case 'orgs':
+        return <OrgListView />;
+      case 'audit':
+        return <AuditView />;
+      default:
+        return null;
     }
-    finishStreamingMessage();
-  };
-
-  const dismissError = () => {
-    setError(null);
   };
 
   return (
-    <div class="h-screen flex flex-col bg-cream-100 harmony-texture overflow-hidden">
-      {/* Header */}
-      <header class="flex-shrink-0 bg-cream-50/95 backdrop-blur-md border-b border-burgundy-500/10">
-        <div class="max-w-5xl mx-auto px-6">
-          <div class="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div class="flex items-center gap-4 group">
-              <div class="logo-container">
-                <HarmonyLogo size={40} />
-              </div>
+    <TooltipProvider>
+      <div className="h-screen flex bg-background overflow-hidden">
+        <AppSidebar
+          currentView={currentView}
+          onViewChange={setCurrentView}
+          mode={sidebarMode}
+          onToggleSize={toggleSidebarSize}
+        />
+
+        {/* Sessions panel — only visible on sessions view */}
+        {currentView === 'sessions' && (
+          <SessionsPanel
+            collapsed={sessionsPanelCollapsed}
+            activeSessionId={selectedSessionId ?? undefined}
+            onSelectSession={handleSelectSession}
+            onCreateSession={handleCreateSession}
+            onCollapse={toggleSessionsPanel}
+          />
+        )}
+
+        {/* Content column — TopBar only spans this area */}
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+          <TopBar
+            currentView={currentView}
+            onBack={currentView === 'detail' ? navigateBack : undefined}
+            sidebarHidden={sidebarMode === 'hidden'}
+            onToggleSidebar={toggleSidebarVisibility}
+            sessionsPanelCollapsed={sessionsPanelCollapsed}
+            onToggleSessionsPanel={toggleSessionsPanel}
+            taskPanelOpen={taskPanelOpen}
+            onToggleTask={() => setTaskPanelOpen((prev) => !prev)}
+            onQuickCreate={handleCreateSession}
+            boardKeyword={boardKeyword}
+            onBoardKeywordChange={setBoardKeyword}
+            boardStatusFilter={boardStatusFilter}
+            onBoardStatusFilterChange={setBoardStatusFilter}
+          />
+
+          {/* Server Not Connected Banner */}
+          {!serverConnected && (
+            <div className="px-4 py-3 bg-muted/50 border-b flex items-center gap-3">
+              <WifiOff className="h-4 w-4 text-muted-foreground" />
               <div>
-                <h1 class="font-serif text-xl font-semibold text-burgundy-500 tracking-wide">
-                  Fuxi
-                </h1>
-                <p class="text-xs text-charcoal-600 tracking-[0.15em] uppercase">
-                  Agentic Orchestrator
+                <p className="text-sm font-medium">Server not connected</p>
+                <p className="text-xs text-muted-foreground">
+                  Run <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">bun run server</code> to start
                 </p>
               </div>
             </div>
+          )}
 
-            {/* Navigation */}
-            <nav class="flex items-center gap-2">
-              <button
-                class={`px-4 py-2 font-serif text-sm tracking-wide rounded-lg transition-all duration-300 accent-line-gold ${
-                  sessionsPanelOpen()
-                    ? 'text-burgundy-500 bg-burgundy-500/5 active'
-                    : 'text-charcoal-600 hover:text-burgundy-500'
-                }`}
-                onClick={() => setSessionsPanelOpen((prev) => !prev)}
-                title="Toggle Sessions Panel"
-              >
-                History
-              </button>
-              <button
-                class={`px-4 py-2 font-serif text-sm tracking-wide rounded-lg transition-all duration-300 accent-line-gold ${
-                  todoPanelOpen()
-                    ? 'text-burgundy-500 bg-burgundy-500/5 active'
-                    : 'text-charcoal-600 hover:text-burgundy-500'
-                }`}
-                onClick={() => setTodoPanelOpen((prev) => !prev)}
-                title="Toggle Todo Panel"
-              >
-                Tasks
-              </button>
-
-              {/* Profile badge */}
-              <div class="ml-3 px-4 py-1.5 bg-burgundy-500 text-white font-serif text-xs tracking-wide rounded-full">
-                {currentProfile()}
+          {/* Error Banner */}
+          {error && (
+            <div className="px-4 py-2 bg-destructive/10 border-b flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-destructive" />
+                <span className="text-sm text-destructive">{error}</span>
               </div>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      {/* Server Not Connected Banner */}
-      <Show when={!serverConnected()}>
-        <div class="px-6 py-4 bg-gold-500/10 border-b border-gold-500/20">
-          <div class="max-w-5xl mx-auto flex items-center gap-4">
-            <div class="w-10 h-10 rounded-full bg-gold-500/20 flex items-center justify-center">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A227" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
+              <Button variant="ghost" size="sm" onClick={dismissError} className="text-destructive h-7">
+                Dismiss
+              </Button>
             </div>
-            <div>
-              <p class="font-serif text-charcoal-800">Server not connected</p>
-              <p class="text-sm text-charcoal-600">
-                Run <code class="font-mono bg-cream-200 px-2 py-0.5 rounded text-burgundy-500">bun run server</code> to start
-              </p>
-            </div>
-          </div>
-        </div>
-      </Show>
+          )}
 
-      {/* Error Banner */}
-      <Show when={error()}>
-        <div class="px-6 py-3 bg-burgundy-500/10 border-b border-burgundy-500/20">
-          <div class="max-w-5xl mx-auto flex items-center justify-between">
-            <span class="text-sm text-burgundy-500">{error()}</span>
-            <button
-              onClick={dismissError}
-              class="text-burgundy-500/60 hover:text-burgundy-500 text-sm font-serif transition-colors"
-            >
-              Dismiss
-            </button>
-          </div>
-        </div>
-      </Show>
+          {/* Main Content */}
+          <main className="flex-1 flex flex-col overflow-hidden">
+            {renderMainView()}
+          </main>
 
-      {/* Main Content */}
-      <main class="flex-1 flex overflow-hidden">
-        {/* Sessions Panel (Left) */}
-        <SessionsPanel
-          isOpen={sessionsPanelOpen()}
-          onClose={() => setSessionsPanelOpen(false)}
+          {currentView === 'sessions' && (
+            <StatusBar
+              isStreaming={isStreaming}
+              cumulativeUsage={cumulativeUsage}
+              currentQueryStats={currentQueryStats}
+              messageCount={messages.length}
+            />
+          )}
+        </div>
+
+        {/* Task panel — full height, same level as sidebar and sessions */}
+        <TaskPanel
+          isOpen={taskPanelOpen}
+          onClose={() => setTaskPanelOpen(false)}
         />
-
-        {/* Main Chat Area */}
-        <div class="flex-1 flex flex-col overflow-hidden">
-          <MessageList messages={messages()} isStreaming={streamingSignal()} />
-          <MessageInput onSubmit={handleSubmit} onCancel={handleCancel} isStreaming={streamingSignal()} />
-        </div>
-
-        {/* Todo Panel (Right) */}
-        <TodoPanel
-          isOpen={todoPanelOpen()}
-          onClose={() => setTodoPanelOpen(false)}
-        />
-      </main>
-
-      {/* Status Bar */}
-      <footer class="flex-shrink-0 px-6 py-2 border-t border-burgundy-500/10 bg-cream-50/80">
-        <div class="max-w-5xl mx-auto flex items-center justify-between text-xs">
-          <div class="flex items-center gap-3">
-            <div class="flex items-center gap-2">
-              <span
-                class={`w-2 h-2 rounded-full transition-all duration-300 ${
-                  streamingSignal() ? 'status-active' : 'status-idle'
-                }`}
-              />
-              <span class={`font-sans ${streamingSignal() ? 'text-sage-500' : 'text-charcoal-600'}`}>
-                {streamingSignal() ? 'Thinking...' : 'Ready'}
-              </span>
-            </div>
-          </div>
-          <div class="flex items-center gap-4 text-charcoal-600">
-            {/* Token usage display */}
-            <Show when={getCumulativeUsage().inputTokens > 0 || getCumulativeUsage().outputTokens > 0}>
-              <span class="text-charcoal-500" title="Input / Output tokens">
-                {getCumulativeUsage().inputTokens.toLocaleString()} / {getCumulativeUsage().outputTokens.toLocaleString()} tokens
-              </span>
-            </Show>
-            {/* Cost display */}
-            <Show when={getCumulativeUsage().totalCostUsd > 0}>
-              <span class="text-gold-600" title="Estimated cost">
-                ${getCumulativeUsage().totalCostUsd.toFixed(4)}
-              </span>
-            </Show>
-            {/* Query stats */}
-            <Show when={getCurrentQueryStats()}>
-              <span class="text-charcoal-500" title="Last query duration">
-                {(getCurrentQueryStats()!.durationMs / 1000).toFixed(1)}s
-              </span>
-            </Show>
-            <span>{messageCount()} messages</span>
-            <div class="w-4 h-4 opacity-40">
-              <HarmonyLogo size={16} />
-            </div>
-          </div>
-        </div>
-      </footer>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
 
-// Main Shell component with HotkeyProvider wrapper
 export default function Shell() {
-  return (
-    <HotkeyProvider>
-      <ShellContent />
-    </HotkeyProvider>
-  );
+  return <ShellContent />;
 }

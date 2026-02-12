@@ -1,119 +1,157 @@
-import { type Component, Show, createSignal, onMount, onCleanup } from 'solid-js';
-import { sendAction } from '@bridge/index';
+/**
+ * SessionsPanel - Persistent left panel for session management.
+ * Always visible adjacent to the nav sidebar. Collapsible to save space.
+ * Uses tRPC queries/mutations with type and state filtering.
+ */
+
+import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ChevronsLeft } from 'lucide-react';
+import { useTRPC } from '@/bridge/react';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { SessionList } from './SessionList';
-import type { Session } from '@services/types';
 
 export interface SessionsPanelProps {
-  isOpen: boolean;
-  onClose?: () => void;
+  collapsed: boolean;
+  activeSessionId?: string;
+  onSelectSession?: (sessionId: string, messages?: Array<{ id: string; role: string; content: string; timestamp: number }>) => void;
+  onCreateSession?: () => void;
+  onCollapse?: () => void;
 }
 
-export const SessionsPanel: Component<SessionsPanelProps> = (props) => {
-  const [sessions, setSessions] = createSignal<Session[]>([]);
-  const [loading, setLoading] = createSignal(true);
-  const [activeSessionId, setActiveSessionId] = createSignal<string | undefined>(undefined);
+export function SessionsPanel({
+  collapsed,
+  activeSessionId,
+  onSelectSession,
+  onCreateSession,
+  onCollapse,
+}: SessionsPanelProps) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const orgId = useOrgStore((s) => s.currentOrgId);
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [stateFilter, setStateFilter] = useState('all');
 
-  const loadSessions = async () => {
-    try {
-      const list = await sendAction<Session[]>('session:list');
-      setSessions(list || []);
-    } catch (err) {
-      console.error('Failed to load sessions:', err);
-      setSessions([]);
-    } finally {
-      setLoading(false);
+  const { data: sessions = [], isLoading } = useQuery(
+    trpc.session.list.queryOptions(
+      orgId ? { orgId } : undefined,
+      { refetchInterval: 5000 },
+    ),
+  );
+
+  const resumeMutation = useMutation(
+    trpc.session.resume.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
+    }),
+  );
+
+  const deleteMutation = useMutation(
+    trpc.session.delete.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
+    }),
+  );
+
+  const forkMutation = useMutation(
+    trpc.session.fork.mutationOptions({
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
+    }),
+  );
+
+  const handleSelect = useCallback((sessionId: string) => {
+    if (sessionId !== activeSessionId) {
+      resumeMutation.mutate({ sessionId });
     }
-  };
+    const session = sessions.find((s) => s.id === sessionId);
+    onSelectSession?.(sessionId, session?.messages);
+  }, [activeSessionId, resumeMutation, onSelectSession, sessions]);
 
-  let refreshInterval: ReturnType<typeof setInterval>;
+  const handleDelete = useCallback((sessionId: string) => {
+    deleteMutation.mutate({ sessionId });
+  }, [deleteMutation]);
 
-  onMount(() => {
-    loadSessions();
-    refreshInterval = setInterval(loadSessions, 5000);
-  });
+  const handleFork = useCallback((sessionId: string) => {
+    forkMutation.mutate({ sessionId });
+  }, [forkMutation]);
 
-  onCleanup(() => {
-    clearInterval(refreshInterval);
-  });
-
-  const handleSelect = async (sessionId: string) => {
-    try {
-      await sendAction('session:resume', { sessionId });
-      setActiveSessionId(sessionId);
-      await loadSessions();
-    } catch (err) {
-      console.error('Failed to resume session:', err);
-    }
-  };
-
-  const handleDelete = async (sessionId: string) => {
-    if (!confirm('Delete this session?')) return;
-
-    try {
-      await sendAction('session:delete', { sessionId });
-      await loadSessions();
-    } catch (err) {
-      console.error('Failed to delete session:', err);
-    }
-  };
-
-  const handleFork = async (sessionId: string) => {
-    try {
-      await sendAction('session:fork', { sessionId });
-      await loadSessions();
-    } catch (err) {
-      console.error('Failed to fork session:', err);
-    }
-  };
-
-  const handleCreate = async () => {
-    try {
-      const result = await sendAction<{ sessionId: string }>('session:create');
-      if (result?.sessionId) {
-        setActiveSessionId(result.sessionId);
-      }
-      await loadSessions();
-    } catch (err) {
-      console.error('Failed to create session:', err);
-    }
-  };
+  const handleCreate = useCallback(() => {
+    onCreateSession?.();
+  }, [onCreateSession]);
 
   return (
-    <Show when={props.isOpen}>
-      <div class="w-80 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
-        {/* Header */}
-        <div class="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
-          <h2 class="font-semibold text-gray-800 dark:text-gray-200">
-            Sessions
-          </h2>
-          <button
-            class="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-            onClick={props.onClose}
-            title="Close"
+    <div
+      className={`flex-shrink-0 flex flex-col bg-background border-r transition-[width] duration-200 ease-in-out overflow-hidden ${
+        collapsed ? 'w-0 border-r-0' : 'w-72'
+      }`}
+      aria-hidden={collapsed}
+      inert={collapsed ? true : undefined}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b">
+        <h2 className="font-semibold text-sm">Sessions</h2>
+        {onCollapse && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            onClick={onCollapse}
+            aria-label="Hide sessions"
           >
-            ✕
-          </button>
-        </div>
-
-        {/* Content */}
-        <Show
-          when={!loading()}
-          fallback={
-            <div class="flex-1 flex items-center justify-center text-gray-400">
-              Loading...
-            </div>
-          }
-        >
-          <SessionList
-            sessions={sessions()}
-            activeSessionId={activeSessionId()}
-            onSelect={handleSelect}
-            onDelete={handleDelete}
-            onFork={handleFork}
-            onCreate={handleCreate}
-          />
-        </Show>
+            <ChevronsLeft className="h-3.5 w-3.5" />
+          </Button>
+        )}
       </div>
-    </Show>
+
+      {/* Filters */}
+      <div className="p-3 border-b flex gap-2">
+        <Select value={typeFilter} onValueChange={setTypeFilter}>
+          <SelectTrigger className="h-7 text-xs flex-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All types</SelectItem>
+            <SelectItem value="chat">Chat</SelectItem>
+            <SelectItem value="workagent">Agent</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={stateFilter} onValueChange={setStateFilter}>
+          <SelectTrigger className="h-7 text-xs flex-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All states</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="paused">Paused</SelectItem>
+            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="failed">Failed</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Content */}
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+          Loading...
+        </div>
+      ) : (
+        <SessionList
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          typeFilter={typeFilter}
+          stateFilter={stateFilter}
+          onSelect={handleSelect}
+          onDelete={handleDelete}
+          onFork={handleFork}
+          onCreate={handleCreate}
+        />
+      )}
+    </div>
   );
-};
+}
