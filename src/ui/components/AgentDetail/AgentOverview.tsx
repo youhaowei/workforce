@@ -19,7 +19,7 @@ interface AgentOverviewProps {
 
 export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
   const trpc = useTRPC();
-  const workspaceId = session.metadata?.workspaceId as string | undefined;
+  const orgId = session.metadata?.orgId as string | undefined;
 
   const { data: children = [] } = useQuery(
     trpc.session.children.queryOptions(
@@ -48,10 +48,10 @@ export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
               <p className="text-xs mt-0.5">{templateId}</p>
             </div>
           )}
-          {workspaceId && (
+          {orgId && (
             <div>
-              <span className="text-muted-foreground text-xs">Workspace</span>
-              <p className="text-xs mt-0.5">{workspaceId}</p>
+              <span className="text-muted-foreground text-xs">Organization</span>
+              <p className="text-xs mt-0.5">{orgId}</p>
             </div>
           )}
           {workflowId && (

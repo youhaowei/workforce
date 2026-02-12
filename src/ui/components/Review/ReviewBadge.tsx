@@ -5,17 +5,17 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { Badge } from '@/components/ui/badge';
 
 export function ReviewBadge() {
   const trpc = useTRPC();
-  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const orgId = useOrgStore((s) => s.currentOrgId);
 
   const { data: count } = useQuery(
     trpc.review.count.queryOptions(
-      { workspaceId: workspaceId! },
-      { enabled: !!workspaceId, refetchInterval: 3000 },
+      { orgId: orgId! },
+      { enabled: !!orgId, refetchInterval: 3000 },
     ),
   );
 

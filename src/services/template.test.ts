@@ -12,7 +12,7 @@ import { createTemplateService } from './template';
 import type { AgentProfile } from './types';
 
 const TEST_DIR = join(tmpdir(), 'workforce-template-test-' + Date.now());
-const WORKSPACE_ID = 'ws_test_workspace';
+const ORG_ID = 'org_test';
 
 function sampleInput() {
   return {
@@ -38,7 +38,7 @@ describe('TemplateService', () => {
   describe('create', () => {
     it('should create a template with generated ID', async () => {
       const service = createTemplateService(TEST_DIR);
-      const tmpl = await service.create(WORKSPACE_ID, sampleInput());
+      const tmpl = await service.create(ORG_ID, sampleInput());
 
       expect(tmpl.id).toMatch(/^tmpl_/);
       expect(tmpl.name).toBe('Code Reviewer');
@@ -52,8 +52,8 @@ describe('TemplateService', () => {
   describe('get', () => {
     it('should return template by ID', async () => {
       const service = createTemplateService(join(TEST_DIR, 'get'));
-      const created = await service.create(WORKSPACE_ID, sampleInput());
-      const found = await service.get(WORKSPACE_ID, created.id);
+      const created = await service.create(ORG_ID, sampleInput());
+      const found = await service.get(ORG_ID, created.id);
 
       expect(found).not.toBeNull();
       expect(found!.name).toBe('Code Reviewer');
@@ -63,7 +63,7 @@ describe('TemplateService', () => {
 
     it('should return null for non-existent template', async () => {
       const service = createTemplateService(join(TEST_DIR, 'get-null'));
-      const found = await service.get(WORKSPACE_ID, 'tmpl_nonexistent');
+      const found = await service.get(ORG_ID, 'tmpl_nonexistent');
 
       expect(found).toBeNull();
 
@@ -74,9 +74,9 @@ describe('TemplateService', () => {
   describe('update', () => {
     it('should update template properties', async () => {
       const service = createTemplateService(join(TEST_DIR, 'update'));
-      const tmpl = await service.create(WORKSPACE_ID, sampleInput());
+      const tmpl = await service.create(ORG_ID, sampleInput());
 
-      const updated = await service.update(WORKSPACE_ID, tmpl.id, {
+      const updated = await service.update(ORG_ID, tmpl.id, {
         name: 'Senior Reviewer',
         reasoningIntensity: 'max',
       });
@@ -93,7 +93,7 @@ describe('TemplateService', () => {
     it('should throw for non-existent template', async () => {
       const service = createTemplateService(join(TEST_DIR, 'update-throw'));
       await expect(
-        service.update(WORKSPACE_ID, 'tmpl_fake', { name: 'X' })
+        service.update(ORG_ID, 'tmpl_fake', { name: 'X' })
       ).rejects.toThrow('Template not found');
 
       service.dispose();
@@ -103,8 +103,8 @@ describe('TemplateService', () => {
   describe('duplicate', () => {
     it('should create a copy with new ID and (copy) suffix', async () => {
       const service = createTemplateService(join(TEST_DIR, 'duplicate'));
-      const original = await service.create(WORKSPACE_ID, sampleInput());
-      const copy = await service.duplicate(WORKSPACE_ID, original.id);
+      const original = await service.create(ORG_ID, sampleInput());
+      const copy = await service.duplicate(ORG_ID, original.id);
 
       expect(copy.id).not.toBe(original.id);
       expect(copy.name).toBe('Code Reviewer (copy)');
@@ -118,10 +118,10 @@ describe('TemplateService', () => {
   describe('archive', () => {
     it('should mark template as archived', async () => {
       const service = createTemplateService(join(TEST_DIR, 'archive'));
-      const tmpl = await service.create(WORKSPACE_ID, sampleInput());
+      const tmpl = await service.create(ORG_ID, sampleInput());
 
-      await service.archive(WORKSPACE_ID, tmpl.id);
-      const archived = await service.get(WORKSPACE_ID, tmpl.id);
+      await service.archive(ORG_ID, tmpl.id);
+      const archived = await service.get(ORG_ID, tmpl.id);
 
       expect(archived!.archived).toBe(true);
 
@@ -130,18 +130,18 @@ describe('TemplateService', () => {
 
     it('should exclude archived from default list', async () => {
       const service = createTemplateService(join(TEST_DIR, 'archive-list'));
-      await service.create(WORKSPACE_ID, sampleInput());
-      const toArchive = await service.create(WORKSPACE_ID, {
+      await service.create(ORG_ID, sampleInput());
+      const toArchive = await service.create(ORG_ID, {
         ...sampleInput(),
         name: 'Archived One',
       });
-      await service.archive(WORKSPACE_ID, toArchive.id);
+      await service.archive(ORG_ID, toArchive.id);
 
-      const defaultList = await service.list(WORKSPACE_ID);
+      const defaultList = await service.list(ORG_ID);
       expect(defaultList).toHaveLength(1);
       expect(defaultList[0].name).toBe('Code Reviewer');
 
-      const fullList = await service.list(WORKSPACE_ID, { includeArchived: true });
+      const fullList = await service.list(ORG_ID, { includeArchived: true });
       expect(fullList).toHaveLength(2);
 
       service.dispose();
@@ -152,11 +152,11 @@ describe('TemplateService', () => {
     it('should return all templates', async () => {
       const service = createTemplateService(join(TEST_DIR, 'list'));
 
-      await service.create(WORKSPACE_ID, { ...sampleInput(), name: 'First' });
-      await service.create(WORKSPACE_ID, { ...sampleInput(), name: 'Second' });
-      await service.create(WORKSPACE_ID, { ...sampleInput(), name: 'Third' });
+      await service.create(ORG_ID, { ...sampleInput(), name: 'First' });
+      await service.create(ORG_ID, { ...sampleInput(), name: 'Second' });
+      await service.create(ORG_ID, { ...sampleInput(), name: 'Third' });
 
-      const list = await service.list(WORKSPACE_ID);
+      const list = await service.list(ORG_ID);
       expect(list).toHaveLength(3);
       const names = list.map((t) => t.name).sort();
       expect(names).toEqual(['First', 'Second', 'Third']);
@@ -253,11 +253,11 @@ describe('TemplateService', () => {
       const dir = join(TEST_DIR, 'reload');
 
       const service1 = createTemplateService(dir);
-      const tmpl = await service1.create(WORKSPACE_ID, sampleInput());
+      const tmpl = await service1.create(ORG_ID, sampleInput());
       service1.dispose();
 
       const service2 = createTemplateService(dir);
-      const found = await service2.get(WORKSPACE_ID, tmpl.id);
+      const found = await service2.get(ORG_ID, tmpl.id);
 
       expect(found).not.toBeNull();
       expect(found!.name).toBe('Code Reviewer');

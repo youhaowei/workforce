@@ -21,7 +21,7 @@ import { SessionList } from './SessionList';
 export interface SessionsPanelProps {
   collapsed: boolean;
   activeSessionId?: string;
-  onSelectSession?: (sessionId: string) => void;
+  onSelectSession?: (sessionId: string, messages?: Array<{ id: string; role: string; content: string; timestamp: number }>) => void;
   onCreateSession?: () => void;
   onCollapse?: () => void;
 }
@@ -64,8 +64,9 @@ export function SessionsPanel({
     if (sessionId !== activeSessionId) {
       resumeMutation.mutate({ sessionId });
     }
-    onSelectSession?.(sessionId);
-  }, [activeSessionId, resumeMutation, onSelectSession]);
+    const session = sessions.find((s) => s.id === sessionId);
+    onSelectSession?.(sessionId, session?.messages);
+  }, [activeSessionId, resumeMutation, onSelectSession, sessions]);
 
   const handleDelete = useCallback((sessionId: string) => {
     deleteMutation.mutate({ sessionId });

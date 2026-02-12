@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll } from 'vitest';
 import { createCaller, resetRouterServices } from './index';
 import { resetSessionService } from '@/services/session';
-import { resetWorkspaceService } from '@/services/workspace';
-import { resetTodoService } from '@/services/todo';
+import { resetOrgService } from '@/services/org';
+import { resetTaskService } from '@/services/task';
 import { resetTemplateService } from '@/services/template';
 import { resetWorktreeService } from '@/services/worktree';
 
@@ -22,8 +22,8 @@ describe('tRPC Routers', () => {
 
   afterEach(() => {
     resetSessionService();
-    resetWorkspaceService();
-    resetTodoService();
+    resetOrgService();
+    resetTaskService();
     resetTemplateService();
     resetWorktreeService();
     resetRouterServices();
@@ -31,8 +31,8 @@ describe('tRPC Routers', () => {
 
   afterAll(() => {
     resetSessionService();
-    resetWorkspaceService();
-    resetTodoService();
+    resetOrgService();
+    resetTaskService();
     resetTemplateService();
     resetWorktreeService();
     resetRouterServices();
@@ -58,43 +58,43 @@ describe('tRPC Routers', () => {
     });
   });
 
-  describe('workspace', () => {
+  describe('org', () => {
     it('list returns array', async () => {
-      const result = await caller.workspace.list();
+      const result = await caller.org.list();
       expect(Array.isArray(result)).toBe(true);
     });
 
-    it('create and get workspace', async () => {
-      const ws = await caller.workspace.create({
+    it('create and get org', async () => {
+      const ws = await caller.org.create({
         name: 'test-ws',
         rootPath: '/tmp/test-ws',
       });
       expect(ws).toHaveProperty('id');
       expect(ws.name).toBe('test-ws');
 
-      const fetched = await caller.workspace.get({ id: ws.id });
+      const fetched = await caller.org.get({ id: ws.id });
       expect(fetched).not.toBeNull();
       expect(fetched!.name).toBe('test-ws');
 
       // Cleanup
-      await caller.workspace.delete({ id: ws.id });
+      await caller.org.delete({ id: ws.id });
     });
 
-    it('activate sets current workspace', async () => {
-      const ws = await caller.workspace.create({
+    it('activate sets current org', async () => {
+      const ws = await caller.org.create({
         name: 'active-test',
         rootPath: '/tmp/active-test',
       });
 
-      const activated = await caller.workspace.activate({ id: ws.id });
+      const activated = await caller.org.activate({ id: ws.id });
       expect(activated.id).toBe(ws.id);
 
-      const current = await caller.workspace.getCurrent();
+      const current = await caller.org.getCurrent();
       expect(current).not.toBeNull();
       expect(current!.id).toBe(ws.id);
 
       // Cleanup
-      await caller.workspace.delete({ id: ws.id });
+      await caller.org.delete({ id: ws.id });
     });
   });
 
@@ -126,81 +126,81 @@ describe('tRPC Routers', () => {
     });
   });
 
-  describe('todo', () => {
+  describe('task', () => {
     it('list returns array', async () => {
-      const result = await caller.todo.list();
+      const result = await caller.task.list();
       expect(Array.isArray(result)).toBe(true);
     });
 
-    it('create, update, and delete todo', async () => {
-      const todo = await caller.todo.create({
-        title: 'Test todo',
+    it('create, update, and delete task', async () => {
+      const task = await caller.task.create({
+        title: 'Test task',
         description: 'Test description',
       });
-      expect(todo).toHaveProperty('id');
-      expect(todo.title).toBe('Test todo');
-      expect(todo.status).toBe('pending');
+      expect(task).toHaveProperty('id');
+      expect(task.title).toBe('Test task');
+      expect(task.status).toBe('pending');
 
       // Start it
-      const started = await caller.todo.updateStatus({
-        id: todo.id,
+      const started = await caller.task.updateStatus({
+        id: task.id,
         status: 'in_progress',
       });
       expect(started).not.toBeNull();
       expect(started!.status).toBe('in_progress');
 
       // Complete it
-      const completed = await caller.todo.updateStatus({
-        id: todo.id,
+      const completed = await caller.task.updateStatus({
+        id: task.id,
         status: 'completed',
       });
       expect(completed).not.toBeNull();
       expect(completed!.status).toBe('completed');
 
       // Delete
-      const deleted = await caller.todo.delete({ id: todo.id });
+      const deleted = await caller.task.delete({ id: task.id });
       expect(deleted).toBe(true);
     });
   });
 
   describe('review', () => {
-    it('list requires workspaceId', async () => {
-      // Create a workspace first for valid workspaceId
-      const ws = await caller.workspace.create({
+    it('list requires orgId', async () => {
+      // Create an org first for valid orgId
+      const ws = await caller.org.create({
         name: 'review-test',
         rootPath: '/tmp/review-test',
       });
 
-      const result = await caller.review.listPending({ workspaceId: ws.id });
+      const result = await caller.review.listPending({ orgId: ws.id });
       expect(Array.isArray(result)).toBe(true);
 
-      const count = await caller.review.count({ workspaceId: ws.id });
+      const count = await caller.review.count({ orgId: ws.id });
       expect(typeof count).toBe('number');
 
       // Cleanup
-      await caller.workspace.delete({ id: ws.id });
+      await caller.org.delete({ id: ws.id });
     });
   });
 
   describe('audit', () => {
-    it('workspace audit returns array', async () => {
-      const ws = await caller.workspace.create({
+    it('org audit returns array', async () => {
+      const ws = await caller.org.create({
         name: 'audit-test',
         rootPath: '/tmp/audit-test',
       });
 
-      const entries = await caller.audit.workspace({ workspaceId: ws.id });
+      const entries = await caller.audit.org({ orgId: ws.id });
       expect(Array.isArray(entries)).toBe(true);
 
       // Cleanup
-      await caller.workspace.delete({ id: ws.id });
+      await caller.org.delete({ id: ws.id });
     });
   });
 
   describe('worktree', () => {
     it('keep transitions session to completed but leaves worktree active', async () => {
-      // Create a workspace
-      const ws = await caller.workspace.create({
+      // Create an org
+      const ws = await caller.org.create({
         name: 'keep-test',
         rootPath: '/tmp/keep-test',
       });
@@ -216,7 +216,7 @@ describe('tRPC Routers', () => {
       ).rejects.toThrow();
 
       // Cleanup
-      await caller.workspace.delete({ id: ws.id });
+      await caller.org.delete({ id: ws.id });
       await caller.session.delete({ sessionId: session.id });
     });
   });
@@ -225,7 +225,7 @@ describe('tRPC Routers', () => {
     it('rejects missing required fields', async () => {
       await expect(
         // @ts-expect-error - Testing validation
-        caller.workspace.create({ name: 'test' }),
+        caller.org.create({ name: 'test' }),
       ).rejects.toThrow();
     });
 

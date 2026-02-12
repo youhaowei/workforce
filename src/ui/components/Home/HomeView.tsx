@@ -5,7 +5,7 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,12 +22,12 @@ import type { ViewType } from '../Shell/Shell';
 interface HomeViewProps {
   onStartChat: () => void;
   onNavigate: (view: ViewType) => void;
-  onSelectSession?: (sessionId: string) => void;
+  onSelectSession?: (sessionId: string, messages?: Array<{ id: string; role: string; content: string; timestamp: number }>) => void;
 }
 
 export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewProps) {
   const trpc = useTRPC();
-  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const orgId = useOrgStore((s) => s.currentOrgId);
 
   const { data: sessions = [] } = useQuery(
     trpc.session.list.queryOptions(undefined, { refetchInterval: 5000 }),
@@ -35,8 +35,8 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
 
   const { data: pendingReviews = 0 } = useQuery(
     trpc.review.count.queryOptions(
-      { workspaceId: workspaceId! },
-      { enabled: !!workspaceId },
+      { orgId: orgId! },
+      { enabled: !!orgId },
     ),
   );
 
@@ -62,7 +62,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
   }, [sessions]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-6">
+    <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">
       {/* Welcome */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Welcome to Workforce</h1>
@@ -141,7 +141,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
             {recentSessions.map((session) => (
               <button
                 key={session.id}
-                onClick={() => onSelectSession?.(session.id)}
+                onClick={() => onSelectSession?.(session.id, session.messages)}
                 className="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 transition-colors flex items-center justify-between group"
               >
                 <div className="min-w-0 flex-1">

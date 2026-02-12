@@ -6,7 +6,7 @@
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { ReviewItemCard } from './ReviewItemCard';
 import { CheckCircle } from 'lucide-react';
 import type { ReviewItem } from '@/services/types';
@@ -14,12 +14,12 @@ import type { ReviewItem } from '@/services/types';
 export function ReviewQueue() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const orgId = useOrgStore((s) => s.currentOrgId);
 
   const { data: items = [], isLoading } = useQuery(
     trpc.review.listPending.queryOptions(
-      { workspaceId: workspaceId! },
-      { enabled: !!workspaceId, refetchInterval: 3000 },
+      { orgId: orgId! },
+      { enabled: !!orgId, refetchInterval: 3000 },
     ),
   );
 
@@ -33,19 +33,19 @@ export function ReviewQueue() {
 
   const handleResolve = useCallback(
     (reviewId: string, action: string, comment?: string) => {
-      if (!workspaceId) return;
+      if (!orgId) return;
       resolveMutation.mutate({
         id: reviewId,
-        workspaceId,
+        orgId,
         action: action as 'approve' | 'reject' | 'edit' | 'clarify',
         comment,
       });
     },
-    [workspaceId, resolveMutation],
+    [orgId, resolveMutation],
   );
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-6">
+    <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">
       <div className="mb-4">
         <h2 className="text-lg font-semibold">Review Queue</h2>
         <p className="text-xs text-muted-foreground">

@@ -8,7 +8,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { Button } from '@/components/ui/button';
-import { MessageSquare, ArrowDown } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
 import MessageItem from './MessageItem';
 
 interface MessageListProps {
@@ -43,18 +43,9 @@ export default function MessageList({ messages, isStreaming }: MessageListProps)
     });
   }, [messages.length]);
 
+  // Empty state is handled by the parent (SessionsView)
   if (messages.length === 0 && !isStreaming) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground px-6">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-            <MessageSquare className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <p className="text-lg font-semibold text-foreground mb-1">Start a conversation</p>
-          <p className="text-sm">Ask Workforce anything to begin</p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -66,6 +57,7 @@ export default function MessageList({ messages, isStreaming }: MessageListProps)
         atBottomStateChange={handleAtBottomStateChange}
         followOutput="smooth"
         overscan={200}
+        components={{ Header: () => <div className="h-14" /> }}
         itemContent={(_index, message) => <MessageItem key={message.id} message={message} />}
         className="flex-1"
       />

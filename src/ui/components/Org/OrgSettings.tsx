@@ -1,5 +1,5 @@
 /**
- * WorkspaceSettings - Settings dialog for workspace configuration.
+ * OrgSettings - Settings dialog for organization configuration.
  * Manages allowed tools, cost caps, and default template.
  */
 
@@ -17,32 +17,32 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import type { Workspace } from '@/services/types';
+import type { Org } from '@/services/types';
 
-interface WorkspaceSettingsProps {
-  workspace: Workspace;
+interface OrgSettingsProps {
+  org: Org;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function WorkspaceSettings({ workspace, open, onOpenChange }: WorkspaceSettingsProps) {
+export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
-  const [costWarning, setCostWarning] = useState(String(workspace.settings.costWarningThreshold ?? ''));
-  const [costCap, setCostCap] = useState(String(workspace.settings.costHardCap ?? ''));
-  const [hardCapEnabled, setHardCapEnabled] = useState(!!workspace.settings.costHardCap);
+  const [costWarning, setCostWarning] = useState(String(org.settings.costWarningThreshold ?? ''));
+  const [costCap, setCostCap] = useState(String(org.settings.costHardCap ?? ''));
+  const [hardCapEnabled, setHardCapEnabled] = useState(!!org.settings.costHardCap);
 
   useEffect(() => {
-    setCostWarning(String(workspace.settings.costWarningThreshold ?? ''));
-    setCostCap(String(workspace.settings.costHardCap ?? ''));
-    setHardCapEnabled(!!workspace.settings.costHardCap);
-  }, [workspace]);
+    setCostWarning(String(org.settings.costWarningThreshold ?? ''));
+    setCostCap(String(org.settings.costHardCap ?? ''));
+    setHardCapEnabled(!!org.settings.costHardCap);
+  }, [org]);
 
   const updateMutation = useMutation(
-    trpc.workspace.update.mutationOptions({
+    trpc.org.update.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['workspace'] });
+        queryClient.invalidateQueries({ queryKey: ['org'] });
         onOpenChange(false);
       },
     }),
@@ -50,10 +50,10 @@ export function WorkspaceSettings({ workspace, open, onOpenChange }: WorkspaceSe
 
   const handleSave = () => {
     updateMutation.mutate({
-      id: workspace.id,
+      id: org.id,
       updates: {
         settings: {
-          ...workspace.settings,
+          ...org.settings,
           costWarningThreshold: costWarning ? Number(costWarning) : undefined,
           costHardCap: hardCapEnabled && costCap ? Number(costCap) : undefined,
         },
@@ -65,16 +65,16 @@ export function WorkspaceSettings({ workspace, open, onOpenChange }: WorkspaceSe
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Workspace Settings</DialogTitle>
+          <DialogTitle>Organization Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Workspace Name</Label>
-            <p className="text-sm">{workspace.name}</p>
+            <Label>Organization Name</Label>
+            <p className="text-sm">{org.name}</p>
           </div>
           <div className="space-y-2">
             <Label>Root Path</Label>
-            <p className="text-sm font-mono text-muted-foreground">{workspace.rootPath}</p>
+            <p className="text-sm font-mono text-muted-foreground">{org.rootPath}</p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="cost-warning">Cost Warning Threshold (USD)</Label>

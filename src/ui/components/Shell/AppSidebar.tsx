@@ -36,7 +36,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'sessions', label: 'Sessions', icon: MessageSquare },
   { id: 'templates', label: 'Templates', icon: Blocks },
   { id: 'workflows', label: 'Workflows', icon: Workflow },
-  { id: 'workspaces', label: 'Workspaces', icon: FolderKanban },
+  { id: 'orgs', label: 'Orgs', icon: FolderKanban },
   { id: 'audit', label: 'Audit', icon: History },
 ];
 

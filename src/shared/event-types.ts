@@ -273,10 +273,10 @@ export interface RawSdkMessageEvent {
 // Workforce Orchestration Events
 // ─────────────────────────────────────────────────────────────
 
-/** Workspace lifecycle events */
-export interface WorkspaceChangeEvent {
-  type: 'WorkspaceChange';
-  workspaceId: string;
+/** Org lifecycle events */
+export interface OrgChangeEvent {
+  type: 'OrgChange';
+  orgId: string;
   action: 'created' | 'updated' | 'deleted' | 'switched';
   timestamp: number;
 }
@@ -297,7 +297,7 @@ export interface ReviewItemChangeEvent {
   type: 'ReviewItemChange';
   reviewItemId: string;
   sessionId: string;
-  workspaceId: string;
+  orgId: string;
   action: 'created' | 'resolved';
   timestamp: number;
 }
@@ -318,7 +318,7 @@ export interface AgentSpawnedEvent {
   parentSessionId?: string;
   templateId: string;
   goal: string;
-  workspaceId: string;
+  orgId: string;
   timestamp: number;
 }
 
@@ -327,7 +327,7 @@ export interface AuditEntryEvent {
   type: 'AuditEntry';
   entryId: string;
   sessionId: string;
-  workspaceId: string;
+  orgId: string;
   auditType: string;
   description: string;
   timestamp: number;
@@ -361,7 +361,7 @@ export type BusEvent =
   | AuthStatusEvent
   | RawSdkMessageEvent
   // Workforce orchestration events
-  | WorkspaceChangeEvent
+  | OrgChangeEvent
   | LifecycleTransitionEvent
   | ReviewItemChangeEvent
   | WorktreeChangeEvent
@@ -396,7 +396,7 @@ export const EventType = {
   AuthStatus: 'AuthStatus',
   RawSdkMessage: 'RawSdkMessage',
   // Workforce orchestration events
-  WorkspaceChange: 'WorkspaceChange',
+  OrgChange: 'OrgChange',
   LifecycleTransition: 'LifecycleTransition',
   ReviewItemChange: 'ReviewItemChange',
   WorktreeChange: 'WorktreeChange',

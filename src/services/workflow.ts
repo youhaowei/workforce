@@ -7,7 +7,7 @@
  * - Topological sort for execution order (parallel batches)
  * - Archiving
  *
- * Persistence: ~/.workforce/workspaces/{workspaceId}/workflows/{id}.json
+ * Persistence: ~/.workforce/orgs/{orgId}/workflows/{id}.json
  */
 
 import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
@@ -19,7 +19,7 @@ import { getDataDir } from './data-dir';
 // Configuration
 // =============================================================================
 
-const DEFAULT_WORKSPACES_DIR = join(getDataDir(), 'workspaces');
+const DEFAULT_ORGS_DIR = join(getDataDir(), 'orgs');
 
 // =============================================================================
 // Helpers
@@ -105,26 +105,26 @@ function topologicalSort(steps: WorkflowStep[]): { batches: string[][]; errors: 
 
 class WorkflowServiceImpl implements WorkflowService {
   private cache = new Map<string, WorkflowTemplate>();
-  private workspacesDir: string;
+  private orgsDir: string;
 
-  constructor(workspacesDir?: string) {
-    this.workspacesDir = workspacesDir ?? DEFAULT_WORKSPACES_DIR;
+  constructor(orgsDir?: string) {
+    this.orgsDir = orgsDir ?? DEFAULT_ORGS_DIR;
   }
 
-  private workflowDir(workspaceId: string): string {
-    return join(this.workspacesDir, workspaceId, 'workflows');
+  private workflowDir(orgId: string): string {
+    return join(this.orgsDir, orgId, 'workflows');
   }
 
-  private workflowPath(workspaceId: string, id: string): string {
-    return join(this.workflowDir(workspaceId), `${id}.json`);
+  private workflowPath(orgId: string, id: string): string {
+    return join(this.workflowDir(orgId), `${id}.json`);
   }
 
-  private cacheKey(workspaceId: string, id: string): string {
-    return `${workspaceId}:${id}`;
+  private cacheKey(orgId: string, id: string): string {
+    return `${orgId}:${id}`;
   }
 
   async create(
-    workspaceId: string,
+    orgId: string,
     template: Omit<WorkflowTemplate, 'id' | 'createdAt' | 'updatedAt' | 'archived'>
   ): Promise<WorkflowTemplate> {
     const now = Date.now();
@@ -142,21 +142,21 @@ class WorkflowServiceImpl implements WorkflowService {
       throw new Error(`Invalid workflow: ${validation.errors.join('; ')}`);
     }
 
-    await mkdir(this.workflowDir(workspaceId), { recursive: true });
-    await writeFile(this.workflowPath(workspaceId, workflow.id), JSON.stringify(workflow, null, 2), 'utf-8');
+    await mkdir(this.workflowDir(orgId), { recursive: true });
+    await writeFile(this.workflowPath(orgId, workflow.id), JSON.stringify(workflow, null, 2), 'utf-8');
 
-    this.cache.set(this.cacheKey(workspaceId, workflow.id), workflow);
+    this.cache.set(this.cacheKey(orgId, workflow.id), workflow);
     return workflow;
   }
 
-  async get(workspaceId: string, id: string): Promise<WorkflowTemplate | null> {
-    const key = this.cacheKey(workspaceId, id);
+  async get(orgId: string, id: string): Promise<WorkflowTemplate | null> {
+    const key = this.cacheKey(orgId, id);
     if (this.cache.has(key)) {
       return this.cache.get(key)!;
     }
 
     try {
-      const raw = await readFile(this.workflowPath(workspaceId, id), 'utf-8');
+      const raw = await readFile(this.workflowPath(orgId, id), 'utf-8');
       const workflow = JSON.parse(raw) as WorkflowTemplate;
       this.cache.set(key, workflow);
       return workflow;
@@ -166,11 +166,11 @@ class WorkflowServiceImpl implements WorkflowService {
   }
 
   async update(
-    workspaceId: string,
+    orgId: string,
     id: string,
     updates: Partial<WorkflowTemplate>
   ): Promise<WorkflowTemplate> {
-    const existing = await this.get(workspaceId, id);
+    const existing = await this.get(orgId, id);
     if (!existing) {
       throw new Error(`Workflow not found: ${id}`);
     }
@@ -190,16 +190,16 @@ class WorkflowServiceImpl implements WorkflowService {
       }
     }
 
-    await writeFile(this.workflowPath(workspaceId, id), JSON.stringify(updated, null, 2), 'utf-8');
-    this.cache.set(this.cacheKey(workspaceId, id), updated);
+    await writeFile(this.workflowPath(orgId, id), JSON.stringify(updated, null, 2), 'utf-8');
+    this.cache.set(this.cacheKey(orgId, id), updated);
     return updated;
   }
 
   async list(
-    workspaceId: string,
+    orgId: string,
     options?: { includeArchived?: boolean }
   ): Promise<WorkflowTemplate[]> {
-    const dir = this.workflowDir(workspaceId);
+    const dir = this.workflowDir(orgId);
     try {
       const files = await readdir(dir);
       const workflows: WorkflowTemplate[] = [];
@@ -211,7 +211,7 @@ class WorkflowServiceImpl implements WorkflowService {
           const workflow = JSON.parse(raw) as WorkflowTemplate;
           if (!options?.includeArchived && workflow.archived) continue;
           workflows.push(workflow);
-          this.cache.set(this.cacheKey(workspaceId, workflow.id), workflow);
+          this.cache.set(this.cacheKey(orgId, workflow.id), workflow);
         } catch {
           // Skip corrupted files
         }
@@ -223,8 +223,8 @@ class WorkflowServiceImpl implements WorkflowService {
     }
   }
 
-  async archive(workspaceId: string, id: string): Promise<void> {
-    const existing = await this.get(workspaceId, id);
+  async archive(orgId: string, id: string): Promise<void> {
+    const existing = await this.get(orgId, id);
     if (!existing) {
       throw new Error(`Workflow not found: ${id}`);
     }
@@ -232,8 +232,8 @@ class WorkflowServiceImpl implements WorkflowService {
     existing.archived = true;
     existing.updatedAt = Date.now();
 
-    await writeFile(this.workflowPath(workspaceId, id), JSON.stringify(existing, null, 2), 'utf-8');
-    this.cache.set(this.cacheKey(workspaceId, id), existing);
+    await writeFile(this.workflowPath(orgId, id), JSON.stringify(existing, null, 2), 'utf-8');
+    this.cache.set(this.cacheKey(orgId, id), existing);
   }
 
   validate(template: Partial<WorkflowTemplate>): { valid: boolean; errors: string[] } {
@@ -282,8 +282,8 @@ class WorkflowServiceImpl implements WorkflowService {
     return { valid: errors.length === 0, errors };
   }
 
-  async getExecutionOrder(workspaceId: string, workflowId: string): Promise<string[][]> {
-    const workflow = await this.get(workspaceId, workflowId);
+  async getExecutionOrder(orgId: string, workflowId: string): Promise<string[][]> {
+    const workflow = await this.get(orgId, workflowId);
     if (!workflow) {
       throw new Error(`Workflow not found: ${workflowId}`);
     }
@@ -306,9 +306,9 @@ class WorkflowServiceImpl implements WorkflowService {
 // =============================================================================
 
 /**
- * Create a WorkflowService with a custom workspaces directory.
+ * Create a WorkflowService with a custom orgs directory.
  * Useful for testing.
  */
-export function createWorkflowService(workspacesDir?: string): WorkflowService {
-  return new WorkflowServiceImpl(workspacesDir);
+export function createWorkflowService(orgsDir?: string): WorkflowService {
+  return new WorkflowServiceImpl(orgsDir);
 }

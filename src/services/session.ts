@@ -401,7 +401,7 @@ class SessionServiceImpl implements SessionService {
         workflowId: config.workflowId,
         workflowStepIndex: config.workflowStepIndex,
         worktreePath: config.worktreePath,
-        workspaceId: config.workspaceId,
+        orgId: config.orgId,
         repoRoot: config.repoRoot,
       },
     };
@@ -473,13 +473,13 @@ class SessionServiceImpl implements SessionService {
     return session;
   }
 
-  async listByState(state: LifecycleState, workspaceId?: string): Promise<Session[]> {
+  async listByState(state: LifecycleState, orgId?: string): Promise<Session[]> {
     await this.ensureInitialized();
 
     return Array.from(this.sessions.values()).filter((session) => {
       const lifecycle = session.metadata.lifecycle as SessionLifecycle | undefined;
       if (!lifecycle || lifecycle.state !== state) return false;
-      if (workspaceId && session.metadata.workspaceId !== workspaceId) return false;
+      if (orgId && session.metadata.orgId !== orgId) return false;
       return true;
     });
   }

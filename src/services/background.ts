@@ -12,7 +12,7 @@ import type {
   BackgroundService,
   BackgroundTask,
   BackgroundTaskOptions,
-  TaskStatus,
+  BackgroundTaskStatus,
 } from './types';
 import { getEventBus } from '@/shared/event-bus';
 
@@ -105,7 +105,7 @@ class BackgroundServiceImpl implements BackgroundService {
     return true;
   }
 
-  list(filter?: { status?: TaskStatus }): BackgroundTask[] {
+  list(filter?: { status?: BackgroundTaskStatus }): BackgroundTask[] {
     let tasks = Array.from(this.tasks.values());
 
     if (filter?.status) {

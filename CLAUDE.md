@@ -116,7 +116,7 @@ src/
 ├── server/       # Hono HTTP server + tRPC routers
 │   ├── index.ts  # CORS, tRPC mount, diagnostic routes (/health, /debug-log, /auth-check)
 │   ├── trpc.ts   # initTRPC with superjson
-│   └── routers/  # Domain routers (session, workspace, agent, etc.)
+│   └── routers/  # Domain routers (session, org, agent, etc.)
 ├── services/     # Backend services (Bun runtime only)
 │   ├── agent.ts  # Claude SDK wrapper
 │   ├── session.ts

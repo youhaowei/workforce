@@ -90,18 +90,18 @@ Out of scope for MVP is listed in Section 12.
 
 ## 7. Functional Requirements
 
-### FR1. Workspace and Project Context
+### FR1. Organization and Project Context
 
 #### Requirements
 
-1. The system shall allow users to create and manage one or more workspaces.
-2. The system shall scope templates, sessions, and tool access to a workspace.
-3. The system shall persist workspace state so users can resume work after restart.
+1. The system shall allow users to create and manage one or more organizations.
+2. The system shall scope templates, sessions, and tool access to an organization.
+3. The system shall persist organization state so users can resume work after restart.
 
 #### Acceptance Criteria
 
-1. User can open a workspace and see its templates and active sessions.
-2. Workspace state is recovered after app restart without manual repair.
+1. User can open an organization and see its templates and active sessions.
+2. Organization state is recovered after app restart without manual repair.
 
 ---
 
@@ -274,7 +274,7 @@ Out of scope for MVP is listed in Section 12.
 #### Requirements
 
 1. The system shall allow attaching skills and tools to agent templates.
-2. The system shall enforce workspace-level tool permission boundaries.
+2. The system shall enforce org-level tool permission boundaries.
 3. The system shall provide clear error states for missing permission or missing capability.
 
 #### Acceptance Criteria
@@ -313,7 +313,7 @@ P0 is the minimum capability set required for Workforce to be useful for day-to-
 6. **FR7**: centralized review queue with approve/reject/clarification actions.
 7. **FR8**: agent detail with conversation, runtime context, and action/files evidence.
 8. **FR9**: parallel work isolation + completion decision flow (merge/keep/archive).
-9. **FR10**: workspace-level skills/tool assignment and permission boundary handling.
+9. **FR10**: org-level skills/tool assignment and permission boundary handling.
 10. **FR11**: session and review history sufficient for post-run debugging.
 
 ### P0 Dogfooding Gate (Mandatory)
@@ -388,8 +388,8 @@ MVP is release-ready when:
 1. **Pause policy**: Hybrid (workflow-defined gates plus agent self-pause allowed).
 2. **Merge authority**: Manual by default in MVP.
 3. **Retry policy**: Manual retry only in MVP.
-4. **Cost guardrails**: Warning thresholds plus optional hard workspace caps.
-5. **Template portability**: Workspace-local in MVP; export/import is P1.
+4. **Cost guardrails**: Warning thresholds plus optional hard org caps.
+5. **Template portability**: Org-local in MVP; export/import is P1.
 
 ---
 
@@ -400,4 +400,4 @@ MVP is release-ready when:
 - **Chat Session**: open-ended conversation without required completion criteria.
 - **WorkAgent**: goal-bound agent execution with explicit completion states.
 - **Review Item**: user decision request required to proceed or finalize.
-- **Workspace**: project boundary for state, permissions, and artifacts.
+- **Organization (Org)**: project boundary for state, permissions, and artifacts.

@@ -1,22 +1,22 @@
 /**
- * WorkspaceService Tests
+ * OrgService Tests
  *
- * Tests for workspace CRUD, persistence, and event emission.
+ * Tests for org CRUD, persistence, and event emission.
  */
 
 import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { mkdir, rm, readFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { createWorkspaceService } from './workspace';
+import { createOrgService } from './org';
 import { createEventBus, type EventBus } from '@/shared/event-bus';
 
-const TEST_DIR = join(tmpdir(), 'workforce-workspace-test-' + Date.now());
+const TEST_DIR = join(tmpdir(), 'workforce-org-test-' + Date.now());
 
 // Override global event bus for testing
 let testBus: EventBus;
 
-describe('WorkspaceService', () => {
+describe('OrgService', () => {
   beforeAll(async () => {
     await mkdir(TEST_DIR, { recursive: true });
   });
@@ -34,11 +34,11 @@ describe('WorkspaceService', () => {
   });
 
   describe('create', () => {
-    it('should create a workspace with generated ID', async () => {
-      const service = createWorkspaceService(TEST_DIR);
+    it('should create an org with generated ID', async () => {
+      const service = createOrgService(TEST_DIR);
       const ws = await service.create('My Project', '/home/user/project');
 
-      expect(ws.id).toMatch(/^ws_/);
+      expect(ws.id).toMatch(/^org_/);
       expect(ws.name).toBe('My Project');
       expect(ws.rootPath).toBe('/home/user/project');
       expect(ws.settings.allowedTools).toEqual([]);
@@ -47,14 +47,14 @@ describe('WorkspaceService', () => {
       service.dispose();
     });
 
-    it('should persist workspace to disk', async () => {
+    it('should persist org to disk', async () => {
       const dir = join(TEST_DIR, 'persist-test');
       await mkdir(dir, { recursive: true });
 
-      const service = createWorkspaceService(dir);
+      const service = createOrgService(dir);
       const ws = await service.create('Persisted', '/tmp/test');
 
-      const filePath = join(dir, ws.id, 'workspace.json');
+      const filePath = join(dir, ws.id, 'org.json');
       const raw = await readFile(filePath, 'utf-8');
       const saved = JSON.parse(raw);
 
@@ -66,8 +66,8 @@ describe('WorkspaceService', () => {
   });
 
   describe('get', () => {
-    it('should return workspace by ID', async () => {
-      const service = createWorkspaceService(join(TEST_DIR, 'get-test'));
+    it('should return org by ID', async () => {
+      const service = createOrgService(join(TEST_DIR, 'get-test'));
       const created = await service.create('Test', '/tmp');
       const found = await service.get(created.id);
 
@@ -77,8 +77,8 @@ describe('WorkspaceService', () => {
       service.dispose();
     });
 
-    it('should return null for non-existent workspace', async () => {
-      const service = createWorkspaceService(join(TEST_DIR, 'get-null'));
+    it('should return null for non-existent org', async () => {
+      const service = createOrgService(join(TEST_DIR, 'get-null'));
       const found = await service.get('ws_nonexistent');
 
       expect(found).toBeNull();
@@ -88,8 +88,8 @@ describe('WorkspaceService', () => {
   });
 
   describe('update', () => {
-    it('should update workspace properties', async () => {
-      const service = createWorkspaceService(join(TEST_DIR, 'update-test'));
+    it('should update org properties', async () => {
+      const service = createOrgService(join(TEST_DIR, 'update-test'));
       const ws = await service.create('Original', '/tmp');
 
       const updated = await service.update(ws.id, {
@@ -110,17 +110,17 @@ describe('WorkspaceService', () => {
       service.dispose();
     });
 
-    it('should throw for non-existent workspace', async () => {
-      const service = createWorkspaceService(join(TEST_DIR, 'update-throw'));
-      await expect(service.update('ws_fake', { name: 'X' })).rejects.toThrow('Workspace not found');
+    it('should throw for non-existent org', async () => {
+      const service = createOrgService(join(TEST_DIR, 'update-throw'));
+      await expect(service.update('ws_fake', { name: 'X' })).rejects.toThrow('Org not found');
 
       service.dispose();
     });
   });
 
   describe('list', () => {
-    it('should return all workspaces', async () => {
-      const service = createWorkspaceService(join(TEST_DIR, 'list-test'));
+    it('should return all orgs', async () => {
+      const service = createOrgService(join(TEST_DIR, 'list-test'));
 
       await service.create('First', '/a');
       await service.create('Second', '/b');
@@ -136,9 +136,9 @@ describe('WorkspaceService', () => {
   });
 
   describe('delete', () => {
-    it('should remove workspace from memory and disk', async () => {
+    it('should remove org from memory and disk', async () => {
       const dir = join(TEST_DIR, 'delete-test');
-      const service = createWorkspaceService(dir);
+      const service = createOrgService(dir);
       const ws = await service.create('ToDelete', '/tmp');
 
       await service.delete(ws.id);
@@ -152,8 +152,8 @@ describe('WorkspaceService', () => {
       service.dispose();
     });
 
-    it('should clear current workspace if deleted', async () => {
-      const service = createWorkspaceService(join(TEST_DIR, 'delete-current'));
+    it('should clear current org if deleted', async () => {
+      const service = createOrgService(join(TEST_DIR, 'delete-current'));
       const ws = await service.create('Current', '/tmp');
       service.setCurrent(ws);
 
@@ -167,9 +167,9 @@ describe('WorkspaceService', () => {
     });
   });
 
-  describe('current workspace', () => {
-    it('should track current workspace', async () => {
-      const service = createWorkspaceService(join(TEST_DIR, 'current-test'));
+  describe('current org', () => {
+    it('should track current org', async () => {
+      const service = createOrgService(join(TEST_DIR, 'current-test'));
       const ws = await service.create('Active', '/tmp');
 
       expect(service.getCurrent()).toBeNull();
@@ -185,16 +185,16 @@ describe('WorkspaceService', () => {
   });
 
   describe('persistence across instances', () => {
-    it('should load workspaces from disk on new instance', async () => {
+    it('should load orgs from disk on new instance', async () => {
       const dir = join(TEST_DIR, 'reload-test');
 
-      // Create workspace with first instance
-      const service1 = createWorkspaceService(dir);
+      // Create org with first instance
+      const service1 = createOrgService(dir);
       const ws = await service1.create('Reloaded', '/tmp');
       service1.dispose();
 
       // Load with second instance
-      const service2 = createWorkspaceService(dir);
+      const service2 = createOrgService(dir);
       const found = await service2.get(ws.id);
 
       expect(found).not.toBeNull();

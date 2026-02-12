@@ -1,8 +1,8 @@
 /**
  * Shell - Main application layout.
  *
- * Four-column layout: sidebar | sessions panel | content column (TopBar → banners → main → StatusBar) | todo panel.
- * Sessions and todo panels are persistent full-height siblings. Board filters are lifted to TopBar.
+ * Four-column layout: sidebar | sessions panel | content column (TopBar → banners → main → StatusBar) | task panel.
+ * Sessions and task panels are persistent full-height siblings. Board filters are lifted to TopBar.
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -12,20 +12,20 @@ import { AlertCircle, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
-import { TodoPanel } from '../Todo';
+import { TaskPanel } from '../Task';
 import { SessionsPanel, SessionsView } from '../Sessions';
 import { BoardView } from '../Board';
 import { ReviewQueue } from '../Review';
 import { AgentDetailView } from '../AgentDetail';
 import { TemplateListView } from '../Templates';
 import { WorkflowListView } from '../Workflows';
-import { WorkspaceAuditView } from '../Audit';
-import { WorkspacesListView } from '../Workspace/WorkspacesListView';
+import { AuditView } from '../Audit';
+import { OrgListView } from '../Org/OrgListView';
 import { HomeView } from '../Home';
 import { useHotkey } from '@/ui/hotkeys';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import { useSdkStore } from '@/ui/stores/useSdkStore';
-import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { useTRPC } from '@/bridge/react';
 import { trpc as trpcClient } from '@/bridge/trpc';
 import { getEventBus } from '@/shared/event-bus';
@@ -33,7 +33,7 @@ import AppSidebar from './AppSidebar';
 import TopBar from './AppHeader';
 import StatusBar from './StatusBar';
 
-export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'templates' | 'workflows' | 'workspaces' | 'audit' | 'detail';
+export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'templates' | 'workflows' | 'orgs' | 'audit' | 'detail';
 export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
 
 const SERVER_URL = 'http://localhost:4096';
@@ -53,7 +53,7 @@ function ShellContent() {
   const [currentView, setCurrentView] = useState<ViewType>('home');
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [todoPanelOpen, setTodoPanelOpen] = useState(false);
+  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
   const [sessionsPanelCollapsed, setSessionsPanelCollapsed] = useState(
     () => localStorage.getItem(SESSIONS_PANEL_STORAGE_KEY) === 'true',
   );
@@ -67,14 +67,15 @@ function ShellContent() {
     return 'expanded';
   });
   const cancelStreamRef = useRef<(() => void) | null>(null);
+  const intendedSessionRef = useRef<string | null>(null);
 
   // Board filter state — lifted here so TopBar and BoardView share it
   const [boardKeyword, setBoardKeyword] = useState('');
   const [boardStatusFilter, setBoardStatusFilter] = useState('all');
 
   const trpc = useTRPC();
-  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
-  const setCurrentWorkspaceId = useWorkspaceStore((s) => s.setCurrentWorkspaceId);
+  const orgId = useOrgStore((s) => s.currentOrgId);
+  const setCurrentOrgId = useOrgStore((s) => s.setCurrentOrgId);
 
   const messages = useMessagesStore((s) => s.messages);
   const isStreaming = useMessagesStore((s) => s.isStreaming);
@@ -84,18 +85,19 @@ function ShellContent() {
   const finishStreamingMessage = useMessagesStore((s) => s.finishStreamingMessage);
   const clearMessages = useMessagesStore((s) => s.clearMessages);
   const setActiveSession = useMessagesStore((s) => s.setActiveSession);
+  const loadMessages = useMessagesStore((s) => s.loadMessages);
   const cumulativeUsage = useSdkStore((s) => s.cumulativeUsage);
   const currentQueryStats = useSdkStore((s) => s.currentQueryStats);
 
-  const { data: currentWorkspace } = useQuery(
-    trpc.workspace.getCurrent.queryOptions(undefined, { enabled: serverConnected }),
+  const { data: currentOrg } = useQuery(
+    trpc.org.getCurrent.queryOptions(undefined, { enabled: serverConnected }),
   );
 
   useEffect(() => {
-    if (currentWorkspace?.id && !workspaceId) {
-      setCurrentWorkspaceId(currentWorkspace.id);
+    if (currentOrg?.id && !orgId) {
+      setCurrentOrgId(currentOrg.id);
     }
-  }, [currentWorkspace, workspaceId, setCurrentWorkspaceId]);
+  }, [currentOrg, orgId, setCurrentOrgId]);
 
   const navigateToDetail = useCallback((sessionId: string) => {
     setSelectedAgentId(sessionId);
@@ -140,13 +142,18 @@ function ShellContent() {
     });
   }, []);
 
-  const handleSelectSession = useCallback((sessionId: string) => {
-    if (sessionId === selectedSessionId) return;
+  const handleSelectSession = useCallback((sessionId: string, messages?: Array<{ id: string; role: string; content: string; timestamp: number }>) => {
+    if (sessionId === intendedSessionRef.current) return;
+    intendedSessionRef.current = sessionId;
     clearMessages();
     setActiveSession(sessionId);
     setSelectedSessionId(sessionId);
     setCurrentView('sessions');
-  }, [selectedSessionId, clearMessages, setActiveSession]);
+    // Load messages passed from the caller (already fetched via session.list)
+    if (messages?.length) {
+      loadMessages(messages);
+    }
+  }, [clearMessages, setActiveSession, loadMessages]);
 
   const handleCreateSession = useCallback(() => {
     // Cancel any active stream (client + server) before starting fresh
@@ -166,7 +173,7 @@ function ShellContent() {
   }, [clearMessages, setActiveSession]);
 
   useHotkey('toggleHistory', toggleSessionsPanel);
-  useHotkey('toggleTasks', () => setTodoPanelOpen((prev) => !prev));
+  useHotkey('toggleTasks', () => setTaskPanelOpen((prev) => !prev));
   useHotkey('cancelStream', handleCancel, isStreaming);
 
   useEffect(() => {
@@ -257,17 +264,16 @@ function ShellContent() {
             isStreaming={isStreaming}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
-            onStartNewChat={handleCreateSession}
           />
         );
       case 'templates':
         return <TemplateListView />;
       case 'workflows':
         return <WorkflowListView />;
-      case 'workspaces':
-        return <WorkspacesListView />;
+      case 'orgs':
+        return <OrgListView />;
       case 'audit':
-        return <WorkspaceAuditView />;
+        return <AuditView />;
       default:
         return null;
     }
@@ -283,17 +289,19 @@ function ShellContent() {
           onToggleSize={toggleSidebarSize}
         />
 
-        {/* Sessions panel — full height, same level as sidebar */}
-        <SessionsPanel
-          collapsed={sessionsPanelCollapsed}
-          activeSessionId={selectedSessionId ?? undefined}
-          onSelectSession={handleSelectSession}
-          onCreateSession={handleCreateSession}
-          onCollapse={toggleSessionsPanel}
-        />
+        {/* Sessions panel — only visible on sessions view */}
+        {currentView === 'sessions' && (
+          <SessionsPanel
+            collapsed={sessionsPanelCollapsed}
+            activeSessionId={selectedSessionId ?? undefined}
+            onSelectSession={handleSelectSession}
+            onCreateSession={handleCreateSession}
+            onCollapse={toggleSessionsPanel}
+          />
+        )}
 
         {/* Content column — TopBar only spans this area */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
           <TopBar
             currentView={currentView}
             onBack={currentView === 'detail' ? navigateBack : undefined}
@@ -301,8 +309,8 @@ function ShellContent() {
             onToggleSidebar={toggleSidebarVisibility}
             sessionsPanelCollapsed={sessionsPanelCollapsed}
             onToggleSessionsPanel={toggleSessionsPanel}
-            todoPanelOpen={todoPanelOpen}
-            onToggleTodo={() => setTodoPanelOpen((prev) => !prev)}
+            taskPanelOpen={taskPanelOpen}
+            onToggleTask={() => setTaskPanelOpen((prev) => !prev)}
             onQuickCreate={handleCreateSession}
             boardKeyword={boardKeyword}
             onBoardKeywordChange={setBoardKeyword}
@@ -337,7 +345,7 @@ function ShellContent() {
           )}
 
           {/* Main Content */}
-          <main className="flex-1 overflow-hidden">
+          <main className="flex-1 flex flex-col overflow-hidden">
             {renderMainView()}
           </main>
 
@@ -351,10 +359,10 @@ function ShellContent() {
           )}
         </div>
 
-        {/* Todo panel — full height, same level as sidebar and sessions */}
-        <TodoPanel
-          isOpen={todoPanelOpen}
-          onClose={() => setTodoPanelOpen(false)}
+        {/* Task panel — full height, same level as sidebar and sessions */}
+        <TaskPanel
+          isOpen={taskPanelOpen}
+          onClose={() => setTaskPanelOpen(false)}
         />
       </div>
     </TooltipProvider>

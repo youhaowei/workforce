@@ -3,8 +3,7 @@
  * Reuses MessageList and MessageInput from the Messages components.
  */
 
-import { MessageSquare, Plus } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { MessageSquare } from 'lucide-react';
 import { MessageList, MessageInput } from '../Messages';
 
 interface SessionsViewProps {
@@ -21,7 +20,6 @@ interface SessionsViewProps {
   isStreaming: boolean;
   onSubmit: (content: string) => void;
   onCancel: () => void;
-  onStartNewChat?: () => void;
 }
 
 export function SessionsView({
@@ -30,32 +28,34 @@ export function SessionsView({
   isStreaming,
   onSubmit,
   onCancel,
-  onStartNewChat,
 }: SessionsViewProps) {
-  if (!sessionId && messages.length === 0) {
+  const hasMessages = messages.length > 0 || isStreaming;
+
+  // Messages exist: standard chat layout (message list + input at bottom)
+  if (hasMessages) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground px-6">
-        <div className="text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-            <MessageSquare className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <p className="text-lg font-semibold text-foreground mb-1">No session selected</p>
-          <p className="text-sm mb-4">Select a session from the panel or start a new one</p>
-          {onStartNewChat && (
-            <Button onClick={onStartNewChat}>
-              <Plus className="h-4 w-4 mr-1.5" />
-              New Chat
-            </Button>
-          )}
-        </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <MessageList messages={messages} isStreaming={isStreaming} />
+        <MessageInput onSubmit={onSubmit} onCancel={onCancel} isStreaming={isStreaming} />
       </div>
     );
   }
 
+  // Empty state: centered icon/text with input grouped together
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <MessageList messages={messages} isStreaming={isStreaming} />
-      <MessageInput onSubmit={onSubmit} onCancel={onCancel} isStreaming={isStreaming} />
+    <div className="flex-1 flex flex-col items-center justify-center px-6">
+      <div className="w-full max-w-3xl">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+            <MessageSquare className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <p className="text-lg font-semibold text-foreground mb-1">Start a conversation</p>
+          <p className="text-sm text-muted-foreground">
+            {sessionId ? 'Send a message to continue' : 'Ask Workforce anything to begin'}
+          </p>
+        </div>
+        <MessageInput onSubmit={onSubmit} onCancel={onCancel} isStreaming={isStreaming} />
+      </div>
     </div>
   );
 }

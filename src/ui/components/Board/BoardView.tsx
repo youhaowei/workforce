@@ -58,7 +58,7 @@ export function BoardView({ onSelectAgent, keyword, statusFilter }: BoardViewPro
     [cancelMutation, pauseMutation, resumeMutation],
   );
 
-  // Show all agents (no workspace filter — board shows everything)
+  // Show all agents (no org filter — board shows everything)
   const workAgents = useMemo(() => {
     let agents = sessions.filter(
       (s: Session) => s.metadata?.type === 'workagent',
@@ -90,7 +90,7 @@ export function BoardView({ onSelectAgent, keyword, statusFilter }: BoardViewPro
     : LIFECYCLE_COLUMNS.filter((c) => c === statusFilter);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-6">
+    <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">
       <div className="flex-1 flex gap-4 overflow-x-auto">
         {visibleColumns.map((state) => (
           <BoardColumn

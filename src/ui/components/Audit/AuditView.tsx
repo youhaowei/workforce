@@ -1,12 +1,12 @@
 /**
- * WorkspaceAuditView - Workspace-level audit log.
+ * AuditView - Org-level audit log.
  * Shows all audit entries with type filtering.
  */
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import {
   Select,
   SelectContent,
@@ -28,33 +28,33 @@ const AUDIT_TYPES: Array<{ value: string; label: string }> = [
   { value: 'worktree_action', label: 'Worktree Actions' },
 ];
 
-export function WorkspaceAuditView() {
+export function AuditView() {
   const trpc = useTRPC();
-  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const orgId = useOrgStore((s) => s.currentOrgId);
   const [typeFilter, setTypeFilter] = useState('all');
 
   const { data: entries = [], isLoading } = useQuery(
-    trpc.audit.workspace.queryOptions(
+    trpc.audit.org.queryOptions(
       {
-        workspaceId: workspaceId!,
+        orgId: orgId!,
         type: typeFilter !== 'all' ? (typeFilter as AuditEntryType) : undefined,
         limit: 200,
       },
-      { enabled: !!workspaceId },
+      { enabled: !!orgId },
     ),
   );
 
-  if (!workspaceId) {
+  if (!orgId) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2 p-6">
         <History className="h-8 w-8" />
-        <p className="text-sm">Select a workspace to view audit log</p>
+        <p className="text-sm">Select an org to view audit log</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-6">
+    <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Audit Log</h2>

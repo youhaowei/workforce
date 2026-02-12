@@ -40,7 +40,7 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
   const state = lifecycle?.state ?? 'created';
   const goal = (session?.metadata?.goal as string) ?? 'No goal set';
   const templateId = session?.metadata?.templateId as string | undefined;
-  const workspaceId = session?.metadata?.workspaceId as string | undefined;
+  const orgId = session?.metadata?.orgId as string | undefined;
 
   const cancelMutation = useMutation(
     trpc.orchestration.cancelAgent.mutationOptions({
@@ -77,14 +77,14 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
   }, [sessionId, cancelMutation, pauseMutation, resumeMutation]);
 
   const handleSpawnChild = useCallback(() => {
-    if (!workspaceId || !templateId) return;
+    if (!orgId || !templateId) return;
     spawnMutation.mutate({
-      workspaceId,
+      orgId,
       templateId,
       goal: 'Sub-task',
       parentSessionId: sessionId,
     });
-  }, [workspaceId, templateId, sessionId, spawnMutation]);
+  }, [orgId, templateId, sessionId, spawnMutation]);
 
   if (!session) {
     return (
@@ -95,7 +95,7 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-6">
+    <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">
       {/* Header */}
       <div className="mb-4">
         <div className="flex items-center gap-3 mb-2">
@@ -140,7 +140,7 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
               </Button>
             </>
           )}
-          {workspaceId && templateId && (
+          {orgId && templateId && (
             <Button
               variant="outline"
               size="sm"
@@ -172,18 +172,18 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
         </TabsContent>
 
         <TabsContent value="actions" className="flex-1 overflow-hidden mt-4">
-          {workspaceId ? (
-            <AgentActions sessionId={session.id} workspaceId={workspaceId} />
+          {orgId ? (
+            <AgentActions sessionId={session.id} orgId={orgId} />
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">No workspace context</p>
+            <p className="text-sm text-muted-foreground text-center py-8">No org context</p>
           )}
         </TabsContent>
 
         <TabsContent value="audit" className="flex-1 overflow-hidden mt-4">
-          {workspaceId ? (
-            <AgentAudit sessionId={session.id} workspaceId={workspaceId} />
+          {orgId ? (
+            <AgentAudit sessionId={session.id} orgId={orgId} />
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">No workspace context</p>
+            <p className="text-sm text-muted-foreground text-center py-8">No org context</p>
           )}
         </TabsContent>
       </Tabs>

@@ -7,7 +7,7 @@
  * - Duplication and archiving
  * - Migration from legacy AgentProfile
  *
- * Persistence: ~/.workforce/workspaces/{workspaceId}/templates/{id}.json
+ * Persistence: ~/.workforce/orgs/{orgId}/templates/{id}.json
  */
 
 import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
@@ -24,7 +24,7 @@ import { getDataDir } from './data-dir';
 // Configuration
 // =============================================================================
 
-const WORKSPACES_DIR = join(getDataDir(), 'workspaces');
+const ORGS_DIR = join(getDataDir(), 'orgs');
 
 // =============================================================================
 // Helpers
@@ -34,8 +34,8 @@ function generateId(): string {
   return `tmpl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function templatesDir(workspacesDir: string, workspaceId: string): string {
-  return join(workspacesDir, workspaceId, 'templates');
+function templatesDir(orgsDir: string, orgId: string): string {
+  return join(orgsDir, orgId, 'templates');
 }
 
 // =============================================================================
@@ -43,21 +43,21 @@ function templatesDir(workspacesDir: string, workspaceId: string): string {
 // =============================================================================
 
 class TemplateServiceImpl implements TemplateService {
-  /** Cache: workspaceId → Map<templateId, template> */
+  /** Cache: orgId → Map<templateId, template> */
   private cache = new Map<string, Map<string, AgentTemplate>>();
-  private workspacesDir: string;
+  private orgsDir: string;
 
-  constructor(workspacesDir?: string) {
-    this.workspacesDir = workspacesDir ?? WORKSPACES_DIR;
+  constructor(orgsDir?: string) {
+    this.orgsDir = orgsDir ?? ORGS_DIR;
   }
 
-  private async ensureWorkspaceLoaded(workspaceId: string): Promise<Map<string, AgentTemplate>> {
-    if (this.cache.has(workspaceId)) {
-      return this.cache.get(workspaceId)!;
+  private async ensureOrgLoaded(orgId: string): Promise<Map<string, AgentTemplate>> {
+    if (this.cache.has(orgId)) {
+      return this.cache.get(orgId)!;
     }
 
     const templates = new Map<string, AgentTemplate>();
-    const dir = templatesDir(this.workspacesDir, workspaceId);
+    const dir = templatesDir(this.orgsDir, orgId);
 
     try {
       await mkdir(dir, { recursive: true });
@@ -78,26 +78,26 @@ class TemplateServiceImpl implements TemplateService {
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
       if (error.code !== 'ENOENT') {
-        console.error(`Failed to load templates for workspace ${workspaceId}:`, error);
+        console.error(`Failed to load templates for org ${orgId}:`, error);
       }
     }
 
-    this.cache.set(workspaceId, templates);
+    this.cache.set(orgId, templates);
     return templates;
   }
 
-  private async saveTemplate(workspaceId: string, template: AgentTemplate): Promise<void> {
-    const dir = templatesDir(this.workspacesDir, workspaceId);
+  private async saveTemplate(orgId: string, template: AgentTemplate): Promise<void> {
+    const dir = templatesDir(this.orgsDir, orgId);
     await mkdir(dir, { recursive: true });
     const filePath = join(dir, `${template.id}.json`);
     await writeFile(filePath, JSON.stringify(template, null, 2), 'utf-8');
   }
 
   async create(
-    workspaceId: string,
+    orgId: string,
     input: Omit<AgentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'archived'>
   ): Promise<AgentTemplate> {
-    const templates = await this.ensureWorkspaceLoaded(workspaceId);
+    const templates = await this.ensureOrgLoaded(orgId);
 
     const now = Date.now();
     const template: AgentTemplate = {
@@ -109,22 +109,22 @@ class TemplateServiceImpl implements TemplateService {
     };
 
     templates.set(template.id, template);
-    await this.saveTemplate(workspaceId, template);
+    await this.saveTemplate(orgId, template);
 
     return template;
   }
 
-  async get(workspaceId: string, id: string): Promise<AgentTemplate | null> {
-    const templates = await this.ensureWorkspaceLoaded(workspaceId);
+  async get(orgId: string, id: string): Promise<AgentTemplate | null> {
+    const templates = await this.ensureOrgLoaded(orgId);
     return templates.get(id) ?? null;
   }
 
   async update(
-    workspaceId: string,
+    orgId: string,
     id: string,
     updates: Partial<AgentTemplate>
   ): Promise<AgentTemplate> {
-    const templates = await this.ensureWorkspaceLoaded(workspaceId);
+    const templates = await this.ensureOrgLoaded(orgId);
 
     const existing = templates.get(id);
     if (!existing) {
@@ -140,13 +140,13 @@ class TemplateServiceImpl implements TemplateService {
     };
 
     templates.set(id, updated);
-    await this.saveTemplate(workspaceId, updated);
+    await this.saveTemplate(orgId, updated);
 
     return updated;
   }
 
-  async duplicate(workspaceId: string, id: string): Promise<AgentTemplate> {
-    const templates = await this.ensureWorkspaceLoaded(workspaceId);
+  async duplicate(orgId: string, id: string): Promise<AgentTemplate> {
+    const templates = await this.ensureOrgLoaded(orgId);
 
     const source = templates.get(id);
     if (!source) {
@@ -164,20 +164,20 @@ class TemplateServiceImpl implements TemplateService {
     };
 
     templates.set(duplicate.id, duplicate);
-    await this.saveTemplate(workspaceId, duplicate);
+    await this.saveTemplate(orgId, duplicate);
 
     return duplicate;
   }
 
-  async archive(workspaceId: string, id: string): Promise<void> {
-    await this.update(workspaceId, id, { archived: true });
+  async archive(orgId: string, id: string): Promise<void> {
+    await this.update(orgId, id, { archived: true });
   }
 
   async list(
-    workspaceId: string,
+    orgId: string,
     options?: { includeArchived?: boolean }
   ): Promise<AgentTemplate[]> {
-    const templates = await this.ensureWorkspaceLoaded(workspaceId);
+    const templates = await this.ensureOrgLoaded(orgId);
     const all = Array.from(templates.values());
 
     if (options?.includeArchived) {
@@ -274,9 +274,9 @@ export function resetTemplateService(): void {
 }
 
 /**
- * Create a template service with a custom workspaces directory.
+ * Create a template service with a custom orgs directory.
  * Useful for testing.
  */
-export function createTemplateService(workspacesDir: string): TemplateService {
-  return new TemplateServiceImpl(workspacesDir);
+export function createTemplateService(orgsDir: string): TemplateService {
+  return new TemplateServiceImpl(orgsDir);
 }

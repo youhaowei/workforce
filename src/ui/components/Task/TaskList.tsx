@@ -1,46 +1,46 @@
 /**
- * TodoList - Filtered list of todos with tab-based filtering.
+ * TaskList - Filtered list of tasks with tab-based filtering.
  */
 
 import { useState, useMemo } from 'react';
-import type { Todo, TodoStatus } from '../../../services/types';
-import { TodoItem } from './TodoItem';
+import type { Task, TaskStatus } from '../../../services/types';
+import { TaskItem } from './TaskItem';
 
-export interface TodoListProps {
-  todos: Todo[];
-  onStatusChange?: (todoId: string, status: TodoStatus) => void;
-  onDelete?: (todoId: string) => void;
+export interface TaskListProps {
+  tasks: Task[];
+  onStatusChange?: (taskId: string, status: TaskStatus) => void;
+  onDelete?: (taskId: string) => void;
 }
 
 type FilterTab = 'all' | 'active' | 'completed';
 
-export function TodoList({ todos, onStatusChange, onDelete }: TodoListProps) {
+export function TaskList({ tasks, onStatusChange, onDelete }: TaskListProps) {
   const [activeTab, setActiveTab] = useState<FilterTab>('active');
 
-  const filteredTodos = useMemo(() => {
+  const filteredTasks = useMemo(() => {
     switch (activeTab) {
       case 'active':
-        return todos.filter(
+        return tasks.filter(
           (t) => t.status === 'pending' || t.status === 'in_progress'
         );
       case 'completed':
-        return todos.filter(
+        return tasks.filter(
           (t) => t.status === 'completed' || t.status === 'cancelled'
         );
       default:
-        return todos;
+        return tasks;
     }
-  }, [activeTab, todos]);
+  }, [activeTab, tasks]);
 
   const counts = useMemo(() => ({
-    all: todos.length,
-    active: todos.filter(
+    all: tasks.length,
+    active: tasks.filter(
       (t) => t.status === 'pending' || t.status === 'in_progress'
     ).length,
-    completed: todos.filter(
+    completed: tasks.filter(
       (t) => t.status === 'completed' || t.status === 'cancelled'
     ).length,
-  }), [todos]);
+  }), [tasks]);
 
   const tabs: { key: FilterTab; label: string }[] = [
     { key: 'active', label: 'Active' },
@@ -49,9 +49,9 @@ export function TodoList({ todos, onStatusChange, onDelete }: TodoListProps) {
   ];
 
   function getEmptyMessage(): string {
-    if (activeTab === 'active') return 'No active todos';
-    if (activeTab === 'completed') return 'No completed todos';
-    return 'No todos yet';
+    if (activeTab === 'active') return 'No active tasks';
+    if (activeTab === 'completed') return 'No completed tasks';
+    return 'No tasks yet';
   }
 
   return (
@@ -74,14 +74,14 @@ export function TodoList({ todos, onStatusChange, onDelete }: TodoListProps) {
         ))}
       </div>
 
-      {/* Todo items */}
+      {/* Task items */}
       <div className="flex-1 overflow-y-auto">
-        {filteredTodos.length > 0 ? (
+        {filteredTasks.length > 0 ? (
           <div className="divide-y">
-            {filteredTodos.map((todo) => (
-              <TodoItem
-                key={todo.id}
-                todo={todo}
+            {filteredTasks.map((task) => (
+              <TaskItem
+                key={task.id}
+                task={task}
                 onStatusChange={onStatusChange}
                 onDelete={onDelete}
               />

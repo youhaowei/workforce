@@ -5,7 +5,7 @@ import { getOrchestrationService } from './_services';
 export const orchestrationRouter = router({
   spawn: publicProcedure
     .input(z.object({
-      workspaceId: z.string(),
+      orgId: z.string(),
       templateId: z.string(),
       goal: z.string(),
       parentSessionId: z.string().optional(),

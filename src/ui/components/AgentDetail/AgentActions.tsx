@@ -11,16 +11,16 @@ import type { AuditEntry } from '@/services/types';
 
 interface AgentActionsProps {
   sessionId: string;
-  workspaceId: string;
+  orgId: string;
 }
 
-export function AgentActions({ sessionId, workspaceId }: AgentActionsProps) {
+export function AgentActions({ sessionId, orgId }: AgentActionsProps) {
   const trpc = useTRPC();
 
   const { data: entries = [] } = useQuery(
     trpc.audit.session.queryOptions(
-      { sessionId, workspaceId },
-      { enabled: !!workspaceId },
+      { sessionId, orgId },
+      { enabled: !!orgId },
     ),
   );
 

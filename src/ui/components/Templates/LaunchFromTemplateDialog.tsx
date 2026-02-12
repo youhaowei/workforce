@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,7 @@ interface LaunchFromTemplateDialogProps {
 export function LaunchFromTemplateDialog({ template, open, onOpenChange }: LaunchFromTemplateDialogProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const orgId = useOrgStore((s) => s.currentOrgId);
   const [goal, setGoal] = useState('');
   const [isolateWorktree, setIsolateWorktree] = useState(false);
 
@@ -45,9 +45,9 @@ export function LaunchFromTemplateDialog({ template, open, onOpenChange }: Launc
   );
 
   const handleLaunch = () => {
-    if (!workspaceId || !template || !goal.trim()) return;
+    if (!orgId || !template || !goal.trim()) return;
     spawnMutation.mutate({
-      workspaceId,
+      orgId,
       templateId: template.id,
       goal: goal.trim(),
       isolateWorktree,

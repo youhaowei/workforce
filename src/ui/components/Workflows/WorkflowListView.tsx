@@ -5,7 +5,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -17,15 +17,15 @@ import type { WorkflowTemplate } from '@/services/types';
 export function WorkflowListView() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const orgId = useOrgStore((s) => s.currentOrgId);
   const [keyword, setKeyword] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<WorkflowTemplate | null>(null);
 
   const { data: workflows = [], isLoading } = useQuery(
     trpc.workflow.list.queryOptions(
-      { workspaceId: workspaceId! },
-      { enabled: !!workspaceId },
+      { orgId: orgId! },
+      { enabled: !!orgId },
     ),
   );
 
@@ -59,26 +59,26 @@ export function WorkflowListView() {
   }, []);
 
   const handleExecute = useCallback((w: WorkflowTemplate) => {
-    if (!workspaceId) return;
-    executeMutation.mutate({ workspaceId, id: w.id });
-  }, [workspaceId, executeMutation]);
+    if (!orgId) return;
+    executeMutation.mutate({ orgId, id: w.id });
+  }, [orgId, executeMutation]);
 
   const handleArchive = useCallback((w: WorkflowTemplate) => {
-    if (!workspaceId) return;
-    archiveMutation.mutate({ workspaceId, id: w.id });
-  }, [workspaceId, archiveMutation]);
+    if (!orgId) return;
+    archiveMutation.mutate({ orgId, id: w.id });
+  }, [orgId, archiveMutation]);
 
-  if (!workspaceId) {
+  if (!orgId) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2 p-6">
         <Workflow className="h-8 w-8" />
-        <p className="text-sm">Select a workspace to manage workflows</p>
+        <p className="text-sm">Select an org to manage workflows</p>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden p-6">
+    <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Workflow Templates</h2>

@@ -52,10 +52,10 @@ export const sessionRouter = router({
   listByState: publicProcedure
     .input(z.object({
       state: z.enum(['created', 'active', 'paused', 'completed', 'failed', 'cancelled']),
-      workspaceId: z.string().optional(),
+      orgId: z.string().optional(),
     }))
     .query(({ input }) =>
-      getSessionService().listByState(input.state as LifecycleState, input.workspaceId),
+      getSessionService().listByState(input.state as LifecycleState, input.orgId),
     ),
 
   progress: publicProcedure

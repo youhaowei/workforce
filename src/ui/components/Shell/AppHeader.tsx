@@ -17,7 +17,7 @@ const VIEW_TITLES: Partial<Record<ViewType, string>> = {
   sessions: 'Sessions',
   templates: 'Templates',
   workflows: 'Workflows',
-  workspaces: 'Workspaces',
+  orgs: 'Organizations',
   audit: 'Audit Log',
 };
 
@@ -28,8 +28,8 @@ interface TopBarProps {
   onToggleSidebar: () => void;
   sessionsPanelCollapsed: boolean;
   onToggleSessionsPanel: () => void;
-  todoPanelOpen: boolean;
-  onToggleTodo: () => void;
+  taskPanelOpen: boolean;
+  onToggleTask: () => void;
   onQuickCreate: () => void;
   boardKeyword: string;
   onBoardKeywordChange: (value: string) => void;
@@ -44,8 +44,8 @@ export default function TopBar({
   onToggleSidebar,
   sessionsPanelCollapsed,
   onToggleSessionsPanel,
-  todoPanelOpen,
-  onToggleTodo,
+  taskPanelOpen,
+  onToggleTask,
   onQuickCreate,
   boardKeyword,
   onBoardKeywordChange,
@@ -53,9 +53,9 @@ export default function TopBar({
   onBoardStatusFilterChange,
 }: TopBarProps) {
   return (
-    <header className="flex-shrink-0 flex items-center justify-between gap-4 px-4 py-2">
+    <header className="absolute top-0 inset-x-0 z-10 flex items-center justify-between gap-4 px-4 py-2 pointer-events-none">
       {/* Left group — reopen pills (when collapsed) + page title pill */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 pointer-events-auto">
         <Tooltip>
           <TooltipTrigger asChild>
             <button
@@ -103,7 +103,7 @@ export default function TopBar({
 
       {/* Center pill — view-specific controls */}
       {currentView === 'board' && (
-        <div className="glass-pill">
+        <div className="glass-pill pointer-events-auto">
           <BoardFilters
             keyword={boardKeyword}
             onKeywordChange={onBoardKeywordChange}
@@ -117,7 +117,7 @@ export default function TopBar({
       {currentView !== 'board' && <div className="flex-1" />}
 
       {/* Right pill — global actions */}
-      <div className="glass-pill flex items-center gap-1">
+      <div className="glass-pill flex items-center gap-1 pointer-events-auto">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -136,10 +136,10 @@ export default function TopBar({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant={todoPanelOpen ? 'secondary' : 'ghost'}
+              variant={taskPanelOpen ? 'secondary' : 'ghost'}
               size="icon"
               className="h-7 w-7 rounded-full"
-              onClick={onToggleTodo}
+              onClick={onToggleTask}
               aria-label="Toggle tasks panel"
             >
               <ListTodo className="h-3.5 w-3.5" />

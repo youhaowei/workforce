@@ -2,7 +2,7 @@
  * AuditService Tests
  *
  * Tests for append-only JSONL audit trail: record, query by session,
- * query by workspace with filtering/pagination, and JSONL append behavior.
+ * query by org with filtering/pagination, and JSONL append behavior.
  */
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
@@ -23,7 +23,7 @@ function freshService(): AuditService {
 function auditInput(overrides: Record<string, unknown> = {}) {
   return {
     sessionId: 'sess_test',
-    workspaceId: WS_ID,
+    orgId: WS_ID,
     type: 'state_change' as const,
     description: 'Session transitioned to active',
     data: { from: 'created', to: 'active' },
@@ -60,9 +60,9 @@ describe('AuditService', () => {
       await mkdir(join(TEST_DIR, wsId), { recursive: true });
       const service = freshService();
 
-      await service.record(auditInput({ workspaceId: wsId, description: 'Entry 1' }));
-      await service.record(auditInput({ workspaceId: wsId, description: 'Entry 2' }));
-      await service.record(auditInput({ workspaceId: wsId, description: 'Entry 3' }));
+      await service.record(auditInput({ orgId: wsId, description: 'Entry 1' }));
+      await service.record(auditInput({ orgId: wsId, description: 'Entry 2' }));
+      await service.record(auditInput({ orgId: wsId, description: 'Entry 3' }));
 
       // Read raw JSONL and verify format
       const raw = await readFile(join(TEST_DIR, wsId, 'audit.jsonl'), 'utf-8');
@@ -83,11 +83,11 @@ describe('AuditService', () => {
       await mkdir(join(TEST_DIR, wsId), { recursive: true });
       const service = freshService();
 
-      const stateChange = await service.record(auditInput({ workspaceId: wsId, type: 'state_change' }));
-      const toolUse = await service.record(auditInput({ workspaceId: wsId, type: 'tool_use' }));
-      const reviewDec = await service.record(auditInput({ workspaceId: wsId, type: 'review_decision' }));
-      const spawn = await service.record(auditInput({ workspaceId: wsId, type: 'agent_spawn' }));
-      const worktree = await service.record(auditInput({ workspaceId: wsId, type: 'worktree_action' }));
+      const stateChange = await service.record(auditInput({ orgId: wsId, type: 'state_change' }));
+      const toolUse = await service.record(auditInput({ orgId: wsId, type: 'tool_use' }));
+      const reviewDec = await service.record(auditInput({ orgId: wsId, type: 'review_decision' }));
+      const spawn = await service.record(auditInput({ orgId: wsId, type: 'agent_spawn' }));
+      const worktree = await service.record(auditInput({ orgId: wsId, type: 'worktree_action' }));
 
       expect(stateChange.type).toBe('state_change');
       expect(toolUse.type).toBe('tool_use');
@@ -105,9 +105,9 @@ describe('AuditService', () => {
       await mkdir(join(TEST_DIR, wsId), { recursive: true });
       const service = freshService();
 
-      await service.record(auditInput({ workspaceId: wsId, sessionId: 'sess_A', description: 'A1' }));
-      await service.record(auditInput({ workspaceId: wsId, sessionId: 'sess_B', description: 'B1' }));
-      await service.record(auditInput({ workspaceId: wsId, sessionId: 'sess_A', description: 'A2' }));
+      await service.record(auditInput({ orgId: wsId, sessionId: 'sess_A', description: 'A1' }));
+      await service.record(auditInput({ orgId: wsId, sessionId: 'sess_B', description: 'B1' }));
+      await service.record(auditInput({ orgId: wsId, sessionId: 'sess_A', description: 'A2' }));
 
       const entriesA = await service.getForSession('sess_A', wsId);
       expect(entriesA).toHaveLength(2);
@@ -127,20 +127,20 @@ describe('AuditService', () => {
     });
   });
 
-  describe('getForWorkspace', () => {
+  describe('getForOrg', () => {
     it('should return all entries sorted newest first', async () => {
       const wsId = 'ws_all';
       await mkdir(join(TEST_DIR, wsId), { recursive: true });
       const service = freshService();
 
-      await service.record(auditInput({ workspaceId: wsId, description: 'First' }));
+      await service.record(auditInput({ orgId: wsId, description: 'First' }));
       // Small delay to ensure different timestamps
       await new Promise((r) => setTimeout(r, 10));
-      await service.record(auditInput({ workspaceId: wsId, description: 'Second' }));
+      await service.record(auditInput({ orgId: wsId, description: 'Second' }));
       await new Promise((r) => setTimeout(r, 10));
-      await service.record(auditInput({ workspaceId: wsId, description: 'Third' }));
+      await service.record(auditInput({ orgId: wsId, description: 'Third' }));
 
-      const entries = await service.getForWorkspace(wsId);
+      const entries = await service.getForOrg(wsId);
       expect(entries).toHaveLength(3);
       expect(entries[0].description).toBe('Third');
       expect(entries[2].description).toBe('First');
@@ -153,14 +153,14 @@ describe('AuditService', () => {
       await mkdir(join(TEST_DIR, wsId), { recursive: true });
       const service = freshService();
 
-      await service.record(auditInput({ workspaceId: wsId, type: 'state_change' }));
-      await service.record(auditInput({ workspaceId: wsId, type: 'tool_use' }));
-      await service.record(auditInput({ workspaceId: wsId, type: 'state_change' }));
+      await service.record(auditInput({ orgId: wsId, type: 'state_change' }));
+      await service.record(auditInput({ orgId: wsId, type: 'tool_use' }));
+      await service.record(auditInput({ orgId: wsId, type: 'state_change' }));
 
-      const stateChanges = await service.getForWorkspace(wsId, { type: 'state_change' });
+      const stateChanges = await service.getForOrg(wsId, { type: 'state_change' });
       expect(stateChanges).toHaveLength(2);
 
-      const toolUses = await service.getForWorkspace(wsId, { type: 'tool_use' });
+      const toolUses = await service.getForOrg(wsId, { type: 'tool_use' });
       expect(toolUses).toHaveLength(1);
 
       service.dispose();
@@ -172,10 +172,10 @@ describe('AuditService', () => {
       const service = freshService();
 
       for (let i = 0; i < 5; i++) {
-        await service.record(auditInput({ workspaceId: wsId, description: `Entry ${i}` }));
+        await service.record(auditInput({ orgId: wsId, description: `Entry ${i}` }));
       }
 
-      const limited = await service.getForWorkspace(wsId, { limit: 3 });
+      const limited = await service.getForOrg(wsId, { limit: 3 });
       expect(limited).toHaveLength(3);
 
       service.dispose();
@@ -188,11 +188,11 @@ describe('AuditService', () => {
 
       for (let i = 0; i < 5; i++) {
         await new Promise((r) => setTimeout(r, 5));
-        await service.record(auditInput({ workspaceId: wsId, description: `Entry ${i}` }));
+        await service.record(auditInput({ orgId: wsId, description: `Entry ${i}` }));
       }
 
       // Newest first: Entry 4, Entry 3, Entry 2, Entry 1, Entry 0
-      const offsetEntries = await service.getForWorkspace(wsId, { offset: 2, limit: 2 });
+      const offsetEntries = await service.getForOrg(wsId, { offset: 2, limit: 2 });
       expect(offsetEntries).toHaveLength(2);
       expect(offsetEntries[0].description).toBe('Entry 2');
       expect(offsetEntries[1].description).toBe('Entry 1');
@@ -200,9 +200,9 @@ describe('AuditService', () => {
       service.dispose();
     });
 
-    it('should return empty array for non-existent workspace', async () => {
+    it('should return empty array for non-existent org', async () => {
       const service = freshService();
-      const entries = await service.getForWorkspace('ws_nope');
+      const entries = await service.getForOrg('ws_nope');
       expect(entries).toEqual([]);
       service.dispose();
     });
@@ -214,11 +214,11 @@ describe('AuditService', () => {
       await mkdir(join(TEST_DIR, wsId), { recursive: true });
 
       const service1 = freshService();
-      await service1.record(auditInput({ workspaceId: wsId, description: 'Persisted entry' }));
+      await service1.record(auditInput({ orgId: wsId, description: 'Persisted entry' }));
       service1.dispose();
 
       const service2 = freshService();
-      const entries = await service2.getForWorkspace(wsId);
+      const entries = await service2.getForOrg(wsId);
       expect(entries).toHaveLength(1);
       expect(entries[0].description).toBe('Persisted entry');
 

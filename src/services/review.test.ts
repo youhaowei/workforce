@@ -22,7 +22,7 @@ function freshService(): ReviewService {
 function reviewInput(overrides: Record<string, unknown> = {}) {
   return {
     sessionId: 'sess_test',
-    workspaceId: WS_ID,
+    orgId: WS_ID,
     type: 'approval' as const,
     title: 'Review this',
     summary: 'An agent wants approval',
@@ -49,7 +49,7 @@ describe('ReviewService', () => {
       expect(item.status).toBe('pending');
       expect(item.title).toBe('Review this');
       expect(item.sessionId).toBe('sess_test');
-      expect(item.workspaceId).toBe(WS_ID);
+      expect(item.orgId).toBe(WS_ID);
       expect(item.createdAt).toBeLessThanOrEqual(Date.now());
 
       service.dispose();
@@ -100,8 +100,8 @@ describe('ReviewService', () => {
       await mkdir(dir, { recursive: true });
       const service = createReviewService(TEST_DIR);
 
-      const item1 = await service.create(reviewInput({ workspaceId: 'ws_pending', title: 'Pending 1' }));
-      await service.create(reviewInput({ workspaceId: 'ws_pending', title: 'Pending 2' }));
+      const item1 = await service.create(reviewInput({ orgId: 'ws_pending', title: 'Pending 1' }));
+      await service.create(reviewInput({ orgId: 'ws_pending', title: 'Pending 2' }));
       await service.resolve(item1.id, 'ws_pending', 'approve');
 
       const pending = await service.listPending('ws_pending');
@@ -113,16 +113,16 @@ describe('ReviewService', () => {
   });
 
   describe('list', () => {
-    it('should return all items for a workspace', async () => {
+    it('should return all items for an org', async () => {
       const dir = join(TEST_DIR, 'ws_list', 'reviews');
       await mkdir(dir, { recursive: true });
       const service = createReviewService(TEST_DIR);
 
-      await service.create(reviewInput({ workspaceId: 'ws_list' }));
-      await service.create(reviewInput({ workspaceId: 'ws_list' }));
-      await service.create(reviewInput({ workspaceId: 'ws_list' }));
+      await service.create(reviewInput({ orgId: 'ws_list' }));
+      await service.create(reviewInput({ orgId: 'ws_list' }));
+      await service.create(reviewInput({ orgId: 'ws_list' }));
 
-      const all = await service.list({ workspaceId: 'ws_list' });
+      const all = await service.list({ orgId: 'ws_list' });
       expect(all).toHaveLength(3);
 
       service.dispose();
@@ -133,14 +133,14 @@ describe('ReviewService', () => {
       await mkdir(dir, { recursive: true });
       const service = createReviewService(TEST_DIR);
 
-      const item1 = await service.create(reviewInput({ workspaceId: 'ws_filter' }));
-      await service.create(reviewInput({ workspaceId: 'ws_filter' }));
+      const item1 = await service.create(reviewInput({ orgId: 'ws_filter' }));
+      await service.create(reviewInput({ orgId: 'ws_filter' }));
       await service.resolve(item1.id, 'ws_filter', 'reject');
 
-      const resolved = await service.list({ workspaceId: 'ws_filter', status: 'resolved' });
+      const resolved = await service.list({ orgId: 'ws_filter', status: 'resolved' });
       expect(resolved).toHaveLength(1);
 
-      const pending = await service.list({ workspaceId: 'ws_filter', status: 'pending' });
+      const pending = await service.list({ orgId: 'ws_filter', status: 'pending' });
       expect(pending).toHaveLength(1);
 
       service.dispose();
@@ -235,9 +235,9 @@ describe('ReviewService', () => {
       await mkdir(dir, { recursive: true });
       const service = createReviewService(TEST_DIR);
 
-      await service.create(reviewInput({ workspaceId: 'ws_count' }));
-      await service.create(reviewInput({ workspaceId: 'ws_count' }));
-      const item3 = await service.create(reviewInput({ workspaceId: 'ws_count' }));
+      await service.create(reviewInput({ orgId: 'ws_count' }));
+      await service.create(reviewInput({ orgId: 'ws_count' }));
+      const item3 = await service.create(reviewInput({ orgId: 'ws_count' }));
       await service.resolve(item3.id, 'ws_count', 'approve');
 
       const count = await service.pendingCount('ws_count');
@@ -246,7 +246,7 @@ describe('ReviewService', () => {
       service.dispose();
     });
 
-    it('should return 0 for empty workspace', async () => {
+    it('should return 0 for empty org', async () => {
       const service = freshService();
       const count = await service.pendingCount('ws_empty');
       expect(count).toBe(0);

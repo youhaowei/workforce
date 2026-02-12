@@ -9,11 +9,11 @@ import { initTRPC } from '@trpc/server';
 import superjson from 'superjson';
 
 const ERROR_HINTS: Record<string, string> = {
-  NOT_FOUND: 'Check that the resource ID exists and the workspace is active.',
+  NOT_FOUND: 'Check that the resource ID exists and the org is active.',
   BAD_REQUEST: 'Verify your input matches the expected schema (use tRPC panel for reference).',
   INTERNAL_SERVER_ERROR: 'Check debug.log (GET /debug-log) for server-side stack trace.',
   UNAUTHORIZED: 'Ensure the server has valid Claude CLI credentials (~/.claude/.credentials.json).',
-  FORBIDDEN: 'This operation may require an active workspace to be selected first.',
+  FORBIDDEN: 'This operation may require an active org to be selected first.',
   TIMEOUT: 'The operation timed out. For long-running tasks, use the background task API.',
   CONFLICT: 'The resource was modified concurrently. Refresh and retry.',
 };

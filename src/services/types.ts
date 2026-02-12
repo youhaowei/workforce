@@ -130,8 +130,8 @@ export interface WorkAgentConfig {
   workflowId?: string;
   workflowStepIndex?: number;
   worktreePath?: string;
-  workspaceId: string;
-  /** Absolute path to the workspace project root (for worktree isolation) */
+  orgId: string;
+  /** Absolute path to the org project root (for worktree isolation) */
   repoRoot?: string;
 }
 
@@ -244,7 +244,7 @@ export interface SessionService extends Disposable {
   /**
    * List sessions filtered by lifecycle state.
    */
-  listByState(state: LifecycleState, workspaceId?: string): Promise<Session[]>;
+  listByState(state: LifecycleState, orgId?: string): Promise<Session[]>;
 
   /**
    * Get all child sessions of a parent.
@@ -482,14 +482,14 @@ export interface HookService extends Disposable {
 // Background Service Types
 // =============================================================================
 
-export type TaskPriority = 'high' | 'normal' | 'low';
-export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+export type BackgroundTaskPriority = 'high' | 'normal' | 'low';
+export type BackgroundTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface BackgroundTask {
   id: string;
   name: string;
-  status: TaskStatus;
-  priority: TaskPriority;
+  status: BackgroundTaskStatus;
+  priority: BackgroundTaskPriority;
   progress?: number;
   result?: unknown;
   error?: string;
@@ -499,7 +499,7 @@ export interface BackgroundTask {
 }
 
 export interface BackgroundTaskOptions {
-  priority?: TaskPriority;
+  priority?: BackgroundTaskPriority;
   name?: string;
 }
 
@@ -525,7 +525,7 @@ export interface BackgroundService extends Disposable {
   /**
    * List all tasks with optional filter.
    */
-  list(filter?: { status?: TaskStatus }): BackgroundTask[];
+  list(filter?: { status?: BackgroundTaskStatus }): BackgroundTask[];
 
   /**
    * Wait for a task to complete.
@@ -539,16 +539,16 @@ export interface BackgroundService extends Disposable {
 }
 
 // =============================================================================
-// Todo Service Types
+// Task Service Types
 // =============================================================================
 
-export type TodoStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 
-export interface Todo {
+export interface Task {
   id: string;
   title: string;
   description?: string;
-  status: TodoStatus;
+  status: TaskStatus;
   priority?: number;
   createdAt: number;
   updatedAt: number;
@@ -556,68 +556,48 @@ export interface Todo {
   metadata?: Record<string, unknown>;
 }
 
-export interface TodoFilter {
-  status?: TodoStatus | TodoStatus[];
+export interface TaskFilter {
+  status?: TaskStatus | TaskStatus[];
   search?: string;
 }
 
-export interface TodoService extends Disposable {
-  /**
-   * Create a new todo.
-   */
-  create(title: string, description?: string): Todo;
+export interface TaskService extends Disposable {
+  /** Create a new task. */
+  create(title: string, description?: string): Promise<Task>;
 
-  /**
-   * Get a todo by ID.
-   */
-  get(todoId: string): Todo | null;
+  /** Get a task by ID. */
+  get(taskId: string): Promise<Task | null>;
 
-  /**
-   * Update a todo.
-   */
-  update(todoId: string, updates: Partial<Omit<Todo, 'id' | 'createdAt'>>): Todo | null;
+  /** Update a task. */
+  update(taskId: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>): Promise<Task | null>;
 
-  /**
-   * Delete a todo.
-   */
-  delete(todoId: string): boolean;
+  /** Delete a task. */
+  delete(taskId: string): Promise<boolean>;
 
-  /**
-   * List todos with optional filter.
-   */
-  list(filter?: TodoFilter): Todo[];
+  /** List tasks with optional filter. */
+  list(filter?: TaskFilter): Promise<Task[]>;
 
-  /**
-   * Mark a todo as complete.
-   */
-  complete(todoId: string): Todo | null;
+  /** Mark a task as complete. */
+  complete(taskId: string): Promise<Task | null>;
 
-  /**
-   * Start working on a todo.
-   */
-  start(todoId: string): Todo | null;
+  /** Start working on a task. */
+  start(taskId: string): Promise<Task | null>;
 
-  /**
-   * Cancel a todo.
-   */
-  cancel(todoId: string): Todo | null;
+  /** Cancel a task. */
+  cancel(taskId: string): Promise<Task | null>;
 
-  /**
-   * Get all pending todos.
-   */
-  getPending(): Todo[];
+  /** Get all pending tasks. */
+  getPending(): Promise<Task[]>;
 
-  /**
-   * Flush changes to disk.
-   */
+  /** Flush changes to disk. */
   flush(): Promise<void>;
 }
 
 // =============================================================================
-// Workspace Types
+// Org Types
 // =============================================================================
 
-export interface Workspace {
+export interface Org {
   id: string;
   name: string;
   description?: string;
@@ -625,11 +605,11 @@ export interface Workspace {
   rootPath: string;
   createdAt: number;
   updatedAt: number;
-  settings: WorkspaceSettings;
+  settings: OrgSettings;
 }
 
-export interface WorkspaceSettings {
-  /** Tool names allowed in this workspace */
+export interface OrgSettings {
+  /** Tool names allowed in this org */
   allowedTools: string[];
   /** Default agent template for new sessions */
   defaultTemplateId?: string;
@@ -639,14 +619,14 @@ export interface WorkspaceSettings {
   costHardCap?: number;
 }
 
-export interface WorkspaceService extends Disposable {
-  create(name: string, rootPath: string): Promise<Workspace>;
-  get(id: string): Promise<Workspace | null>;
-  update(id: string, updates: Partial<Omit<Workspace, 'id' | 'createdAt'>>): Promise<Workspace>;
-  list(): Promise<Workspace[]>;
+export interface OrgService extends Disposable {
+  create(name: string, rootPath: string): Promise<Org>;
+  get(id: string): Promise<Org | null>;
+  update(id: string, updates: Partial<Omit<Org, 'id' | 'createdAt'>>): Promise<Org>;
+  list(): Promise<Org[]>;
   delete(id: string): Promise<void>;
-  getCurrent(): Workspace | null;
-  setCurrent(workspace: Workspace | null): void;
+  getCurrent(): Org | null;
+  setCurrent(org: Org | null): void;
 }
 
 // =============================================================================
@@ -680,14 +660,14 @@ export interface TemplateValidation {
 
 export interface TemplateService extends Disposable {
   create(
-    workspaceId: string,
+    orgId: string,
     template: Omit<AgentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'archived'>
   ): Promise<AgentTemplate>;
-  get(workspaceId: string, id: string): Promise<AgentTemplate | null>;
-  update(workspaceId: string, id: string, updates: Partial<AgentTemplate>): Promise<AgentTemplate>;
-  duplicate(workspaceId: string, id: string): Promise<AgentTemplate>;
-  archive(workspaceId: string, id: string): Promise<void>;
-  list(workspaceId: string, options?: { includeArchived?: boolean }): Promise<AgentTemplate[]>;
+  get(orgId: string, id: string): Promise<AgentTemplate | null>;
+  update(orgId: string, id: string, updates: Partial<AgentTemplate>): Promise<AgentTemplate>;
+  duplicate(orgId: string, id: string): Promise<AgentTemplate>;
+  archive(orgId: string, id: string): Promise<void>;
+  list(orgId: string, options?: { includeArchived?: boolean }): Promise<AgentTemplate[]>;
   validate(template: Partial<AgentTemplate>): TemplateValidation;
   /** Convert a legacy AgentProfile to an AgentTemplate */
   fromProfile(profile: AgentProfile): AgentTemplate;
@@ -744,16 +724,16 @@ export interface WorkflowExecution {
 
 export interface WorkflowService extends Disposable {
   create(
-    workspaceId: string,
+    orgId: string,
     template: Omit<WorkflowTemplate, 'id' | 'createdAt' | 'updatedAt' | 'archived'>
   ): Promise<WorkflowTemplate>;
-  get(workspaceId: string, id: string): Promise<WorkflowTemplate | null>;
-  update(workspaceId: string, id: string, updates: Partial<WorkflowTemplate>): Promise<WorkflowTemplate>;
-  list(workspaceId: string, options?: { includeArchived?: boolean }): Promise<WorkflowTemplate[]>;
-  archive(workspaceId: string, id: string): Promise<void>;
+  get(orgId: string, id: string): Promise<WorkflowTemplate | null>;
+  update(orgId: string, id: string, updates: Partial<WorkflowTemplate>): Promise<WorkflowTemplate>;
+  list(orgId: string, options?: { includeArchived?: boolean }): Promise<WorkflowTemplate[]>;
+  archive(orgId: string, id: string): Promise<void>;
   validate(template: Partial<WorkflowTemplate>): { valid: boolean; errors: string[] };
   /** Get execution order respecting dependencies (array of parallel batches) */
-  getExecutionOrder(workspaceId: string, workflowId: string): Promise<string[][]>;
+  getExecutionOrder(orgId: string, workflowId: string): Promise<string[][]>;
 }
 
 // =============================================================================
@@ -766,7 +746,7 @@ export interface ReviewItem {
   id: string;
   /** Source agent session */
   sessionId: string;
-  workspaceId: string;
+  orgId: string;
   workflowId?: string;
   workflowStepId?: string;
   type: 'approval' | 'clarification' | 'review';
@@ -787,11 +767,11 @@ export interface ReviewItem {
 
 export interface ReviewService extends Disposable {
   create(item: Omit<ReviewItem, 'id' | 'status' | 'createdAt' | 'updatedAt'>): Promise<ReviewItem>;
-  get(id: string, workspaceId: string): Promise<ReviewItem | null>;
-  listPending(workspaceId: string): Promise<ReviewItem[]>;
-  list(options?: { status?: 'pending' | 'resolved'; workspaceId?: string }): Promise<ReviewItem[]>;
-  resolve(id: string, workspaceId: string, action: ReviewAction, comment?: string): Promise<ReviewItem>;
-  pendingCount(workspaceId: string): Promise<number>;
+  get(id: string, orgId: string): Promise<ReviewItem | null>;
+  listPending(orgId: string): Promise<ReviewItem[]>;
+  list(options?: { status?: 'pending' | 'resolved'; orgId?: string }): Promise<ReviewItem[]>;
+  resolve(id: string, orgId: string, action: ReviewAction, comment?: string): Promise<ReviewItem>;
+  pendingCount(orgId: string): Promise<number>;
 }
 
 // =============================================================================
@@ -808,7 +788,7 @@ export type AuditEntryType =
 export interface AuditEntry {
   id: string;
   sessionId: string;
-  workspaceId: string;
+  orgId: string;
   type: AuditEntryType;
   description: string;
   data: Record<string, unknown>;
@@ -817,9 +797,9 @@ export interface AuditEntry {
 
 export interface AuditService extends Disposable {
   record(entry: Omit<AuditEntry, 'id' | 'timestamp'>): Promise<AuditEntry>;
-  getForSession(sessionId: string, workspaceId: string): Promise<AuditEntry[]>;
-  getForWorkspace(
-    workspaceId: string,
+  getForSession(sessionId: string, orgId: string): Promise<AuditEntry[]>;
+  getForOrg(
+    orgId: string,
     options?: { limit?: number; offset?: number; type?: AuditEntryType }
   ): Promise<AuditEntry[]>;
 }
@@ -856,7 +836,7 @@ export interface SpawnOptions {
   templateId: string;
   goal: string;
   parentSessionId?: string;
-  workspaceId: string;
+  orgId: string;
   isolateWorktree?: boolean;
   workflowId?: string;
   workflowStepIndex?: number;
@@ -877,8 +857,10 @@ export interface OrchestrationService extends Disposable {
   cancel(sessionId: string, reason?: string): Promise<void>;
   pause(sessionId: string, reason: string): Promise<void>;
   resume(sessionId: string): Promise<void>;
+  /** Stop the agent instance runtime without any state transition. */
+  stopInstance(sessionId: string): Promise<void>;
   getAggregateProgress(parentSessionId: string): Promise<AggregateProgress>;
   getActiveInstances(): Map<string, unknown>;
-  executeWorkflow(workflowId: string, workspaceId: string): Promise<Session>;
+  executeWorkflow(workflowId: string, orgId: string): Promise<Session>;
 }
 

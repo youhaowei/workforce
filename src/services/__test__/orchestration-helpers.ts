@@ -9,8 +9,8 @@ import type {
   TemplateService,
   WorktreeService,
   WorkflowService,
-  WorkspaceService,
-  Workspace,
+  OrgService,
+  Org,
   ReviewService,
   ReviewItem,
   ReviewAction,
@@ -198,35 +198,35 @@ export function createMockWorkflowService(workflows: WorkflowTemplate[] = []): W
   };
 }
 
-export function createMockWorkspaceService(workspaces: Workspace[] = []): WorkspaceService {
-  const map = new Map(workspaces.map((w) => [w.id, w]));
-  let current: Workspace | null = null;
+export function createMockOrgService(orgs: Org[] = []): OrgService {
+  const map = new Map(orgs.map((o) => [o.id, o]));
+  let current: Org | null = null;
 
   return {
     async create(name: string, rootPath: string) {
-      const ws: Workspace = {
-        id: `ws_${++_idCounter}`,
+      const org: Org = {
+        id: `org_${++_idCounter}`,
         name,
         rootPath,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         settings: { allowedTools: [] },
       };
-      map.set(ws.id, ws);
-      return ws;
+      map.set(org.id, org);
+      return org;
     },
     async get(id: string) { return map.get(id) ?? null; },
-    async update(id: string, updates: Partial<Omit<Workspace, 'id' | 'createdAt'>>) {
-      const ws = map.get(id);
-      if (!ws) throw new Error('Workspace not found');
-      const updated = { ...ws, ...updates, id: ws.id, createdAt: ws.createdAt, updatedAt: Date.now() };
+    async update(id: string, updates: Partial<Omit<Org, 'id' | 'createdAt'>>) {
+      const org = map.get(id);
+      if (!org) throw new Error('Org not found');
+      const updated = { ...org, ...updates, id: org.id, createdAt: org.createdAt, updatedAt: Date.now() };
       map.set(id, updated);
       return updated;
     },
     async list() { return Array.from(map.values()); },
     async delete(id: string) { map.delete(id); },
     getCurrent: () => current,
-    setCurrent: (ws: Workspace | null) => { current = ws; },
+    setCurrent: (o: Org | null) => { current = o; },
     dispose() { map.clear(); current = null; },
   };
 }
@@ -241,7 +241,7 @@ export function createMockReviewService(): ReviewService {
       const item: ReviewItem = {
         id: `rev_${revIdCounter}`,
         sessionId: input.sessionId,
-        workspaceId: input.workspaceId,
+        orgId: input.orgId,
         workflowId: input.workflowId,
         workflowStepId: input.workflowStepId,
         type: input.type,
@@ -258,7 +258,7 @@ export function createMockReviewService(): ReviewService {
         type: 'ReviewItemChange',
         reviewItemId: item.id,
         sessionId: item.sessionId,
-        workspaceId: item.workspaceId,
+        orgId: item.orgId,
         action: 'created',
         timestamp: Date.now(),
       });
@@ -274,7 +274,7 @@ export function createMockReviewService(): ReviewService {
     async list() {
       return Array.from(items.values());
     },
-    async resolve(id: string, workspaceId: string, action: ReviewAction, comment?: string) {
+    async resolve(id: string, orgId: string, action: ReviewAction, comment?: string) {
       const item = items.get(id);
       if (!item) throw new Error('Review item not found');
       item.status = 'resolved';
@@ -286,7 +286,7 @@ export function createMockReviewService(): ReviewService {
         type: 'ReviewItemChange',
         reviewItemId: id,
         sessionId: item.sessionId,
-        workspaceId,
+        orgId,
         action: 'resolved',
         timestamp: Date.now(),
       });

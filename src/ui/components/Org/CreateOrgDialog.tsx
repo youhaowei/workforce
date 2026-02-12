@@ -1,11 +1,11 @@
 /**
- * CreateWorkspaceDialog - Dialog for creating a new workspace.
+ * CreateOrgDialog - Dialog for creating a new organization.
  */
 
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import {
   Dialog,
   DialogContent,
@@ -17,23 +17,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 
-interface CreateWorkspaceDialogProps {
+interface CreateOrgDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDialogProps) {
+export function CreateOrgDialog({ open, onOpenChange }: CreateOrgDialogProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const setCurrentWorkspaceId = useWorkspaceStore((s) => s.setCurrentWorkspaceId);
+  const setCurrentOrgId = useOrgStore((s) => s.setCurrentOrgId);
   const [name, setName] = useState('');
   const [rootPath, setRootPath] = useState('');
 
   const createMutation = useMutation(
-    trpc.workspace.create.mutationOptions({
-      onSuccess: (ws) => {
-        setCurrentWorkspaceId(ws.id);
-        queryClient.invalidateQueries({ queryKey: ['workspace'] });
+    trpc.org.create.mutationOptions({
+      onSuccess: (org) => {
+        setCurrentOrgId(org.id);
+        queryClient.invalidateQueries({ queryKey: ['org'] });
         onOpenChange(false);
         setName('');
         setRootPath('');
@@ -51,22 +51,22 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: CreateWorkspaceDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>New Workspace</DialogTitle>
+          <DialogTitle>New Organization</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="ws-name">Name</Label>
+            <Label htmlFor="org-name">Name</Label>
             <Input
-              id="ws-name"
+              id="org-name"
               placeholder="My Project"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ws-path">Root Path</Label>
+            <Label htmlFor="org-path">Root Path</Label>
             <Input
-              id="ws-path"
+              id="org-path"
               placeholder="/path/to/project"
               value={rootPath}
               onChange={(e) => setRootPath(e.target.value)}

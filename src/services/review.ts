@@ -3,11 +3,11 @@
  *
  * Provides:
  * - Create review items from agents (approval, clarification, review)
- * - List pending items per workspace
+ * - List pending items per org
  * - Resolve items with approve/reject/edit/clarify actions
  * - Pending count for UI badge
  *
- * Persistence: ~/.workforce/workspaces/{workspaceId}/reviews/{id}.json
+ * Persistence: ~/.workforce/orgs/{orgId}/reviews/{id}.json
  */
 
 import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
@@ -20,7 +20,7 @@ import { getDataDir } from './data-dir';
 // Configuration
 // =============================================================================
 
-const DEFAULT_WORKSPACES_DIR = join(getDataDir(), 'workspaces');
+const DEFAULT_ORGS_DIR = join(getDataDir(), 'orgs');
 
 // =============================================================================
 // Helpers
@@ -36,22 +36,22 @@ function generateId(): string {
 
 class ReviewServiceImpl implements ReviewService {
   private cache = new Map<string, ReviewItem>();
-  private workspacesDir: string;
+  private orgsDir: string;
 
-  constructor(workspacesDir?: string) {
-    this.workspacesDir = workspacesDir ?? DEFAULT_WORKSPACES_DIR;
+  constructor(orgsDir?: string) {
+    this.orgsDir = orgsDir ?? DEFAULT_ORGS_DIR;
   }
 
-  private reviewDir(workspaceId: string): string {
-    return join(this.workspacesDir, workspaceId, 'reviews');
+  private reviewDir(orgId: string): string {
+    return join(this.orgsDir, orgId, 'reviews');
   }
 
-  private reviewPath(workspaceId: string, id: string): string {
-    return join(this.reviewDir(workspaceId), `${id}.json`);
+  private reviewPath(orgId: string, id: string): string {
+    return join(this.reviewDir(orgId), `${id}.json`);
   }
 
-  private cacheKey(workspaceId: string, id: string): string {
-    return `${workspaceId}:${id}`;
+  private cacheKey(orgId: string, id: string): string {
+    return `${orgId}:${id}`;
   }
 
   async create(
@@ -66,20 +66,20 @@ class ReviewServiceImpl implements ReviewService {
       updatedAt: now,
     };
 
-    await mkdir(this.reviewDir(item.workspaceId), { recursive: true });
+    await mkdir(this.reviewDir(item.orgId), { recursive: true });
     await writeFile(
-      this.reviewPath(item.workspaceId, reviewItem.id),
+      this.reviewPath(item.orgId, reviewItem.id),
       JSON.stringify(reviewItem, null, 2),
       'utf-8'
     );
 
-    this.cache.set(this.cacheKey(item.workspaceId, reviewItem.id), reviewItem);
+    this.cache.set(this.cacheKey(item.orgId, reviewItem.id), reviewItem);
 
     getEventBus().emit({
       type: 'ReviewItemChange',
       reviewItemId: reviewItem.id,
       sessionId: reviewItem.sessionId,
-      workspaceId: reviewItem.workspaceId,
+      orgId: reviewItem.orgId,
       action: 'created',
       timestamp: now,
     });
@@ -87,14 +87,14 @@ class ReviewServiceImpl implements ReviewService {
     return reviewItem;
   }
 
-  async get(id: string, workspaceId: string): Promise<ReviewItem | null> {
-    const key = this.cacheKey(workspaceId, id);
+  async get(id: string, orgId: string): Promise<ReviewItem | null> {
+    const key = this.cacheKey(orgId, id);
     if (this.cache.has(key)) {
       return this.cache.get(key)!;
     }
 
     try {
-      const raw = await readFile(this.reviewPath(workspaceId, id), 'utf-8');
+      const raw = await readFile(this.reviewPath(orgId, id), 'utf-8');
       const item = JSON.parse(raw) as ReviewItem;
       this.cache.set(key, item);
       return item;
@@ -103,22 +103,22 @@ class ReviewServiceImpl implements ReviewService {
     }
   }
 
-  async listPending(workspaceId: string): Promise<ReviewItem[]> {
-    const all = await this.loadAll(workspaceId);
+  async listPending(orgId: string): Promise<ReviewItem[]> {
+    const all = await this.loadAll(orgId);
     return all.filter((item) => item.status === 'pending');
   }
 
   async list(
-    options?: { status?: 'pending' | 'resolved'; workspaceId?: string }
+    options?: { status?: 'pending' | 'resolved'; orgId?: string }
   ): Promise<ReviewItem[]> {
-    if (!options?.workspaceId) {
-      // Without workspaceId, we can only return cached items
+    if (!options?.orgId) {
+      // Without orgId, we can only return cached items
       return Array.from(this.cache.values()).filter(
         (item) => !options?.status || item.status === options.status
       );
     }
 
-    const all = await this.loadAll(options.workspaceId);
+    const all = await this.loadAll(options.orgId);
     if (options?.status) {
       return all.filter((item) => item.status === options.status);
     }
@@ -127,11 +127,11 @@ class ReviewServiceImpl implements ReviewService {
 
   async resolve(
     id: string,
-    workspaceId: string,
+    orgId: string,
     action: ReviewAction,
     comment?: string
   ): Promise<ReviewItem> {
-    const item = await this.get(id, workspaceId);
+    const item = await this.get(id, orgId);
     if (!item) {
       throw new Error(`Review item not found: ${id}`);
     }
@@ -146,17 +146,17 @@ class ReviewServiceImpl implements ReviewService {
     item.updatedAt = now;
 
     await writeFile(
-      this.reviewPath(workspaceId, id),
+      this.reviewPath(orgId, id),
       JSON.stringify(item, null, 2),
       'utf-8'
     );
-    this.cache.set(this.cacheKey(workspaceId, id), item);
+    this.cache.set(this.cacheKey(orgId, id), item);
 
     getEventBus().emit({
       type: 'ReviewItemChange',
       reviewItemId: id,
       sessionId: item.sessionId,
-      workspaceId,
+      orgId,
       action: 'resolved',
       timestamp: now,
     });
@@ -164,8 +164,8 @@ class ReviewServiceImpl implements ReviewService {
     return item;
   }
 
-  async pendingCount(workspaceId: string): Promise<number> {
-    const pending = await this.listPending(workspaceId);
+  async pendingCount(orgId: string): Promise<number> {
+    const pending = await this.listPending(orgId);
     return pending.length;
   }
 
@@ -177,8 +177,8 @@ class ReviewServiceImpl implements ReviewService {
   // Private
   // ===========================================================================
 
-  private async loadAll(workspaceId: string): Promise<ReviewItem[]> {
-    const dir = this.reviewDir(workspaceId);
+  private async loadAll(orgId: string): Promise<ReviewItem[]> {
+    const dir = this.reviewDir(orgId);
     try {
       const files = await readdir(dir);
       const items: ReviewItem[] = [];
@@ -189,7 +189,7 @@ class ReviewServiceImpl implements ReviewService {
           const raw = await readFile(join(dir, file), 'utf-8');
           const item = JSON.parse(raw) as ReviewItem;
           items.push(item);
-          this.cache.set(this.cacheKey(workspaceId, item.id), item);
+          this.cache.set(this.cacheKey(orgId, item.id), item);
         } catch {
           // Skip corrupted files
         }
@@ -206,6 +206,6 @@ class ReviewServiceImpl implements ReviewService {
 // Factory
 // =============================================================================
 
-export function createReviewService(workspacesDir?: string): ReviewService {
-  return new ReviewServiceImpl(workspacesDir);
+export function createReviewService(orgsDir?: string): ReviewService {
+  return new ReviewServiceImpl(orgsDir);
 }

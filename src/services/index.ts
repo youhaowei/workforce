@@ -49,17 +49,17 @@ export type {
   BackgroundService,
   BackgroundTask,
   BackgroundTaskOptions,
-  TaskPriority,
+  BackgroundTaskPriority,
+  BackgroundTaskStatus,
+  // Task
+  TaskService,
+  Task,
+  TaskFilter,
   TaskStatus,
-  // Todo
-  TodoService,
-  Todo,
-  TodoFilter,
-  TodoStatus,
-  // Workspace
-  Workspace,
-  WorkspaceSettings,
-  WorkspaceService,
+  // Org
+  Org,
+  OrgSettings,
+  OrgService,
   // Template
   AgentTemplate,
   TemplateValidation,
@@ -89,8 +89,8 @@ import { getOrchestratorService, resetOrchestratorService } from './orchestrator
 import { getSkillService, resetSkillService } from './skill';
 import { getHookService, resetHookService } from './hook';
 import { getBackgroundService, resetBackgroundService } from './background';
-import { getTodoService, resetTodoService } from './todo';
-import { getWorkspaceService, resetWorkspaceService } from './workspace';
+import { getTaskService, resetTaskService } from './task';
+import { getOrgService, resetOrgService } from './org';
 import { getTemplateService, resetTemplateService } from './template';
 import { getWorktreeService, resetWorktreeService } from './worktree';
 
@@ -118,10 +118,10 @@ export {
   resetHookService,
   getBackgroundService,
   resetBackgroundService,
-  getTodoService,
-  resetTodoService,
-  getWorkspaceService,
-  resetWorkspaceService,
+  getTaskService,
+  resetTaskService,
+  getOrgService,
+  resetOrgService,
   getTemplateService,
   resetTemplateService,
   getWorktreeService,
@@ -145,8 +145,8 @@ export function disposeAllServices(): void {
   resetSkillService();
   resetHookService();
   resetBackgroundService();
-  resetTodoService();
-  resetWorkspaceService();
+  resetTaskService();
+  resetOrgService();
   resetTemplateService();
   resetWorktreeService();
 }

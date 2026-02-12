@@ -63,7 +63,7 @@ export interface AgentInstanceOptions {
   cwd: string;
   systemPrompt?: string;
   env?: Record<string, string | undefined>;
-  /** Workspace-level tool allowlist — passed to SDK if non-empty */
+  /** Org-level tool allowlist — passed to SDK if non-empty */
   allowedTools?: string[];
 }
 

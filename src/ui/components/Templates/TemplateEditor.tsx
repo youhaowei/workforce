@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useWorkspaceStore } from '@/ui/stores/useWorkspaceStore';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 import {
   Dialog,
   DialogContent,
@@ -38,7 +38,7 @@ function saveButtonLabel(isPending: boolean, isEditing: boolean): string {
 export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const workspaceId = useWorkspaceStore((s) => s.currentWorkspaceId);
+  const orgId = useOrgStore((s) => s.currentOrgId);
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -90,7 +90,7 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
     input.split(',').map((s) => s.trim()).filter(Boolean);
 
   const handleSave = () => {
-    if (!workspaceId || !name.trim()) return;
+    if (!orgId || !name.trim()) return;
 
     const data = {
       name: name.trim(),
@@ -103,9 +103,9 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
     };
 
     if (template) {
-      updateMutation.mutate({ workspaceId, id: template.id, updates: data });
+      updateMutation.mutate({ orgId, id: template.id, updates: data });
     } else {
-      createMutation.mutate({ workspaceId, template: data });
+      createMutation.mutate({ orgId, template: data });
     }
   };
 
@@ -195,7 +195,7 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
         </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || !workspaceId || isPending}>
+          <Button onClick={handleSave} disabled={!name.trim() || !orgId || isPending}>
             {saveButtonLabel(isPending, !!template)}
           </Button>
         </DialogFooter>

@@ -425,14 +425,14 @@ describe('SessionService', () => {
       const session = await service.createWorkAgent({
         templateId: 'tmpl_test',
         goal: 'Review PR #42',
-        workspaceId: 'ws_test',
+        orgId: 'ws_test',
       });
 
       expect(session.id).toMatch(/^sess_/);
       expect(session.title).toBe('Review PR #42');
       expect(session.metadata.type).toBe('workagent');
       expect(session.metadata.templateId).toBe('tmpl_test');
-      expect(session.metadata.workspaceId).toBe('ws_test');
+      expect(session.metadata.orgId).toBe('ws_test');
 
       const lifecycle = session.metadata.lifecycle as { state: string; stateHistory: unknown[] };
       expect(lifecycle.state).toBe('created');
@@ -446,7 +446,7 @@ describe('SessionService', () => {
       const session = await service.createWorkAgent({
         templateId: 'tmpl_test',
         goal: 'Test task',
-        workspaceId: 'ws_test',
+        orgId: 'ws_test',
       });
 
       const updated = await service.transitionState(session.id, 'active', 'Starting work');
@@ -463,7 +463,7 @@ describe('SessionService', () => {
       const session = await service.createWorkAgent({
         templateId: 'tmpl_test',
         goal: 'Test task',
-        workspaceId: 'ws_test',
+        orgId: 'ws_test',
       });
 
       // created → completed is not allowed
@@ -477,7 +477,7 @@ describe('SessionService', () => {
       const session = await service.createWorkAgent({
         templateId: 'tmpl_test',
         goal: 'Test task',
-        workspaceId: 'ws_test',
+        orgId: 'ws_test',
       });
 
       await service.transitionState(session.id, 'active', 'Start');
@@ -494,7 +494,7 @@ describe('SessionService', () => {
       const session = await service.createWorkAgent({
         templateId: 'tmpl_test',
         goal: 'Test task',
-        workspaceId: 'ws_test',
+        orgId: 'ws_test',
       });
 
       await service.transitionState(session.id, 'active', 'Start');
@@ -511,9 +511,9 @@ describe('SessionService', () => {
       const dir = join(TEST_DIR, 'listByState');
       const service = createSessionService(dir);
 
-      const s1 = await service.createWorkAgent({ templateId: 't', goal: 'Task 1', workspaceId: 'ws1' });
-      const s2 = await service.createWorkAgent({ templateId: 't', goal: 'Task 2', workspaceId: 'ws1' });
-      await service.createWorkAgent({ templateId: 't', goal: 'Task 3', workspaceId: 'ws1' });
+      const s1 = await service.createWorkAgent({ templateId: 't', goal: 'Task 1', orgId: 'ws1' });
+      const s2 = await service.createWorkAgent({ templateId: 't', goal: 'Task 2', orgId: 'ws1' });
+      await service.createWorkAgent({ templateId: 't', goal: 'Task 3', orgId: 'ws1' });
 
       await service.transitionState(s1.id, 'active', 'Start');
       await service.transitionState(s2.id, 'active', 'Start');
@@ -531,16 +531,16 @@ describe('SessionService', () => {
       expect(completed[0].id).toBe(s2.id);
     });
 
-    it('should filter by workspaceId', async () => {
+    it('should filter by orgId', async () => {
       const dir = join(TEST_DIR, 'listByState-ws');
       const service = createSessionService(dir);
 
-      await service.createWorkAgent({ templateId: 't', goal: 'WS1 task', workspaceId: 'ws1' });
-      await service.createWorkAgent({ templateId: 't', goal: 'WS2 task', workspaceId: 'ws2' });
+      await service.createWorkAgent({ templateId: 't', goal: 'WS1 task', orgId: 'ws1' });
+      await service.createWorkAgent({ templateId: 't', goal: 'WS2 task', orgId: 'ws2' });
 
       const ws1Created = await service.listByState('created', 'ws1');
       expect(ws1Created).toHaveLength(1);
-      expect(ws1Created[0].metadata.workspaceId).toBe('ws1');
+      expect(ws1Created[0].metadata.orgId).toBe('ws1');
     });
   });
 

@@ -1,7 +1,7 @@
 /**
  * SkillsToolsSelector - Multi-select command palette for picking skills and tools.
  *
- * Used in TemplateEditor and WorkspaceSettings for selecting available tools/skills.
+ * Used in TemplateEditor and OrgSettings for selecting available tools/skills.
  * Uses shadcn Command component for searchable multi-select.
  */
 

@@ -13,8 +13,8 @@ import type {
   TemplateService,
   WorktreeService,
   WorkflowService,
-  WorkspaceService,
-  Workspace,
+  OrgService,
+  Org,
   WorkflowTemplate,
 } from './types';
 import {
@@ -23,7 +23,7 @@ import {
   createMockTemplateService,
   createMockWorktreeService,
   createMockWorkflowService,
-  createMockWorkspaceService,
+  createMockOrgService,
 } from './__test__/orchestration-helpers';
 
 // =============================================================================
@@ -80,12 +80,12 @@ describe('OrchestrationService', () => {
   let templateService: TemplateService;
   let worktreeService: WorktreeService;
   let workflowService: WorkflowService;
-  let workspaceService: WorkspaceService;
+  let orgService: OrgService;
   let service: OrchestrationService;
 
-  const defaultWorkspace: Workspace = {
+  const defaultOrg: Org = {
     id: 'ws_1',
-    name: 'Test Workspace',
+    name: 'Test Org',
     rootPath: '/projects/test-repo',
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -99,13 +99,13 @@ describe('OrchestrationService', () => {
     templateService = createMockTemplateService();
     worktreeService = createMockWorktreeService();
     workflowService = createMockWorkflowService();
-    workspaceService = createMockWorkspaceService([defaultWorkspace]);
+    orgService = createMockOrgService([defaultOrg]);
     service = createOrchestrationService(
       sessionService,
       templateService,
       worktreeService,
       workflowService,
-      workspaceService
+      orgService
     );
   });
 
@@ -115,7 +115,7 @@ describe('OrchestrationService', () => {
     templateService.dispose();
     worktreeService.dispose();
     workflowService.dispose();
-    workspaceService.dispose();
+    orgService.dispose();
   });
 
   describe('spawn', () => {
@@ -123,7 +123,7 @@ describe('OrchestrationService', () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Write tests',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       expect(session.id).toBeTruthy();
@@ -136,7 +136,7 @@ describe('OrchestrationService', () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Test goal',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       const meta = session.metadata as Record<string, unknown>;
@@ -149,7 +149,7 @@ describe('OrchestrationService', () => {
         service.spawn({
           templateId: 'tpl_nonexistent',
           goal: 'Fail',
-          workspaceId: 'ws_1',
+          orgId: 'ws_1',
         })
       ).rejects.toThrow('Template not found');
     });
@@ -162,7 +162,7 @@ describe('OrchestrationService', () => {
         templateId: 'tpl_test',
         goal: 'Child task',
         parentSessionId: parent.id,
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       // Re-fetch to verify parentId was persisted
@@ -174,7 +174,7 @@ describe('OrchestrationService', () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Isolated task',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
         isolateWorktree: true,
       });
 
@@ -188,15 +188,15 @@ describe('OrchestrationService', () => {
       expect(meta.worktreePath).toBeTruthy();
     });
 
-    it('should use workspace.rootPath for worktree isolation instead of cwd', async () => {
+    it('should use org.rootPath for worktree isolation instead of cwd', async () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Isolated task',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
         isolateWorktree: true,
       });
 
-      // The worktree should have been created with workspace rootPath
+      // The worktree should have been created with org rootPath
       const wt = worktreeService.getForSession(session.id);
       expect(wt).not.toBeNull();
       expect(wt!.repoRoot).toBe('/projects/test-repo');
@@ -206,9 +206,9 @@ describe('OrchestrationService', () => {
       expect(meta.repoRoot).toBe('/projects/test-repo');
     });
 
-    it('should pass allowedTools from workspace settings to agent', async () => {
-      // Create workspace with allowed tools
-      const restrictedWs: Workspace = {
+    it('should pass allowedTools from org settings to agent', async () => {
+      // Create org with allowed tools
+      const restrictedWs: Org = {
         id: 'ws_restricted',
         name: 'Restricted',
         rootPath: '/projects/restricted',
@@ -216,21 +216,21 @@ describe('OrchestrationService', () => {
         updatedAt: Date.now(),
         settings: { allowedTools: ['bash', 'read'] },
       };
-      workspaceService.dispose();
-      workspaceService = createMockWorkspaceService([defaultWorkspace, restrictedWs]);
+      orgService.dispose();
+      orgService = createMockOrgService([defaultOrg, restrictedWs]);
       service.dispose();
       service = createOrchestrationService(
         sessionService,
         templateService,
         worktreeService,
         workflowService,
-        workspaceService
+        orgService
       );
 
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Restricted task',
-        workspaceId: 'ws_restricted',
+        orgId: 'ws_restricted',
       });
 
       // Session should be created successfully
@@ -243,7 +243,7 @@ describe('OrchestrationService', () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Quick task',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       // Wait for the async agent to complete
@@ -261,7 +261,7 @@ describe('OrchestrationService', () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Cancel me',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       await service.cancel(session.id, 'User requested');
@@ -276,7 +276,7 @@ describe('OrchestrationService', () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Cancel me',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       await service.cancel(session.id);
@@ -292,7 +292,7 @@ describe('OrchestrationService', () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Pause me',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       await service.pause(session.id, 'Awaiting review');
@@ -310,7 +310,7 @@ describe('OrchestrationService', () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Resume me',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       await service.pause(session.id, 'Paused');
@@ -334,7 +334,7 @@ describe('OrchestrationService', () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Not paused',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       // Session is active, not paused — resume should fail
@@ -352,7 +352,7 @@ describe('OrchestrationService', () => {
         templateId: 'tpl_test',
         goal: 'Task 1',
         parentSessionId: parent.id,
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       // Let child1 complete
@@ -364,7 +364,7 @@ describe('OrchestrationService', () => {
         templateId: 'tpl_test',
         goal: 'Task 2',
         parentSessionId: parent.id,
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
       await service.pause(child2.id, 'Needs review');
 
@@ -374,7 +374,7 @@ describe('OrchestrationService', () => {
         templateId: 'tpl_test',
         goal: 'Task 3',
         parentSessionId: parent.id,
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       // Let child3 complete
@@ -400,7 +400,7 @@ describe('OrchestrationService', () => {
       await service.spawn({
         templateId: 'tpl_test',
         goal: 'Task A',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       const instances = service.getActiveInstances();
@@ -415,7 +415,7 @@ describe('OrchestrationService', () => {
         templateService,
         worktreeService,
         undefined,
-        workspaceService
+        orgService
       );
 
       await expect(
@@ -452,7 +452,7 @@ describe('OrchestrationService', () => {
         templateService,
         worktreeService,
         workflowService,
-        workspaceService
+        orgService
       );
 
       const parentSession = await service.executeWorkflow('wf_exec', 'ws_1');
@@ -468,7 +468,7 @@ describe('OrchestrationService', () => {
       await service.spawn({
         templateId: 'tpl_test',
         goal: 'Task',
-        workspaceId: 'ws_1',
+        orgId: 'ws_1',
       });
 
       service.dispose();
