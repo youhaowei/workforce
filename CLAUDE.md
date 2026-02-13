@@ -11,9 +11,7 @@ docs/
 ├── research-synthesis.md                   # Research notes
 ├── architecture/
 │   ├── decisions.md                        # Architectural decision log
-│   ├── learnings.md                        # Performance metrics and patterns
-│   ├── error-handling-followup.md          # Error handling & tracing roadmap
-│   └── poc-effect-error-handling.md        # Effect library evaluation (deferred)
+│   └── learnings.md                        # Performance metrics and patterns
 └── operations/
     ├── issues.md                           # Known issues and risks
     └── open-decisions.md                   # Unresolved product decisions
