@@ -14,7 +14,7 @@ Last updated: 2026-02-13
 8. Keep a harness abstraction, but ship Claude harness first.
 9. Cloud sync is deferred for MVP; add a sync/storage adapter boundary now.
 10. Convex should be evaluated as a post-M1/M2 spike unless cloud sync becomes near-term mandatory.
-11. MVP planning is split by priority tiers (P0 vs P1) in `docs/PRD-MVP.md`.
+11. MVP planning is split by priority tiers (P0 vs P1) in `docs/product/PRD-MVP.md`.
 12. P0 includes a mandatory dogfooding gate: Workforce must be used to iterate on Workforce before release.
 13. Locked MVP policies:
     - pause policy: hybrid

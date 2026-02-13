@@ -6,9 +6,10 @@
 
 ```
 docs/
-├── PRD-MVP.md                              # Product requirements
-├── vision.md                               # Product vision
-├── research-synthesis.md                   # Research notes
+├── product/
+│   ├── PRD-MVP.md                          # Product requirements
+│   ├── vision.md                           # Product vision
+│   └── research-synthesis.md               # Research notes
 ├── architecture/
 │   ├── decisions.md                        # Architectural decision log
 │   └── learnings.md                        # Performance metrics and patterns

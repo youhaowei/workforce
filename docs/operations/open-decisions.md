@@ -13,4 +13,4 @@ Last updated: 2026-02-09
 5. Template portability format timeline
    - YAML-only now vs early export/import format
 
-Reference: `docs/PRD-MVP.md` section "Open Decisions for Final MVP Lock".
+Reference: `docs/product/PRD-MVP.md` section "Open Decisions for Final MVP Lock".
