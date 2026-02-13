@@ -69,14 +69,10 @@ Desktop.ini
 # Turbo
 .turbo/
 
-# Sisyphus (Claude Code planning tool)
-.sisyphus/boulder.json
-# Note: .sisyphus/notepads/ and .sisyphus/plans/ contain project notes/plans
-# Uncomment the line below if you want to ignore the entire .sisyphus/ directory:
-# .sisyphus/
+# Sisyphus (deprecated — docs moved to docs/)
+.sisyphus/
 
 # Misc
 *.pem
 *.key
 *.cert
-.sisyphus/boulder.json

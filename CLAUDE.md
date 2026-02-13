@@ -2,11 +2,21 @@
 
 ## 📋 Project State & Documentation
 
-**For detailed project state, see Sisyphus planning files:**
-- **Plan**: `.sisyphus/plans/workforce.md` - Full project plan with 18/18 tasks complete ✅
-- **Issues**: `.sisyphus/notepads/workforce/issues.md` - Known issues and gotchas
-- **Learnings**: `.sisyphus/notepads/workforce/learnings.md` - Performance metrics and patterns
-- **Decisions**: `.sisyphus/notepads/workforce/decisions.md` - Architectural decisions
+**Documentation lives in `docs/`:**
+
+```
+docs/
+├── product/
+│   ├── PRD-MVP.md                          # Product requirements
+│   ├── vision.md                           # Product vision
+│   └── research-synthesis.md               # Research notes
+├── architecture/
+│   ├── decisions.md                        # Architectural decision log
+│   └── learnings.md                        # Performance metrics and patterns
+└── operations/
+    ├── issues.md                           # Known issues and risks
+    └── open-decisions.md                   # Unresolved product decisions
+```
 
 **Current Status**: All 18 tasks complete (100%) - Foundation, Orchestration, Parity Features, and Polish phases done.
 
@@ -101,7 +111,7 @@ tauri dev       # Terminal 2
 - **Backend**: Hono HTTP server with tRPC routers wrapping service layer
 - **Performance**: First-class concern - streaming via SSE subscriptions, rAF-batched token accumulation
 
-**Note**: Originally planned as sidecar pattern, but switched to in-process for better performance. See `.sisyphus/notepads/workforce/decisions.md` for details.
+**Note**: Originally planned as sidecar pattern, but switched to in-process for better performance. See `docs/architecture/decisions.md` for details.
 
 ### Directory Structure
 
@@ -157,6 +167,60 @@ const messages = useMessagesStore((s) => s.messages);
 
 **Note**: Services are lazy-initialized singletons. All services implement `dispose()` for cleanup. The service barrel (`src/services/index.ts`) re-exports all getters, reset functions, and factory functions. `server/index.ts` contains only CORS, tRPC mount, and 3 diagnostic routes — all domain logic lives in tRPC routers.
 
+### Error Handling
+
+Use typed domain errors and `Result<T, E>` at service boundaries. Do **not** use `null` to mean "something went wrong" — only for genuine absence (e.g. optional fields). Do **not** add silent `catch {}` blocks.
+
+**Error classes** — Define tagged error classes with a `readonly _tag` discriminant and contextual fields:
+
+```typescript
+// ✅ Typed, tagged, carries context
+export class SessionNotFound {
+  readonly _tag = 'SessionNotFound';
+  constructor(readonly sessionId: string) {}
+}
+
+export class SessionCorrupted {
+  readonly _tag = 'SessionCorrupted';
+  constructor(readonly sessionId: string, readonly path: string, readonly cause: SyntaxError) {}
+}
+```
+
+**Result type** — Use `Result<T, E>` from `src/services/types.ts` for operations that can fail in expected ways:
+
+```typescript
+// ✅ Caller sees exactly what can fail
+async function loadSession(
+  dir: string, id: string
+): Promise<Result<Session, SessionNotFound | SessionCorrupted | DiskIOError>>
+
+// ❌ null conflates "not found" with "corrupted"
+async function loadSession(dir: string, id: string): Promise<Session | null>
+
+// ❌ Throws hide the error contract
+async function loadSession(dir: string, id: string): Promise<Session>  // throws on error
+```
+
+**When to throw vs return Result:**
+- **Return `Result`** for expected failures at service boundaries (not found, validation, I/O)
+- **Throw** only for programming errors / invariant violations that should never happen
+- **Never** silently swallow errors — at minimum log a warning with context
+
+**Pattern matching** — Callers discriminate on `_tag`:
+
+```typescript
+const result = await loadSession(dir, id);
+if (!result.ok) {
+  switch (result.error._tag) {
+    case 'SessionNotFound': return null;
+    case 'SessionCorrupted': await backupAndRecover(result.error); break;
+    case 'DiskIOError': throw result.error;
+  }
+}
+```
+
+See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated and deferred).
+
 ### Path Aliases
 
 | Alias | Path   |
@@ -172,7 +236,7 @@ const messages = useMessagesStore((s) => s.messages);
 -   **E2E headed**: `bun run test:e2e:headed` (watch tests run)
 -   **E2E debug**: `bun run test:e2e:debug` (step through)
 
-**Test Coverage**: All HIGH/MEDIUM priority components tested. See `.sisyphus/plans/workforce.md` Task 18 for details.
+**Test Coverage**: All HIGH/MEDIUM priority components tested.
 
 ## Tech Stack
 
@@ -195,7 +259,7 @@ const messages = useMessagesStore((s) => s.messages);
 | Stream throughput | - | 14.55 ms/1000 tokens | ✅ PASS |
 | Cold start (dev) | < 2s | ~5s | ⚠️ Dev mode only |
 
-**Note**: Cold start ~5s is dev mode overhead (Rust compilation). Production builds don't have this. See `.sisyphus/notepads/workforce/learnings.md` for detailed performance analysis.
+**Note**: Cold start ~5s is dev mode overhead (Rust compilation). Production builds don't have this. See `docs/architecture/learnings.md` for detailed performance analysis.
 
 ## Gotchas
 
@@ -206,7 +270,7 @@ const messages = useMessagesStore((s) => s.messages);
 5. **Port 4096** - Server runs on this port
 6. **Build minifier** - Uses `esbuild` (not terser) in vite.config.ts
 7. **Path aliases** - Defined in tsconfig.json AND vite.config.ts (must sync)
-8. **ESLint warnings** - 0 warnings. See `.sisyphus/notepads/workforce/issues.md`
+8. **ESLint warnings** - 0 warnings. See `docs/operations/issues.md`
 9. **Cold start** - ~5s in dev mode (Tauri/Rust compilation). Production builds don't have this overhead.
 10. **Memory optimization** - All services implement `dispose()` pattern. Idle memory: 6 MB (target < 100 MB) ✅
 11. **Claude Agent SDK Auth** - SDK uses Claude CLI's auth from `~/.claude/.credentials.json`. Running server from terminal ensures proper shell environment for auth. The SDK handles token refresh internally.
@@ -224,4 +288,4 @@ const messages = useMessagesStore((s) => s.messages);
 23. **`vi.useFakeTimers()` + `waitFor()` deadlock** - React Testing Library's `waitFor` uses `setTimeout` for polling. Fake timers intercept this. Use `vi.useRealTimers()` before async tests.
 24. **tRPC client splitLink** - Queries/mutations use `httpBatchLink`, subscriptions use `httpSubscriptionLink` (SSE). Both configured in `src/bridge/trpc.ts`.
 
-**Known Issues**: See `.sisyphus/notepads/workforce/issues.md` for detailed issues and resolutions.
+**Known Issues**: See `docs/operations/issues.md` for detailed issues and resolutions.

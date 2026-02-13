@@ -1,6 +1,6 @@
 # Architectural Decisions - Workforce
 
-Last updated: 2026-02-09
+Last updated: 2026-02-13
 
 ## Accepted
 
@@ -14,7 +14,7 @@ Last updated: 2026-02-09
 8. Keep a harness abstraction, but ship Claude harness first.
 9. Cloud sync is deferred for MVP; add a sync/storage adapter boundary now.
 10. Convex should be evaluated as a post-M1/M2 spike unless cloud sync becomes near-term mandatory.
-11. MVP planning is split by priority tiers (P0 vs P1) in `docs/PRD-MVP.md`.
+11. MVP planning is split by priority tiers (P0 vs P1) in `docs/product/PRD-MVP.md`.
 12. P0 includes a mandatory dogfooding gate: Workforce must be used to iterate on Workforce before release.
 13. Locked MVP policies:
     - pause policy: hybrid
@@ -22,3 +22,5 @@ Last updated: 2026-02-09
     - retry policy: manual in MVP
     - cost guardrails: warnings plus optional hard caps
     - template portability: workspace-local in MVP
+14. **Effect library deferred** — POC evaluated Effect for session persistence error handling. Typed errors are valuable but the paradigm overhead isn't justified yet. Instead: adopt typed error classes + `Result<T, E>` without Effect. Revisit when retry policies, resource scoping, or structured concurrency become needed.
+15. **Error handling strategy** — Use typed domain error classes + discriminated `Result<T, E>` unions at service boundaries. Tracing via structured LogService fields. No new library dependencies until complexity warrants it.
