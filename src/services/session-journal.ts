@@ -73,10 +73,15 @@ interface ReplayContext {
 
 function processMetaRecord(ctx: ReplayContext, record: JournalRecord & { t: 'meta' }): void {
   ctx.session.updatedAt = record.updatedAt;
-  Object.assign(ctx.session.metadata, record.patch);
+  // Extract top-level session fields before merging into metadata
   if ('title' in record.patch && typeof record.patch.title === 'string') {
     ctx.session.title = record.patch.title;
   }
+  if ('parentId' in record.patch && typeof record.patch.parentId === 'string') {
+    ctx.session.parentId = record.patch.parentId;
+  }
+  // Merge remaining fields into metadata (title/parentId go to both for compat)
+  Object.assign(ctx.session.metadata, record.patch);
 }
 
 function processMessageRecord(ctx: ReplayContext, record: JournalRecord & { t: 'message' }): void {
@@ -279,10 +284,13 @@ export async function replaySessionMetadata(sessionsDir: string, sessionId: stri
       const record = JSON.parse(lines[i]) as JournalRecord;
       if (record.t === 'meta') {
         session.updatedAt = record.updatedAt;
-        Object.assign(session.metadata, record.patch);
         if ('title' in record.patch && typeof record.patch.title === 'string') {
           session.title = record.patch.title;
         }
+        if ('parentId' in record.patch && typeof record.patch.parentId === 'string') {
+          session.parentId = record.patch.parentId;
+        }
+        Object.assign(session.metadata, record.patch);
       }
     } catch {
       // Skip malformed lines

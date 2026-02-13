@@ -165,17 +165,20 @@ function ShellContent() {
     });
   }, []);
 
-  const handleSelectSession = useCallback((sessionId: string, messages?: Array<{ id: string; role: string; content: string; timestamp: number }>) => {
+  const handleSelectSession = useCallback((sessionId: string) => {
     if (sessionId === intendedSessionRef.current) return;
     intendedSessionRef.current = sessionId;
     clearMessages();
     setActiveSession(sessionId);
     setSelectedSessionId(sessionId);
     setCurrentView('sessions');
-    // Load messages passed from the caller (already fetched via session.list)
-    if (messages?.length) {
-      loadMessages(messages);
-    }
+    // Fetch full messages from server (triggers lazy replay if needed)
+    trpcClient.session.messages.query({ sessionId }).then((msgs) => {
+      // Guard: only load if this session is still selected
+      if (intendedSessionRef.current === sessionId && msgs.length > 0) {
+        loadMessages(msgs);
+      }
+    }).catch(() => { /* session may have been deleted */ });
   }, [clearMessages, setActiveSession, loadMessages]);
 
   const handleCreateSession = useCallback(() => {

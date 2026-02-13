@@ -140,10 +140,12 @@ class SessionServiceImpl implements SessionService {
     session.updatedAt = Date.now();
     this.sessions.set(session.id, session);
 
+    const patch: Record<string, unknown> = { title: session.title, ...session.metadata };
+    if (session.parentId !== undefined) patch.parentId = session.parentId;
+
     await this.appendLock.acquire(session.id, () =>
       appendRecord(this.sessionsDir, session.id, {
-        t: 'meta', updatedAt: session.updatedAt,
-        patch: { title: session.title, ...session.metadata },
+        t: 'meta', updatedAt: session.updatedAt, patch,
       } satisfies JournalMeta),
     );
   }
@@ -377,7 +379,10 @@ class SessionServiceImpl implements SessionService {
       try {
         const session = this.sessions.get(sessionId);
         if (session) {
-          await compactSession(this.sessionsDir, session);
+          // Acquire append lock so compaction can't race with concurrent writes
+          await this.appendLock.acquire(sessionId, () =>
+            compactSession(this.sessionsDir, session),
+          );
           debugLog('Session', `Compacted session ${sessionId}`);
         }
       } catch (err) {

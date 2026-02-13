@@ -1090,6 +1090,126 @@ describe('SessionService', () => {
     });
   });
 
+  // ─── parentId persistence ────────────────────────────────────────────────
+
+  describe('parentId persistence', () => {
+    it('save() should persist parentId to disk', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+
+      // Create a session, then set parentId and save (matches orchestration.ts:74)
+      const session = await service.create('Child Session');
+      session.parentId = 'sess_parent_abc';
+      await service.save(session);
+
+      // Reload from disk — parentId must survive
+      const fresh = createSessionService(dir);
+      const loaded = await fresh.get(session.id);
+
+      expect(loaded).not.toBeNull();
+      expect(loaded!.parentId).toBe('sess_parent_abc');
+    });
+
+    it('parentId should survive through metadata-only replay (list)', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+
+      const session = await service.create('Child');
+      session.parentId = 'sess_parent_xyz';
+      await service.save(session);
+
+      // Simulate restart — list uses metadata-only replay
+      const fresh = createSessionService(dir);
+      const listed = await fresh.list();
+      const found = listed.find((s) => s.id === session.id);
+
+      expect(found).not.toBeNull();
+      expect(found!.parentId).toBe('sess_parent_xyz');
+    });
+
+    it('parentId from header should survive when no meta patch overrides it', async () => {
+      const dir = nextDir();
+      await mkdir(dir, { recursive: true });
+
+      // Fork sets parentId in the header record
+      const sessionId = 'sess_has_parent';
+      const lines = [
+        JSON.stringify({
+          t: 'header', v: JSONL_VERSION, id: sessionId, title: 'Forked',
+          createdAt: 1, updatedAt: 1, parentId: 'sess_original', metadata: {},
+        }),
+      ];
+      await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
+
+      // Full replay
+      const session = await replaySession(dir, sessionId);
+      expect(session!.parentId).toBe('sess_original');
+
+      // Metadata-only replay
+      const meta = await replaySessionMetadata(dir, sessionId);
+      expect(meta!.parentId).toBe('sess_original');
+    });
+  });
+
+  // ─── getMessages after lazy init ────────────────────────────────────────
+
+  describe('getMessages after lazy init', () => {
+    it('getMessages should return full messages after restart (lazy load)', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+
+      const session = await service.create('Lazy Msg Test');
+      await service.addMessage(session.id, {
+        id: 'msg_lm1', role: 'user', content: 'First message', timestamp: 1,
+      });
+      await service.addMessage(session.id, {
+        id: 'msg_lm2', role: 'user', content: 'Second message', timestamp: 2,
+      });
+
+      // Simulate restart — messages not loaded at init
+      const fresh = createSessionService(dir);
+      const listed = await fresh.list();
+      const stub = listed.find((s) => s.id === session.id);
+      expect(stub!.messages).toEqual([]); // metadata-only
+
+      // getMessages triggers full replay via get()
+      const msgs = await fresh.getMessages(session.id);
+      expect(msgs).toHaveLength(2);
+      expect(msgs[0].content).toBe('First message');
+      expect(msgs[1].content).toBe('Second message');
+    });
+  });
+
+  // ─── Compaction under lock ──────────────────────────────────────────────
+
+  describe('compaction under lock', () => {
+    it('append after finalize should survive compaction', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const session = await service.create('Race Test');
+
+      // Stream → finalize (triggers compaction after 100ms)
+      await service.startAssistantStream(session.id, 'msg_a1');
+      await service.appendAssistantDelta(session.id, 'msg_a1', 'Hello', 0);
+      await service.finalizeAssistantMessage(session.id, 'msg_a1', 'Hello', 'end_turn');
+
+      // Immediately add a user message (races with scheduled compaction)
+      await service.addMessage(session.id, {
+        id: 'msg_u1', role: 'user', content: 'Follow up', timestamp: Date.now(),
+      });
+
+      // Wait for compaction to complete
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Verify both messages survive on disk
+      const fresh = createSessionService(dir);
+      const loaded = await fresh.get(session.id);
+      expect(loaded!.messages).toHaveLength(2);
+      expect(loaded!.messages[0].content).toBe('Hello');
+      expect(loaded!.messages[1].content).toBe('Follow up');
+    });
+  });
+
   // ─── Lazy Loading (Fix #2) ─────────────────────────────────────────────────
 
   describe('lazy loading', () => {
