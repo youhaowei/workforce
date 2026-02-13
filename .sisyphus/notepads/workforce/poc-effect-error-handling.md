@@ -1,8 +1,9 @@
 # POC: Effect for Error Handling in Session Persistence
 
-**Date**: 2025-02-13
-**Scope**: `src/services/poc-effect/` — session persistence layer only
-**Status**: Decision-oriented evaluation, not production migration
+**Date**: 2026-02-13
+**Scope**: Session persistence layer (load/save/migrate/delete)
+**Status**: Evaluated and deferred. POC code reverted; findings preserved here.
+**Revisit trigger**: See `error-handling-followup.md` for adoption criteria.
 
 ---
 
@@ -154,11 +155,6 @@ Effect also enables injecting dependencies via `Layer` / `Context` (not explored
 
 ---
 
-## Files
+## Status
 
-| File | Purpose |
-|------|---------|
-| `session-persistence-current.ts` | Extracted current-style persistence (baseline) |
-| `session-persistence-effect.ts` | Effect-based reimplementation (comparison) |
-| `session-persistence.test.ts` | 27 shared + 6 impl-specific tests |
-| `DESIGN-NOTE.md` | This document |
+POC implementation code was reverted (branch `claude/effect-error-handling-qAvT9`, commit `9d81856` has the full code if needed for reference). This document and the followup plan (`error-handling-followup.md`) are the durable artifacts.
