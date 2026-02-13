@@ -2,11 +2,22 @@
 
 ## 📋 Project State & Documentation
 
-**For detailed project state, see Sisyphus planning files:**
-- **Plan**: `.sisyphus/plans/workforce.md` - Full project plan with 18/18 tasks complete ✅
-- **Issues**: `.sisyphus/notepads/workforce/issues.md` - Known issues and gotchas
-- **Learnings**: `.sisyphus/notepads/workforce/learnings.md` - Performance metrics and patterns
-- **Decisions**: `.sisyphus/notepads/workforce/decisions.md` - Architectural decisions
+**Documentation lives in `docs/`:**
+
+```
+docs/
+├── PRD-MVP.md                              # Product requirements
+├── vision.md                               # Product vision
+├── research-synthesis.md                   # Research notes
+├── architecture/
+│   ├── decisions.md                        # Architectural decision log
+│   ├── learnings.md                        # Performance metrics and patterns
+│   ├── error-handling-followup.md          # Error handling & tracing roadmap
+│   └── poc-effect-error-handling.md        # Effect library evaluation (deferred)
+└── operations/
+    ├── issues.md                           # Known issues and risks
+    └── open-decisions.md                   # Unresolved product decisions
+```
 
 **Current Status**: All 18 tasks complete (100%) - Foundation, Orchestration, Parity Features, and Polish phases done.
 
@@ -101,7 +112,7 @@ tauri dev       # Terminal 2
 - **Backend**: Hono HTTP server with tRPC routers wrapping service layer
 - **Performance**: First-class concern - streaming via SSE subscriptions, rAF-batched token accumulation
 
-**Note**: Originally planned as sidecar pattern, but switched to in-process for better performance. See `.sisyphus/notepads/workforce/decisions.md` for details.
+**Note**: Originally planned as sidecar pattern, but switched to in-process for better performance. See `docs/architecture/decisions.md` for details.
 
 ### Directory Structure
 
@@ -172,7 +183,7 @@ const messages = useMessagesStore((s) => s.messages);
 -   **E2E headed**: `bun run test:e2e:headed` (watch tests run)
 -   **E2E debug**: `bun run test:e2e:debug` (step through)
 
-**Test Coverage**: All HIGH/MEDIUM priority components tested. See `.sisyphus/plans/workforce.md` Task 18 for details.
+**Test Coverage**: All HIGH/MEDIUM priority components tested.
 
 ## Tech Stack
 
@@ -195,7 +206,7 @@ const messages = useMessagesStore((s) => s.messages);
 | Stream throughput | - | 14.55 ms/1000 tokens | ✅ PASS |
 | Cold start (dev) | < 2s | ~5s | ⚠️ Dev mode only |
 
-**Note**: Cold start ~5s is dev mode overhead (Rust compilation). Production builds don't have this. See `.sisyphus/notepads/workforce/learnings.md` for detailed performance analysis.
+**Note**: Cold start ~5s is dev mode overhead (Rust compilation). Production builds don't have this. See `docs/architecture/learnings.md` for detailed performance analysis.
 
 ## Gotchas
 
@@ -206,7 +217,7 @@ const messages = useMessagesStore((s) => s.messages);
 5. **Port 4096** - Server runs on this port
 6. **Build minifier** - Uses `esbuild` (not terser) in vite.config.ts
 7. **Path aliases** - Defined in tsconfig.json AND vite.config.ts (must sync)
-8. **ESLint warnings** - 0 warnings. See `.sisyphus/notepads/workforce/issues.md`
+8. **ESLint warnings** - 0 warnings. See `docs/operations/issues.md`
 9. **Cold start** - ~5s in dev mode (Tauri/Rust compilation). Production builds don't have this overhead.
 10. **Memory optimization** - All services implement `dispose()` pattern. Idle memory: 6 MB (target < 100 MB) ✅
 11. **Claude Agent SDK Auth** - SDK uses Claude CLI's auth from `~/.claude/.credentials.json`. Running server from terminal ensures proper shell environment for auth. The SDK handles token refresh internally.
@@ -224,4 +235,4 @@ const messages = useMessagesStore((s) => s.messages);
 23. **`vi.useFakeTimers()` + `waitFor()` deadlock** - React Testing Library's `waitFor` uses `setTimeout` for polling. Fake timers intercept this. Use `vi.useRealTimers()` before async tests.
 24. **tRPC client splitLink** - Queries/mutations use `httpBatchLink`, subscriptions use `httpSubscriptionLink` (SSE). Both configured in `src/bridge/trpc.ts`.
 
-**Known Issues**: See `.sisyphus/notepads/workforce/issues.md` for detailed issues and resolutions.
+**Known Issues**: See `docs/operations/issues.md` for detailed issues and resolutions.

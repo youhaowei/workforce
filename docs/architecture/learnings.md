@@ -11,6 +11,6 @@ Last updated: 2026-02-09
 
 ## Process Learnings
 
-1. Keep `.sisyphus` operational and concise; put canonical product detail in `docs/PRD-MVP.md`.
+1. Keep architecture docs concise; put canonical product detail in `docs/PRD-MVP.md`.
 2. Avoid duplicating milestone details across plan and notepads.
 3. Mark resolved problems by removing them from active issue lists instead of accumulating stale history.
