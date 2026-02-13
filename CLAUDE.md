@@ -167,6 +167,60 @@ const messages = useMessagesStore((s) => s.messages);
 
 **Note**: Services are lazy-initialized singletons. All services implement `dispose()` for cleanup. The service barrel (`src/services/index.ts`) re-exports all getters, reset functions, and factory functions. `server/index.ts` contains only CORS, tRPC mount, and 3 diagnostic routes — all domain logic lives in tRPC routers.
 
+### Error Handling
+
+Use typed domain errors and `Result<T, E>` at service boundaries. Do **not** use `null` to mean "something went wrong" — only for genuine absence (e.g. optional fields). Do **not** add silent `catch {}` blocks.
+
+**Error classes** — Define tagged error classes with a `readonly _tag` discriminant and contextual fields:
+
+```typescript
+// ✅ Typed, tagged, carries context
+export class SessionNotFound {
+  readonly _tag = 'SessionNotFound';
+  constructor(readonly sessionId: string) {}
+}
+
+export class SessionCorrupted {
+  readonly _tag = 'SessionCorrupted';
+  constructor(readonly sessionId: string, readonly path: string, readonly cause: SyntaxError) {}
+}
+```
+
+**Result type** — Use `Result<T, E>` from `src/services/types.ts` for operations that can fail in expected ways:
+
+```typescript
+// ✅ Caller sees exactly what can fail
+async function loadSession(
+  dir: string, id: string
+): Promise<Result<Session, SessionNotFound | SessionCorrupted | DiskIOError>>
+
+// ❌ null conflates "not found" with "corrupted"
+async function loadSession(dir: string, id: string): Promise<Session | null>
+
+// ❌ Throws hide the error contract
+async function loadSession(dir: string, id: string): Promise<Session>  // throws on error
+```
+
+**When to throw vs return Result:**
+- **Return `Result`** for expected failures at service boundaries (not found, validation, I/O)
+- **Throw** only for programming errors / invariant violations that should never happen
+- **Never** silently swallow errors — at minimum log a warning with context
+
+**Pattern matching** — Callers discriminate on `_tag`:
+
+```typescript
+const result = await loadSession(dir, id);
+if (!result.ok) {
+  switch (result.error._tag) {
+    case 'SessionNotFound': return null;
+    case 'SessionCorrupted': await backupAndRecover(result.error); break;
+    case 'DiskIOError': throw result.error;
+  }
+}
+```
+
+See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated and deferred).
+
 ### Path Aliases
 
 | Alias | Path   |
