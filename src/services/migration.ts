@@ -25,6 +25,12 @@ export interface Migration {
   /** Sortable unique ID, e.g. "001_sessions_json_to_jsonl" */
   id: string;
   description: string;
+  /**
+   * Execute the migration. Must be **idempotent**: already-processed items
+   * should be skipped (increment `result.skipped`), not re-processed.
+   * If `result.failed > 0`, the migration is NOT recorded in the ledger
+   * and will be retried on next startup.
+   */
   run: (dataDir: string) => Promise<MigrationResult>;
 }
 
@@ -65,7 +71,10 @@ async function readLedger(dataDir: string): Promise<Ledger> {
 
 async function writeLedger(dataDir: string, ledger: Ledger): Promise<void> {
   await mkdir(dataDir, { recursive: true });
-  await writeFile(ledgerPath(dataDir), JSON.stringify(ledger, null, 2), 'utf-8');
+  const finalPath = ledgerPath(dataDir);
+  const tmpPath = finalPath + '.tmp';
+  await writeFile(tmpPath, JSON.stringify(ledger, null, 2), 'utf-8');
+  await rename(tmpPath, finalPath);
 }
 
 // =============================================================================
@@ -114,6 +123,18 @@ export async function runMigrations(dataDir: string): Promise<void> {
       const result = await migration.run(dataDir);
       const durationMs = Date.now() - start;
 
+      debugLog(
+        'Migration',
+        `${migration.id}: ${result.migrated} migrated, ${result.skipped} skipped, ${result.failed} failed (${durationMs}ms)`,
+        result.errors.length > 0 ? result.errors : undefined,
+      );
+
+      // Skip ledger recording if any items failed — migration will retry next run
+      if (result.failed > 0) {
+        debugLog('Migration', `${migration.id}: ${result.failed} failures — will retry next run`);
+        continue;
+      }
+
       ledger.applied.push({
         id: migration.id,
         appliedAt: Date.now(),
@@ -123,12 +144,6 @@ export async function runMigrations(dataDir: string): Promise<void> {
 
       // Flush ledger after each migration for crash safety
       await writeLedger(dataDir, ledger);
-
-      debugLog(
-        'Migration',
-        `${migration.id}: ${result.migrated} migrated, ${result.skipped} skipped, ${result.failed} failed (${durationMs}ms)`,
-        result.errors.length > 0 ? result.errors : undefined,
-      );
     } catch (err) {
       // Migration-level failure: log and continue with next migration
       debugLog('Migration', `${migration.id} FAILED`, err);

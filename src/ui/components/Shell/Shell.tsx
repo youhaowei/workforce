@@ -69,6 +69,8 @@ function ShellContent() {
   const cancelStreamRef = useRef<(() => void) | null>(null);
   const intendedSessionRef = useRef<string | null>(null);
   const streamSeqRef = useRef(0);
+  const deltaBufferRef = useRef<Array<{ delta: string; seq: number }>>([]);
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Board filter state — lifted here so TopBar and BoardView share it
   const [boardKeyword, setBoardKeyword] = useState('');
@@ -115,6 +117,18 @@ function ShellContent() {
     if (cancelStreamRef.current) {
       cancelStreamRef.current();
       cancelStreamRef.current = null;
+    }
+    // Flush any buffered deltas before aborting
+    if (deltaBufferRef.current.length > 0 && selectedSessionId) {
+      const msgId = useMessagesStore.getState().streamingMessageId;
+      if (msgId) {
+        const deltas = deltaBufferRef.current;
+        deltaBufferRef.current = [];
+        if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+        trpcClient.session.streamDeltaBatch.mutate({
+          sessionId: selectedSessionId, messageId: msgId, deltas,
+        }).catch(() => {/* best-effort */});
+      }
     }
     // Abort persistent stream if active
     const msgId = useMessagesStore.getState().streamingMessageId;
@@ -214,8 +228,22 @@ function ShellContent() {
     const userMsgId = addUserMessage(content);
     const assistantMsgId = startAssistantMessage();
     streamSeqRef.current = 0;
+    deltaBufferRef.current = [];
 
     const sessId = selectedSessionId;
+
+    // Flush buffered deltas as a single batch mutation
+    const flushDeltas = () => {
+      if (deltaBufferRef.current.length === 0) return;
+      const deltas = deltaBufferRef.current;
+      deltaBufferRef.current = [];
+      if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+      if (sessId) {
+        trpcClient.session.streamDeltaBatch.mutate({
+          sessionId: sessId, messageId: assistantMsgId, deltas,
+        }).catch(() => {/* best-effort */});
+      }
+    };
 
     // Persist user message + start assistant stream (best-effort, don't block UI)
     if (sessId) {
@@ -234,19 +262,20 @@ function ShellContent() {
         onData: (data) => {
           if (data.type === 'token') {
             appendToStreamingMessage(data.data);
-            // Persist delta (fire-and-forget)
+            // Buffer delta for batched persistence (flushes every 150ms)
             if (sessId) {
-              const seq = streamSeqRef.current++;
-              trpcClient.session.streamDelta.mutate({
-                sessionId: sessId, messageId: assistantMsgId, delta: data.data, seq,
-              }).catch(() => {/* best-effort */});
+              deltaBufferRef.current.push({ delta: data.data, seq: streamSeqRef.current++ });
+              if (!flushTimerRef.current) {
+                flushTimerRef.current = setTimeout(flushDeltas, 150);
+              }
             }
           } else if (data.type === 'done') {
             // Assemble full content before finishing (Zustand hasn't committed yet)
             const fullContent = useMessagesStore.getState().streamingContent;
             finishStreamingMessage();
             cancelStreamRef.current = null;
-            // Persist finalized message
+            // Flush remaining deltas then persist finalized message
+            flushDeltas();
             if (sessId) {
               trpcClient.session.streamFinalize.mutate({
                 sessionId: sessId,
@@ -259,7 +288,8 @@ function ShellContent() {
             finishStreamingMessage();
             setError(data.data);
             cancelStreamRef.current = null;
-            // Persist abort
+            // Flush remaining deltas then persist abort
+            flushDeltas();
             if (sessId) {
               trpcClient.session.streamAbort.mutate({
                 sessionId: sessId, messageId: assistantMsgId, reason: data.data,
@@ -271,7 +301,8 @@ function ShellContent() {
           finishStreamingMessage();
           setError(err instanceof Error ? err.message : String(err));
           cancelStreamRef.current = null;
-          // Persist abort
+          // Flush remaining deltas then persist abort
+          flushDeltas();
           if (sessId) {
             trpcClient.session.streamAbort.mutate({
               sessionId: sessId, messageId: assistantMsgId,

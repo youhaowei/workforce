@@ -123,6 +123,67 @@ describe('Migration Framework', () => {
       expect(aIdx).toBeLessThan(bIdx);
     });
 
+    it('should NOT record migration in ledger when result.failed > 0', async () => {
+      const dir = nextDir();
+      await mkdir(dir, { recursive: true });
+
+      // Pre-populate ledger so built-in migration is already done
+      await writeLedger(dir, {
+        applied: [
+          { id: '001_sessions_json_to_jsonl', appliedAt: Date.now(), durationMs: 0, result: { migrated: 0, skipped: 0, failed: 0, errors: [] } },
+        ],
+      });
+
+      registerMigration({
+        id: '995_partial_failure',
+        description: 'Has partial failures',
+        run: async () => ({ migrated: 2, skipped: 0, failed: 1, errors: ['item_x: parse error'] }),
+      });
+
+      await runMigrations(dir);
+
+      const ledger = await readLedger(dir);
+      // Partial failure migration should NOT be in the ledger
+      expect(ledger.applied.some((e) => e.id === '995_partial_failure')).toBe(false);
+    });
+
+    it('should retry partially failed migration on next run', async () => {
+      const dir = nextDir();
+      await mkdir(dir, { recursive: true });
+
+      // Pre-populate ledger so built-in migration is already done
+      await writeLedger(dir, {
+        applied: [
+          { id: '001_sessions_json_to_jsonl', appliedAt: Date.now(), durationMs: 0, result: { migrated: 0, skipped: 0, failed: 0, errors: [] } },
+        ],
+      });
+
+      let runCount = 0;
+      registerMigration({
+        id: '994_retry_test',
+        description: 'First run fails, second succeeds',
+        run: async () => {
+          runCount++;
+          if (runCount === 1) {
+            return { migrated: 1, skipped: 0, failed: 1, errors: ['item_y: failed'] };
+          }
+          return { migrated: 0, skipped: 2, failed: 0, errors: [] };
+        },
+      });
+
+      // First run — partial failure, not recorded
+      await runMigrations(dir);
+      let ledger = await readLedger(dir);
+      expect(ledger.applied.some((e) => e.id === '994_retry_test')).toBe(false);
+      expect(runCount).toBe(1);
+
+      // Second run — all clear, gets recorded
+      await runMigrations(dir);
+      ledger = await readLedger(dir);
+      expect(ledger.applied.some((e) => e.id === '994_retry_test')).toBe(true);
+      expect(runCount).toBe(2);
+    });
+
     it('should continue past migration-level failures', async () => {
       const dir = nextDir();
       await mkdir(dir, { recursive: true });
@@ -149,6 +210,28 @@ describe('Migration Framework', () => {
       expect(ledger.applied.some((e) => e.id === '996_should_still_run')).toBe(true);
       // 997 threw at migration level, so it's NOT in the ledger
       expect(ledger.applied.some((e) => e.id === '997_will_throw')).toBe(false);
+    });
+  });
+
+  describe('writeLedger (atomic)', () => {
+    it('should leave no .tmp file after write', async () => {
+      const dir = nextDir();
+      await mkdir(dir, { recursive: true });
+
+      await writeLedger(dir, {
+        applied: [
+          { id: 'test_ledger', appliedAt: Date.now(), durationMs: 5, result: { migrated: 1, skipped: 0, failed: 0, errors: [] } },
+        ],
+      });
+
+      const files = await readdir(dir);
+      const tmpFiles = files.filter((f) => f.endsWith('.tmp'));
+      expect(tmpFiles).toHaveLength(0);
+
+      // Verify content is correct
+      const ledger = await readLedger(dir);
+      expect(ledger.applied).toHaveLength(1);
+      expect(ledger.applied[0].id).toBe('test_ledger');
     });
   });
 

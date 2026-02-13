@@ -29,8 +29,10 @@ import { runMigrations } from './migration';
 import { debugLog } from '@/shared/debug-log';
 import {
   appendRecord,
+  appendRecords,
   writeRecords,
   replaySession,
+  replaySessionMetadata,
   compactSession,
   AppendLock,
   JSONL_VERSION,
@@ -52,6 +54,7 @@ function generateId(): string {
 
 class SessionServiceImpl implements SessionService {
   private sessions = new Map<string, Session>();
+  private fullyLoaded = new Set<string>();
   private currentSession: Session | null = null;
   private sessionsDir: string;
   private dataDir: string;
@@ -76,9 +79,10 @@ class SessionServiceImpl implements SessionService {
 
       for (const file of sessionFiles) {
         const sessionId = file.replace('.jsonl', '');
-        const session = await replaySession(this.sessionsDir, sessionId);
+        const session = await replaySessionMetadata(this.sessionsDir, sessionId);
         if (session) {
           this.sessions.set(sessionId, session);
+          // Note: session.messages is empty — full load deferred to get()
         }
       }
     } catch (err) {
@@ -104,6 +108,7 @@ class SessionServiceImpl implements SessionService {
     };
 
     this.sessions.set(session.id, session);
+    this.fullyLoaded.add(session.id);
     await writeRecords(this.sessionsDir, session.id, [{
       t: 'header', v: JSONL_VERSION, id: session.id, title: session.title,
       createdAt: now, updatedAt: now, metadata: {},
@@ -115,10 +120,18 @@ class SessionServiceImpl implements SessionService {
 
   async get(sessionId: string): Promise<Session | null> {
     await this.ensureInitialized();
-    if (this.sessions.has(sessionId)) return this.sessions.get(sessionId)!;
 
+    // If already fully loaded, return from cache
+    if (this.fullyLoaded.has(sessionId)) {
+      return this.sessions.get(sessionId) ?? null;
+    }
+
+    // Full replay to get messages (replaces metadata-only entry if present)
     const session = await replaySession(this.sessionsDir, sessionId);
-    if (session) this.sessions.set(sessionId, session);
+    if (session) {
+      this.sessions.set(sessionId, session);
+      this.fullyLoaded.add(sessionId);
+    }
     return session;
   }
 
@@ -156,6 +169,7 @@ class SessionServiceImpl implements SessionService {
     };
 
     this.sessions.set(forked.id, forked);
+    this.fullyLoaded.add(forked.id);
     const records: JournalRecord[] = [
       { t: 'header', v: JSONL_VERSION, id: forked.id, title: forked.title,
         createdAt: now, updatedAt: now, parentId: parent.id, metadata: forked.metadata },
@@ -248,6 +262,14 @@ class SessionServiceImpl implements SessionService {
     );
   }
 
+  async appendAssistantDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>): Promise<void> {
+    if (deltas.length === 0) return;
+    const records = deltas.map((d) => ({ t: 'message_delta' as const, id: messageId, delta: d.delta, seq: d.seq }));
+    await this.appendLock.acquire(sessionId, () =>
+      appendRecords(this.sessionsDir, sessionId, records),
+    );
+  }
+
   async finalizeAssistantMessage(sessionId: string, messageId: string, fullContent: string, stopReason: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
@@ -293,6 +315,7 @@ class SessionServiceImpl implements SessionService {
 
     const session: Session = { id: generateId(), title: config.goal, createdAt: now, updatedAt: now, messages: [], metadata };
     this.sessions.set(session.id, session);
+    this.fullyLoaded.add(session.id);
     await writeRecords(this.sessionsDir, session.id, [{
       t: 'header', v: JSONL_VERSION, id: session.id, title: session.title, createdAt: now, updatedAt: now, metadata,
     }]);
@@ -365,6 +388,7 @@ class SessionServiceImpl implements SessionService {
 
   dispose(): void {
     this.sessions.clear();
+    this.fullyLoaded.clear();
     this.currentSession = null;
     this.initialized = false;
     this.appendLock.clear();
@@ -390,4 +414,4 @@ export function createSessionService(sessionsDir: string): SessionService {
 }
 
 // Re-export journal internals for testing
-export { replaySession, appendRecord, writeRecords, compactSession, JSONL_VERSION, AppendLock } from './session-journal';
+export { replaySession, replaySessionMetadata, appendRecord, appendRecords, writeRecords, compactSession, JSONL_VERSION, AppendLock } from './session-journal';

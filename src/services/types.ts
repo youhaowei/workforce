@@ -355,6 +355,12 @@ export interface SessionService extends Disposable {
   appendAssistantDelta(sessionId: string, messageId: string, delta: string, seq: number): Promise<void>;
 
   /**
+   * Append multiple deltas in a single I/O operation (batch variant of appendAssistantDelta).
+   * Reduces write amplification when flushing buffered client-side deltas.
+   */
+  appendAssistantDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>): Promise<void>;
+
+  /**
    * Finalize an assistant message with the full authoritative content.
    * Appends a `message_final` record. This is the source of truth on replay.
    */

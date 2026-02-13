@@ -107,6 +107,16 @@ export const sessionRouter = router({
       getSessionService().appendAssistantDelta(input.sessionId, input.messageId, input.delta, input.seq),
     ),
 
+  streamDeltaBatch: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      messageId: z.string(),
+      deltas: z.array(z.object({ delta: z.string(), seq: z.number() })),
+    }))
+    .mutation(({ input }) =>
+      getSessionService().appendAssistantDeltaBatch(input.sessionId, input.messageId, input.deltas),
+    ),
+
   streamFinalize: publicProcedure
     .input(z.object({
       sessionId: z.string(),

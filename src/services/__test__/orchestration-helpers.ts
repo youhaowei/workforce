@@ -138,6 +138,7 @@ export function createMockSessionService(): SessionService {
     },
     async startAssistantStream() { /* no-op for mock */ },
     async appendAssistantDelta() { /* no-op for mock */ },
+    async appendAssistantDeltaBatch() { /* no-op for mock */ },
     async finalizeAssistantMessage(sessionId: string, messageId: string, fullContent: string) {
       const session = sessions.get(sessionId);
       if (!session) throw new Error('Session not found');

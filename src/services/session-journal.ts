@@ -29,6 +29,15 @@ export async function appendRecord(sessionsDir: string, sessionId: string, recor
   await appendFile(filePath, JSON.stringify(record) + '\n', 'utf-8');
 }
 
+/** Append multiple records to a session's JSONL file in a single I/O operation. */
+export async function appendRecords(sessionsDir: string, sessionId: string, records: JournalRecord[]): Promise<void> {
+  if (records.length === 0) return;
+  await mkdir(sessionsDir, { recursive: true });
+  const filePath = join(sessionsDir, `${sessionId}.jsonl`);
+  const content = records.map((r) => JSON.stringify(r)).join('\n') + '\n';
+  await appendFile(filePath, content, 'utf-8');
+}
+
 /** Write a complete JSONL file from an array of records (used by create, fork, compaction). */
 export async function writeRecords(sessionsDir: string, sessionId: string, records: JournalRecord[]): Promise<void> {
   await mkdir(sessionsDir, { recursive: true });
@@ -231,6 +240,56 @@ export async function replaySession(sessionsDir: string, sessionId: string): Pro
 
   recoverOrphanedStreams(ctx);
   return ctx.session;
+}
+
+/**
+ * Replay only header and meta records to build a lightweight Session (no messages).
+ * Used at startup to populate the session list without loading full message histories.
+ */
+export async function replaySessionMetadata(sessionsDir: string, sessionId: string): Promise<Session | null> {
+  const filePath = join(sessionsDir, `${sessionId}.jsonl`);
+
+  let raw: string;
+  try {
+    raw = await readFile(filePath, 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw err;
+  }
+
+  const lines = raw.split('\n').filter((l) => l.trim().length > 0);
+  if (lines.length === 0) return null;
+
+  const header = await parseHeader(sessionsDir, sessionId, lines[0]);
+  if (!header) return null;
+
+  const session: Session = {
+    id: header.id,
+    title: header.title,
+    createdAt: header.createdAt,
+    updatedAt: header.updatedAt,
+    parentId: header.parentId,
+    messages: [],
+    metadata: { ...header.metadata },
+  };
+
+  // Only process meta records — skip all message/delta/final/abort records
+  for (let i = 1; i < lines.length; i++) {
+    try {
+      const record = JSON.parse(lines[i]) as JournalRecord;
+      if (record.t === 'meta') {
+        session.updatedAt = record.updatedAt;
+        Object.assign(session.metadata, record.patch);
+        if ('title' in record.patch && typeof record.patch.title === 'string') {
+          session.title = record.patch.title;
+        }
+      }
+    } catch {
+      // Skip malformed lines
+    }
+  }
+
+  return session;
 }
 
 // =============================================================================
