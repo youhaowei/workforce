@@ -28,6 +28,7 @@ import { useSdkStore } from '@/ui/stores/useSdkStore';
 import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { useTRPC } from '@/bridge/react';
 import { trpc as trpcClient } from '@/bridge/trpc';
+import { queryClient } from '@/bridge/query-client';
 import { getEventBus } from '@/shared/event-bus';
 import AppSidebar from './AppSidebar';
 import TopBar from './AppHeader';
@@ -39,6 +40,7 @@ export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
 const SERVER_URL = 'http://localhost:4096';
 const SIDEBAR_STORAGE_KEY = 'workforce-sidebar-mode';
 const SESSIONS_PANEL_STORAGE_KEY = 'workforce-sessions-collapsed';
+const SESSION_TITLE_MAX_LENGTH = 80;
 
 async function checkServerConnection(): Promise<boolean> {
   try {
@@ -68,6 +70,10 @@ function ShellContent() {
   });
   const cancelStreamRef = useRef<(() => void) | null>(null);
   const intendedSessionRef = useRef<string | null>(null);
+  /** Tracks the current session ID for imperative cross-callback coordination.
+   *  Unlike `selectedSessionId` (React state), this is updated synchronously
+   *  and visible immediately to `handleCancel` during the same event loop tick. */
+  const activeSessionRef = useRef<string | null>(null);
   const streamSeqRef = useRef(0);
   const deltaBufferRef = useRef<Array<{ delta: string; seq: number }>>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -118,28 +124,27 @@ function ShellContent() {
       cancelStreamRef.current();
       cancelStreamRef.current = null;
     }
+    // Read session ID from ref (not React state) so we always see the latest
+    // value, even if handleSubmit just created a session during the same tick.
+    const sessId = activeSessionRef.current;
+    const msgId = useMessagesStore.getState().streamingMessageId;
     // Flush any buffered deltas before aborting
-    if (deltaBufferRef.current.length > 0 && selectedSessionId) {
-      const msgId = useMessagesStore.getState().streamingMessageId;
-      if (msgId) {
-        const deltas = deltaBufferRef.current;
-        deltaBufferRef.current = [];
-        if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
-        trpcClient.session.streamDeltaBatch.mutate({
-          sessionId: selectedSessionId, messageId: msgId, deltas,
-        }).catch(() => {/* best-effort */});
-      }
+    if (deltaBufferRef.current.length > 0 && sessId && msgId) {
+      const deltas = deltaBufferRef.current;
+      deltaBufferRef.current = [];
+      if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+      trpcClient.session.streamDeltaBatch.mutate({
+        sessionId: sessId, messageId: msgId, deltas,
+      }).catch(() => {/* best-effort */});
     }
     // Abort persistent stream if active
-    const msgId = useMessagesStore.getState().streamingMessageId;
-    const sessId = selectedSessionId;
     if (sessId && msgId) {
       trpcClient.session.streamAbort.mutate({
         sessionId: sessId, messageId: msgId, reason: 'user_cancelled',
       }).catch(() => {/* best-effort */});
     }
     finishStreamingMessage();
-  }, [finishStreamingMessage, selectedSessionId]);
+  }, [finishStreamingMessage]);
 
   const toggleSidebarSize = useCallback(() => {
     setSidebarMode((prev) => {
@@ -171,6 +176,7 @@ function ShellContent() {
     clearMessages();
     setActiveSession(sessionId);
     setSelectedSessionId(sessionId);
+    activeSessionRef.current = sessionId;
     setCurrentView('sessions');
     // Fetch full messages from server (triggers lazy replay if needed)
     trpcClient.session.messages.query({ sessionId }).then((msgs) => {
@@ -192,6 +198,7 @@ function ShellContent() {
     clearMessages();
     setActiveSession(null);
     setSelectedSessionId(null);
+    activeSessionRef.current = null;
     setCurrentView('sessions');
     // Ensure sessions panel is visible
     setSessionsPanelCollapsed(false);
@@ -233,90 +240,114 @@ function ShellContent() {
     streamSeqRef.current = 0;
     deltaBufferRef.current = [];
 
-    const sessId = selectedSessionId;
+    // Start the async persistence + streaming pipeline.
+    // Wrapped in an async IIFE so the useCallback itself stays synchronous
+    // (React expects void from event handlers, not a Promise).
+    void (async () => {
+      // Resolve session ID: create a backend session on first message if needed
+      let sessId = selectedSessionId;
+      if (!sessId) {
+        try {
+          const session = await trpcClient.session.create.mutate({
+            title: content.slice(0, SESSION_TITLE_MAX_LENGTH),
+          });
+          sessId = session.id;
+          setSelectedSessionId(sessId);
+          setActiveSession(sessId);
+          activeSessionRef.current = sessId;
+          // Invalidate session list so the new session appears in the left panel immediately
+          void queryClient.invalidateQueries({ queryKey: ['session'] });
+        } catch {
+          // Session creation failed — continue without persistence.
+          // The user still sees their conversation in the UI, but it won't survive a refresh.
+          setError('Could not save session. Your conversation is temporary.');
+          setTimeout(() => setError(null), 5000);
+        }
+      }
 
-    // Flush buffered deltas as a single batch mutation
-    const flushDeltas = () => {
-      if (deltaBufferRef.current.length === 0) return;
-      const deltas = deltaBufferRef.current;
-      deltaBufferRef.current = [];
-      if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+      // Flush buffered deltas as a single batch mutation
+      const flushDeltas = () => {
+        if (deltaBufferRef.current.length === 0) return;
+        const deltas = deltaBufferRef.current;
+        deltaBufferRef.current = [];
+        if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+        if (sessId) {
+          trpcClient.session.streamDeltaBatch.mutate({
+            sessionId: sessId, messageId: assistantMsgId, deltas,
+          }).catch(() => {/* best-effort */});
+        }
+      };
+
+      // Persist user message + start assistant stream (best-effort, don't block UI)
       if (sessId) {
-        trpcClient.session.streamDeltaBatch.mutate({
-          sessionId: sessId, messageId: assistantMsgId, deltas,
+        trpcClient.session.addMessage.mutate({
+          sessionId: sessId,
+          message: { id: userMsgId, role: 'user' as const, content, timestamp: Date.now() },
+        }).catch(() => {/* best-effort */});
+        trpcClient.session.streamStart.mutate({
+          sessionId: sessId, messageId: assistantMsgId,
         }).catch(() => {/* best-effort */});
       }
-    };
 
-    // Persist user message + start assistant stream (best-effort, don't block UI)
-    if (sessId) {
-      trpcClient.session.addMessage.mutate({
-        sessionId: sessId,
-        message: { id: userMsgId, role: 'user' as const, content, timestamp: Date.now() },
-      }).catch(() => {/* best-effort */});
-      trpcClient.session.streamStart.mutate({
-        sessionId: sessId, messageId: assistantMsgId,
-      }).catch(() => {/* best-effort */});
-    }
-
-    const subscription = trpcClient.agent.query.subscribe(
-      { prompt: content },
-      {
-        onData: (data) => {
-          if (data.type === 'token') {
-            appendToStreamingMessage(data.data);
-            // Buffer delta for batched persistence (flushes every 150ms)
-            if (sessId) {
-              deltaBufferRef.current.push({ delta: data.data, seq: streamSeqRef.current++ });
-              if (!flushTimerRef.current) {
-                flushTimerRef.current = setTimeout(flushDeltas, 150);
+      const subscription = trpcClient.agent.query.subscribe(
+        { prompt: content },
+        {
+          onData: (data) => {
+            if (data.type === 'token') {
+              appendToStreamingMessage(data.data);
+              // Buffer delta for batched persistence (flushes every 150ms)
+              if (sessId) {
+                deltaBufferRef.current.push({ delta: data.data, seq: streamSeqRef.current++ });
+                if (!flushTimerRef.current) {
+                  flushTimerRef.current = setTimeout(flushDeltas, 150);
+                }
+              }
+            } else if (data.type === 'done') {
+              // Assemble full content before finishing (Zustand hasn't committed yet)
+              const fullContent = useMessagesStore.getState().streamingContent;
+              finishStreamingMessage();
+              cancelStreamRef.current = null;
+              // Flush remaining deltas then persist finalized message
+              flushDeltas();
+              if (sessId) {
+                trpcClient.session.streamFinalize.mutate({
+                  sessionId: sessId,
+                  messageId: assistantMsgId,
+                  fullContent: fullContent.trim(),
+                  stopReason: 'end_turn',
+                }).catch(() => {/* best-effort */});
+              }
+            } else if (data.type === 'error') {
+              finishStreamingMessage();
+              setError(data.data);
+              cancelStreamRef.current = null;
+              // Flush remaining deltas then persist abort
+              flushDeltas();
+              if (sessId) {
+                trpcClient.session.streamAbort.mutate({
+                  sessionId: sessId, messageId: assistantMsgId, reason: data.data,
+                }).catch(() => {/* best-effort */});
               }
             }
-          } else if (data.type === 'done') {
-            // Assemble full content before finishing (Zustand hasn't committed yet)
-            const fullContent = useMessagesStore.getState().streamingContent;
+          },
+          onError: (err) => {
             finishStreamingMessage();
-            cancelStreamRef.current = null;
-            // Flush remaining deltas then persist finalized message
-            flushDeltas();
-            if (sessId) {
-              trpcClient.session.streamFinalize.mutate({
-                sessionId: sessId,
-                messageId: assistantMsgId,
-                fullContent: fullContent.trim(),
-                stopReason: 'end_turn',
-              }).catch(() => {/* best-effort */});
-            }
-          } else if (data.type === 'error') {
-            finishStreamingMessage();
-            setError(data.data);
+            setError(err instanceof Error ? err.message : String(err));
             cancelStreamRef.current = null;
             // Flush remaining deltas then persist abort
             flushDeltas();
             if (sessId) {
               trpcClient.session.streamAbort.mutate({
-                sessionId: sessId, messageId: assistantMsgId, reason: data.data,
+                sessionId: sessId, messageId: assistantMsgId,
+                reason: err instanceof Error ? err.message : String(err),
               }).catch(() => {/* best-effort */});
             }
-          }
+          },
         },
-        onError: (err) => {
-          finishStreamingMessage();
-          setError(err instanceof Error ? err.message : String(err));
-          cancelStreamRef.current = null;
-          // Flush remaining deltas then persist abort
-          flushDeltas();
-          if (sessId) {
-            trpcClient.session.streamAbort.mutate({
-              sessionId: sessId, messageId: assistantMsgId,
-              reason: err instanceof Error ? err.message : String(err),
-            }).catch(() => {/* best-effort */});
-          }
-        },
-      },
-    );
-    cancelStreamRef.current = () => subscription.unsubscribe();
-  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, selectedSessionId]);
+      );
+      cancelStreamRef.current = () => subscription.unsubscribe();
+    })();
+  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, selectedSessionId, setActiveSession]);
 
   const dismissError = useCallback(() => setError(null), []);
 
