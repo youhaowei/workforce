@@ -4,7 +4,7 @@
  * Each session is stored as a `.jsonl` file with typed records:
  *   header → meta → message | message_start/delta/final/abort
  *
- * JSONL I/O, replay logic, compaction, and append locking are in session-journal.ts.
+ * JSONL I/O, replay logic, consolidation, and append locking are in session-journal.ts.
  */
 
 import { readdir, mkdir, unlink } from 'fs/promises';
@@ -12,11 +12,13 @@ import { join } from 'path';
 import type {
   SessionService,
   Session,
+  SessionSavePatch,
   SessionSearchResult,
   Message,
   WorkAgentConfig,
   LifecycleState,
   SessionLifecycle,
+  HydrationStatus,
   JournalMessage,
   JournalMessageFinal,
   JournalMeta,
@@ -30,10 +32,10 @@ import { debugLog } from '@/shared/debug-log';
 import {
   appendRecord,
   appendRecords,
-  writeRecords,
+  writeRecords as journalWriteRecords,
   replaySession,
   replaySessionMetadata,
-  compactSession,
+  consolidateSession,
   AppendLock,
   JSONL_VERSION,
 } from './session-journal';
@@ -43,6 +45,15 @@ import {
 // =============================================================================
 
 const SESSIONS_DIR = join(getDataDir(), 'sessions');
+
+/** Max concurrent background rehydration workers at startup. */
+const REHYDRATION_CONCURRENCY = 3;
+/** Max retry attempts for a failed rehydration (0 = no retry). */
+const REHYDRATION_MAX_RETRIES = 1;
+/** Delay (ms) before retrying a failed rehydration. */
+const REHYDRATION_RETRY_DELAY_MS = 5_000;
+/** Debounce delay (ms) for consolidation after writes. */
+const CONSOLIDATION_DEBOUNCE_MS = 500;
 
 function generateId(): string {
   return `sess_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -54,16 +65,29 @@ function generateId(): string {
 
 class SessionServiceImpl implements SessionService {
   private sessions = new Map<string, Session>();
-  private fullyLoaded = new Set<string>();
+  private hydrationStatus = new Map<string, HydrationStatus>();
+  private hydrationFlights = new Map<string, Promise<void>>();
   private currentSession: Session | null = null;
   private sessionsDir: string;
   private dataDir: string;
   private initialized = false;
   private appendLock = new AppendLock();
+  private consolidationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private rehydrationConcurrency = { active: 0, max: REHYDRATION_CONCURRENCY };
+  private rehydrationQueue: string[] = [];
+  private _disposed = false;
+  /** Sessions deleted while rehydration was in-flight. Prevents resurrection. */
+  private deletedSessionIds = new Set<string>();
 
   constructor(sessionsDir?: string) {
     this.sessionsDir = sessionsDir ?? SESSIONS_DIR;
     this.dataDir = sessionsDir ? join(sessionsDir, '..') : getDataDir();
+  }
+
+  /** Record a session in the in-memory map with the given hydration status. */
+  private registerSession(session: Session, status: HydrationStatus = 'cold'): void {
+    this.sessions.set(session.id, session);
+    this.hydrationStatus.set(session.id, status);
   }
 
   private async ensureInitialized(): Promise<void> {
@@ -81,8 +105,7 @@ class SessionServiceImpl implements SessionService {
         const sessionId = file.replace('.jsonl', '');
         const session = await replaySessionMetadata(this.sessionsDir, sessionId);
         if (session) {
-          this.sessions.set(sessionId, session);
-          // Note: session.messages is empty — full load deferred to get()
+          this.registerSession(session, 'cold'); // metadata-only; full load deferred
         }
       }
     } catch (err) {
@@ -93,9 +116,129 @@ class SessionServiceImpl implements SessionService {
     }
 
     this.initialized = true;
+
+    // Enqueue background rehydration for all cold sessions
+    this.enqueueRehydration();
   }
 
-  async create(title?: string): Promise<Session> {
+  /**
+   * Fill the rehydration queue with all cold sessions and start draining.
+   * Uses bounded concurrency to avoid overwhelming the disk at startup.
+   */
+  private enqueueRehydration(): void {
+    for (const [id, status] of this.hydrationStatus) {
+      if (status === 'cold') this.rehydrationQueue.push(id);
+    }
+    this.drainRehydrationQueue();
+  }
+
+  /** Cooperative semaphore drain: start workers up to the concurrency limit. */
+  private drainRehydrationQueue(): void {
+    while (
+      !this._disposed &&
+      this.rehydrationQueue.length > 0 &&
+      this.rehydrationConcurrency.active < this.rehydrationConcurrency.max
+    ) {
+      const sessionId = this.rehydrationQueue.shift()!;
+      // Skip if already rehydrated (e.g. by a get() call)
+      if (this.hydrationStatus.get(sessionId) !== 'cold') continue;
+
+      this.rehydrationConcurrency.active++;
+      this.rehydrateAndConsolidate(sessionId).finally(() => {
+        this.rehydrationConcurrency.active--;
+        this.drainRehydrationQueue();
+      });
+    }
+  }
+
+  /**
+   * Full replay + consolidation for a single session. Singleflight: concurrent
+   * calls for the same session share the same in-flight promise.
+   *
+   * The flight promise stays alive through retries so concurrent `get()` calls
+   * always coalesce rather than spawning independent replays.
+   *
+   * State machine: cold → rehydrating → consolidating → ready | failed
+   */
+  private rehydrateAndConsolidate(sessionId: string): Promise<void> {
+    const existing = this.hydrationFlights.get(sessionId);
+    if (existing) return existing;
+
+    const work = (async () => {
+      const bus = getEventBus();
+
+      for (let attempt = 0; attempt <= REHYDRATION_MAX_RETRIES; attempt++) {
+        // Short-circuit if service is shutting down or session was deleted
+        if (this._disposed || this.deletedSessionIds.has(sessionId)) return;
+
+        try {
+          this.hydrationStatus.set(sessionId, 'rehydrating');
+          bus.emit({ type: 'SessionRehydrateStarted', sessionId, timestamp: Date.now() });
+
+          // Full replay — updates in-memory cache with correct metadata + messages
+          const session = await replaySession(this.sessionsDir, sessionId);
+
+          // Re-check after async gap: session may have been deleted during replay
+          if (this.deletedSessionIds.has(sessionId)) return;
+
+          if (!session) {
+            this.hydrationStatus.set(sessionId, 'failed');
+            bus.emit({ type: 'SessionRehydrateFailed', sessionId, error: 'Session file not found', timestamp: Date.now() });
+            return;
+          }
+          this.sessions.set(sessionId, session);
+
+          // Consolidation phase — rewrite JSONL so header is current for future restarts
+          this.hydrationStatus.set(sessionId, 'consolidating');
+          bus.emit({ type: 'SessionConsolidationStarted', sessionId, timestamp: Date.now() });
+
+          await this.appendLock.acquire(sessionId, async () => {
+            // Final check inside the lock: don't recreate a deleted file
+            if (this.deletedSessionIds.has(sessionId)) return;
+            await consolidateSession(this.sessionsDir, session);
+          });
+
+          // Don't mark ready if deleted during consolidation
+          if (this.deletedSessionIds.has(sessionId)) {
+            // Clean up the session that was reinserted before the delete check
+            this.sessions.delete(sessionId);
+            this.hydrationStatus.delete(sessionId);
+            return;
+          }
+
+          this.hydrationStatus.set(sessionId, 'ready');
+          bus.emit({ type: 'SessionRehydrateDone', sessionId, timestamp: Date.now() });
+          debugLog('Session', `Rehydrated session ${sessionId}`);
+          return; // Success — exit retry loop
+        } catch (err) {
+          debugLog('Session', `Rehydration failed for ${sessionId} (attempt ${attempt + 1})`, err);
+
+          if (attempt < REHYDRATION_MAX_RETRIES) {
+            // Reset to cold for retry, but keep the flight promise alive
+            this.hydrationStatus.set(sessionId, 'cold');
+            await new Promise((resolve) => setTimeout(resolve, REHYDRATION_RETRY_DELAY_MS));
+            continue;
+          }
+
+          // All retries exhausted
+          this.hydrationStatus.set(sessionId, 'failed');
+          bus.emit({
+            type: 'SessionRehydrateFailed', sessionId,
+            error: err instanceof Error ? err.message : String(err),
+            timestamp: Date.now(),
+          });
+        }
+      }
+    })();
+
+    // Flight promise covers the entire retry loop — never deleted mid-retry
+    this.hydrationFlights.set(sessionId, work.finally(() => {
+      this.hydrationFlights.delete(sessionId);
+    }));
+    return work;
+  }
+
+  async create(title?: string, parentId?: string): Promise<Session> {
     await this.ensureInitialized();
     const now = Date.now();
     const session: Session = {
@@ -103,15 +246,15 @@ class SessionServiceImpl implements SessionService {
       title,
       createdAt: now,
       updatedAt: now,
+      parentId,
       messages: [],
       metadata: {},
     };
 
-    this.sessions.set(session.id, session);
-    this.fullyLoaded.add(session.id);
-    await writeRecords(this.sessionsDir, session.id, [{
+    this.registerSession(session, 'ready');
+    await journalWriteRecords(this.sessionsDir, session.id, [{
       t: 'header', v: JSONL_VERSION, id: session.id, title: session.title,
-      createdAt: now, updatedAt: now, metadata: {},
+      createdAt: now, updatedAt: now, parentId, metadata: {},
     }]);
 
     getEventBus().emit({ type: 'SessionChange', sessionId: session.id, action: 'created', timestamp: now });
@@ -121,33 +264,52 @@ class SessionServiceImpl implements SessionService {
   async get(sessionId: string): Promise<Session | null> {
     await this.ensureInitialized();
 
-    // If already fully loaded, return from cache
-    if (this.fullyLoaded.has(sessionId)) {
+    const status = this.hydrationStatus.get(sessionId);
+
+    // Already fully hydrated — return from cache
+    if (status === 'ready') {
       return this.sessions.get(sessionId) ?? null;
     }
 
-    // Full replay to get messages (replaces metadata-only entry if present)
-    const session = await replaySession(this.sessionsDir, sessionId);
-    if (session) {
-      this.sessions.set(sessionId, session);
-      this.fullyLoaded.add(sessionId);
+    // If background rehydration is already in-flight, await it
+    const flight = this.hydrationFlights.get(sessionId);
+    if (flight) {
+      await flight;
+      return this.sessions.get(sessionId) ?? null;
     }
+
+    // No flight in progress — do a full replay ourselves
+    const session = await replaySession(this.sessionsDir, sessionId);
+    if (!session) return null;
+
+    this.sessions.set(sessionId, session);
+    this.hydrationStatus.set(sessionId, 'ready');
+
+    // Fire-and-forget background consolidation (header rewrite)
+    this.scheduleConsolidation(sessionId);
+
     return session;
   }
 
-  async save(session: Session): Promise<void> {
+  async updateSession(sessionId: string, patch: SessionSavePatch): Promise<void> {
     await this.ensureInitialized();
+    const session = this.sessions.get(sessionId);
+    if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+    // Apply only mutable fields — parentId is immutable and untouched.
+    if (patch.title !== undefined) session.title = patch.title;
+    if (patch.metadata !== undefined) {
+      // Strip any legacy parentId from metadata (parentId lives on Session, not metadata)
+      const { parentId: _drop, ...cleanMetadata } = patch.metadata as Record<string, unknown>;
+      session.metadata = cleanMetadata;
+    }
     session.updatedAt = Date.now();
-    this.sessions.set(session.id, session);
 
-    const patch: Record<string, unknown> = { title: session.title, ...session.metadata };
-    if (session.parentId !== undefined) patch.parentId = session.parentId;
+    const patchRecord: Record<string, unknown> = { title: session.title, ...session.metadata };
 
-    await this.appendLock.acquire(session.id, () =>
-      appendRecord(this.sessionsDir, session.id, {
-        t: 'meta', updatedAt: session.updatedAt, patch,
-      } satisfies JournalMeta),
-    );
+    await this.writeRecords(sessionId, [{
+      t: 'meta', updatedAt: session.updatedAt, patch: patchRecord,
+    } satisfies JournalMeta], true);
   }
 
   async resume(sessionId: string): Promise<Session> {
@@ -170,8 +332,7 @@ class SessionServiceImpl implements SessionService {
       messages: [...parent.messages], metadata: { ...parent.metadata },
     };
 
-    this.sessions.set(forked.id, forked);
-    this.fullyLoaded.add(forked.id);
+    this.registerSession(forked, 'ready');
     const records: JournalRecord[] = [
       { t: 'header', v: JSONL_VERSION, id: forked.id, title: forked.title,
         createdAt: now, updatedAt: now, parentId: parent.id, metadata: forked.metadata },
@@ -181,7 +342,7 @@ class SessionServiceImpl implements SessionService {
           : { t: 'message', id: m.id, role: m.role, content: m.content, timestamp: m.timestamp, toolCalls: m.toolCalls, toolResults: m.toolResults },
       ),
     ];
-    await writeRecords(this.sessionsDir, forked.id, records);
+    await journalWriteRecords(this.sessionsDir, forked.id, records);
     getEventBus().emit({ type: 'SessionChange', sessionId: forked.id, action: 'created', timestamp: now });
     return forked;
   }
@@ -225,73 +386,87 @@ class SessionServiceImpl implements SessionService {
     const session = this.sessions.get(sessionId);
     if (!session) return;
 
+    // Mark as deleted BEFORE clearing state — prevents in-flight rehydration
+    // from resurrecting the session or recreating the JSONL file.
+    this.deletedSessionIds.add(sessionId);
+
+    // Cancel any pending consolidation timer so it doesn't recreate the file
+    const timer = this.consolidationTimers.get(sessionId);
+    if (timer) {
+      clearTimeout(timer);
+      this.consolidationTimers.delete(sessionId);
+    }
+
     this.sessions.delete(sessionId);
+    this.hydrationStatus.delete(sessionId);
+    this.hydrationFlights.delete(sessionId);
     if (this.currentSession?.id === sessionId) this.currentSession = null;
     try { await unlink(join(this.sessionsDir, `${sessionId}.jsonl`)); } catch { /* ignore */ }
     getEventBus().emit({ type: 'SessionChange', sessionId, action: 'terminated', timestamp: Date.now() });
   }
 
-  async addMessage(sessionId: string, message: Message): Promise<void> {
+  async recordMessage(sessionId: string, message: Message): Promise<void> {
     const session = await this.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
 
-    session.messages.push(message);
-    session.updatedAt = Date.now();
-    await this.appendLock.acquire(sessionId, () =>
-      appendRecord(this.sessionsDir, sessionId, {
-        t: 'message', id: message.id, role: message.role, content: message.content,
-        timestamp: message.timestamp, toolCalls: message.toolCalls, toolResults: message.toolResults,
-      } satisfies JournalMessage),
-    );
+    // Ensure the record timestamp is at least Date.now() so durable updatedAt
+    // always advances, even if the caller passes an old message.timestamp.
+    const ts = Math.max(message.timestamp, Date.now());
+    const record: JournalMessage = {
+      t: 'message', id: message.id, role: message.role, content: message.content,
+      timestamp: ts, toolCalls: message.toolCalls, toolResults: message.toolResults,
+    };
+
+    // Mutate in-memory state inside the lock to prevent data-race with consolidation,
+    // which reads session.messages under the same lock.
+    await this.appendLock.acquire(sessionId, async () => {
+      session.messages.push({ ...message, timestamp: ts });
+      session.updatedAt = ts;
+      await appendRecord(this.sessionsDir, sessionId, record);
+    });
+    this.scheduleConsolidation(sessionId);
   }
 
   getCurrent(): Session | null { return this.currentSession; }
   setCurrent(session: Session | null): void { this.currentSession = session; }
 
-  // ─── Streaming Persistence ──────────────────────────────────────────
+  // ─── Streaming Records ─────────────────────────────────────────────
 
-  async startAssistantStream(sessionId: string, messageId: string, meta?: Record<string, unknown>): Promise<void> {
+  async recordStreamStart(sessionId: string, messageId: string, meta?: Record<string, unknown>): Promise<void> {
     await this.ensureInitialized();
     if (!this.sessions.has(sessionId)) throw new Error(`Session not found: ${sessionId}`);
-    await this.appendLock.acquire(sessionId, () =>
-      appendRecord(this.sessionsDir, sessionId, { t: 'message_start', id: messageId, role: 'assistant', timestamp: Date.now(), meta }),
-    );
+    await this.writeRecords(sessionId, [{ t: 'message_start', id: messageId, role: 'assistant', timestamp: Date.now(), meta }]);
   }
 
-  async appendAssistantDelta(sessionId: string, messageId: string, delta: string, seq: number): Promise<void> {
-    await this.appendLock.acquire(sessionId, () =>
-      appendRecord(this.sessionsDir, sessionId, { t: 'message_delta', id: messageId, delta, seq }),
-    );
+  async recordStreamDelta(sessionId: string, messageId: string, delta: string, seq: number): Promise<void> {
+    await this.writeRecords(sessionId, [{ t: 'message_delta', id: messageId, delta, seq }]);
   }
 
-  async appendAssistantDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>): Promise<void> {
+  async recordStreamDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>): Promise<void> {
     if (deltas.length === 0) return;
-    const records = deltas.map((d) => ({ t: 'message_delta' as const, id: messageId, delta: d.delta, seq: d.seq }));
-    await this.appendLock.acquire(sessionId, () =>
-      appendRecords(this.sessionsDir, sessionId, records),
-    );
+    await this.writeRecords(sessionId, deltas.map((d) => ({ t: 'message_delta' as const, id: messageId, delta: d.delta, seq: d.seq })));
   }
 
-  async finalizeAssistantMessage(sessionId: string, messageId: string, fullContent: string, stopReason: string): Promise<void> {
+  async recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
 
     const now = Date.now();
-    session.messages.push({ id: messageId, role: 'assistant', content: fullContent, timestamp: now });
-    session.updatedAt = now;
+    const record: JournalMessageFinal = {
+      t: 'message_final', id: messageId, role: 'assistant', content: fullContent, timestamp: now, stopReason,
+    };
 
-    await this.appendLock.acquire(sessionId, () =>
-      appendRecord(this.sessionsDir, sessionId, {
-        t: 'message_final', id: messageId, role: 'assistant', content: fullContent, timestamp: now, stopReason,
-      } satisfies JournalMessageFinal),
-    );
-    this.scheduleCompaction(sessionId);
+    // Mutate in-memory state inside the lock to prevent data-race with consolidation
+    await this.appendLock.acquire(sessionId, async () => {
+      session.messages.push({ id: messageId, role: 'assistant', content: fullContent, timestamp: now });
+      session.updatedAt = now;
+      await appendRecord(this.sessionsDir, sessionId, record);
+    });
+    this.scheduleConsolidation(sessionId);
   }
 
-  async abortAssistantStream(sessionId: string, messageId: string, reason: string): Promise<void> {
-    await this.appendLock.acquire(sessionId, () =>
-      appendRecord(this.sessionsDir, sessionId, { t: 'message_abort', id: messageId, reason, timestamp: Date.now() }),
-    );
+  async recordStreamAbort(sessionId: string, messageId: string, reason: string): Promise<void> {
+    await this.writeRecords(sessionId, [{ t: 'message_abort', id: messageId, reason, timestamp: Date.now() }]);
   }
 
   async getMessages(sessionId: string, options?: { limit?: number; offset?: number }): Promise<Message[]> {
@@ -315,11 +490,10 @@ class SessionServiceImpl implements SessionService {
       worktreePath: config.worktreePath, orgId: config.orgId, repoRoot: config.repoRoot,
     };
 
-    const session: Session = { id: generateId(), title: config.goal, createdAt: now, updatedAt: now, messages: [], metadata };
-    this.sessions.set(session.id, session);
-    this.fullyLoaded.add(session.id);
-    await writeRecords(this.sessionsDir, session.id, [{
-      t: 'header', v: JSONL_VERSION, id: session.id, title: session.title, createdAt: now, updatedAt: now, metadata,
+    const session: Session = { id: generateId(), title: config.goal, createdAt: now, updatedAt: now, parentId: config.parentId, messages: [], metadata };
+    this.registerSession(session, 'ready');
+    await journalWriteRecords(this.sessionsDir, session.id, [{
+      t: 'header', v: JSONL_VERSION, id: session.id, title: session.title, createdAt: now, updatedAt: now, parentId: config.parentId, metadata,
     }]);
     getEventBus().emit({ type: 'SessionChange', sessionId: session.id, action: 'created', timestamp: now });
     return session;
@@ -348,9 +522,7 @@ class SessionServiceImpl implements SessionService {
     session.metadata = { ...session.metadata, lifecycle: updatedLifecycle };
     session.updatedAt = now;
 
-    await this.appendLock.acquire(sessionId, () =>
-      appendRecord(this.sessionsDir, sessionId, { t: 'meta', updatedAt: now, patch: { lifecycle: updatedLifecycle } } satisfies JournalMeta),
-    );
+    await this.writeRecords(sessionId, [{ t: 'meta', updatedAt: now, patch: { lifecycle: updatedLifecycle } } satisfies JournalMeta]);
     getEventBus().emit({ type: 'LifecycleTransition', sessionId, from: currentState, to: newState, reason, actor, timestamp: now });
     return session;
   }
@@ -372,28 +544,66 @@ class SessionServiceImpl implements SessionService {
       .sort((a, b) => b.createdAt - a.createdAt);
   }
 
-  // ─── Compaction ─────────────────────────────────────────────────────
+  // ─── Hydration Status ──────────────────────────────────────────────
 
-  private scheduleCompaction(sessionId: string): void {
-    setTimeout(async () => {
+  getHydrationStatus(sessionId: string): HydrationStatus {
+    return this.hydrationStatus.get(sessionId) ?? 'cold';
+  }
+
+  // ─── Write Path ────────────────────────────────────────────────────
+
+  /** Lock → write → optionally consolidate. All record writes go through here. */
+  private async writeRecords(sessionId: string, records: JournalRecord[], consolidate = false): Promise<void> {
+    if (records.length === 0) return;
+    await this.appendLock.acquire(sessionId, () =>
+      records.length === 1
+        ? appendRecord(this.sessionsDir, sessionId, records[0])
+        : appendRecords(this.sessionsDir, sessionId, records),
+    );
+    if (consolidate) this.scheduleConsolidation(sessionId);
+  }
+
+  /**
+   * Debounced per-session consolidation. Multiple calls within the delay window
+   * coalesce into a single consolidation — so a user message → assistant stream →
+   * finalize sequence produces one disk rewrite, not three.
+   */
+  private scheduleConsolidation(sessionId: string): void {
+    const existing = this.consolidationTimers.get(sessionId);
+    if (existing) clearTimeout(existing);
+
+    const timer = setTimeout(async () => {
+      this.consolidationTimers.delete(sessionId);
       try {
+        // Skip if session was deleted while the timer was pending
+        if (this.deletedSessionIds.has(sessionId)) return;
         const session = this.sessions.get(sessionId);
         if (session) {
-          // Acquire append lock so compaction can't race with concurrent writes
-          await this.appendLock.acquire(sessionId, () =>
-            compactSession(this.sessionsDir, session),
-          );
-          debugLog('Session', `Compacted session ${sessionId}`);
+          await this.appendLock.acquire(sessionId, async () => {
+            // Re-check inside lock: delete() may have run while we waited
+            if (this.deletedSessionIds.has(sessionId)) return;
+            await consolidateSession(this.sessionsDir, session);
+          });
+          debugLog('Session', `Consolidated session ${sessionId}`);
         }
       } catch (err) {
-        debugLog('Session', `Compaction failed for ${sessionId}`, err);
+        debugLog('Session', `Consolidation failed for ${sessionId}`, err);
       }
-    }, 100);
+    }, CONSOLIDATION_DEBOUNCE_MS);
+
+    this.consolidationTimers.set(sessionId, timer);
   }
 
   dispose(): void {
+    this._disposed = true; // Signal in-flight rehydrations to stop
+    for (const timer of this.consolidationTimers.values()) clearTimeout(timer);
+    this.consolidationTimers.clear();
     this.sessions.clear();
-    this.fullyLoaded.clear();
+    this.hydrationStatus.clear();
+    this.hydrationFlights.clear();
+    this.deletedSessionIds.clear();
+    this.rehydrationQueue.length = 0;
+    this.rehydrationConcurrency.active = 0;
     this.currentSession = null;
     this.initialized = false;
     this.appendLock.clear();
@@ -419,4 +629,4 @@ export function createSessionService(sessionsDir: string): SessionService {
 }
 
 // Re-export journal internals for testing
-export { replaySession, replaySessionMetadata, appendRecord, appendRecords, writeRecords, compactSession, JSONL_VERSION, AppendLock } from './session-journal';
+export { replaySession, replaySessionMetadata, appendRecord, appendRecords, writeRecords, consolidateSession, JSONL_VERSION, AppendLock } from './session-journal';

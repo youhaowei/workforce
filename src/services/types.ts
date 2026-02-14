@@ -133,6 +133,8 @@ export interface WorkAgentConfig {
   orgId: string;
   /** Absolute path to the org project root (for worktree isolation) */
   repoRoot?: string;
+  /** Immutable parent session ID (set at creation, never mutated). */
+  parentId?: string;
 }
 
 /** Valid lifecycle state transitions */
@@ -172,6 +174,11 @@ export interface SessionSearchResult {
   session: Session;
   matchedText: string;
   score: number;
+}
+
+export interface SessionSavePatch {
+  title?: string;
+  metadata?: Record<string, unknown>;
 }
 
 // =============================================================================
@@ -254,11 +261,16 @@ export type JournalRecord =
   | JournalMessageAbort
   | JournalMeta;
 
+/** Runtime-only hydration status for a session (not persisted on Session type). */
+export type HydrationStatus = 'cold' | 'rehydrating' | 'consolidating' | 'ready' | 'failed';
+
 export interface SessionService extends Disposable {
   /**
    * Create a new session.
+   * @param title Optional session title.
+   * @param parentId Immutable parent session ID (set once in the header record).
    */
-  create(title?: string): Promise<Session>;
+  create(title?: string, parentId?: string): Promise<Session>;
 
   /**
    * Get a session by ID.
@@ -266,9 +278,10 @@ export interface SessionService extends Disposable {
   get(sessionId: string): Promise<Session | null>;
 
   /**
-   * Save/update a session (incremental append).
+   * Update a session's title or metadata via a patch (incremental append).
+   * Lineage (`parentId`) is immutable and cannot be patched.
    */
-  save(session: Session): Promise<void>;
+  updateSession(sessionId: string, patch: SessionSavePatch): Promise<void>;
 
   /**
    * Resume an existing session.
@@ -333,54 +346,41 @@ export interface SessionService extends Disposable {
   getChildren(parentSessionId: string): Promise<Session[]>;
 
   /**
-   * Add a single message to a session (user/system messages).
-   * Appends a `message` record to the JSONL file.
+   * Record a complete message (user/system).
    */
-  addMessage(sessionId: string, message: Message): Promise<void>;
+  recordMessage(sessionId: string, message: Message): Promise<void>;
 
   // ---------------------------------------------------------------------------
-  // Streaming Persistence (JSONL delta tracking)
+  // Streaming Records
   // ---------------------------------------------------------------------------
 
-  /**
-   * Mark the start of an assistant streaming response.
-   * Appends a `message_start` record to the JSONL file.
-   */
-  startAssistantStream(sessionId: string, messageId: string, meta?: Record<string, unknown>): Promise<void>;
+  /** Record the start of an assistant streaming response. */
+  recordStreamStart(sessionId: string, messageId: string, meta?: Record<string, unknown>): Promise<void>;
 
-  /**
-   * Append a streaming token delta.
-   * Appends a `message_delta` record with a sequence number.
-   */
-  appendAssistantDelta(sessionId: string, messageId: string, delta: string, seq: number): Promise<void>;
+  /** Record a streaming token delta. */
+  recordStreamDelta(sessionId: string, messageId: string, delta: string, seq: number): Promise<void>;
 
-  /**
-   * Append multiple deltas in a single I/O operation (batch variant of appendAssistantDelta).
-   * Reduces write amplification when flushing buffered client-side deltas.
-   */
-  appendAssistantDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>): Promise<void>;
+  /** Record multiple deltas in a single I/O operation (batch flush). */
+  recordStreamDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>): Promise<void>;
 
-  /**
-   * Finalize an assistant message with the full authoritative content.
-   * Appends a `message_final` record. This is the source of truth on replay.
-   */
-  finalizeAssistantMessage(
-    sessionId: string,
-    messageId: string,
-    fullContent: string,
-    stopReason: string,
-  ): Promise<void>;
+  /** Record the finalized assistant message. Source of truth on replay. */
+  recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string): Promise<void>;
 
-  /**
-   * Abort an in-progress assistant stream.
-   * Appends a `message_abort` record with the reason.
-   */
-  abortAssistantStream(sessionId: string, messageId: string, reason: string): Promise<void>;
+  /** Record an aborted assistant stream. */
+  recordStreamAbort(sessionId: string, messageId: string, reason: string): Promise<void>;
 
   /**
    * Read messages for a session with optional pagination.
    */
   getMessages(sessionId: string, options?: { limit?: number; offset?: number }): Promise<Message[]>;
+
+  /**
+   * Get the runtime hydration status of a session.
+   * Sessions start as 'cold' (header-only) after restart and progress to 'ready'
+   * after background rehydration + consolidation. Sessions created during this
+   * runtime start as 'ready' immediately.
+   */
+  getHydrationStatus(sessionId: string): HydrationStatus;
 }
 
 // =============================================================================
@@ -994,4 +994,3 @@ export interface OrchestrationService extends Disposable {
   getActiveInstances(): Map<string, unknown>;
   executeWorkflow(workflowId: string, orgId: string): Promise<Session>;
 }
-

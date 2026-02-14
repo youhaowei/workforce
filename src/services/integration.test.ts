@@ -197,13 +197,13 @@ describe('Session + Git integration', () => {
     const session = await sessionService.create();
 
     // Store git context in metadata (simulating real usage)
-    session.metadata = {
-      ...(session.metadata ?? {}),
-      gitBranch: status!.branch,
-      gitIsClean: status!.isClean,
-    };
-
-    await sessionService.save(session);
+    await sessionService.updateSession(session.id, {
+      metadata: {
+        ...(session.metadata ?? {}),
+        gitBranch: status!.branch,
+        gitIsClean: status!.isClean,
+      },
+    });
 
     // Reload and verify
     const loaded = await sessionService.get(session.id);

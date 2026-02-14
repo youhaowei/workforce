@@ -322,6 +322,35 @@ export interface AgentSpawnedEvent {
   timestamp: number;
 }
 
+/** Session rehydration started (background full replay begins) */
+export interface SessionRehydrateStartedEvent {
+  type: 'SessionRehydrateStarted';
+  sessionId: string;
+  timestamp: number;
+}
+
+/** Session rehydration completed (full replay + consolidation done) */
+export interface SessionRehydrateDoneEvent {
+  type: 'SessionRehydrateDone';
+  sessionId: string;
+  timestamp: number;
+}
+
+/** Session rehydration failed */
+export interface SessionRehydrateFailedEvent {
+  type: 'SessionRehydrateFailed';
+  sessionId: string;
+  error: string;
+  timestamp: number;
+}
+
+/** Session consolidation phase started (after replay, before file rewrite) */
+export interface SessionConsolidationStartedEvent {
+  type: 'SessionConsolidationStarted';
+  sessionId: string;
+  timestamp: number;
+}
+
 /** Audit entry recorded */
 export interface AuditEntryEvent {
   type: 'AuditEntry';
@@ -366,7 +395,12 @@ export type BusEvent =
   | ReviewItemChangeEvent
   | WorktreeChangeEvent
   | AgentSpawnedEvent
-  | AuditEntryEvent;
+  | AuditEntryEvent
+  // Session rehydration events
+  | SessionRehydrateStartedEvent
+  | SessionRehydrateDoneEvent
+  | SessionRehydrateFailedEvent
+  | SessionConsolidationStartedEvent;
 
 export const EventType = {
   TokenDelta: 'TokenDelta',
@@ -402,6 +436,11 @@ export const EventType = {
   WorktreeChange: 'WorktreeChange',
   AgentSpawned: 'AgentSpawned',
   AuditEntry: 'AuditEntry',
+  // Session rehydration events
+  SessionRehydrateStarted: 'SessionRehydrateStarted',
+  SessionRehydrateDone: 'SessionRehydrateDone',
+  SessionRehydrateFailed: 'SessionRehydrateFailed',
+  SessionConsolidationStarted: 'SessionConsolidationStarted',
   Wildcard: '*',
 } as const;
 

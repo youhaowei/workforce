@@ -60,7 +60,7 @@ class OrchestrationServiceImpl implements OrchestrationService {
       : null;
     const repoRoot = org?.rootPath ?? process.cwd();
 
-    // 2. Create WorkAgent session
+    // 2. Create WorkAgent session (parentId is immutable lineage, set at creation)
     const session = await this.sessionService.createWorkAgent({
       templateId,
       goal,
@@ -68,13 +68,8 @@ class OrchestrationServiceImpl implements OrchestrationService {
       workflowId: options.workflowId,
       workflowStepIndex: options.workflowStepIndex,
       repoRoot,
+      parentId: parentSessionId,
     });
-
-    // Set parentId if provided
-    if (parentSessionId) {
-      session.parentId = parentSessionId;
-      await this.sessionService.save(session);
-    }
 
     // 3. Create worktree if requested
     let cwd = repoRoot;
@@ -83,8 +78,9 @@ class OrchestrationServiceImpl implements OrchestrationService {
       cwd = worktreeInfo.path;
 
       // Update session metadata with worktree path
-      session.metadata = { ...session.metadata, worktreePath: worktreeInfo.path };
-      await this.sessionService.save(session);
+      await this.sessionService.updateSession(session.id, {
+        metadata: { ...session.metadata, worktreePath: worktreeInfo.path },
+      });
     }
 
     // 4. Compose system prompt from template
@@ -304,8 +300,9 @@ class OrchestrationServiceImpl implements OrchestrationService {
       const output = tokens.join('');
       const session = await this.sessionService.get(sessionId);
       if (session) {
-        session.metadata = { ...session.metadata, output, completionSummary: output.slice(0, 500) };
-        await this.sessionService.save(session);
+        await this.sessionService.updateSession(sessionId, {
+          metadata: { ...session.metadata, output, completionSummary: output.slice(0, 500) },
+        });
       }
 
       await this.sessionService.transitionState(sessionId, 'completed', 'Agent finished', 'system');

@@ -1,5 +1,5 @@
 /**
- * Session Journal — JSONL I/O, replay, and compaction.
+ * Session Journal — JSONL I/O, replay, and consolidation.
  *
  * Extracted from session.ts to keep file sizes manageable and reduce
  * cyclomatic complexity in the replay function.
@@ -38,7 +38,7 @@ export async function appendRecords(sessionsDir: string, sessionId: string, reco
   await appendFile(filePath, content, 'utf-8');
 }
 
-/** Write a complete JSONL file from an array of records (used by create, fork, compaction). */
+/** Write a complete JSONL file from an array of records (used by create, fork, consolidation). */
 export async function writeRecords(sessionsDir: string, sessionId: string, records: JournalRecord[]): Promise<void> {
   await mkdir(sessionsDir, { recursive: true });
   const filePath = join(sessionsDir, `${sessionId}.jsonl`);
@@ -93,10 +93,12 @@ function processMessageRecord(ctx: ReplayContext, record: JournalRecord & { t: '
     toolCalls: record.toolCalls,
     toolResults: record.toolResults,
   });
+  if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
 }
 
 function processMessageStart(ctx: ReplayContext, record: JournalRecord & { t: 'message_start' }): void {
   ctx.activeStreams.set(record.id, { deltas: [], timestamp: record.timestamp });
+  if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
 }
 
 function processMessageDelta(ctx: ReplayContext, record: JournalRecord & { t: 'message_delta' }): void {
@@ -117,6 +119,7 @@ function processMessageFinal(ctx: ReplayContext, record: JournalRecord & { t: 'm
     toolCalls: record.toolCalls,
     toolResults: record.toolResults,
   });
+  if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
 }
 
 function processMessageAbort(ctx: ReplayContext, record: JournalRecord & { t: 'message_abort' }): void {
@@ -133,6 +136,7 @@ function processMessageAbort(ctx: ReplayContext, record: JournalRecord & { t: 'm
     }
   }
   ctx.activeStreams.delete(record.id);
+  if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
 }
 
 function applyRecord(ctx: ReplayContext, record: JournalRecord): void {
@@ -248,8 +252,15 @@ export async function replaySession(sessionsDir: string, sessionId: string): Pro
 }
 
 /**
- * Replay only header and meta records to build a lightweight Session (no messages).
- * Used at startup to populate the session list without loading full message histories.
+ * Build a lightweight Session from the JSONL header alone (no messages).
+ *
+ * Used at startup to populate the session list without loading full message
+ * histories. Because consolidation rewrites the header with the latest title,
+ * metadata, and updatedAt after every finalized assistant message, the header
+ * is almost always current. The only staleness window is between a `meta`
+ * record write and the next consolidation cycle — at most one user turn — which
+ * is acceptable for a sidebar listing. On-demand `get()` (full replay) always
+ * returns the exact state.
  */
 export async function replaySessionMetadata(sessionsDir: string, sessionId: string): Promise<Session | null> {
   const filePath = join(sessionsDir, `${sessionId}.jsonl`);
@@ -262,13 +273,15 @@ export async function replaySessionMetadata(sessionsDir: string, sessionId: stri
     throw err;
   }
 
-  const lines = raw.split('\n').filter((l) => l.trim().length > 0);
-  if (lines.length === 0) return null;
+  // Only parse the first line (header). Everything else is deferred to full replay.
+  const newlineIdx = raw.indexOf('\n');
+  const headerLine = newlineIdx === -1 ? raw.trim() : raw.slice(0, newlineIdx).trim();
+  if (headerLine.length === 0) return null;
 
-  const header = await parseHeader(sessionsDir, sessionId, lines[0]);
+  const header = await parseHeader(sessionsDir, sessionId, headerLine);
   if (!header) return null;
 
-  const session: Session = {
+  return {
     id: header.id,
     title: header.title,
     createdAt: header.createdAt,
@@ -277,41 +290,20 @@ export async function replaySessionMetadata(sessionsDir: string, sessionId: stri
     messages: [],
     metadata: { ...header.metadata },
   };
-
-  // Only process meta records — skip all message/delta/final/abort records
-  for (let i = 1; i < lines.length; i++) {
-    try {
-      const record = JSON.parse(lines[i]) as JournalRecord;
-      if (record.t === 'meta') {
-        session.updatedAt = record.updatedAt;
-        if ('title' in record.patch && typeof record.patch.title === 'string') {
-          session.title = record.patch.title;
-        }
-        if ('parentId' in record.patch && typeof record.patch.parentId === 'string') {
-          session.parentId = record.patch.parentId;
-        }
-        Object.assign(session.metadata, record.patch);
-      }
-    } catch {
-      // Skip malformed lines
-    }
-  }
-
-  return session;
 }
 
 // =============================================================================
-// Compaction
+// Consolidation
 // =============================================================================
 
 /**
- * Compact a session's JSONL by:
+ * Consolidate a session's JSONL by:
  * - Keeping one header with latest metadata state.
  * - Keeping `message` and `message_final` records.
  * - Dropping superseded deltas for finalized messages.
  * - Atomic rewrite via .tmp + rename.
  */
-export async function compactSession(sessionsDir: string, session: Session): Promise<void> {
+export async function consolidateSession(sessionsDir: string, session: Session): Promise<void> {
   const records: JournalRecord[] = [];
 
   records.push({
@@ -333,7 +325,7 @@ export async function compactSession(sessionsDir: string, session: Session): Pro
         role: 'assistant',
         content: msg.content,
         timestamp: msg.timestamp,
-        stopReason: 'compacted',
+        stopReason: 'consolidated',
         toolCalls: msg.toolCalls,
         toolResults: msg.toolResults,
       } satisfies JournalMessageFinal);

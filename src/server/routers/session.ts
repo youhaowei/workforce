@@ -81,7 +81,7 @@ export const sessionRouter = router({
       }),
     }))
     .mutation(({ input }) =>
-      getSessionService().addMessage(input.sessionId, input.message),
+      getSessionService().recordMessage(input.sessionId, input.message),
     ),
 
   // ─── Stream lifecycle ───────────────────────────────────────────────
@@ -93,7 +93,7 @@ export const sessionRouter = router({
       meta: z.record(z.unknown()).optional(),
     }))
     .mutation(({ input }) =>
-      getSessionService().startAssistantStream(input.sessionId, input.messageId, input.meta),
+      getSessionService().recordStreamStart(input.sessionId, input.messageId, input.meta),
     ),
 
   streamDelta: publicProcedure
@@ -104,7 +104,7 @@ export const sessionRouter = router({
       seq: z.number(),
     }))
     .mutation(({ input }) =>
-      getSessionService().appendAssistantDelta(input.sessionId, input.messageId, input.delta, input.seq),
+      getSessionService().recordStreamDelta(input.sessionId, input.messageId, input.delta, input.seq),
     ),
 
   streamDeltaBatch: publicProcedure
@@ -114,7 +114,7 @@ export const sessionRouter = router({
       deltas: z.array(z.object({ delta: z.string(), seq: z.number() })),
     }))
     .mutation(({ input }) =>
-      getSessionService().appendAssistantDeltaBatch(input.sessionId, input.messageId, input.deltas),
+      getSessionService().recordStreamDeltaBatch(input.sessionId, input.messageId, input.deltas),
     ),
 
   streamFinalize: publicProcedure
@@ -125,7 +125,7 @@ export const sessionRouter = router({
       stopReason: z.string(),
     }))
     .mutation(({ input }) =>
-      getSessionService().finalizeAssistantMessage(
+      getSessionService().recordStreamEnd(
         input.sessionId, input.messageId, input.fullContent, input.stopReason,
       ),
     ),
@@ -137,7 +137,7 @@ export const sessionRouter = router({
       reason: z.string(),
     }))
     .mutation(({ input }) =>
-      getSessionService().abortAssistantStream(input.sessionId, input.messageId, input.reason),
+      getSessionService().recordStreamAbort(input.sessionId, input.messageId, input.reason),
     ),
 
   // ─── Messages ───────────────────────────────────────────────────────
