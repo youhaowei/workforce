@@ -197,7 +197,13 @@ function ShellContent() {
       if (intendedSessionRef.current === sessionId && msgs.length > 0) {
         loadMessages(msgs);
       }
-    }).catch(() => { /* session may have been deleted */ });
+    }).catch(() => { /* session may have been deleted */ })
+      .finally(() => {
+        // Clear the dedup guard so clicking the same session again will re-fetch
+        if (intendedSessionRef.current === sessionId) {
+          intendedSessionRef.current = null;
+        }
+      });
   }, [clearMessages, setActiveSession, loadMessages]);
 
   const handleCreateSession = useCallback(() => {
@@ -263,6 +269,11 @@ function ShellContent() {
       clearMessages();
       setCurrentView('home');
       localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
+    }).finally(() => {
+      // Clear dedup guard so clicking the same session in the panel works
+      if (intendedSessionRef.current === selectedSessionId) {
+        intendedSessionRef.current = null;
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fires once when server is first available
   }, [serverConnected]);
