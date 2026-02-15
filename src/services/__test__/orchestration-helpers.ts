@@ -5,6 +5,7 @@
 import { getEventBus } from '@/shared/event-bus';
 import type {
   Session,
+  SessionSummary,
   SessionService,
   Message,
   TemplateService,
@@ -60,6 +61,16 @@ export function mockTemplate(overrides: Partial<AgentTemplate> = {}): AgentTempl
 export function createMockSessionService(): SessionService {
   const sessions = new Map<string, Session>();
   let currentSession: Session | null = null;
+  const toSummary = (session: Session): SessionSummary => ({
+    id: session.id,
+    title: session.title,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    parentId: session.parentId,
+    metadata: session.metadata,
+    messageCount: session.messages.length,
+    lastMessagePreview: session.messages[session.messages.length - 1]?.content,
+  });
 
   return {
     async create(title?: string, parentId?: string) {
@@ -90,7 +101,7 @@ export function createMockSessionService(): SessionService {
       return child;
     },
     async list() {
-      return Array.from(sessions.values());
+      return Array.from(sessions.values()).map(toSummary);
     },
     async search() {
       return [];

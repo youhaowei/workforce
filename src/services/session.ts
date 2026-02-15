@@ -12,6 +12,7 @@ import { join } from 'path';
 import type {
   SessionService,
   Session,
+  SessionSummary,
   SessionSavePatch,
   SessionSearchResult,
   Message,
@@ -347,14 +348,26 @@ class SessionServiceImpl implements SessionService {
     return forked;
   }
 
-  async list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<Session[]> {
+  async list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<SessionSummary[]> {
     await this.ensureInitialized();
     let results = Array.from(this.sessions.values());
     if (options?.orgId) results = results.filter((s) => s.metadata.orgId === options.orgId);
     const sorted = results.sort((a, b) => b.updatedAt - a.updatedAt);
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? sorted.length;
-    return sorted.slice(offset, offset + limit);
+    return sorted.slice(offset, offset + limit).map((session) => {
+      const lastMessage = session.messages[session.messages.length - 1];
+      return {
+        id: session.id,
+        title: session.title,
+        createdAt: session.createdAt,
+        updatedAt: session.updatedAt,
+        parentId: session.parentId,
+        metadata: session.metadata,
+        messageCount: session.messages.length,
+        lastMessagePreview: lastMessage?.content,
+      };
+    });
   }
 
   async search(query: string): Promise<SessionSearchResult[]> {

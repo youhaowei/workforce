@@ -30,7 +30,7 @@ import { useTRPC } from '@/bridge/react';
 import { trpc as trpcClient } from '@/bridge/trpc';
 import { queryClient } from '@/bridge/query-client';
 import { getEventBus } from '@/shared/event-bus';
-import type { Session } from '@/services/types';
+import type { Session, SessionSummary } from '@/services/types';
 import AppSidebar from './AppSidebar';
 import TopBar from './AppHeader';
 import StatusBar from './StatusBar';
@@ -54,6 +54,20 @@ async function checkServerConnection(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function toSessionSummary(session: Session): SessionSummary {
+  const lastMessage = session.messages[session.messages.length - 1];
+  return {
+    id: session.id,
+    title: session.title,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    parentId: session.parentId,
+    metadata: session.metadata,
+    messageCount: session.messages.length,
+    lastMessagePreview: lastMessage?.content,
+  };
 }
 
 function ShellContent() {
@@ -132,17 +146,18 @@ function ShellContent() {
     setCurrentView('board');
   }, []);
 
-  const handleCancel = useCallback(() => {
+  /** Cancel any in-flight agent stream: unsubscribe SSE, flush buffered deltas,
+   *  and reset stream-related refs. Shared by handleCancel, handleDeleteSession,
+   *  and handleCreateSession to avoid shotgun-surgery duplication. */
+  const cancelActiveStream = useCallback(() => {
     trpcClient.agent.cancel.mutate().catch(() => {/* best-effort */});
     if (cancelStreamRef.current) {
       cancelStreamRef.current();
       cancelStreamRef.current = null;
     }
-    // Read session ID from ref (not React state) so we always see the latest
-    // value, even if handleSubmit just created a session during the same tick.
+    // Flush buffered deltas before clearing
     const sessId = activeSessionRef.current;
     const msgId = useMessagesStore.getState().streamingMessageId;
-    // Flush any buffered deltas before aborting
     if (deltaBufferRef.current.length > 0 && sessId && msgId) {
       const deltas = deltaBufferRef.current;
       deltaBufferRef.current = [];
@@ -150,7 +165,18 @@ function ShellContent() {
       trpcClient.session.streamDeltaBatch.mutate({
         sessionId: sessId, messageId: msgId, deltas,
       }).catch(() => {/* best-effort */});
+    } else {
+      // No deltas to flush — just clear the buffer and timer
+      deltaBufferRef.current = [];
+      if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
     }
+    streamSeqRef.current = 0;
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    const sessId = activeSessionRef.current;
+    const msgId = useMessagesStore.getState().streamingMessageId;
+    cancelActiveStream();
     // Abort persistent stream if active
     if (sessId && msgId) {
       trpcClient.session.streamAbort.mutate({
@@ -158,7 +184,7 @@ function ShellContent() {
       }).catch(() => {/* best-effort */});
     }
     finishStreamingMessage();
-  }, [finishStreamingMessage]);
+  }, [cancelActiveStream, finishStreamingMessage]);
 
   const toggleSidebarSize = useCallback(() => {
     setSidebarMode((prev) => {
@@ -207,23 +233,32 @@ function ShellContent() {
       });
   }, [clearMessages, setActiveSession, loadMessages]);
 
-  const handleCreateSession = useCallback(() => {
-    // Cancel any active stream (client + server) before starting fresh
-    trpcClient.agent.cancel.mutate().catch(() => {/* best-effort */});
-    if (cancelStreamRef.current) {
-      cancelStreamRef.current();
-      cancelStreamRef.current = null;
-    }
-    // clearMessages resets messages, streamingMessageId, streamingContent, and isStreaming
+  /** Called by SessionsPanel when the currently-active session is deleted.
+   *  Clears all session-related state so the chat area doesn't show stale messages. */
+  const handleDeleteSession = useCallback((sessionId: string) => {
+    // Defensive guard: only clear state if the deleted session is actually active
+    if (sessionId !== activeSessionRef.current) return;
+    cancelActiveStream();
     clearMessages();
     setActiveSession(null);
     setSelectedSessionId(null);
     activeSessionRef.current = null;
+    intendedSessionRef.current = null;
+    localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
+  }, [cancelActiveStream, clearMessages, setActiveSession]);
+
+  const handleCreateSession = useCallback(() => {
+    cancelActiveStream();
+    clearMessages();
+    setActiveSession(null);
+    setSelectedSessionId(null);
+    activeSessionRef.current = null;
+    intendedSessionRef.current = null;
     setCurrentView('sessions');
     // Ensure sessions panel is visible
     setSessionsPanelCollapsed(false);
     localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, 'false');
-  }, [clearMessages, setActiveSession]);
+  }, [cancelActiveStream, clearMessages, setActiveSession]);
 
   useHotkey('toggleHistory', toggleSessionsPanel);
   useHotkey('toggleTasks', () => setTaskPanelOpen((prev) => !prev));
@@ -319,13 +354,12 @@ function ShellContent() {
           setSelectedSessionId(sessId);
           setActiveSession(sessId);
           activeSessionRef.current = sessId;
-          // Optimistic insert: push new session into all session.list caches immediately
-          queryClient.setQueriesData<Session[]>(
-            { queryKey: ['session', 'list'] },
-            (old) => old ? [session, ...old] : [session],
+          const summary = toSessionSummary(session);
+          // Optimistic insert: push new session into active session list cache immediately.
+          queryClient.setQueriesData<SessionSummary[]>(
+            { queryKey: trpc.session.list.queryKey(orgId ? { orgId } : undefined) },
+            (old) => old ? [summary, ...old] : [summary],
           );
-          // Background refetch to reconcile any stale data
-          void queryClient.invalidateQueries({ queryKey: ['session'] });
         } catch {
           // Session creation failed — continue without persistence.
           // The user still sees their conversation in the UI, but it won't survive a refresh.
@@ -416,7 +450,7 @@ function ShellContent() {
       );
       cancelStreamRef.current = () => subscription.unsubscribe();
     })();
-  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, selectedSessionId, setActiveSession]);
+  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, orgId, selectedSessionId, setActiveSession, trpc]);
 
   const dismissError = useCallback(() => setError(null), []);
 
@@ -483,6 +517,7 @@ function ShellContent() {
             collapsed={sessionsPanelCollapsed}
             activeSessionId={selectedSessionId ?? undefined}
             onSelectSession={handleSelectSession}
+            onDeleteSession={handleDeleteSession}
             onCreateSession={handleCreateSession}
             onCollapse={toggleSessionsPanel}
           />

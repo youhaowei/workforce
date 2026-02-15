@@ -1287,7 +1287,7 @@ describe('SessionService', () => {
       const fresh = createSessionService(dir);
       const listed = await fresh.list();
       const stub = listed.find((s) => s.id === session.id);
-      expect(stub!.messages).toEqual([]); // metadata-only
+      expect(stub!.messageCount).toBe(0); // metadata-only summary
 
       // getMessages triggers full replay via get()
       const msgs = await fresh.getMessages(session.id);
@@ -1351,9 +1351,10 @@ describe('SessionService', () => {
       expect(listed).toHaveLength(2);
       // Metadata should be intact
       expect(listed.map((s) => s.title).sort()).toEqual(['Session A', 'Session B']);
-      // Messages should NOT be loaded yet (metadata-only replay)
+      // Message history should NOT be loaded yet (metadata-only replay)
       for (const s of listed) {
-        expect(s.messages).toEqual([]);
+        expect(s.messageCount).toBe(0);
+        expect(s.lastMessagePreview).toBeUndefined();
       }
     });
 
@@ -1372,7 +1373,7 @@ describe('SessionService', () => {
       // list() gives metadata-only
       const listed = await fresh.list();
       const stub = listed.find((s) => s.id === original.id);
-      expect(stub!.messages).toEqual([]);
+      expect(stub!.messageCount).toBe(0);
 
       // get() triggers full replay
       const loaded = await fresh.get(original.id);

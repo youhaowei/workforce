@@ -9,11 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, Plus } from 'lucide-react';
-import type { Session, SessionLifecycle, SessionType } from '@/services/types';
+import type { SessionLifecycle, SessionSummary, SessionType } from '@/services/types';
 import { SessionItem } from './SessionItem';
 
 export interface SessionListProps {
-  sessions: Session[];
+  sessions: SessionSummary[];
   activeSessionId?: string;
   typeFilter?: string;
   stateFilter?: string;
@@ -69,9 +69,8 @@ export function SessionList({
         if (session.title?.toLowerCase().includes(query)) return true;
         const goal = session.metadata?.goal as string | undefined;
         if (goal?.toLowerCase().includes(query)) return true;
-        return session.messages.some((msg) =>
-          msg.content.toLowerCase().includes(query),
-        );
+        const preview = session.lastMessagePreview?.toLowerCase();
+        return Boolean(preview?.includes(query));
       });
     }
 

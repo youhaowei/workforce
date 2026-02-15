@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
 import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { BoardColumn } from './BoardColumn';
-import type { Session, SessionLifecycle } from '@/services/types';
+import type { SessionLifecycle, SessionSummary } from '@/services/types';
 
 export interface BoardViewProps {
   onSelectAgent?: (sessionId: string) => void;
@@ -22,29 +22,32 @@ export function BoardView({ onSelectAgent, keyword, statusFilter }: BoardViewPro
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const orgId = useOrgStore((s) => s.currentOrgId);
+  const listInput = orgId ? { orgId } : undefined;
+  const listQueryKey = trpc.session.list.queryKey(listInput);
 
   const { data: sessions = [] } = useQuery(
-    trpc.session.list.queryOptions(
-      orgId ? { orgId } : undefined,
-      { refetchInterval: 5000 },
-    ),
+    trpc.session.list.queryOptions(listInput, { refetchInterval: 5000 }),
   );
+
+  const invalidateSessionList = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: listQueryKey });
+  }, [queryClient, listQueryKey]);
 
   const cancelMutation = useMutation(
     trpc.orchestration.cancelAgent.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
+      onSuccess: invalidateSessionList,
     }),
   );
 
   const pauseMutation = useMutation(
     trpc.orchestration.pauseAgent.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
+      onSuccess: invalidateSessionList,
     }),
   );
 
   const resumeMutation = useMutation(
     trpc.orchestration.resumeAgent.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
+      onSuccess: invalidateSessionList,
     }),
   );
 
@@ -64,12 +67,12 @@ export function BoardView({ onSelectAgent, keyword, statusFilter }: BoardViewPro
   // Extract work agents from org-scoped session list
   const workAgents = useMemo(() => {
     let agents = sessions.filter(
-      (s: Session) => s.metadata?.type === 'workagent',
+      (s: SessionSummary) => s.metadata?.type === 'workagent',
     );
     if (keyword) {
       const kw = keyword.toLowerCase();
       agents = agents.filter(
-        (s: Session) =>
+        (s: SessionSummary) =>
           (s.metadata?.goal as string)?.toLowerCase().includes(kw) ||
           s.id.toLowerCase().includes(kw),
       );
@@ -78,7 +81,7 @@ export function BoardView({ onSelectAgent, keyword, statusFilter }: BoardViewPro
   }, [sessions, keyword]);
 
   const sessionsByState = useMemo(() => {
-    const map = new Map<string, Session[]>();
+    const map = new Map<string, SessionSummary[]>();
     for (const col of LIFECYCLE_COLUMNS) map.set(col, []);
     for (const s of workAgents) {
       const lifecycle = s.metadata?.lifecycle as SessionLifecycle | undefined;

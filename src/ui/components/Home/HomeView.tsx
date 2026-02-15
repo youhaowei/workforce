@@ -16,13 +16,13 @@ import {
   Plus,
   ArrowRight,
 } from 'lucide-react';
-import type { Session, SessionLifecycle } from '@/services/types';
+import type { SessionLifecycle } from '@/services/types';
 import type { ViewType } from '../Shell/Shell';
 
 interface HomeViewProps {
   onStartChat: () => void;
   onNavigate: (view: ViewType) => void;
-  onSelectSession?: (sessionId: string, messages?: Array<{ id: string; role: string; content: string; timestamp: number }>) => void;
+  onSelectSession?: (sessionId: string) => void;
 }
 
 export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewProps) {
@@ -44,7 +44,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
   );
 
   const stats = useMemo(() => {
-    const agents = (sessions as Session[]).filter(
+    const agents = sessions.filter(
       (s) => s.metadata?.type === 'workagent',
     );
     const activeAgents = agents.filter((s) => {
@@ -52,14 +52,14 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
       return lifecycle?.state === 'active';
     });
     return {
-      totalSessions: (sessions as Session[]).length,
+      totalSessions: sessions.length,
       activeAgents: activeAgents.length,
       pendingReviews: pendingReviews as number,
     };
   }, [sessions, pendingReviews]);
 
   const recentSessions = useMemo(() => {
-    return [...(sessions as Session[])]
+    return [...sessions]
       .sort((a, b) => b.updatedAt - a.updatedAt)
       .slice(0, 5);
   }, [sessions]);
@@ -144,7 +144,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
             {recentSessions.map((session) => (
               <button
                 key={session.id}
-                onClick={() => onSelectSession?.(session.id, session.messages)}
+                onClick={() => onSelectSession?.(session.id)}
                 className="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 transition-colors flex items-center justify-between group"
               >
                 <div className="min-w-0 flex-1">
@@ -152,7 +152,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
                     {session.title || (session.metadata?.goal as string) || 'Untitled Session'}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {session.messages.length} messages
+                    {session.messageCount} messages
                   </p>
                 </div>
                 <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2" />

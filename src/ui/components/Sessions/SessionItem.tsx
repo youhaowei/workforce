@@ -10,10 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { GitFork, Trash2, Bot, MessageSquare } from 'lucide-react';
 import { stateVariant } from '@/ui/lib/stateVariant';
-import type { Session, SessionLifecycle, SessionType } from '@/services/types';
+import type { SessionLifecycle, SessionSummary, SessionType } from '@/services/types';
 
 export interface SessionItemProps {
-  session: Session;
+  session: SessionSummary;
   isActive?: boolean;
   onSelect?: (sessionId: string) => void;
   onDelete?: (sessionId: string) => void;
@@ -38,14 +38,13 @@ export function SessionItem({
     return `${days}d ago`;
   }, [session.updatedAt]);
 
-  const messageCount = useMemo(() => session.messages.length, [session.messages.length]);
+  const messageCount = session.messageCount;
 
   const preview = useMemo(() => {
-    const lastMessage = session.messages[session.messages.length - 1];
-    if (!lastMessage) return 'No messages';
-    const content = lastMessage.content;
+    const content = session.lastMessagePreview;
+    if (!content) return 'No messages';
     return content.length > 100 ? content.slice(0, 100) + '...' : content;
-  }, [session.messages]);
+  }, [session.lastMessagePreview]);
 
   const sessionType = (session.metadata?.type as SessionType) ?? 'chat';
   const lifecycle = session.metadata?.lifecycle as SessionLifecycle | undefined;

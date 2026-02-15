@@ -170,6 +170,21 @@ export interface Session {
   metadata: Record<string, unknown>;
 }
 
+/**
+ * Lightweight session shape for list views.
+ * Avoids sending full message arrays over the wire.
+ */
+export interface SessionSummary {
+  id: string;
+  title?: string;
+  createdAt: number;
+  updatedAt: number;
+  parentId?: string;
+  metadata: Record<string, unknown>;
+  messageCount: number;
+  lastMessagePreview?: string;
+}
+
 export interface SessionSearchResult {
   session: Session;
   matchedText: string;
@@ -294,10 +309,10 @@ export interface SessionService extends Disposable {
   fork(sessionId: string): Promise<Session>;
 
   /**
-   * List sessions with optional pagination and org scoping.
+   * List lightweight session summaries with optional pagination and org scoping.
    * When orgId is provided, only sessions with matching metadata.orgId are returned.
    */
-  list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<Session[]>;
+  list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<SessionSummary[]>;
 
   /**
    * Search sessions by content.
