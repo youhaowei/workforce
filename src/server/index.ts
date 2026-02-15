@@ -131,14 +131,16 @@ app.get('/auth-check', async (c) => {
 
 const port = parseInt(process.env.PORT || '4096')
 
-export default {
+const server = Bun.serve({
   port,
+  // Keep server local-only for desktop app communication.
+  hostname: '127.0.0.1',
   fetch: app.fetch,
   // SSE streams may have long pauses while waiting for SDK responses
   // Default 10s timeout is too short for agent queries
   idleTimeout: 120, // 2 minutes
-}
+})
 
 // Log diagnostics on startup to help debug auth issues
 logAuthDiagnostics()
-console.log(`Workforce server running on http://localhost:${port}`)
+console.log(`Workforce server running on ${server.url}`)

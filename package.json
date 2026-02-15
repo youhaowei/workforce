@@ -8,7 +8,7 @@
     "dev:web": "bun run server:watch & bun run vite",
     "server": "bun run src/server/index.ts",
     "server:watch": "bun --watch run src/server/index.ts",
-    "build:server": "TARGET=$(rustc -vV | sed -n 's/host: //p') && mkdir -p src-tauri/binaries && bun build --compile src/server/index.ts --outfile src-tauri/binaries/server-$TARGET",
+    "build:server": "TARGET=$(rustc -vV | sed -n 's/^host: //p') && [ -n \"$TARGET\" ] || { echo 'Error: rustc not found or failed to detect host triple'; exit 1; } && mkdir -p src-tauri/binaries && bun build --compile src/server/index.ts --outfile src-tauri/binaries/server-$TARGET",
     "build": "tauri build -c src-tauri/tauri.bundle.conf.json",
     "clean": "rm -rf src-tauri/target src-tauri/binaries dist dist-server",
     "vite": "vite",

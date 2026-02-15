@@ -49,14 +49,16 @@ async fn start_server(
     app: tauri::AppHandle,
     state: tauri::State<'_, Mutex<ServerState>>,
 ) -> Result<serde_json::Value, String> {
-    // Hold lock across check-and-spawn to prevent TOCTOU race.
-    let mut s = state.lock().map_err(|e| e.to_string())?;
-    if s.running {
-        return Ok(json!({
-            "status": "already_running",
-        }));
+    // Quick check under short lock — avoids holding the lock during command
+    // construction and spawn(). A second check after spawn() prevents TOCTOU.
+    {
+        let s = state.lock().map_err(|e| e.to_string())?;
+        if s.running {
+            return Ok(json!({ "status": "already_running" }));
+        }
     }
 
+    // Build command outside the lock (no shared state needed here).
     // Dev: run TypeScript source via Bun from the compile-time project root.
     //   env!("CARGO_MANIFEST_DIR") is resolved at compile time to src-tauri/,
     //   so the parent is always the repo root regardless of runtime CWD.
@@ -89,6 +91,15 @@ async fn start_server(
     let (mut rx, child) = command
         .spawn()
         .map_err(|e| format!("Failed to spawn server: {e}"))?;
+
+    // Re-acquire lock for state update. Double-check guards against a
+    // concurrent start_server call that won the race while we spawned.
+    let mut s = state.lock().map_err(|e| e.to_string())?;
+    if s.running {
+        // Another call won the race — kill the process we just spawned.
+        let _ = child.kill();
+        return Ok(json!({ "status": "already_running" }));
+    }
 
     let spawned_pid = child.pid();
     s.child = Some(child);
@@ -160,19 +171,22 @@ fn stop_server(state: tauri::State<'_, Mutex<ServerState>>) -> Result<serde_json
 
     // Always clear state after take() — the child handle is consumed
     // regardless of whether kill succeeds, so the state must reflect that.
-    let result = if let Some(child) = s.child.take() {
+    // Return Ok with optional kill_error rather than Err, since state is
+    // already irrecoverably cleared and a retry would see "not_running".
+    if let Some(child) = s.child.take() {
         let pid = child.pid();
-        let kill_result = child.kill();
+        let kill_error = child.kill().err().map(|e| e.to_string());
+        if let Some(ref err) = kill_error {
+            eprintln!("[stop_server] kill failed for PID {pid}: {err}");
+        }
         s.running = false;
         s.active_pid = None;
-        kill_result.map_err(|e| format!("Failed to kill server (pid {pid}): {e}"))?;
-        Ok(json!({ "status": "stopped", "pid": pid }))
+        Ok(json!({ "status": "stopped", "pid": pid, "kill_error": kill_error }))
     } else {
         s.running = false;
         s.active_pid = None;
         Ok(json!({ "status": "no_child" }))
-    };
-    result
+    }
 }
 
 fn main() {
@@ -238,16 +252,20 @@ fn main() {
         .expect("error while building tauri application")
         .run(|app, event| {
             // Kill the server process when the app exits to prevent orphans.
+            // Recover from poisoned mutex — this is the last chance to clean up.
             if let RunEvent::Exit = event {
                 let state: tauri::State<'_, Mutex<ServerState>> = app.state();
-                let lock_result = state.lock();
-                if let Ok(mut s) = lock_result {
-                    if let Some(child) = s.child.take() {
-                        let _ = child.kill();
+                let mut s = match state.lock() {
+                    Ok(g) => g,
+                    Err(poisoned) => poisoned.into_inner(),
+                };
+                if let Some(child) = s.child.take() {
+                    if let Err(e) = child.kill() {
+                        eprintln!("[Exit] Failed to kill server process: {e}");
                     }
-                    s.running = false;
-                    s.active_pid = None;
                 }
+                s.running = false;
+                s.active_pid = None;
             }
         });
 }

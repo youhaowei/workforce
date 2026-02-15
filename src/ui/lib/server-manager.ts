@@ -28,6 +28,7 @@ export interface ServerStartResult {
 export interface ServerStopResult {
   status: 'stopped' | 'not_running' | 'no_child';
   pid?: number;
+  kill_error?: string | null;
 }
 
 export async function getEnvDiagnostics(): Promise<EnvDiagnostics> {
