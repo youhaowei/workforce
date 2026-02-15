@@ -1,20 +1,18 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SessionItem } from './SessionItem';
-import type { Session } from '@/services/types';
+import type { SessionSummary } from '@/services/types';
 
 describe('SessionItem', () => {
   const mockOnSelect = vi.fn();
   const mockOnDelete = vi.fn();
   const mockOnFork = vi.fn();
 
-  const baseSession: Session = {
+  const baseSession: SessionSummary = {
     id: 'sess_1',
     title: 'Test Session',
-    messages: [
-      { id: 'msg_1', role: 'user', content: 'Hello there', timestamp: Date.now() - 60000 },
-      { id: 'msg_2', role: 'assistant', content: 'Hi! How can I help?', timestamp: Date.now() },
-    ],
+    messageCount: 2,
+    lastMessagePreview: 'Hi! How can I help?',
     createdAt: Date.now() - 3600000,
     updatedAt: Date.now(),
     metadata: {},
@@ -50,7 +48,7 @@ describe('SessionItem', () => {
 
   it('shows No messages when empty', () => {
     render(
-      <SessionItem session={{ ...baseSession, messages: [] }} />,
+      <SessionItem session={{ ...baseSession, messageCount: 0, lastMessagePreview: undefined }} />,
     );
     expect(screen.getByText('No messages')).toBeInTheDocument();
   });

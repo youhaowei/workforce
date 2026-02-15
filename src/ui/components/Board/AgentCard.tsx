@@ -15,10 +15,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { MoreHorizontal, Pause, Play, XCircle, Users } from 'lucide-react';
 import { stateVariant } from '@/ui/lib/stateVariant';
-import type { Session, SessionLifecycle } from '@/services/types';
+import type { SessionLifecycle, SessionSummary } from '@/services/types';
 
 export interface AgentCardProps {
-  session: Session;
+  session: SessionSummary;
   onClick?: (sessionId: string) => void;
   onAction?: (sessionId: string, action: 'pause' | 'resume' | 'cancel') => void;
 }

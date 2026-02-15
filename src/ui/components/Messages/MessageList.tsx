@@ -5,7 +5,7 @@
  * with auto-scroll and "jump to bottom" affordance.
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { Button } from '@/components/ui/button';
 import { ArrowDown } from 'lucide-react';
@@ -27,6 +27,23 @@ interface MessageListProps {
 export default function MessageList({ messages, isStreaming }: MessageListProps) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [showJumpButton, setShowJumpButton] = useState(false);
+  const prevFirstMsgId = useRef<string | null>(null);
+  const firstMsgId = messages[0]?.id ?? null;
+
+  // When messages are bulk-loaded (session switch / restore), scroll to bottom.
+  // Depends only on the first message ID — streaming appends don't change it.
+  useEffect(() => {
+    if (firstMsgId && firstMsgId !== prevFirstMsgId.current && messages.length > 0) {
+      // Use requestAnimationFrame so Virtuoso has time to measure item heights
+      requestAnimationFrame(() => {
+        virtuosoRef.current?.scrollToIndex({
+          index: messages.length - 1,
+          align: 'end',
+        });
+      });
+    }
+    prevFirstMsgId.current = firstMsgId;
+  }, [firstMsgId, messages.length]);
 
   const handleAtBottomStateChange = useCallback(
     (atBottom: boolean) => {
@@ -53,6 +70,7 @@ export default function MessageList({ messages, isStreaming }: MessageListProps)
       <Virtuoso
         ref={virtuosoRef}
         data={messages}
+        initialTopMostItemIndex={Math.max(0, messages.length - 1)}
         atBottomThreshold={100}
         atBottomStateChange={handleAtBottomStateChange}
         followOutput="smooth"

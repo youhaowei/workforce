@@ -25,6 +25,7 @@ export type {
   SessionSearchResult,
   SessionType,
   LifecycleState,
+  HydrationStatus,
   // Tool
   ToolService,
   ToolHandler,

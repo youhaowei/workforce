@@ -5,7 +5,9 @@
 import { getEventBus } from '@/shared/event-bus';
 import type {
   Session,
+  SessionSummary,
   SessionService,
+  Message,
   TemplateService,
   WorktreeService,
   WorkflowService,
@@ -59,18 +61,32 @@ export function mockTemplate(overrides: Partial<AgentTemplate> = {}): AgentTempl
 export function createMockSessionService(): SessionService {
   const sessions = new Map<string, Session>();
   let currentSession: Session | null = null;
+  const toSummary = (session: Session): SessionSummary => ({
+    id: session.id,
+    title: session.title,
+    createdAt: session.createdAt,
+    updatedAt: session.updatedAt,
+    parentId: session.parentId,
+    metadata: session.metadata,
+    messageCount: session.messages.length,
+    lastMessagePreview: session.messages[session.messages.length - 1]?.content,
+  });
 
   return {
-    async create(title?: string) {
-      const session = mockSession({ title });
+    async create(title?: string, parentId?: string) {
+      const session = mockSession({ title, parentId });
       sessions.set(session.id, session);
       return session;
     },
     async get(sessionId: string) {
       return sessions.get(sessionId) ?? null;
     },
-    async save(session: Session) {
-      sessions.set(session.id, session);
+    async updateSession(sessionId: string, patch: { title?: string; metadata?: Record<string, unknown> }) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      if (patch.title !== undefined) session.title = patch.title;
+      if (patch.metadata !== undefined) session.metadata = patch.metadata;
+      session.updatedAt = Date.now();
     },
     async resume(sessionId: string) {
       const s = sessions.get(sessionId);
@@ -85,7 +101,7 @@ export function createMockSessionService(): SessionService {
       return child;
     },
     async list() {
-      return Array.from(sessions.values());
+      return Array.from(sessions.values()).map(toSummary);
     },
     async search() {
       return [];
@@ -96,11 +112,13 @@ export function createMockSessionService(): SessionService {
     getCurrent: () => currentSession,
     setCurrent: (s: Session | null) => { currentSession = s; },
     async createWorkAgent(config) {
+      const { parentId, ...metadataConfig } = config;
       const session = mockSession({
+        parentId,
         metadata: {
           type: 'workagent',
           lifecycle: { state: 'created', stateHistory: [] },
-          ...config,
+          ...metadataConfig,
         },
       });
       sessions.set(session.id, session);
@@ -129,6 +147,28 @@ export function createMockSessionService(): SessionService {
     },
     async getChildren(parentSessionId: string) {
       return Array.from(sessions.values()).filter((s) => s.parentId === parentSessionId);
+    },
+    async recordMessage(sessionId: string, message: Message) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      session.messages.push(message);
+    },
+    async recordStreamStart() { /* no-op for mock */ },
+    async recordStreamDelta() { /* no-op for mock */ },
+    async recordStreamDeltaBatch() { /* no-op for mock */ },
+    async recordStreamEnd(sessionId: string, messageId: string, fullContent: string) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      session.messages.push({ id: messageId, role: 'assistant', content: fullContent, timestamp: Date.now() });
+    },
+    async recordStreamAbort() { /* no-op for mock */ },
+    async getMessages(sessionId: string) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      return session.messages;
+    },
+    getHydrationStatus() {
+      return 'ready' as const;
     },
     dispose() {
       sessions.clear();

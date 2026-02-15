@@ -133,6 +133,8 @@ export interface WorkAgentConfig {
   orgId: string;
   /** Absolute path to the org project root (for worktree isolation) */
   repoRoot?: string;
+  /** Immutable parent session ID (set at creation, never mutated). */
+  parentId?: string;
 }
 
 /** Valid lifecycle state transitions */
@@ -168,17 +170,122 @@ export interface Session {
   metadata: Record<string, unknown>;
 }
 
+/**
+ * Lightweight session shape for list views.
+ * Avoids sending full message arrays over the wire.
+ */
+export interface SessionSummary {
+  id: string;
+  title?: string;
+  createdAt: number;
+  updatedAt: number;
+  parentId?: string;
+  metadata: Record<string, unknown>;
+  messageCount: number;
+  lastMessagePreview?: string;
+}
+
 export interface SessionSearchResult {
   session: Session;
   matchedText: string;
   score: number;
 }
 
+export interface SessionSavePatch {
+  title?: string;
+  metadata?: Record<string, unknown>;
+}
+
+// =============================================================================
+// JSONL Record Types (Session Persistence)
+// =============================================================================
+
+/** Session identity + base metadata — always the first line in a .jsonl file. */
+export interface JournalHeader {
+  t: 'header';
+  v: number;
+  id: string;
+  title?: string;
+  createdAt: number;
+  updatedAt: number;
+  parentId?: string;
+  metadata: Record<string, unknown>;
+}
+
+/** A complete non-streaming message (user or system). */
+export interface JournalMessage {
+  t: 'message';
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  toolCalls?: ToolCall[];
+  toolResults?: ToolResult[];
+}
+
+/** Marks the start of an assistant streaming response. */
+export interface JournalMessageStart {
+  t: 'message_start';
+  id: string;
+  role: 'assistant';
+  timestamp: number;
+  meta?: Record<string, unknown>;
+}
+
+/** A single token/chunk delta for an in-progress stream. */
+export interface JournalMessageDelta {
+  t: 'message_delta';
+  id: string;
+  delta: string;
+  seq: number;
+}
+
+/** Authoritative final content for a completed assistant message. */
+export interface JournalMessageFinal {
+  t: 'message_final';
+  id: string;
+  role: 'assistant';
+  content: string;
+  timestamp: number;
+  stopReason: string;
+  toolCalls?: ToolCall[];
+  toolResults?: ToolResult[];
+}
+
+/** Stream aborted/interrupted marker. */
+export interface JournalMessageAbort {
+  t: 'message_abort';
+  id: string;
+  reason: string;
+  timestamp: number;
+}
+
+/** Metadata patch (title change, lifecycle transition, etc.). */
+export interface JournalMeta {
+  t: 'meta';
+  updatedAt: number;
+  patch: Record<string, unknown>;
+}
+
+export type JournalRecord =
+  | JournalHeader
+  | JournalMessage
+  | JournalMessageStart
+  | JournalMessageDelta
+  | JournalMessageFinal
+  | JournalMessageAbort
+  | JournalMeta;
+
+/** Runtime-only hydration status for a session (not persisted on Session type). */
+export type HydrationStatus = 'cold' | 'rehydrating' | 'consolidating' | 'ready' | 'failed';
+
 export interface SessionService extends Disposable {
   /**
    * Create a new session.
+   * @param title Optional session title.
+   * @param parentId Immutable parent session ID (set once in the header record).
    */
-  create(title?: string): Promise<Session>;
+  create(title?: string, parentId?: string): Promise<Session>;
 
   /**
    * Get a session by ID.
@@ -186,9 +293,10 @@ export interface SessionService extends Disposable {
   get(sessionId: string): Promise<Session | null>;
 
   /**
-   * Save/update a session (incremental append).
+   * Update a session's title or metadata via a patch (incremental append).
+   * Lineage (`parentId`) is immutable and cannot be patched.
    */
-  save(session: Session): Promise<void>;
+  updateSession(sessionId: string, patch: SessionSavePatch): Promise<void>;
 
   /**
    * Resume an existing session.
@@ -201,10 +309,13 @@ export interface SessionService extends Disposable {
   fork(sessionId: string): Promise<Session>;
 
   /**
-   * List sessions with optional pagination and org scoping.
+   * List lightweight session summaries with optional pagination and org scoping.
    * When orgId is provided, only sessions with matching metadata.orgId are returned.
+   *
+   * Intentionally excludes full `messages` history for responsiveness in list UIs.
+   * Use `getMessages`, `get`, or `search` for deep/history-aware operations.
    */
-  list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<Session[]>;
+  list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<SessionSummary[]>;
 
   /**
    * Search sessions by content.
@@ -251,6 +362,43 @@ export interface SessionService extends Disposable {
    * Get all child sessions of a parent.
    */
   getChildren(parentSessionId: string): Promise<Session[]>;
+
+  /**
+   * Record a complete message (user/system).
+   */
+  recordMessage(sessionId: string, message: Message): Promise<void>;
+
+  // ---------------------------------------------------------------------------
+  // Streaming Records
+  // ---------------------------------------------------------------------------
+
+  /** Record the start of an assistant streaming response. */
+  recordStreamStart(sessionId: string, messageId: string, meta?: Record<string, unknown>): Promise<void>;
+
+  /** Record a streaming token delta. */
+  recordStreamDelta(sessionId: string, messageId: string, delta: string, seq: number): Promise<void>;
+
+  /** Record multiple deltas in a single I/O operation (batch flush). */
+  recordStreamDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>): Promise<void>;
+
+  /** Record the finalized assistant message. Source of truth on replay. */
+  recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string): Promise<void>;
+
+  /** Record an aborted assistant stream. */
+  recordStreamAbort(sessionId: string, messageId: string, reason: string): Promise<void>;
+
+  /**
+   * Read messages for a session with optional pagination.
+   */
+  getMessages(sessionId: string, options?: { limit?: number; offset?: number }): Promise<Message[]>;
+
+  /**
+   * Get the runtime hydration status of a session.
+   * Sessions start as 'cold' (header-only) after restart and progress to 'ready'
+   * after background rehydration + consolidation. Sessions created during this
+   * runtime start as 'ready' immediately.
+   */
+  getHydrationStatus(sessionId: string): HydrationStatus;
 }
 
 // =============================================================================
@@ -864,4 +1012,3 @@ export interface OrchestrationService extends Disposable {
   getActiveInstances(): Map<string, unknown>;
   executeWorkflow(workflowId: string, orgId: string): Promise<Session>;
 }
-

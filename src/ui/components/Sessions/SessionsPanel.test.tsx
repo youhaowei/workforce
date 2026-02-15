@@ -11,13 +11,13 @@ const mockQueryData = {
 vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn(() => mockQueryData),
   useMutation: vi.fn(() => ({ mutate: vi.fn(), isLoading: false })),
-  useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
+  useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn(), setQueriesData: vi.fn() })),
 }));
 
 vi.mock('@/bridge/react', () => ({
   useTRPC: vi.fn(() => ({
     session: {
-      list: { queryOptions: vi.fn(() => ({})) },
+      list: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ['session', 'list']) },
       resume: { mutationOptions: vi.fn(() => ({})) },
       delete: { mutationOptions: vi.fn(() => ({})) },
       fork: { mutationOptions: vi.fn(() => ({})) },

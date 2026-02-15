@@ -6,11 +6,11 @@ import { AgentCard } from './AgentCard';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { stateVariant } from '@/ui/lib/stateVariant';
-import type { Session } from '@/services/types';
+import type { SessionSummary } from '@/services/types';
 
 export interface BoardColumnProps {
   title: string;
-  sessions: Session[];
+  sessions: SessionSummary[];
   state: string;
   onCardClick?: (sessionId: string) => void;
   onCardAction?: (sessionId: string, action: 'pause' | 'resume' | 'cancel') => void;

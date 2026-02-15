@@ -67,4 +67,91 @@ export const sessionRouter = router({
     .query(({ input }) =>
       getOrchestrationService().getAggregateProgress(input.sessionId),
     ),
+
+  // ─── Messages ─────────────────────────────────────────────────────
+
+  addMessage: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      message: z.object({
+        id: z.string(),
+        role: z.enum(['user', 'assistant', 'system']),
+        content: z.string(),
+        timestamp: z.number(),
+      }),
+    }))
+    .mutation(({ input }) =>
+      getSessionService().recordMessage(input.sessionId, input.message),
+    ),
+
+  // ─── Stream lifecycle ───────────────────────────────────────────────
+
+  streamStart: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      messageId: z.string(),
+      meta: z.record(z.unknown()).optional(),
+    }))
+    .mutation(({ input }) =>
+      getSessionService().recordStreamStart(input.sessionId, input.messageId, input.meta),
+    ),
+
+  streamDelta: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      messageId: z.string(),
+      delta: z.string(),
+      seq: z.number(),
+    }))
+    .mutation(({ input }) =>
+      getSessionService().recordStreamDelta(input.sessionId, input.messageId, input.delta, input.seq),
+    ),
+
+  streamDeltaBatch: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      messageId: z.string(),
+      deltas: z.array(z.object({ delta: z.string(), seq: z.number() })),
+    }))
+    .mutation(({ input }) =>
+      getSessionService().recordStreamDeltaBatch(input.sessionId, input.messageId, input.deltas),
+    ),
+
+  streamFinalize: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      messageId: z.string(),
+      fullContent: z.string(),
+      stopReason: z.string(),
+    }))
+    .mutation(({ input }) =>
+      getSessionService().recordStreamEnd(
+        input.sessionId, input.messageId, input.fullContent, input.stopReason,
+      ),
+    ),
+
+  streamAbort: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      messageId: z.string(),
+      reason: z.string(),
+    }))
+    .mutation(({ input }) =>
+      getSessionService().recordStreamAbort(input.sessionId, input.messageId, input.reason),
+    ),
+
+  // ─── Messages ───────────────────────────────────────────────────────
+
+  messages: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      limit: z.number().optional(),
+      offset: z.number().optional(),
+    }))
+    .query(({ input }) =>
+      getSessionService().getMessages(input.sessionId, {
+        limit: input.limit,
+        offset: input.offset,
+      }),
+    ),
 });
