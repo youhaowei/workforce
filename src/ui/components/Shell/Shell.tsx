@@ -5,7 +5,7 @@
  * Sessions and task panels are persistent full-height siblings. Board filters are lifted to TopBar.
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, WifiOff } from 'lucide-react';
 
@@ -129,6 +129,21 @@ function ShellContent() {
   const { data: currentOrg } = useQuery(
     trpc.org.getCurrent.queryOptions(undefined, { enabled: serverConnected }),
   );
+
+  // Subscribe to session list (shares cache with SessionsPanel — no extra fetch)
+  // so we can derive the active session's title reactively.
+  const { data: sessionList } = useQuery(
+    trpc.session.list.queryOptions(
+      orgId ? { orgId } : undefined,
+      { enabled: serverConnected },
+    ),
+  );
+
+  const activeSessionTitle = useMemo(() => {
+    if (!selectedSessionId || !sessionList) return undefined;
+    const session = sessionList.find((s: SessionSummary) => s.id === selectedSessionId);
+    return session?.title;
+  }, [selectedSessionId, sessionList]);
 
   useEffect(() => {
     if (currentOrg?.id && !orgId) {
@@ -527,6 +542,7 @@ function ShellContent() {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
           <TopBar
             currentView={currentView}
+            sessionTitle={activeSessionTitle}
             onBack={currentView === 'detail' ? navigateBack : undefined}
             sidebarHidden={sidebarMode === 'hidden'}
             onToggleSidebar={toggleSidebarVisibility}

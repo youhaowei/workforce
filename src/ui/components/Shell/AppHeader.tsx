@@ -23,6 +23,8 @@ const VIEW_TITLES: Partial<Record<ViewType, string>> = {
 
 interface TopBarProps {
   currentView: ViewType;
+  /** Title of the active session — shown in the page title pill on the sessions view. */
+  sessionTitle?: string;
   onBack?: () => void;
   sidebarHidden: boolean;
   onToggleSidebar: () => void;
@@ -39,6 +41,7 @@ interface TopBarProps {
 
 export default function TopBar({
   currentView,
+  sessionTitle,
   onBack,
   sidebarHidden,
   onToggleSidebar,
@@ -85,17 +88,19 @@ export default function TopBar({
         )}
 
         {/* Page title pill */}
-        <div className="glass-pill flex items-center gap-2">
+        <div className="glass-pill flex items-center gap-2 max-w-[280px]">
           {currentView === 'detail' && onBack ? (
             <>
               <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onBack} aria-label="Go back">
                 <ArrowLeft className="h-3.5 w-3.5" />
               </Button>
-              <span className="text-sm font-medium">Agent Detail</span>
+              <span className="text-sm font-medium truncate">Agent Detail</span>
             </>
           ) : (
-            <span className="text-sm font-medium">
-              {VIEW_TITLES[currentView] ?? currentView}
+            <span className="text-sm font-medium truncate">
+              {currentView === 'sessions' && sessionTitle
+                ? sessionTitle
+                : (VIEW_TITLES[currentView] ?? currentView)}
             </span>
           )}
         </div>
