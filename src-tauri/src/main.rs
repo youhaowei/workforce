@@ -14,6 +14,9 @@ struct ServerState {
     child: Option<CommandChild>,
     running: bool,
     env_fixed: bool,
+    /// PID of the currently active child, used to guard against stale
+    /// termination events from a previously killed process.
+    active_pid: Option<u32>,
 }
 
 /// Returns environment diagnostics for debugging the auth chain.
@@ -54,10 +57,16 @@ async fn start_server(
         }));
     }
 
-    // Resolve project root from CWD.
-    // NOTE: In production builds, this should use app.path().resource_dir()
-    // since CWD for GUI-launched apps may be / or $HOME.
-    let project_root = std::env::current_dir().unwrap_or_default();
+    // In dev builds, CWD is the project root (launched from terminal).
+    // In production builds, GUI-launched apps have CWD = / or $HOME,
+    // so we resolve from the Tauri resource directory instead.
+    let project_root = if cfg!(debug_assertions) {
+        std::env::current_dir().unwrap_or_default()
+    } else {
+        app.path()
+            .resource_dir()
+            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default())
+    };
 
     let (mut rx, child) = app
         .shell()
@@ -67,9 +76,10 @@ async fn start_server(
         .spawn()
         .map_err(|e| format!("Failed to spawn server: {e}"))?;
 
-    let pid = child.pid();
+    let spawned_pid = child.pid();
     s.child = Some(child);
     s.running = true;
+    s.active_pid = Some(spawned_pid);
     drop(s); // Release lock before spawning the async listener task
 
     // Stream server stdout/stderr as Tauri events.
@@ -102,8 +112,14 @@ async fn start_server(
                         Ok(g) => g,
                         Err(poisoned) => poisoned.into_inner(),
                     };
-                    guard.running = false;
-                    guard.child = None;
+                    // Only clear state if this termination belongs to the
+                    // currently active child. A rapid stop→start cycle may
+                    // have already replaced the child with a new process.
+                    if guard.active_pid == Some(spawned_pid) {
+                        guard.running = false;
+                        guard.child = None;
+                        guard.active_pid = None;
+                    }
                 }
                 _ => {}
             }
@@ -112,7 +128,7 @@ async fn start_server(
 
     Ok(json!({
         "status": "started",
-        "pid": pid,
+        "pid": spawned_pid,
         "project_root": project_root.to_string_lossy(),
     }))
 }
@@ -132,9 +148,11 @@ fn stop_server(state: tauri::State<'_, Mutex<ServerState>>) -> Result<serde_json
         let pid = child.pid();
         child.kill().map_err(|e| format!("Failed to kill server: {e}"))?;
         s.running = false;
+        s.active_pid = None;
         Ok(json!({ "status": "stopped", "pid": pid }))
     } else {
         s.running = false;
+        s.active_pid = None;
         Ok(json!({ "status": "no_child" }))
     }
 }
@@ -160,6 +178,7 @@ fn main() {
             child: None,
             running: false,
             env_fixed,
+            active_pid: None,
         }))
         .invoke_handler(tauri::generate_handler![
             get_env_diagnostics,
