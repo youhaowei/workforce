@@ -30,6 +30,7 @@ import { useTRPC } from '@/bridge/react';
 import { trpc as trpcClient } from '@/bridge/trpc';
 import { queryClient } from '@/bridge/query-client';
 import { getEventBus } from '@/shared/event-bus';
+import type { Session } from '@/services/types';
 import AppSidebar from './AppSidebar';
 import TopBar from './AppHeader';
 import StatusBar from './StatusBar';
@@ -318,7 +319,12 @@ function ShellContent() {
           setSelectedSessionId(sessId);
           setActiveSession(sessId);
           activeSessionRef.current = sessId;
-          // Invalidate session list so the new session appears in the left panel immediately
+          // Optimistic insert: push new session into all session.list caches immediately
+          queryClient.setQueriesData<Session[]>(
+            { queryKey: ['session', 'list'] },
+            (old) => old ? [session, ...old] : [session],
+          );
+          // Background refetch to reconcile any stale data
           void queryClient.invalidateQueries({ queryKey: ['session'] });
         } catch {
           // Session creation failed — continue without persistence.
