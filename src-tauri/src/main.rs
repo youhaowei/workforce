@@ -59,7 +59,8 @@ async fn start_server(
 
     // Dev: run TypeScript source directly from CWD (launched from terminal).
     // Production: run the pre-bundled server.js from Tauri's resource dir.
-    // The bundle is created by `bun run build:server` during `tauri build`.
+    // The bundle is created via `bun run build` (tauri build with
+    // src-tauri/tauri.bundle.conf.json).
     let (server_dir, server_script): (PathBuf, String) = if cfg!(debug_assertions) {
         let cwd = std::env::current_dir().unwrap_or_default();
         (cwd, "src/server/index.ts".into())
@@ -242,6 +243,7 @@ fn main() {
                         let _ = child.kill();
                     }
                     s.running = false;
+                    s.active_pid = None;
                 }
             }
         });
