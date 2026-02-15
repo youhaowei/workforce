@@ -57,33 +57,36 @@ async fn start_server(
         }));
     }
 
-    // Dev: run TypeScript source directly from CWD (launched from terminal).
-    // Production: run the pre-bundled server.js from Tauri's resource dir.
-    // The bundle is created via `bun run build` (tauri build with
-    // src-tauri/tauri.bundle.conf.json).
-    let (server_dir, server_script): (PathBuf, String) = if cfg!(debug_assertions) {
-        let cwd = std::env::current_dir().unwrap_or_default();
-        (cwd, "src/server/index.ts".into())
+    // Dev: run TypeScript source via Bun from the compile-time project root.
+    //   env!("CARGO_MANIFEST_DIR") is resolved at compile time to src-tauri/,
+    //   so the parent is always the repo root regardless of runtime CWD.
+    // Production: run the standalone compiled server binary via Tauri sidecar.
+    //   `bun build --compile` embeds the Bun runtime, so no external Bun needed.
+    //   The binary is bundled via externalBin in tauri.bundle.conf.json.
+    let (server_dir, command) = if cfg!(debug_assertions) {
+        let project_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .canonicalize()
+            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default());
+        let cmd = app
+            .shell()
+            .command("bun")
+            .args(["run", "src/server/index.ts"])
+            .current_dir(&project_root);
+        (project_root, cmd)
     } else {
-        let res = app
+        let cmd = app
+            .shell()
+            .sidecar("server")
+            .map_err(|e| format!("Cannot resolve server sidecar: {e}"))?;
+        let dir = app
             .path()
             .resource_dir()
-            .map_err(|e| format!("Cannot resolve resource dir: {e}"))?;
-        let script = res.join("server.js");
-        if !script.exists() {
-            return Err(format!(
-                "Bundled server not found at {}. Was `bun run build:server` run?",
-                script.display()
-            ));
-        }
-        (res, script.to_string_lossy().into_owned())
+            .unwrap_or_else(|_| PathBuf::from("."));
+        (dir, cmd)
     };
 
-    let (mut rx, child) = app
-        .shell()
-        .command("bun")
-        .args(["run", &server_script])
-        .current_dir(&server_dir)
+    let (mut rx, child) = command
         .spawn()
         .map_err(|e| format!("Failed to spawn server: {e}"))?;
 

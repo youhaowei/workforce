@@ -3,8 +3,6 @@
     "beforeBuildCommand": "bun run build:server && bun run vite build"
   },
   "bundle": {
-    "resources": {
-      "../dist-server/server.js": "server.js"
-    }
+    "externalBin": ["binaries/server"]
   }
 }
