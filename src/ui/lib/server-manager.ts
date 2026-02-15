@@ -22,7 +22,7 @@ export interface EnvDiagnostics {
 export interface ServerStartResult {
   status: 'started' | 'already_running';
   pid?: number;
-  project_root?: string;
+  server_dir?: string;
 }
 
 export interface ServerStopResult {

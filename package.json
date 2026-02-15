@@ -8,6 +8,7 @@
     "dev:web": "bun run server:watch & bun run vite",
     "server": "bun run src/server/index.ts",
     "server:watch": "bun --watch run src/server/index.ts",
+    "build:server": "bun build src/server/index.ts --target=bun --outdir=dist-server --entry-naming=server.js",
     "build": "tauri build",
     "clean": "rm -rf src-tauri/target dist",
     "vite": "vite",

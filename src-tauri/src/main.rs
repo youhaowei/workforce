@@ -57,22 +57,32 @@ async fn start_server(
         }));
     }
 
-    // In dev builds, CWD is the project root (launched from terminal).
-    // In production builds, GUI-launched apps have CWD = / or $HOME,
-    // so we resolve from the Tauri resource directory instead.
-    let project_root = if cfg!(debug_assertions) {
-        std::env::current_dir().unwrap_or_default()
+    // Dev: run TypeScript source directly from CWD (launched from terminal).
+    // Production: run the pre-bundled server.js from Tauri's resource dir.
+    // The bundle is created by `bun run build:server` during `tauri build`.
+    let (server_dir, server_script): (PathBuf, String) = if cfg!(debug_assertions) {
+        let cwd = std::env::current_dir().unwrap_or_default();
+        (cwd, "src/server/index.ts".into())
     } else {
-        app.path()
+        let res = app
+            .path()
             .resource_dir()
-            .unwrap_or_else(|_| std::env::current_dir().unwrap_or_default())
+            .map_err(|e| format!("Cannot resolve resource dir: {e}"))?;
+        let script = res.join("server.js");
+        if !script.exists() {
+            return Err(format!(
+                "Bundled server not found at {}. Was `bun run build:server` run?",
+                script.display()
+            ));
+        }
+        (res, script.to_string_lossy().into_owned())
     };
 
     let (mut rx, child) = app
         .shell()
         .command("bun")
-        .args(["run", "src/server/index.ts"])
-        .current_dir(&project_root)
+        .args(["run", &server_script])
+        .current_dir(&server_dir)
         .spawn()
         .map_err(|e| format!("Failed to spawn server: {e}"))?;
 
@@ -129,7 +139,7 @@ async fn start_server(
     Ok(json!({
         "status": "started",
         "pid": spawned_pid,
-        "project_root": project_root.to_string_lossy(),
+        "server_dir": server_dir.to_string_lossy(),
     }))
 }
 
@@ -144,17 +154,21 @@ fn stop_server(state: tauri::State<'_, Mutex<ServerState>>) -> Result<serde_json
         return Ok(json!({ "status": "not_running" }));
     }
 
-    if let Some(child) = s.child.take() {
+    // Always clear state after take() — the child handle is consumed
+    // regardless of whether kill succeeds, so the state must reflect that.
+    let result = if let Some(child) = s.child.take() {
         let pid = child.pid();
-        child.kill().map_err(|e| format!("Failed to kill server: {e}"))?;
+        let kill_result = child.kill();
         s.running = false;
         s.active_pid = None;
+        kill_result.map_err(|e| format!("Failed to kill server (pid {pid}): {e}"))?;
         Ok(json!({ "status": "stopped", "pid": pid }))
     } else {
         s.running = false;
         s.active_pid = None;
         Ok(json!({ "status": "no_child" }))
-    }
+    };
+    result
 }
 
 fn main() {
