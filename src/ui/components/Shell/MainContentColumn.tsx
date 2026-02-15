@@ -1,0 +1,118 @@
+import { AlertCircle, WifiOff } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
+import TopBar from './AppHeader';
+import StatusBar from './StatusBar';
+import type { SidebarMode, ViewType } from './Shell';
+
+interface MainContentColumnProps {
+  currentView: ViewType;
+  sessionTitle?: string;
+  onBack?: () => void;
+  sidebarMode: SidebarMode;
+  sessionsPanelCollapsed: boolean;
+  onToggleSidebar: () => void;
+  onToggleSessionsPanel: () => void;
+  taskPanelOpen: boolean;
+  onToggleTask: () => void;
+  onQuickCreate: () => void;
+  boardKeyword: string;
+  onBoardKeywordChange: (value: string) => void;
+  boardStatusFilter: string;
+  onBoardStatusFilterChange: (value: string) => void;
+  serverConnected: boolean;
+  error: string | null;
+  onDismissError: () => void;
+  children: ReactNode;
+  isStreaming: boolean;
+  cumulativeUsage: {
+    inputTokens: number;
+    outputTokens: number;
+    totalCostUsd: number;
+  };
+  currentQueryStats: { durationMs: number } | null;
+  messageCount: number;
+}
+
+export function MainContentColumn({
+  currentView,
+  sessionTitle,
+  onBack,
+  sidebarMode,
+  sessionsPanelCollapsed,
+  onToggleSidebar,
+  onToggleSessionsPanel,
+  taskPanelOpen,
+  onToggleTask,
+  onQuickCreate,
+  boardKeyword,
+  onBoardKeywordChange,
+  boardStatusFilter,
+  onBoardStatusFilterChange,
+  serverConnected,
+  error,
+  onDismissError,
+  children,
+  isStreaming,
+  cumulativeUsage,
+  currentQueryStats,
+  messageCount,
+}: MainContentColumnProps) {
+  return (
+    <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+      <TopBar
+        currentView={currentView}
+        sessionTitle={sessionTitle}
+        onBack={onBack}
+        sidebarHidden={sidebarMode === 'hidden'}
+        onToggleSidebar={onToggleSidebar}
+        sessionsPanelCollapsed={sessionsPanelCollapsed}
+        onToggleSessionsPanel={onToggleSessionsPanel}
+        taskPanelOpen={taskPanelOpen}
+        onToggleTask={onToggleTask}
+        onQuickCreate={onQuickCreate}
+        boardKeyword={boardKeyword}
+        onBoardKeywordChange={onBoardKeywordChange}
+        boardStatusFilter={boardStatusFilter}
+        onBoardStatusFilterChange={onBoardStatusFilterChange}
+      />
+
+      {!serverConnected && (
+        <div className="px-4 py-3 bg-muted/50 border-b flex items-center gap-3">
+          <WifiOff className="h-4 w-4 text-muted-foreground" />
+          <div>
+            <p className="text-sm font-medium">Server not connected</p>
+            <p className="text-xs text-muted-foreground">
+              Run <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">bun run server</code> to start
+            </p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="px-4 py-2 bg-destructive/10 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <span className="text-sm text-destructive">{error}</span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onDismissError} className="text-destructive h-7">
+            Dismiss
+          </Button>
+        </div>
+      )}
+
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {children}
+      </main>
+
+      {currentView === 'sessions' && (
+        <StatusBar
+          isStreaming={isStreaming}
+          cumulativeUsage={cumulativeUsage}
+          currentQueryStats={currentQueryStats}
+          messageCount={messageCount}
+        />
+      )}
+    </div>
+  );
+}

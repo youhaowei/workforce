@@ -62,7 +62,8 @@ export function SessionList({
       });
     }
 
-    // Search filter
+    // Search filter (intentionally summary-only for UI responsiveness).
+    // Full-history search should use a dedicated server-side endpoint, not list payloads.
     const query = debouncedQuery.toLowerCase().trim();
     if (query) {
       result = result.filter((session) => {

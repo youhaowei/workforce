@@ -311,6 +311,9 @@ export interface SessionService extends Disposable {
   /**
    * List lightweight session summaries with optional pagination and org scoping.
    * When orgId is provided, only sessions with matching metadata.orgId are returned.
+   *
+   * Intentionally excludes full `messages` history for responsiveness in list UIs.
+   * Use `getMessages`, `get`, or `search` for deep/history-aware operations.
    */
   list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<SessionSummary[]>;
 

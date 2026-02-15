@@ -5,23 +5,12 @@
  * Sessions and task panels are persistent full-height siblings. Board filters are lifted to TopBar.
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, WifiOff } from 'lucide-react';
-
-import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { TaskPanel } from '../Task';
-import { SessionsPanel, SessionsView } from '../Sessions';
-import { BoardView } from '../Board';
-import { ReviewQueue } from '../Review';
-import { AgentDetailView } from '../AgentDetail';
-import { TemplateListView } from '../Templates';
-import { WorkflowListView } from '../Workflows';
-import { AuditView } from '../Audit';
-import { OrgListView } from '../Org/OrgListView';
-import { HomeView } from '../Home';
+import { SessionsPanel } from '../Sessions';
 import { useHotkey } from '@/ui/hotkeys';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import { useSdkStore } from '@/ui/stores/useSdkStore';
@@ -30,45 +19,23 @@ import { useTRPC } from '@/bridge/react';
 import { trpc as trpcClient } from '@/bridge/trpc';
 import { queryClient } from '@/bridge/query-client';
 import { getEventBus } from '@/shared/event-bus';
-import type { Session, SessionSummary } from '@/services/types';
+import type { SessionSummary } from '@/services/types';
 import AppSidebar from './AppSidebar';
-import TopBar from './AppHeader';
-import StatusBar from './StatusBar';
+import { MainViewContent } from './MainViewContent';
+import { MainContentColumn } from './MainContentColumn';
+import { useActiveSessionTitle } from './useActiveSessionTitle';
+import {
+  SIDEBAR_STORAGE_KEY,
+  SESSIONS_PANEL_STORAGE_KEY,
+  VIEW_STORAGE_KEY,
+  SELECTED_SESSION_STORAGE_KEY,
+  SESSION_TITLE_MAX_LENGTH,
+  VALID_VIEWS,
+  checkServerConnection,
+  toSessionSummary,
+} from './shellHelpers';
 
-export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'templates' | 'workflows' | 'orgs' | 'audit' | 'detail';
-export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
-
-const SERVER_URL = 'http://localhost:4096';
-const SIDEBAR_STORAGE_KEY = 'workforce-sidebar-mode';
-const SESSIONS_PANEL_STORAGE_KEY = 'workforce-sessions-collapsed';
-const VIEW_STORAGE_KEY = 'workforce-current-view';
-const SELECTED_SESSION_STORAGE_KEY = 'workforce-selected-session';
-const SESSION_TITLE_MAX_LENGTH = 80;
-
-const VALID_VIEWS = new Set<ViewType>(['home', 'board', 'queue', 'sessions', 'templates', 'workflows', 'orgs', 'audit', 'detail']);
-
-async function checkServerConnection(): Promise<boolean> {
-  try {
-    const response = await fetch(`${SERVER_URL}/health`, { method: 'GET' });
-    return response.ok;
-  } catch {
-    return false;
-  }
-}
-
-function toSessionSummary(session: Session): SessionSummary {
-  const lastMessage = session.messages[session.messages.length - 1];
-  return {
-    id: session.id,
-    title: session.title,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
-    parentId: session.parentId,
-    metadata: session.metadata,
-    messageCount: session.messages.length,
-    lastMessagePreview: lastMessage?.content,
-  };
-}
+export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'templates' | 'workflows' | 'orgs' | 'audit' | 'detail'; export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
 
 function ShellContent() {
   const [currentView, setCurrentView] = useState<ViewType>(() => {
@@ -130,20 +97,7 @@ function ShellContent() {
     trpc.org.getCurrent.queryOptions(undefined, { enabled: serverConnected }),
   );
 
-  // Subscribe to session list (shares cache with SessionsPanel — no extra fetch)
-  // so we can derive the active session's title reactively.
-  const { data: sessionList } = useQuery(
-    trpc.session.list.queryOptions(
-      orgId ? { orgId } : undefined,
-      { enabled: serverConnected },
-    ),
-  );
-
-  const activeSessionTitle = useMemo(() => {
-    if (!selectedSessionId || !sessionList) return undefined;
-    const session = sessionList.find((s: SessionSummary) => s.id === selectedSessionId);
-    return session?.title;
-  }, [selectedSessionId, sessionList]);
+  const activeSessionTitle = useActiveSessionTitle({ orgId: orgId ?? undefined, selectedSessionId, serverConnected });
 
   useEffect(() => {
     if (currentOrg?.id && !orgId) {
@@ -151,15 +105,8 @@ function ShellContent() {
     }
   }, [currentOrg, orgId, setCurrentOrgId]);
 
-  const navigateToDetail = useCallback((sessionId: string) => {
-    setSelectedAgentId(sessionId);
-    setCurrentView('detail');
-  }, []);
-
-  const navigateBack = useCallback(() => {
-    setSelectedAgentId(null);
-    setCurrentView('board');
-  }, []);
+  const navigateToDetail = useCallback((sessionId: string) => { setSelectedAgentId(sessionId); setCurrentView('detail'); }, []);
+  const navigateBack = useCallback(() => { setSelectedAgentId(null); setCurrentView('board'); }, []);
 
   /** Cancel any in-flight agent stream: unsubscribe SSE, flush buffered deltas,
    *  and reset stream-related refs. Shared by handleCancel, handleDeleteSession,
@@ -469,53 +416,6 @@ function ShellContent() {
 
   const dismissError = useCallback(() => setError(null), []);
 
-  const renderMainView = () => {
-    switch (currentView) {
-      case 'board':
-        return (
-          <BoardView
-            onSelectAgent={navigateToDetail}
-            keyword={boardKeyword}
-            statusFilter={boardStatusFilter}
-          />
-        );
-      case 'queue':
-        return <ReviewQueue />;
-      case 'detail':
-        return selectedAgentId ? (
-          <AgentDetailView sessionId={selectedAgentId} onBack={navigateBack} onNavigateToChild={navigateToDetail} />
-        ) : null;
-      case 'home':
-        return (
-          <HomeView
-            onStartChat={handleCreateSession}
-            onNavigate={setCurrentView}
-            onSelectSession={handleSelectSession}
-          />
-        );
-      case 'sessions':
-        return (
-          <SessionsView
-            sessionId={selectedSessionId}
-            messages={messages}
-            isStreaming={isStreaming}
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-          />
-        );
-      case 'templates':
-        return <TemplateListView />;
-      case 'workflows':
-        return <WorkflowListView />;
-      case 'orgs':
-        return <OrgListView />;
-      case 'audit':
-        return <AuditView />;
-      default:
-        return null;
-    }
-  };
-
   return (
     <TooltipProvider>
       <div className="h-screen flex bg-background overflow-hidden">
@@ -538,65 +438,46 @@ function ShellContent() {
           />
         )}
 
-        {/* Content column — TopBar only spans this area */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-          <TopBar
+        <MainContentColumn
+          currentView={currentView}
+          sessionTitle={activeSessionTitle}
+          onBack={currentView === 'detail' ? navigateBack : undefined}
+          sidebarMode={sidebarMode}
+          sessionsPanelCollapsed={sessionsPanelCollapsed}
+          onToggleSidebar={toggleSidebarVisibility}
+          onToggleSessionsPanel={toggleSessionsPanel}
+          taskPanelOpen={taskPanelOpen}
+          onToggleTask={() => setTaskPanelOpen((prev) => !prev)}
+          onQuickCreate={handleCreateSession}
+          boardKeyword={boardKeyword}
+          onBoardKeywordChange={setBoardKeyword}
+          boardStatusFilter={boardStatusFilter}
+          onBoardStatusFilterChange={setBoardStatusFilter}
+          serverConnected={serverConnected}
+          error={error}
+          onDismissError={dismissError}
+          isStreaming={isStreaming}
+          cumulativeUsage={cumulativeUsage}
+          currentQueryStats={currentQueryStats}
+          messageCount={messages.length}
+        >
+          <MainViewContent
             currentView={currentView}
-            sessionTitle={activeSessionTitle}
-            onBack={currentView === 'detail' ? navigateBack : undefined}
-            sidebarHidden={sidebarMode === 'hidden'}
-            onToggleSidebar={toggleSidebarVisibility}
-            sessionsPanelCollapsed={sessionsPanelCollapsed}
-            onToggleSessionsPanel={toggleSessionsPanel}
-            taskPanelOpen={taskPanelOpen}
-            onToggleTask={() => setTaskPanelOpen((prev) => !prev)}
-            onQuickCreate={handleCreateSession}
+            selectedAgentId={selectedAgentId}
+            selectedSessionId={selectedSessionId}
             boardKeyword={boardKeyword}
-            onBoardKeywordChange={setBoardKeyword}
             boardStatusFilter={boardStatusFilter}
-            onBoardStatusFilterChange={setBoardStatusFilter}
+            messages={messages}
+            isStreaming={isStreaming}
+            onSelectAgent={navigateToDetail}
+            onBackFromDetail={navigateBack}
+            onStartChat={handleCreateSession}
+            onNavigate={setCurrentView}
+            onSelectSession={handleSelectSession}
+            onSubmitMessage={handleSubmit}
+            onCancelStream={handleCancel}
           />
-
-          {/* Server Not Connected Banner */}
-          {!serverConnected && (
-            <div className="px-4 py-3 bg-muted/50 border-b flex items-center gap-3">
-              <WifiOff className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Server not connected</p>
-                <p className="text-xs text-muted-foreground">
-                  Run <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">bun run server</code> to start
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Error Banner */}
-          {error && (
-            <div className="px-4 py-2 bg-destructive/10 border-b flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-destructive" />
-                <span className="text-sm text-destructive">{error}</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={dismissError} className="text-destructive h-7">
-                Dismiss
-              </Button>
-            </div>
-          )}
-
-          {/* Main Content */}
-          <main className="flex-1 flex flex-col overflow-hidden">
-            {renderMainView()}
-          </main>
-
-          {currentView === 'sessions' && (
-            <StatusBar
-              isStreaming={isStreaming}
-              cumulativeUsage={cumulativeUsage}
-              currentQueryStats={currentQueryStats}
-              messageCount={messages.length}
-            />
-          )}
-        </div>
+        </MainContentColumn>
 
         {/* Task panel — full height, same level as sidebar and sessions */}
         <TaskPanel

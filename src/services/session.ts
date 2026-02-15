@@ -355,6 +355,7 @@ class SessionServiceImpl implements SessionService {
     const sorted = results.sort((a, b) => b.updatedAt - a.updatedAt);
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? sorted.length;
+    // Keep list payloads lightweight: no full message history in sidebar/home/board APIs.
     return sorted.slice(offset, offset + limit).map((session) => {
       const lastMessage = session.messages[session.messages.length - 1];
       return {
