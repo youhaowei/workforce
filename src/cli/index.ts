@@ -3,24 +3,46 @@
  * Workforce CLI — interact with the Workforce server from the command line.
  *
  * Usage: bun run cli <command> [subcommand] [options]
+ *        npx tsx src/cli/index.ts <command> [subcommand] [options]
  *
- * The CLI calls the same tRPC API as the GUI, connecting to localhost:4096.
+ * Calls the tRPC HTTP API directly (no tRPC client dependency needed).
+ * Server must be running at localhost:4096 (or WORKFORCE_URL).
  */
-
-import { createTRPCClient, httpBatchLink } from '@trpc/client';
-import superjson from 'superjson';
-import type { AppRouter } from '../server/routers';
 
 const BASE_URL = process.env.WORKFORCE_URL || 'http://localhost:4096/api/trpc';
 
-const client = createTRPCClient<AppRouter>({
-  links: [
-    httpBatchLink({
-      url: BASE_URL,
-      transformer: superjson,
-    }),
-  ],
-});
+// ─── tRPC HTTP caller (no dependencies) ─────────────────────
+
+async function trpcQuery(path: string, input?: unknown): Promise<unknown> {
+  const url = new URL(path, BASE_URL.replace(/\/+$/, '') + '/');
+  if (input !== undefined) {
+    // superjson encode: wrap in { json: input }
+    url.searchParams.set('input', JSON.stringify({ json: input }));
+  }
+  const res = await fetch(url.toString());
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const body = await res.json() as any;
+  // tRPC wraps in { result: { data: { json: ... } } }
+  return body?.result?.data?.json ?? body?.result?.data ?? body;
+}
+
+async function trpcMutate(path: string, input?: unknown): Promise<unknown> {
+  const url = new URL(path, BASE_URL.replace(/\/+$/, '') + '/');
+  const res = await fetch(url.toString(), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input !== undefined ? { json: input } : {}),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}`);
+  }
+  const body = await res.json() as any;
+  return body?.result?.data?.json ?? body?.result?.data ?? body;
+}
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -29,7 +51,7 @@ function printJson(data: unknown) {
 }
 
 function printTable(rows: Record<string, unknown>[], columns?: string[]) {
-  if (rows.length === 0) {
+  if (!rows || rows.length === 0) {
     console.log('(empty)');
     return;
   }
@@ -37,12 +59,8 @@ function printTable(rows: Record<string, unknown>[], columns?: string[]) {
   const widths = cols.map((c) =>
     Math.max(c.length, ...rows.map((r) => String(r[c] ?? '').length))
   );
-
-  // Header
   console.log(cols.map((c, i) => c.padEnd(widths[i])).join('  '));
   console.log(cols.map((_, i) => '─'.repeat(widths[i])).join('  '));
-
-  // Rows
   for (const row of rows) {
     console.log(cols.map((c, i) => String(row[c] ?? '').padEnd(widths[i])).join('  '));
   }
@@ -70,27 +88,32 @@ function parseFlags(args: string[]): Record<string, string> {
   return flags;
 }
 
-const json = process.argv.includes('--json');
+const jsonMode = process.argv.includes('--json');
 
 // ─── Commands ───────────────────────────────────────────────
 
 const commands: Record<string, Record<string, (args: string[]) => Promise<void>>> = {
   health: {
     check: async () => {
-      const result = await client.health.ping.query();
-      console.log(result ? '✓ Server is running' : '✗ Server not responding');
+      try {
+        const result = await trpcQuery('health.ping');
+        console.log('✓ Server is running');
+        if (jsonMode) printJson(result);
+      } catch {
+        console.log('✗ Server not responding');
+        process.exit(1);
+      }
     },
   },
 
   session: {
     list: async (args) => {
       const flags = parseFlags(args);
-      const sessions = await client.session.list.query(
-        flags.state ? { state: flags.state as any } : undefined
-      );
-      if (json) return printJson(sessions);
+      const input = flags.state ? { state: flags.state } : undefined;
+      const sessions = await trpcQuery('session.list', input) as any[];
+      if (jsonMode) return printJson(sessions);
       printTable(
-        (sessions as any[]).map((s: any) => ({
+        sessions.map((s) => ({
           id: s.id?.slice(0, 8) ?? '?',
           title: (s.title ?? 'Untitled').slice(0, 40),
           state: s.state ?? '?',
@@ -102,20 +125,20 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
 
     get: async (args) => {
       const id = requireArg(args, 0, 'session-id');
-      const session = await client.session.get.query({ sessionId: id });
+      const session = await trpcQuery('session.get', { sessionId: id });
       printJson(session);
     },
 
     create: async (args) => {
       const flags = parseFlags(args);
-      const session = await client.session.create.mutate(flags.title ? flags.title : undefined);
-      if (json) return printJson(session);
-      console.log(`✓ Created session: ${(session as any).id}`);
+      const session = await trpcMutate('session.create', flags.title || undefined) as any;
+      if (jsonMode) return printJson(session);
+      console.log(`✓ Created session: ${session.id}`);
     },
 
     delete: async (args) => {
       const id = requireArg(args, 0, 'session-id');
-      await client.session.delete.mutate({ sessionId: id });
+      await trpcMutate('session.delete', { sessionId: id });
       console.log(`✓ Deleted session: ${id}`);
     },
 
@@ -123,9 +146,9 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
       const id = requireArg(args, 0, 'session-id');
       const flags = parseFlags(args);
       const limit = flags.limit ? parseInt(flags.limit) : undefined;
-      const messages = await client.session.messages.query({ sessionId: id, limit });
-      if (json) return printJson(messages);
-      for (const msg of messages as any[]) {
+      const messages = await trpcQuery('session.messages', { sessionId: id, limit }) as any[];
+      if (jsonMode) return printJson(messages);
+      for (const msg of messages) {
         const role = msg.role ?? '?';
         const text = (msg.content ?? msg.text ?? '').slice(0, 120);
         console.log(`[${role}] ${text}`);
@@ -134,8 +157,9 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
 
     send: async (args) => {
       const id = requireArg(args, 0, 'session-id');
-      const message = requireArg(args, 1, 'message');
-      await client.session.addMessage.mutate({ sessionId: id, role: 'user', content: message });
+      const message = args.slice(1).filter(a => !a.startsWith('--')).join(' ');
+      if (!message) die('Missing required argument: message');
+      await trpcMutate('session.addMessage', { sessionId: id, role: 'user', content: message });
       console.log(`✓ Message sent to session ${id.slice(0, 8)}`);
     },
   },
@@ -143,28 +167,26 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
   agent: {
     query: async (args) => {
       const flags = parseFlags(args);
-      const sessionId = requireArg(
-        [flags.session ?? args[0]],
-        0,
-        'session-id (or --session <id>)'
-      );
-      const prompt = flags.prompt ?? args[1];
-      if (!prompt) die('Missing required argument: prompt (or --prompt <text>)');
+      const positional = args.filter(a => !a.startsWith('--'));
+      const sessionId = flags.session ?? positional[0];
+      const prompt = flags.prompt ?? positional.slice(1).join(' ');
+      if (!sessionId) die('Missing session-id');
+      if (!prompt) die('Missing prompt');
       console.log(`Querying agent in session ${sessionId.slice(0, 8)}...`);
-      const result = await client.agent.query.mutate({ sessionId, prompt });
-      if (json) return printJson(result);
-      console.log((result as any)?.response ?? result);
+      const result = await trpcMutate('agent.query', { sessionId, prompt });
+      if (jsonMode) return printJson(result);
+      console.log((result as any)?.response ?? JSON.stringify(result, null, 2));
     },
 
     cancel: async (args) => {
       const id = requireArg(args, 0, 'session-id');
-      await client.agent.cancel.mutate({ sessionId: id });
+      await trpcMutate('agent.cancel', { sessionId: id });
       console.log(`✓ Cancelled agent query in session ${id.slice(0, 8)}`);
     },
 
     status: async (args) => {
       const id = requireArg(args, 0, 'session-id');
-      const querying = await client.agent.isQuerying.query({ sessionId: id });
+      const querying = await trpcQuery('agent.isQuerying', { sessionId: id });
       console.log(querying ? '⏳ Agent is querying' : '💤 Agent is idle');
     },
   },
@@ -172,10 +194,10 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
   task: {
     list: async (args) => {
       const flags = parseFlags(args);
-      const tasks = await client.task.list.query(flags.org ? { orgId: flags.org } : undefined);
-      if (json) return printJson(tasks);
+      const tasks = await trpcQuery('task.list', flags.org ? { orgId: flags.org } : undefined) as any[];
+      if (jsonMode) return printJson(tasks);
       printTable(
-        (tasks as any[]).map((t: any) => ({
+        tasks.map((t) => ({
           id: t.id?.slice(0, 8) ?? '?',
           title: (t.title ?? '').slice(0, 50),
           status: t.status ?? '?',
@@ -187,44 +209,44 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
 
     get: async (args) => {
       const id = requireArg(args, 0, 'task-id');
-      const task = await client.task.get.query({ taskId: id });
+      const task = await trpcQuery('task.get', { taskId: id });
       printJson(task);
     },
 
     create: async (args) => {
       const flags = parseFlags(args);
-      const title = flags.title ?? args[0];
-      if (!title) die('Missing required argument: title (or --title <text>)');
-      const task = await client.task.create.mutate({
+      const title = flags.title ?? args.filter(a => !a.startsWith('--'))[0];
+      if (!title) die('Missing required argument: title');
+      const task = await trpcMutate('task.create', {
         title,
         description: flags.description,
         orgId: flags.org,
-      });
-      if (json) return printJson(task);
-      console.log(`✓ Created task: ${(task as any).id}`);
+      }) as any;
+      if (jsonMode) return printJson(task);
+      console.log(`✓ Created task: ${task.id}`);
     },
 
     update: async (args) => {
       const id = requireArg(args, 0, 'task-id');
       const flags = parseFlags(args);
-      const task = await client.task.update.mutate({ taskId: id, ...flags });
-      if (json) return printJson(task);
+      const task = await trpcMutate('task.update', { taskId: id, ...flags });
+      if (jsonMode) return printJson(task);
       console.log(`✓ Updated task: ${id.slice(0, 8)}`);
     },
 
     done: async (args) => {
       const id = requireArg(args, 0, 'task-id');
-      await client.task.updateStatus.mutate({ taskId: id, status: 'done' });
+      await trpcMutate('task.updateStatus', { taskId: id, status: 'done' });
       console.log(`✓ Marked task ${id.slice(0, 8)} as done`);
     },
   },
 
   org: {
     list: async () => {
-      const orgs = await client.org.list.query();
-      if (json) return printJson(orgs);
+      const orgs = await trpcQuery('org.list') as any[];
+      if (jsonMode) return printJson(orgs);
       printTable(
-        (orgs as any[]).map((o: any) => ({
+        orgs.map((o) => ({
           id: o.id?.slice(0, 8) ?? '?',
           name: o.name ?? '?',
           agents: o.agentCount ?? '?',
@@ -235,24 +257,24 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
 
     get: async (args) => {
       const id = requireArg(args, 0, 'org-id');
-      const org = await client.org.get.query({ orgId: id });
+      const org = await trpcQuery('org.get', { orgId: id });
       printJson(org);
     },
 
     create: async (args) => {
       const flags = parseFlags(args);
-      const name = flags.name ?? args[0];
-      if (!name) die('Missing required argument: name (or --name <text>)');
-      const org = await client.org.create.mutate({ name });
-      if (json) return printJson(org);
-      console.log(`✓ Created org: ${(org as any).id}`);
+      const name = flags.name ?? args.filter(a => !a.startsWith('--'))[0];
+      if (!name) die('Missing required argument: name');
+      const org = await trpcMutate('org.create', { name }) as any;
+      if (jsonMode) return printJson(org);
+      console.log(`✓ Created org: ${org.id}`);
     },
 
     current: async () => {
-      const org = await client.org.getCurrent.query();
-      if (json) return printJson(org);
+      const org = await trpcQuery('org.getCurrent') as any;
+      if (jsonMode) return printJson(org);
       if (org) {
-        console.log(`Current org: ${(org as any).name} (${(org as any).id?.slice(0, 8)})`);
+        console.log(`Current org: ${org.name} (${org.id?.slice(0, 8)})`);
       } else {
         console.log('No active org');
       }
@@ -260,17 +282,17 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
 
     activate: async (args) => {
       const id = requireArg(args, 0, 'org-id');
-      await client.org.activate.mutate({ orgId: id });
+      await trpcMutate('org.activate', { orgId: id });
       console.log(`✓ Activated org: ${id.slice(0, 8)}`);
     },
   },
 
   template: {
     list: async () => {
-      const templates = await client.template.list.query();
-      if (json) return printJson(templates);
+      const templates = await trpcQuery('template.list') as any[];
+      if (jsonMode) return printJson(templates);
       printTable(
-        (templates as any[]).map((t: any) => ({
+        templates.map((t) => ({
           id: t.id?.slice(0, 8) ?? '?',
           name: t.name ?? '?',
           description: (t.description ?? '').slice(0, 50),
@@ -281,17 +303,17 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
 
     get: async (args) => {
       const id = requireArg(args, 0, 'template-id');
-      const template = await client.template.get.query({ templateId: id });
+      const template = await trpcQuery('template.get', { templateId: id });
       printJson(template);
     },
   },
 
   workflow: {
     list: async () => {
-      const workflows = await client.workflow.list.query();
-      if (json) return printJson(workflows);
+      const workflows = await trpcQuery('workflow.list') as any[];
+      if (jsonMode) return printJson(workflows);
       printTable(
-        (workflows as any[]).map((w: any) => ({
+        workflows.map((w) => ({
           id: w.id?.slice(0, 8) ?? '?',
           name: w.name ?? '?',
           steps: w.steps?.length ?? '?',
@@ -302,14 +324,14 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
 
     get: async (args) => {
       const id = requireArg(args, 0, 'workflow-id');
-      const wf = await client.workflow.get.query({ workflowId: id });
+      const wf = await trpcQuery('workflow.get', { workflowId: id });
       printJson(wf);
     },
 
     run: async (args) => {
       const id = requireArg(args, 0, 'workflow-id');
-      const result = await client.workflow.execute.mutate({ workflowId: id });
-      if (json) return printJson(result);
+      const result = await trpcMutate('workflow.execute', { workflowId: id });
+      if (jsonMode) return printJson(result);
       console.log(`✓ Workflow ${id.slice(0, 8)} executed`);
     },
   },
@@ -319,12 +341,12 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
       const flags = parseFlags(args);
       if (!flags.template && !flags.session)
         die('Provide --template <id> or --session <id>');
-      const result = await client.orchestration.spawn.mutate({
+      const result = await trpcMutate('orchestration.spawn', {
         templateId: flags.template,
         sessionId: flags.session,
         prompt: flags.prompt,
       });
-      if (json) return printJson(result);
+      if (jsonMode) return printJson(result);
       console.log(`✓ Spawned agent: ${JSON.stringify(result)}`);
     },
   },
@@ -332,30 +354,30 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
   worktree: {
     get: async (args) => {
       const id = requireArg(args, 0, 'session-id');
-      const wt = await client.worktree.get.query({ sessionId: id });
+      const wt = await trpcQuery('worktree.get', { sessionId: id });
       printJson(wt);
     },
 
     diff: async (args) => {
       const id = requireArg(args, 0, 'session-id');
-      const diff = await client.worktree.diff.query({ sessionId: id });
-      if (json) return printJson(diff);
+      const diff = await trpcQuery('worktree.diff', { sessionId: id });
+      if (jsonMode) return printJson(diff);
       console.log(typeof diff === 'string' ? diff : JSON.stringify(diff, null, 2));
     },
 
     merge: async (args) => {
       const id = requireArg(args, 0, 'session-id');
-      await client.worktree.merge.mutate({ sessionId: id });
+      await trpcMutate('worktree.merge', { sessionId: id });
       console.log(`✓ Merged worktree for session ${id.slice(0, 8)}`);
     },
   },
 
   review: {
     list: async () => {
-      const reviews = await client.review.list.query();
-      if (json) return printJson(reviews);
+      const reviews = await trpcQuery('review.list') as any[];
+      if (jsonMode) return printJson(reviews);
       printTable(
-        (reviews as any[]).map((r: any) => ({
+        reviews.map((r) => ({
           id: r.id?.slice(0, 8) ?? '?',
           status: r.status ?? '?',
           session: r.sessionId?.slice(0, 8) ?? '?',
@@ -365,10 +387,10 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
     },
 
     pending: async () => {
-      const reviews = await client.review.listPending.query();
-      if (json) return printJson(reviews);
-      console.log(`${(reviews as any[]).length} pending reviews`);
-      for (const r of reviews as any[]) {
+      const reviews = await trpcQuery('review.listPending') as any[];
+      if (jsonMode) return printJson(reviews);
+      console.log(`${reviews.length} pending reviews`);
+      for (const r of reviews) {
         console.log(`  ${r.id?.slice(0, 8)} — ${r.summary ?? 'No summary'}`);
       }
     },
@@ -376,8 +398,8 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
     resolve: async (args) => {
       const id = requireArg(args, 0, 'review-id');
       const flags = parseFlags(args);
-      const action = (flags.action ?? 'approve') as 'approve' | 'reject' | 'request_changes';
-      await client.review.resolve.mutate({ reviewId: id, action, comment: flags.comment });
+      const action = (flags.action ?? 'approve') as string;
+      await trpcMutate('review.resolve', { reviewId: id, action, comment: flags.comment });
       console.log(`✓ Review ${id.slice(0, 8)} ${action}d`);
     },
   },
@@ -385,20 +407,18 @@ const commands: Record<string, Record<string, (args: string[]) => Promise<void>>
   audit: {
     org: async (args) => {
       const flags = parseFlags(args);
-      const entries = await client.audit.org.query(
-        flags.org ? { orgId: flags.org } : undefined
-      );
-      if (json) return printJson(entries);
-      for (const e of entries as any[]) {
+      const entries = await trpcQuery('audit.org', flags.org ? { orgId: flags.org } : undefined) as any[];
+      if (jsonMode) return printJson(entries);
+      for (const e of entries) {
         console.log(`[${e.timestamp ?? '?'}] ${e.action ?? '?'} — ${e.details ?? ''}`);
       }
     },
 
     session: async (args) => {
       const id = requireArg(args, 0, 'session-id');
-      const entries = await client.audit.session.query({ sessionId: id });
-      if (json) return printJson(entries);
-      for (const e of entries as any[]) {
+      const entries = await trpcQuery('audit.session', { sessionId: id }) as any[];
+      if (jsonMode) return printJson(entries);
+      for (const e of entries) {
         console.log(`[${e.timestamp ?? '?'}] ${e.action ?? '?'} — ${e.details ?? ''}`);
       }
     },
@@ -461,7 +481,7 @@ Commands:
 
 Global flags:
   --json                                Output as JSON
-  --url <url>                           Override server URL
+  WORKFORCE_URL=<url>                   Override server URL (default: http://localhost:4096/api/trpc)
 
   `);
 }
@@ -485,16 +505,17 @@ async function main() {
   const handler = group[subcommand];
   if (!handler) {
     const available = Object.keys(group).join(', ');
-    die(`Unknown subcommand: ${command} ${subcommand}. Available: ${available}`);
+    die(`Unknown subcommand: ${command} ${subcommand ?? '(none)'}. Available: ${available}`);
   }
 
   try {
     await handler(rest);
   } catch (err: any) {
-    if (err?.message?.includes('ECONNREFUSED')) {
+    const msg = err?.message ?? String(err);
+    if (msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
       die('Cannot connect to Workforce server. Is it running? (bun run server)');
     }
-    die(err?.message ?? String(err));
+    die(msg);
   }
 }
 
