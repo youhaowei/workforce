@@ -25,7 +25,8 @@
     "perf:memory": "node scripts/perf-memory.js",
     "perf:stream": "node scripts/perf-stream.js",
     "lint": "eslint src --max-warnings 0",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "cli": "bun run src/cli/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.29",
