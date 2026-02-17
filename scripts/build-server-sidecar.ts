@@ -38,13 +38,11 @@ function resolveCompileTarget(tauriTargetTriple: string): string {
   return bunTarget;
 }
 
-function buildForTarget(tauriTargetTriple: string, hostTriple: string): boolean {
+function buildForTarget(tauriTargetTriple: string): boolean {
   const bunTarget = resolveCompileTarget(tauriTargetTriple);
   const outputPath = `src-tauri/binaries/server-${tauriTargetTriple}`;
 
-  console.log(
-    `Building sidecar: tauriTarget=${tauriTargetTriple} bunTarget=${bunTarget} host=${hostTriple}`,
-  );
+  console.log(`Building sidecar: target=${tauriTargetTriple} bunTarget=${bunTarget}`);
 
   const result = spawnSync(
     'bun',
@@ -62,7 +60,6 @@ function buildForTarget(tauriTargetTriple: string, hostTriple: string): boolean 
   return result.status === 0;
 }
 
-const hostTriple = detectHostTriple();
 const args = new Set(process.argv.slice(2));
 const buildAll = args.has('--all');
 
@@ -77,7 +74,7 @@ if (buildAll) {
   }
 
   for (const triple of triples) {
-    if (!buildForTarget(triple, hostTriple)) {
+    if (!buildForTarget(triple)) {
       failures.push(triple);
     }
   }
@@ -87,8 +84,10 @@ if (buildAll) {
     process.exit(1);
   }
 } else {
-  const tauriTargetTriple = process.env.TAURI_ENV_TARGET_TRIPLE || hostTriple;
-  if (!buildForTarget(tauriTargetTriple, hostTriple)) {
+  // Only detect host triple as fallback when TAURI_ENV_TARGET_TRIPLE is unset.
+  // This avoids requiring rustc on CI workers that provide the target explicitly.
+  const tauriTargetTriple = process.env.TAURI_ENV_TARGET_TRIPLE || detectHostTriple();
+  if (!buildForTarget(tauriTargetTriple)) {
     process.exit(1);
   }
 }

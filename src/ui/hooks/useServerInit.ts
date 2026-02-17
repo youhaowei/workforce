@@ -16,24 +16,34 @@ export function useServerInit() {
     if (!isTauri) return;
 
     let unmounted = false;
+    let unlisten: (() => void) | null = null;
 
     async function boot() {
       try {
         const { startServer, onServerTerminated } = await import('@/ui/lib/server-manager');
+
+        if (unmounted) return;
+
         const result = await startServer();
         if (!unmounted) {
           console.log('[ServerInit]', result.status, result.pid ?? '');
         }
 
+        if (unmounted) return;
+
         // Log unexpected terminations (crash, signal kill).
-        const unlisten = await onServerTerminated((payload) => {
+        const unlistenFn = await onServerTerminated((payload) => {
           if (!unmounted) {
             console.warn('[ServerInit] Server terminated:', payload);
           }
         });
 
-        // Store cleanup for unmount
-        cleanupRef = unlisten;
+        // If unmounted during the await, clean up immediately.
+        if (unmounted) {
+          unlistenFn();
+        } else {
+          unlisten = unlistenFn;
+        }
       } catch (err) {
         if (!unmounted) {
           console.error('[ServerInit] Failed to start server:', err);
@@ -41,12 +51,11 @@ export function useServerInit() {
       }
     }
 
-    let cleanupRef: (() => void) | null = null;
     boot();
 
     return () => {
       unmounted = true;
-      cleanupRef?.();
+      unlisten?.();
     };
   }, [isTauri]);
 }
