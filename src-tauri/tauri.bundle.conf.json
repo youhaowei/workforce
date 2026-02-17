@@ -1,7 +1,4 @@
 {
-  "build": {
-    "beforeBuildCommand": "bun run build:server && bun run vite build"
-  },
   "bundle": {
     "externalBin": ["binaries/server"]
   }
