@@ -121,13 +121,6 @@ async fn start_server(
                     let _ = app_handle.emit("server-stderr", text.to_string());
                 }
                 CommandEvent::Terminated(payload) => {
-                    let _ = app_handle.emit(
-                        "server-terminated",
-                        json!({
-                            "code": payload.code,
-                            "signal": payload.signal,
-                        }),
-                    );
                     // Update state via AppHandle (which is 'static).
                     // Recover from poisoned mutex to avoid permanent deadlock.
                     let managed: tauri::State<'_, Mutex<ServerState>> =
@@ -137,13 +130,21 @@ async fn start_server(
                         Ok(g) => g,
                         Err(poisoned) => poisoned.into_inner(),
                     };
-                    // Only clear state if this termination belongs to the
-                    // currently active child. A rapid stop→start cycle may
-                    // have already replaced the child with a new process.
+                    // Only clear state and emit event if this termination
+                    // belongs to the currently active child. A rapid
+                    // stop→start cycle may have already replaced the child
+                    // with a new process — silently drop stale events.
                     if guard.active_pid == Some(spawned_pid) {
                         guard.running = false;
                         guard.child = None;
                         guard.active_pid = None;
+                        let _ = app_handle.emit(
+                            "server-terminated",
+                            json!({
+                                "code": payload.code,
+                                "signal": payload.signal,
+                            }),
+                        );
                     }
                 }
                 _ => {}

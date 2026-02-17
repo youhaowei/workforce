@@ -60,6 +60,10 @@ async function testSdkAuth(): Promise<boolean> {
   // Timeout after 15s — enough for auth + one turn
   const timeout = setTimeout(() => abortController.abort(), 15_000);
 
+  // Declared outside try/catch so timeout abort in catch can read gotInit.
+  let gotInit = false;
+  let response = '';
+
   try {
     const stream = sdkQuery({
       prompt: 'Say exactly "auth-ok" and nothing else.',
@@ -69,9 +73,6 @@ async function testSdkAuth(): Promise<boolean> {
         maxTurns: 1,
       },
     });
-
-    let gotInit = false;
-    let response = '';
 
     for await (const msg of stream) {
       if (msg.type === 'system' && msg.subtype === 'init') {
@@ -101,8 +102,8 @@ async function testSdkAuth(): Promise<boolean> {
   } catch (err: unknown) {
     clearTimeout(timeout);
     if (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted'))) {
-      console.log('[SDK] Aborted (timeout) — but may have succeeded if init was received');
-      return false;
+      console.log(`[SDK] Aborted (timeout) — init received: ${gotInit}`);
+      return gotInit;
     }
     console.error('[SDK] FAILED:', err instanceof Error ? err.message : err);
     return false;
