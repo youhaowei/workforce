@@ -70,6 +70,26 @@ export function useServerInit() {
 
         if (unmounted) return;
 
+        // Register termination listener BEFORE spawning the server so
+        // that even an immediate crash (corrupt binary, bind failure)
+        // is caught. Without this, a fast exit emits server-terminated
+        // before any listener exists, leaving serverStarted stuck true.
+        let terminatedDuringBoot = false;
+        const unlistenFn = await onServerTerminated((payload) => {
+          if (!unmounted) {
+            console.warn('[ServerInit] Server terminated:', payload);
+            terminatedDuringBoot = true;
+            // Reset guard so a reload or future mount can retry.
+            serverStarted = false;
+          }
+        });
+
+        if (unmounted) {
+          unlistenFn();
+          return;
+        }
+        unlisten = unlistenFn;
+
         const result = await startServer();
         if (!unmounted) {
           console.log('[ServerInit]', result.status, result.pid ?? '');
@@ -82,28 +102,18 @@ export function useServerInit() {
         if (!unmounted) {
           if (ready) {
             console.log('[ServerInit] Server ready');
+          } else if (terminatedDuringBoot) {
+            console.error(
+              '[ServerInit] Server terminated during startup.',
+              'Check debug.log or /debug-log for server output.',
+            );
+            // Guard already reset by termination handler above.
           } else {
             console.warn(
               '[ServerInit] Server did not become ready in time.',
               'Check debug.log or /debug-log for server output.',
             );
           }
-        }
-
-        if (unmounted) return;
-
-        // Log unexpected terminations (crash, signal kill).
-        const unlistenFn = await onServerTerminated((payload) => {
-          if (!unmounted) {
-            console.warn('[ServerInit] Server terminated:', payload);
-          }
-        });
-
-        // If unmounted during the await, clean up immediately.
-        if (unmounted) {
-          unlistenFn();
-        } else {
-          unlisten = unlistenFn;
         }
       } catch (err) {
         // Reset guard so a future mount (e.g., HMR) can retry.

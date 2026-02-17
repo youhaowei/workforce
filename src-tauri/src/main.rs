@@ -123,11 +123,15 @@ async fn start_server(
             match event {
                 CommandEvent::Stdout(line) => {
                     let text = String::from_utf8_lossy(&line);
-                    let _ = app_handle.emit("server-stdout", text.to_string());
+                    if let Err(e) = app_handle.emit("server-stdout", text.to_string()) {
+                        eprintln!("[server-stdout] Failed to emit: {e}");
+                    }
                 }
                 CommandEvent::Stderr(line) => {
                     let text = String::from_utf8_lossy(&line);
-                    let _ = app_handle.emit("server-stderr", text.to_string());
+                    if let Err(e) = app_handle.emit("server-stderr", text.to_string()) {
+                        eprintln!("[server-stderr] Failed to emit: {e}");
+                    }
                 }
                 CommandEvent::Terminated(payload) => {
                     // Update state via AppHandle (which is 'static).
@@ -176,9 +180,13 @@ async fn start_server(
 /// Stops the running server process using the shell plugin's kill method.
 #[tauri::command]
 fn stop_server(state: tauri::State<'_, Mutex<ServerState>>) -> Result<serde_json::Value, String> {
-    let mut s = state
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut s = match state.lock() {
+        Ok(g) => g,
+        Err(poisoned) => {
+            eprintln!("[stop_server] Recovering from poisoned ServerState mutex");
+            poisoned.into_inner()
+        }
+    };
 
     if !s.running {
         return Ok(json!({ "status": "not_running" }));
