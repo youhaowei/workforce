@@ -131,14 +131,19 @@ app.get('/auth-check', async (c) => {
 
 const port = parseInt(process.env.PORT || '4096')
 
-export default {
+const server = Bun.serve({
   port,
+  // Keep server local-only for desktop app communication.
+  // Use 'localhost' so Bun resolves to the system's preferred loopback
+  // address. On most systems this enables both IPv4 and IPv6 clients,
+  // though actual dual-stack behavior depends on OS configuration.
+  hostname: 'localhost',
   fetch: app.fetch,
   // SSE streams may have long pauses while waiting for SDK responses
   // Default 10s timeout is too short for agent queries
   idleTimeout: 120, // 2 minutes
-}
+})
 
 // Log diagnostics on startup to help debug auth issues
 logAuthDiagnostics()
-console.log(`Workforce server running on http://localhost:${port}`)
+console.log(`Workforce server running on ${server.url}`)

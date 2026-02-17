@@ -23,7 +23,20 @@
       ]
     },
     "shell:default",
-    "shell:allow-spawn",
+    {
+      "identifier": "shell:allow-spawn",
+      "allow": [
+        {
+          "name": "bun",
+          "cmd": "bun",
+          "args": ["run", "src/server/index.ts"]
+        },
+        {
+          "name": "server",
+          "sidecar": true
+        }
+      ]
+    },
     "shell:allow-kill"
   ]
 }
