@@ -9,8 +9,8 @@
  * Simulate sidecar:    bun scripts/poc-sidecar-auth.ts --spawn-child
  *
  * The --spawn-child flag spawns a copy of itself as a child process
- * with only HOME and PATH set (simulating what Tauri would provide
- * after fix-path-env repairs the environment).
+ * with only HOME and PATH set — stricter than production, where
+ * fix-path-env provides the full repaired environment.
  */
 
 import { existsSync, readFileSync } from 'fs';
@@ -43,8 +43,8 @@ function printDiagnostics(label: string) {
         const expired = creds.claudeAiOauth.expiresAt < Date.now();
         console.log('  Token expired:', expired, expired ? '(SDK will refresh)' : '');
       }
-    } catch {
-      console.log('  Credentials parse error');
+    } catch (err) {
+      console.log('  Credentials parse error:', err instanceof Error ? err.message : String(err));
     }
   }
 }

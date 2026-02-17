@@ -1,4 +1,18 @@
 #!/usr/bin/env bun
+/**
+ * build-server-sidecar.ts — Compile the Workforce server into a standalone
+ * binary for Tauri sidecar distribution.
+ *
+ * Uses `bun build --compile` to produce a self-contained executable that
+ * bundles the Bun runtime. The output path follows Tauri's externalBin
+ * naming convention: `src-tauri/binaries/server-{target-triple}[.exe]`.
+ *
+ * Usage:
+ *   bun scripts/build-server-sidecar.ts          # Build for current host
+ *   bun scripts/build-server-sidecar.ts --all     # Build for all targets
+ *
+ * Set TAURI_ENV_TARGET_TRIPLE to override host detection (used by CI).
+ */
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -40,7 +54,8 @@ function resolveCompileTarget(tauriTargetTriple: string): string {
 
 function buildForTarget(tauriTargetTriple: string): boolean {
   const bunTarget = resolveCompileTarget(tauriTargetTriple);
-  const outputPath = `src-tauri/binaries/server-${tauriTargetTriple}`;
+  const outputExt = tauriTargetTriple.includes('windows') ? '.exe' : '';
+  const outputPath = `src-tauri/binaries/server-${tauriTargetTriple}${outputExt}`;
 
   console.log(`Building sidecar: target=${tauriTargetTriple} bunTarget=${bunTarget}`);
 
@@ -56,6 +71,16 @@ function buildForTarget(tauriTargetTriple: string): boolean {
     ],
     { stdio: 'inherit' },
   );
+
+  if (result.error) {
+    console.error(`Build spawn error for ${tauriTargetTriple}:`, result.error.message);
+    return false;
+  }
+
+  if (result.signal) {
+    console.error(`Build killed by signal ${result.signal} for ${tauriTargetTriple}`);
+    return false;
+  }
 
   return result.status === 0;
 }

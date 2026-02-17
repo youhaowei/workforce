@@ -134,8 +134,9 @@ const port = parseInt(process.env.PORT || '4096')
 const server = Bun.serve({
   port,
   // Keep server local-only for desktop app communication.
-  // Use 'localhost' (not '127.0.0.1') for dual-stack IPv4/IPv6 support —
-  // clients resolving localhost to ::1 would fail against IPv4-only binding.
+  // Use 'localhost' so Bun resolves to the system's preferred loopback
+  // address. On most systems this enables both IPv4 and IPv6 clients,
+  // though actual dual-stack behavior depends on OS configuration.
   hostname: 'localhost',
   fetch: app.fetch,
   // SSE streams may have long pauses while waiting for SDK responses

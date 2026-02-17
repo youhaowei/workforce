@@ -33,7 +33,10 @@ fn get_env_diagnostics(state: tauri::State<'_, Mutex<ServerState>>) -> serde_jso
 
     json!({
         "home": home,
-        "path_first_dirs": path.split(':').take(5).collect::<Vec<_>>(),
+        "path_first_dirs": std::env::split_paths(&path)
+            .take(5)
+            .map(|p| p.to_string_lossy().into_owned())
+            .collect::<Vec<_>>(),
         "path_has_bun": path.contains("bun"),
         "credentials_exist": cred_path.exists(),
         "credentials_path": cred_path.to_string_lossy(),
@@ -50,7 +53,10 @@ async fn start_server(
     state: tauri::State<'_, Mutex<ServerState>>,
 ) -> Result<serde_json::Value, String> {
     // Quick check under short lock — avoids holding the lock during command
-    // construction and spawn(). A second check after spawn() prevents TOCTOU.
+    // construction and spawn(). A second acquire after spawn() guards against
+    // a concurrent start_server() that won the race (TOCTOU prevention).
+    // Note: unlike stop_server/Exit, we propagate mutex poison here rather
+    // than recovering, since spawning into inconsistent state is unsafe.
     {
         let s = state.lock().map_err(|e| e.to_string())?;
         if s.running {
@@ -96,8 +102,11 @@ async fn start_server(
     // concurrent start_server call that won the race while we spawned.
     let mut s = state.lock().map_err(|e| e.to_string())?;
     if s.running {
-        // Another call won the race — kill the process we just spawned.
-        let _ = child.kill();
+        // Another call won the race — kill the duplicate we just spawned.
+        let dup_pid = child.pid();
+        if let Err(e) = child.kill() {
+            eprintln!("[start_server] Failed to kill duplicate process (PID {dup_pid}): {e}");
+        }
         return Ok(json!({ "status": "already_running" }));
     }
 
@@ -128,7 +137,10 @@ async fn start_server(
                     let lock_result = managed.lock();
                     let mut guard = match lock_result {
                         Ok(g) => g,
-                        Err(poisoned) => poisoned.into_inner(),
+                        Err(poisoned) => {
+                            eprintln!("[Terminated] Recovering from poisoned ServerState mutex");
+                            poisoned.into_inner()
+                        }
                     };
                     // Only clear state and emit event if this termination
                     // belongs to the currently active child. A rapid
@@ -138,13 +150,15 @@ async fn start_server(
                         guard.running = false;
                         guard.child = None;
                         guard.active_pid = None;
-                        let _ = app_handle.emit(
+                        if let Err(e) = app_handle.emit(
                             "server-terminated",
                             json!({
                                 "code": payload.code,
                                 "signal": payload.signal,
                             }),
-                        );
+                        ) {
+                            eprintln!("[Terminated] Failed to emit server-terminated event: {e}");
+                        }
                     }
                 }
                 _ => {}
@@ -170,8 +184,9 @@ fn stop_server(state: tauri::State<'_, Mutex<ServerState>>) -> Result<serde_json
         return Ok(json!({ "status": "not_running" }));
     }
 
-    // Always clear state after take() — the child handle is consumed
-    // regardless of whether kill succeeds, so the state must reflect that.
+    // take() moves the CommandChild out of the Option, consuming ownership.
+    // kill(self) consumes the child — the handle cannot be reused after this
+    // regardless of whether kill succeeds, so state must be cleared.
     // Return Ok with optional kill_error rather than Err, since state is
     // already irrecoverably cleared and a retry would see "not_running".
     if let Some(child) = s.child.take() {
@@ -192,8 +207,8 @@ fn stop_server(state: tauri::State<'_, Mutex<ServerState>>) -> Result<serde_json
 
 fn main() {
     // FIX: Repair environment for GUI apps launched from Finder/Dock.
-    // Sources ~/.zshrc / ~/.bash_profile to get proper HOME, PATH, etc.
-    // This is critical for Claude Agent SDK auth (needs HOME for credentials)
+    // Spawns user's login shell to capture HOME, PATH, etc.
+    // Critical for Claude Agent SDK auth (needs HOME for credentials)
     // and for finding the `bun` binary on PATH.
     let env_fixed = match fix_path_env::fix_all_vars() {
         Ok(()) => true,
@@ -258,7 +273,10 @@ fn main() {
                 let state: tauri::State<'_, Mutex<ServerState>> = app.state();
                 let mut s = match state.lock() {
                     Ok(g) => g,
-                    Err(poisoned) => poisoned.into_inner(),
+                    Err(poisoned) => {
+                        eprintln!("[Exit] Recovering from poisoned ServerState mutex");
+                        poisoned.into_inner()
+                    }
                 };
                 if let Some(child) = s.child.take() {
                     if let Err(e) = child.kill() {
