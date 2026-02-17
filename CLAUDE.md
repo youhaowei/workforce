@@ -2,21 +2,37 @@
 
 ## 📋 Project State & Documentation
 
-**Documentation lives in `docs/`:**
+**Repo docs (`docs/`) are high-level. Detailed feature specs and architecture reference live in [Notion (Workforce project)](https://www.notion.so/2ffd48ccaf5481d7bb33d67599423042).**
 
 ```
 docs/
 ├── product/
-│   ├── PRD-MVP.md                          # Product requirements
-│   ├── vision.md                           # Product vision
-│   └── research-synthesis.md               # Research notes
+│   ├── PRD-MVP.md                          # High-level PRD overview (links to Notion feature specs)
+│   ├── vision.md                           # Product vision & philosophy
+│   └── research-synthesis.md               # ARCHIVED — historical research reference
 ├── architecture/
 │   ├── decisions.md                        # Architectural decision log
 │   └── learnings.md                        # Performance metrics and patterns
 └── operations/
     ├── issues.md                           # Known issues and risks
-    └── open-decisions.md                   # Unresolved product decisions
+    ├── open-decisions.md                   # Unresolved product decisions
+    └── decisions/
+        └── session-list-performance.md     # One-off decision: lightweight session list
 ```
+
+**Notion (detailed docs):**
+- PRD — MVP Overview
+- Feature Spec: Sessions & Fork (FR4 + FR5)
+- Feature Spec: Agent & Workflow Templates (FR2 + FR3)
+- Feature Spec: Supervision & Review (FR6 + FR7 + FR8)
+- Feature Spec: Skills & Tools (FR10)
+- Feature Spec: Parallel Work Isolation (FR9)
+- Feature Spec: Organization & Projects (FR1)
+- Feature Spec: History & Auditability (FR11)
+- Architecture: Agent Model
+- Architecture: Distributed Architecture (Hive Mind)
+- Architecture: Department-Specific Orchestration
+- Architecture: Design Principles
 
 **Current Status**: All 18 tasks complete (100%) - Foundation, Orchestration, Parity Features, and Polish phases done.
 

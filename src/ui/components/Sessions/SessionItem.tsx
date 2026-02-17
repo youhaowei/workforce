@@ -42,7 +42,7 @@ export function SessionItem({
 
   const preview = useMemo(() => {
     const content = session.lastMessagePreview;
-    if (!content) return 'No messages';
+    if (!content) return null;
     return content.length > 100 ? content.slice(0, 100) + '...' : content;
   }, [session.lastMessagePreview]);
 
@@ -85,12 +85,14 @@ export function SessionItem({
       </div>
 
       {/* Preview */}
-      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{preview}</p>
+      {preview && (
+        <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{preview}</p>
+      )}
 
       {/* Footer */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>{messageCount} messages</span>
+          <span>{messageCount === 0 ? 'No messages' : `${messageCount} message${messageCount === 1 ? '' : 's'}`}</span>
           {session.parentId && (
             <Badge variant="secondary" className="text-[10px] h-4 px-1">forked</Badge>
           )}
