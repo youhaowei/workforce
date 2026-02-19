@@ -284,8 +284,9 @@ export interface SessionService extends Disposable {
    * Create a new session.
    * @param title Optional session title.
    * @param parentId Immutable parent session ID (set once in the header record).
+   * @param metadata Optional initial metadata (e.g. `{ orgId, projectId }`).
    */
-  create(title?: string, parentId?: string): Promise<Session>;
+  create(title?: string, parentId?: string, metadata?: Record<string, unknown>): Promise<Session>;
 
   /**
    * Get a session by ID.
@@ -315,7 +316,7 @@ export interface SessionService extends Disposable {
    * Intentionally excludes full `messages` history for responsiveness in list UIs.
    * Use `getMessages`, `get`, or `search` for deep/history-aware operations.
    */
-  list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<SessionSummary[]>;
+  list(options?: { limit?: number; offset?: number; orgId?: string; projectId?: string }): Promise<SessionSummary[]>;
 
   /**
    * Search sessions by content.
@@ -776,6 +777,36 @@ export interface OrgService extends Disposable {
   delete(id: string): Promise<void>;
   getCurrent(): Org | null;
   setCurrent(org: Org | null): void;
+}
+
+// =============================================================================
+// Project Types
+// =============================================================================
+
+export interface Project {
+  id: string;
+  orgId: string;
+  name: string;
+  rootPath: string;
+  /** Hex color for the project avatar, auto-generated from name if not provided */
+  color: string;
+  /** Optional URL/path to image/SVG icon, overrides the letter avatar */
+  icon?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export class ProjectNotFound {
+  readonly _tag = 'ProjectNotFound';
+  constructor(readonly projectId: string) {}
+}
+
+export interface ProjectService extends Disposable {
+  create(orgId: string, name: string, rootPath: string, opts?: { color?: string; icon?: string }): Promise<Project>;
+  get(id: string): Promise<Project | null>;
+  update(id: string, updates: Partial<Omit<Project, 'id' | 'orgId' | 'createdAt'>>): Promise<Result<Project, ProjectNotFound>>;
+  list(orgId?: string): Promise<Project[]>;
+  delete(id: string): Promise<void>;
 }
 
 // =============================================================================

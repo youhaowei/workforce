@@ -10,6 +10,7 @@ export const sessionRouter = router({
       limit: z.number().optional(),
       offset: z.number().optional(),
       orgId: z.string().optional(),
+      projectId: z.string().optional(),
     }).optional())
     .query(({ input }) => getSessionService().list(input ?? undefined)),
 
@@ -18,8 +19,21 @@ export const sessionRouter = router({
     .query(({ input }) => getSessionService().get(input.sessionId)),
 
   create: publicProcedure
-    .input(z.object({ title: z.string().optional() }).optional())
-    .mutation(({ input }) => getSessionService().create(input?.title)),
+    .input(z.object({
+      title: z.string().optional(),
+      orgId: z.string().optional(),
+      projectId: z.string().optional(),
+    }).refine(
+      (d) => !d.projectId || !!d.orgId,
+      { message: 'orgId is required when projectId is provided', path: ['orgId'] },
+    ).optional())
+    .mutation(({ input }) => {
+      const { title, orgId, projectId } = input ?? {};
+      const metadata = orgId || projectId
+        ? { ...(orgId && { orgId }), ...(projectId && { projectId }) }
+        : undefined;
+      return getSessionService().create(title, undefined, metadata);
+    }),
 
   resume: publicProcedure
     .input(z.object({ sessionId: z.string() }))

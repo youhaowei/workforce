@@ -6,7 +6,6 @@ import type { SessionSummary } from '@/services/types';
 describe('SessionItem', () => {
   const mockOnSelect = vi.fn();
   const mockOnDelete = vi.fn();
-  const mockOnFork = vi.fn();
 
   const baseSession: SessionSummary = {
     id: 'sess_1',
@@ -21,7 +20,6 @@ describe('SessionItem', () => {
   beforeEach(() => {
     mockOnSelect.mockClear();
     mockOnDelete.mockClear();
-    mockOnFork.mockClear();
   });
 
   it('renders session title', () => {
@@ -33,12 +31,12 @@ describe('SessionItem', () => {
     render(
       <SessionItem session={{ ...baseSession, title: undefined }} />,
     );
-    expect(screen.getByText('Untitled Session')).toBeInTheDocument();
+    expect(screen.getByText('Untitled')).toBeInTheDocument();
   });
 
   it('shows message count', () => {
     render(<SessionItem session={baseSession} />);
-    expect(screen.getByText('2 messages')).toBeInTheDocument();
+    expect(screen.getByText('2 msgs')).toBeInTheDocument();
   });
 
   it('shows preview of last message', () => {
@@ -46,11 +44,12 @@ describe('SessionItem', () => {
     expect(screen.getByText('Hi! How can I help?')).toBeInTheDocument();
   });
 
-  it('shows No messages when empty', () => {
+  it('hides message count when zero', () => {
     render(
       <SessionItem session={{ ...baseSession, messageCount: 0, lastMessagePreview: undefined }} />,
     );
-    expect(screen.getByText('No messages')).toBeInTheDocument();
+    // No "0 msgs" or "No messages" text — count is hidden when zero
+    expect(screen.queryByText(/msg/)).not.toBeInTheDocument();
   });
 
   it('calls onSelect when clicked', () => {
@@ -64,26 +63,23 @@ describe('SessionItem', () => {
     expect(mockOnSelect).toHaveBeenCalledWith('sess_1');
   });
 
-  it('shows Fork and Delete buttons', () => {
+  it('calls onSelect when Enter is pressed on the row', () => {
     render(
-      <SessionItem
-        session={baseSession}
-        onFork={mockOnFork}
-        onDelete={mockOnDelete}
-      />,
+      <SessionItem session={baseSession} onSelect={mockOnSelect} />,
     );
 
-    expect(screen.getByTitle('Fork session')).toBeInTheDocument();
-    expect(screen.getByTitle('Delete session')).toBeInTheDocument();
+    const item = screen.getByText('Test Session').closest('div[class*="cursor-pointer"]')!;
+    fireEvent.keyDown(item, { key: 'Enter' });
+
+    expect(mockOnSelect).toHaveBeenCalledWith('sess_1');
   });
 
-  it('calls onFork when Fork clicked', () => {
+  it('shows Delete button', () => {
     render(
-      <SessionItem session={baseSession} onFork={mockOnFork} />,
+      <SessionItem session={baseSession} onDelete={mockOnDelete} />,
     );
 
-    fireEvent.click(screen.getByTitle('Fork session'));
-    expect(mockOnFork).toHaveBeenCalledWith('sess_1');
+    expect(screen.getByTitle('Delete session')).toBeInTheDocument();
   });
 
   it('calls onDelete when Delete clicked', () => {
@@ -95,9 +91,19 @@ describe('SessionItem', () => {
     expect(mockOnDelete).toHaveBeenCalledWith('sess_1');
   });
 
+  it('does not call onSelect when Enter is pressed on Delete button', () => {
+    render(
+      <SessionItem session={baseSession} onSelect={mockOnSelect} onDelete={mockOnDelete} />,
+    );
+
+    fireEvent.keyDown(screen.getByTitle('Delete session'), { key: 'Enter' });
+
+    expect(mockOnSelect).not.toHaveBeenCalled();
+  });
+
   it('applies active styling when isActive', () => {
     render(<SessionItem session={baseSession} isActive={true} />);
     const container = screen.getByText('Test Session').closest('div[class*="cursor-pointer"]')!;
-    expect(container.className).toContain('bg-primary/5');
+    expect(container.className).toContain('bg-accent');
   });
 });

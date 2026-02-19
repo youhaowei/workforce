@@ -20,7 +20,9 @@ vi.mock('@/bridge/react', () => ({
       list: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ['session', 'list']) },
       resume: { mutationOptions: vi.fn(() => ({})) },
       delete: { mutationOptions: vi.fn(() => ({})) },
-      fork: { mutationOptions: vi.fn(() => ({})) },
+    },
+    project: {
+      list: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ['project', 'list']) },
     },
   })),
 }));

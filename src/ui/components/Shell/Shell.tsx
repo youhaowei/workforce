@@ -11,6 +11,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { TaskPanel } from '../Task';
 import { SessionsPanel } from '../Sessions';
+import { ProjectsPanel, CreateProjectDialog } from '../Project';
+import { ConfirmDialog } from './ConfirmDialog';
 import { useHotkey } from '@/ui/hotkeys';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import { useSdkStore } from '@/ui/stores/useSdkStore';
@@ -19,7 +21,7 @@ import { useTRPC } from '@/bridge/react';
 import { trpc as trpcClient } from '@/bridge/trpc';
 import { queryClient } from '@/bridge/query-client';
 import { getEventBus } from '@/shared/event-bus';
-import type { SessionSummary } from '@/services/types';
+import type { Project, SessionSummary } from '@/services/types';
 import AppSidebar from './AppSidebar';
 import { MainViewContent } from './MainViewContent';
 import { MainContentColumn } from './MainContentColumn';
@@ -35,7 +37,7 @@ import {
   toSessionSummary,
 } from './shellHelpers';
 
-export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'templates' | 'workflows' | 'orgs' | 'audit' | 'detail'; export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
+export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'projects' | 'templates' | 'workflows' | 'orgs' | 'audit' | 'detail'; export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
 
 function ShellContent() {
   const [currentView, setCurrentView] = useState<ViewType>(() => {
@@ -76,6 +78,11 @@ function ShellContent() {
   // Board filter state — lifted here so TopBar and BoardView share it
   const [boardKeyword, setBoardKeyword] = useState('');
   const [boardStatusFilter, setBoardStatusFilter] = useState('all');
+  const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
+  const [createProjectDialogSource, setCreateProjectDialogSource] = useState<'projects-panel' | 'new-session' | null>(null);
+  const [projectsPanelCollapsed, setProjectsPanelCollapsed] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
 
   const trpc = useTRPC();
   const orgId = useOrgStore((s) => s.currentOrgId);
@@ -96,6 +103,9 @@ function ShellContent() {
   const { data: currentOrg } = useQuery(
     trpc.org.getCurrent.queryOptions(undefined, { enabled: serverConnected }),
   );
+  const { data: projects = [] } = useQuery(
+    trpc.project.list.queryOptions(orgId ? { orgId } : undefined, { enabled: !!orgId }),
+  );
 
   const activeSessionTitle = useActiveSessionTitle({ orgId: orgId ?? undefined, selectedSessionId, serverConnected });
 
@@ -104,6 +114,11 @@ function ShellContent() {
       setCurrentOrgId(currentOrg.id);
     }
   }, [currentOrg, orgId, setCurrentOrgId]);
+
+  useEffect(() => {
+    setSelectedProjectId(null);
+    setNewSessionProjectId(null);
+  }, [orgId]);
 
   const navigateToDetail = useCallback((sessionId: string) => { setSelectedAgentId(sessionId); setCurrentView('detail'); }, []);
   const navigateBack = useCallback(() => { setSelectedAgentId(null); setCurrentView('board'); }, []);
@@ -172,9 +187,14 @@ function ShellContent() {
     });
   }, []);
 
+  const toggleProjectsPanel = useCallback(() => {
+    setProjectsPanelCollapsed((prev) => !prev);
+  }, []);
+
   const handleSelectSession = useCallback((sessionId: string) => {
     if (sessionId === intendedSessionRef.current) return;
     intendedSessionRef.current = sessionId;
+    setNewSessionProjectId(null);
     clearMessages();
     setActiveSession(sessionId);
     setSelectedSessionId(sessionId);
@@ -193,7 +213,7 @@ function ShellContent() {
           intendedSessionRef.current = null;
         }
       });
-  }, [clearMessages, setActiveSession, loadMessages]);
+  }, [clearMessages, loadMessages, setActiveSession]);
 
   /** Called by SessionsPanel when the currently-active session is deleted.
    *  Clears all session-related state so the chat area doesn't show stale messages. */
@@ -204,6 +224,7 @@ function ShellContent() {
     clearMessages();
     setActiveSession(null);
     setSelectedSessionId(null);
+    setNewSessionProjectId(null);
     activeSessionRef.current = null;
     intendedSessionRef.current = null;
     localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
@@ -214,13 +235,16 @@ function ShellContent() {
     clearMessages();
     setActiveSession(null);
     setSelectedSessionId(null);
+    // Carry over the selected project when starting from the Projects view
+    // so the new session inherits metadata.projectId on first message.
+    setNewSessionProjectId(currentView === 'projects' ? selectedProjectId : null);
     activeSessionRef.current = null;
     intendedSessionRef.current = null;
     setCurrentView('sessions');
     // Ensure sessions panel is visible
     setSessionsPanelCollapsed(false);
     localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, 'false');
-  }, [cancelActiveStream, clearMessages, setActiveSession]);
+  }, [cancelActiveStream, clearMessages, setActiveSession, currentView, selectedProjectId]);
 
   useHotkey('toggleHistory', toggleSessionsPanel);
   useHotkey('toggleTasks', () => setTaskPanelOpen((prev) => !prev));
@@ -309,12 +333,16 @@ function ShellContent() {
       let sessId = selectedSessionId;
       if (!sessId) {
         try {
+          const projectIdForSession = newSessionProjectId ?? undefined;
           const session = await trpcClient.session.create.mutate({
             title: content.slice(0, SESSION_TITLE_MAX_LENGTH),
+            ...(orgId && { orgId }),
+            ...(projectIdForSession && { projectId: projectIdForSession }),
           });
           sessId = session.id;
           setSelectedSessionId(sessId);
           setActiveSession(sessId);
+          setNewSessionProjectId(null);
           activeSessionRef.current = sessId;
           const summary = toSessionSummary(session);
           // Optimistic insert: push new session into active session list cache immediately.
@@ -322,6 +350,13 @@ function ShellContent() {
             { queryKey: trpc.session.list.queryKey(orgId ? { orgId } : undefined) },
             (old) => old ? [summary, ...old] : [summary],
           );
+          // Also insert into the project-scoped cache so the project's session list updates immediately
+          if (projectIdForSession && orgId) {
+            queryClient.setQueriesData<SessionSummary[]>(
+              { queryKey: trpc.session.list.queryKey({ orgId, projectId: projectIdForSession }) },
+              (old) => old ? [summary, ...old] : [summary],
+            );
+          }
         } catch {
           // Session creation failed — continue without persistence.
           // The user still sees their conversation in the UI, but it won't survive a refresh.
@@ -412,7 +447,19 @@ function ShellContent() {
       );
       cancelStreamRef.current = () => subscription.unsubscribe();
     })();
-  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, orgId, selectedSessionId, setActiveSession, trpc]);
+  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, newSessionProjectId, orgId, selectedSessionId, setActiveSession, trpc]);
+
+  const handleProjectDialogOpenChange = useCallback((open: boolean) => {
+    setCreateProjectDialogOpen(open);
+    if (!open) setCreateProjectDialogSource(null);
+  }, []);
+
+  const handleProjectCreated = useCallback((projectId: string) => {
+    setSelectedProjectId(projectId);
+    if (createProjectDialogSource === 'new-session') {
+      setNewSessionProjectId(projectId);
+    }
+  }, [createProjectDialogSource]);
 
   const dismissError = useCallback(() => setError(null), []);
 
@@ -438,6 +485,21 @@ function ShellContent() {
           />
         )}
 
+        {/* Projects panel — only visible on projects view */}
+        {currentView === 'projects' && (
+          <ProjectsPanel
+            collapsed={projectsPanelCollapsed}
+            selectedProjectId={selectedProjectId}
+            onCollapse={toggleProjectsPanel}
+            onSelectProject={setSelectedProjectId}
+            onClearSelection={() => setSelectedProjectId(null)}
+            onCreateProject={() => {
+              setCreateProjectDialogSource('projects-panel');
+              setCreateProjectDialogOpen(true);
+            }}
+          />
+        )}
+
         <MainContentColumn
           currentView={currentView}
           sessionTitle={activeSessionTitle}
@@ -446,6 +508,8 @@ function ShellContent() {
           sessionsPanelCollapsed={sessionsPanelCollapsed}
           onToggleSidebar={toggleSidebarVisibility}
           onToggleSessionsPanel={toggleSessionsPanel}
+          projectsPanelCollapsed={projectsPanelCollapsed}
+          onToggleProjectsPanel={toggleProjectsPanel}
           taskPanelOpen={taskPanelOpen}
           onToggleTask={() => setTaskPanelOpen((prev) => !prev)}
           onQuickCreate={handleCreateSession}
@@ -465,6 +529,9 @@ function ShellContent() {
             currentView={currentView}
             selectedAgentId={selectedAgentId}
             selectedSessionId={selectedSessionId}
+            selectedProjectId={selectedProjectId}
+            projects={projects as Project[]}
+            newSessionProjectId={newSessionProjectId}
             boardKeyword={boardKeyword}
             boardStatusFilter={boardStatusFilter}
             messages={messages}
@@ -474,6 +541,12 @@ function ShellContent() {
             onStartChat={handleCreateSession}
             onNavigate={setCurrentView}
             onSelectSession={handleSelectSession}
+            onSelectProject={setSelectedProjectId}
+            onNewSessionProjectChange={setNewSessionProjectId}
+            onCreateProjectForSession={() => {
+              setCreateProjectDialogSource('new-session');
+              setCreateProjectDialogOpen(true);
+            }}
             onSubmitMessage={handleSubmit}
             onCancelStream={handleCancel}
           />
@@ -485,6 +558,13 @@ function ShellContent() {
           onClose={() => setTaskPanelOpen(false)}
         />
       </div>
+
+      <CreateProjectDialog
+        open={createProjectDialogOpen}
+        onOpenChange={handleProjectDialogOpenChange}
+        onCreated={handleProjectCreated}
+      />
+      <ConfirmDialog />
     </TooltipProvider>
   );
 }

@@ -6,13 +6,18 @@ import { TemplateListView } from '../Templates';
 import { WorkflowListView } from '../Workflows';
 import { AuditView } from '../Audit';
 import { OrgListView } from '../Org/OrgListView';
+import { ProjectView } from '../Project';
 import { HomeView } from '../Home';
+import type { Project } from '@/services/types';
 import type { ViewType } from './Shell';
 
 interface MainViewContentProps {
   currentView: ViewType;
   selectedAgentId: string | null;
   selectedSessionId: string | null;
+  selectedProjectId: string | null;
+  projects: Project[];
+  newSessionProjectId: string | null;
   boardKeyword: string;
   boardStatusFilter: string;
   messages: Array<{
@@ -30,6 +35,9 @@ interface MainViewContentProps {
   onStartChat: () => void;
   onNavigate: (view: ViewType) => void;
   onSelectSession: (sessionId: string) => void;
+  onSelectProject: (projectId: string | null) => void;
+  onNewSessionProjectChange: (projectId: string | null) => void;
+  onCreateProjectForSession: () => void;
   onSubmitMessage: (content: string) => void;
   onCancelStream: () => void;
 }
@@ -38,6 +46,9 @@ export function MainViewContent({
   currentView,
   selectedAgentId,
   selectedSessionId,
+  selectedProjectId,
+  projects,
+  newSessionProjectId,
   boardKeyword,
   boardStatusFilter,
   messages,
@@ -47,6 +58,9 @@ export function MainViewContent({
   onStartChat,
   onNavigate,
   onSelectSession,
+  onSelectProject,
+  onNewSessionProjectChange,
+  onCreateProjectForSession,
   onSubmitMessage,
   onCancelStream,
 }: MainViewContentProps) {
@@ -81,10 +95,23 @@ export function MainViewContent({
       return (
         <SessionsView
           sessionId={selectedSessionId}
+          projects={projects}
+          newSessionProjectId={newSessionProjectId}
+          onNewSessionProjectChange={onNewSessionProjectChange}
+          onCreateProjectForSession={onCreateProjectForSession}
           messages={messages}
           isStreaming={isStreaming}
           onSubmit={onSubmitMessage}
           onCancel={onCancelStream}
+        />
+      );
+    case 'projects':
+      return (
+        <ProjectView
+          selectedProjectId={selectedProjectId}
+          onSelectProject={onSelectProject}
+          onStartChat={onStartChat}
+          onSelectSession={onSelectSession}
         />
       );
     case 'templates':
