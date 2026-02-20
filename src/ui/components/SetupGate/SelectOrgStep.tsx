@@ -31,8 +31,8 @@ export function SelectOrgStep({ orgs, onComplete }: SelectOrgStepProps) {
   const activateMutation = useMutation(
     trpc.org.activate.mutationOptions({
       onSuccess: (org) => {
+        queryClient.setQueryData(trpc.org.getCurrent.queryKey(), org);
         setCurrentOrgId(org.id);
-        queryClient.invalidateQueries({ queryKey: ['org'] });
         onComplete();
       },
     }),
@@ -44,8 +44,9 @@ export function SelectOrgStep({ orgs, onComplete }: SelectOrgStepProps) {
         trpcClient.org.activate.mutate({ id: org.id }).catch((err) => {
           console.warn('[SetupGate] Failed to activate org on server:', err);
         });
+        queryClient.setQueryData(trpc.org.list.queryKey(), (old: Org[] | undefined) => [...(old ?? []), org]);
+        queryClient.setQueryData(trpc.org.getCurrent.queryKey(), org);
         setCurrentOrgId(org.id);
-        queryClient.invalidateQueries({ queryKey: ['org'] });
         onComplete();
       },
     }),

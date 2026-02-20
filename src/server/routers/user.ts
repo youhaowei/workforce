@@ -16,4 +16,9 @@ export const userRouter = router({
       displayName: z.string().min(1).optional(),
     }))
     .mutation(({ input }) => getUserService().update(input)),
+
+  // Test-only: used by E2E resetServerState() to wipe user identity.
+  // Safe in trusted-local model (localhost-only server).
+  delete: publicProcedure
+    .mutation(() => getUserService().delete()),
 });

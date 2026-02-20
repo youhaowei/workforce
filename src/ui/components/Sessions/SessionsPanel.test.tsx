@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { SessionsPanel } from './SessionsPanel';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
 
 // Mock tRPC + React Query hooks used by SessionsPanel
 const mockQueryData = {
@@ -29,11 +30,14 @@ vi.mock('@/bridge/react', () => ({
 
 describe('SessionsPanel', () => {
   const mockOnSelectSession = vi.fn();
+  const TEST_ORG_ID = 'org_test_12345';
 
   beforeEach(() => {
     mockOnSelectSession.mockClear();
     mockQueryData.data = [];
     mockQueryData.isLoading = false;
+    // Initialize OrgStore with a test org ID
+    useOrgStore.setState({ currentOrgId: TEST_ORG_ID });
   });
 
   it('renders collapsed when collapsed prop is true', () => {
