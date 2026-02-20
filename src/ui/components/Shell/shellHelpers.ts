@@ -14,6 +14,7 @@ export const VALID_VIEWS = new Set<ViewType>([
   'board',
   'queue',
   'sessions',
+  'projects',
   'templates',
   'workflows',
   'orgs',

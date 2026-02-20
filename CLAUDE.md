@@ -56,7 +56,7 @@ docs/
 - ✅ Full tool suite (via Anthropic Agent SDK)
 - ✅ Virtual scrolling UI with streaming support
 
-**Metrics**: 391 tests passing (3 skipped), ESLint clean (0 warnings), TypeScript strict mode, 6 MB idle memory.
+**Metrics**: ESLint clean (0 warnings), TypeScript strict mode, 6 MB idle memory.
 
 ## ⚠️ IMPORTANT: Do NOT Auto-Run Dev Server
 
@@ -67,8 +67,8 @@ Always ask the user before starting the dev server or building the app.
 
 ```bash
 bun install        # Install dependencies
-bun run test       # Run unit tests (391 tests, 3 skipped)
-bun run test:e2e   # Run Playwright E2E tests (28 tests)
+bun run test       # Run unit tests
+bun run test:e2e   # Run Playwright E2E tests
 bun run lint       # Lint code
 bun run type-check # TypeScript check
 bun run server     # Start backend server (port 4096) - RUN THIS FIRST
@@ -86,7 +86,7 @@ bun run build # Build Tauri app
 
 ### Running the Desktop App
 
-**External Server Architecture**: The `dev` script starts the server from the terminal first (ensuring proper shell environment for Claude Agent SDK auth), then launches Tauri.
+**Dev mode**: `bun run dev` starts the server externally (`server:watch &`), then launches Tauri. The sidecar bootstrap in `useServerInit` is skipped via `import.meta.env.DEV`.
 
 ```bash
 bun run dev  # Starts server in background, then Tauri
@@ -98,19 +98,29 @@ bun run server  # Terminal 1
 tauri dev       # Terminal 2
 ```
 
+**Production mode**: Tauri spawns the server as a compiled sidecar binary (no external Bun needed). `useServerInit` calls `startServer()` → Rust spawns the binary → polls `/health` until ready. The `fix-path-env` crate repairs HOME/PATH for GUI-launched apps.
+
 ## Architecture
 
-### In-Process Service Architecture (No HTTP Server)
+### Sidecar Architecture (Tauri + Bun HTTP Server)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  UI Layer (React 19)                                        │
+│  Tauri (Rust)                                               │
+│  - Spawns Bun server as sidecar child process               │
+│  - fix-path-env repairs HOME/PATH for GUI apps              │
+│  - Native menus, window management                          │
+└─────────────────────────────────────────────────────────────┘
+         ↓ start_server/stop_server commands
+┌─────────────────────────────────────────────────────────────┐
+│  UI Layer (React 19 WebView)                                │
 │  - Zustand/Jotai stores, React hooks                        │
 │  - Virtual scrolling (react-virtuoso)                       │
+│  - useServerInit auto-boots sidecar in production           │
 └─────────────────────────────────────────────────────────────┘
-                    ↓ tRPC client (splitLink: HTTP + SSE)
+         ↓ tRPC client (splitLink: HTTP + SSE) → localhost:4096
 ┌─────────────────────────────────────────────────────────────┐
-│  tRPC Server (v11) + Hono                                   │
+│  Bun HTTP Server (Hono + tRPC v11)                          │
 │  - Type-safe API with Zod validation                        │
 │  - SSE subscriptions for streaming + events                 │
 │  - Mounted at /api/trpc/*                                   │
@@ -124,10 +134,9 @@ tauri dev       # Terminal 2
 
 **Key Design Decision**: tRPC v11 for type-safe client-server communication
 - **Frontend** (WebView): React 19 with Zustand + Jotai + TanStack Query via tRPC
-- **Backend**: Hono HTTP server with tRPC routers wrapping service layer
+- **Backend**: Hono HTTP server (port 4096) with tRPC routers wrapping service layer
+- **Sidecar**: In production, Tauri spawns a compiled server binary (`bun build --compile`). In dev, server runs externally via `server:watch`.
 - **Performance**: First-class concern - streaming via SSE subscriptions, rAF-batched token accumulation
-
-**Note**: Originally planned as sidecar pattern, but switched to in-process for better performance. See `docs/architecture/decisions.md` for details.
 
 ### Directory Structure
 
@@ -153,11 +162,12 @@ src/
 │   ├── react.ts     # React Query tRPC proxy
 │   └── query-client.ts  # TanStack QueryClient
 └── shared/       # Shared code (no Node APIs)
-    └── event-bus.ts
+    ├── event-bus.ts
+    └── palette.ts    # Color palette + colorFromName (used by service & UI)
 
 src-tauri/        # Tauri/Rust layer
-├── src/main.rs   # Pure UI shell (connects to external server)
-└── Cargo.toml    # Tauri dependencies
+├── src/main.rs   # Sidecar lifecycle (start/stop server), env repair, native menus
+└── Cargo.toml    # Tauri dependencies (fix-path-env, shell plugin)
 
 e2e/              # Playwright E2E tests
 ```
@@ -245,10 +255,8 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 
 ## Testing
 
--   **Unit tests**: `bun run test` (Vitest, 391 tests passing, 3 skipped)
-  - 339 service/hook/router tests
-  - 48 component tests (React Testing Library)
--   **E2E tests**: `bun run test:e2e` (Playwright, 28 tests)
+-   **Unit tests**: `bun run test` (Vitest)
+-   **E2E tests**: `bun run test:e2e` (Playwright)
 -   **E2E headed**: `bun run test:e2e:headed` (watch tests run)
 -   **E2E debug**: `bun run test:e2e:debug` (step through)
 
@@ -279,29 +287,42 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 
 ## Gotchas
 
-1. **External server architecture** - Server runs from terminal (not spawned by Tauri) for proper shell environment. `bun run dev` handles this automatically.
-2. **Services use Node APIs** - Services run in Bun runtime (not browser)
-3. **Tauri detection**: Use `__TAURI_INTERNALS__` (not `__TAURI__` in v2)
-4. **E2E tests need server** - Playwright config auto-starts `dev:web` (server for testing)
-5. **Port 4096** - Server runs on this port
-6. **Build minifier** - Uses `esbuild` (not terser) in vite.config.ts
-7. **Path aliases** - Defined in tsconfig.json AND vite.config.ts (must sync)
-8. **ESLint warnings** - 0 warnings. See `docs/operations/issues.md`
-9. **Cold start** - ~5s in dev mode (Tauri/Rust compilation). Production builds don't have this overhead.
-10. **Memory optimization** - All services implement `dispose()` pattern. Idle memory: 6 MB (target < 100 MB) ✅
-11. **Claude Agent SDK Auth** - SDK uses Claude CLI's auth from `~/.claude/.credentials.json`. Running server from terminal ensures proper shell environment for auth. The SDK handles token refresh internally.
-12. **Agent tests skipped** - `src/services/agent.test.ts` tests are skipped; need rewrite for new SDK.
-13. **SDK streaming** - Must pass `includePartialMessages: true` to `sdkQuery()` options to get `stream_event` with `content_block_delta` events. Without it, only final `assistant` messages are returned.
-14. **Bun.serve timeout** - Default `idleTimeout` is 10s. SSE endpoints need longer timeout (120s) for LLM responses. Set in server export config.
-15. **Debug logging** - `debug.log` in project root captures server/agent flow. View via `http://localhost:4096/debug-log` or `tail -f debug.log`.
-16. **SSE token whitespace** - Never `.trim()` SSE data; removes spaces between LLM tokens. Only trim final complete message in `finishStreamingMessage()`.
-17. **Streaming duplication** - With `includePartialMessages: true`, SDK sends content via deltas AND final message. Only yield from `content_block_delta` events to avoid duplicate text.
-18. **Native clipboard** - Use Tauri's native Edit menu for clipboard ops, not JS handlers. See `src-tauri/src/main.rs` for `SubmenuBuilder` setup.
-19. **Virtualization** - Use `react-virtuoso` for virtual scrolling (replaced `@tanstack/solid-virtual`).
-20. **Markdown rendering** - Use `marked` + `dompurify` for XSS-safe markdown. Component at `src/ui/components/Messages/Markdown.tsx`.
-21. **Service barrel export** - `src/services/index.ts` re-exports all services with `getXxxService()`/`resetXxxService()` pattern. `disposeAllServices()` resets all singletons for test cleanup.
-22. **vitest.config.ts separate from vite.config.ts** - Both must use `@vitejs/plugin-react`. If vitest uses wrong plugin, React hooks fail with `Cannot read properties of null (reading 'useState')`.
-23. **`vi.useFakeTimers()` + `waitFor()` deadlock** - React Testing Library's `waitFor` uses `setTimeout` for polling. Fake timers intercept this. Use `vi.useRealTimers()` before async tests.
-24. **tRPC client splitLink** - Queries/mutations use `httpBatchLink`, subscriptions use `httpSubscriptionLink` (SSE). Both configured in `src/bridge/trpc.ts`.
+### Architecture
+- **Sidecar server** — Bun HTTP server on port 4096. Dev: started externally by `bun run dev`. Production: Tauri spawns compiled binary via `useServerInit` → `start_server` Rust command.
+- **Services use Bun APIs** — Not browser-safe. Lazy-init singletons with `dispose()`. Barrel: `src/services/index.ts` (`getXxxService()`/`resetXxxService()`/`disposeAllServices()`).
+- **Singleflight for lazy init** — `ensureInitialized()` must cache the in-flight promise (`this.initPromise ??= this.doInit()`) to prevent concurrent callers from racing.
+- **Error classes in types.ts** — Domain errors (e.g. `ProjectNotFound`) live in `src/services/types.ts` alongside the interface. Services return `Result<T, E>`, routers map to `TRPCError`.
+- **tRPC splitLink** — Queries/mutations use `httpBatchLink`, subscriptions use `httpSubscriptionLink` (SSE). Config in `src/bridge/trpc.ts`.
+- **Path aliases** — `@/*` → `src/*` in both tsconfig.json and vite.config.ts (must sync).
+- **Debug logging** — `debug.log` in project root. View via `/debug-log` endpoint or `tail -f`.
+
+### SDK & Streaming
+- **Auth** — SDK uses Claude CLI auth from `~/.claude/.credentials.json`. SDK handles token refresh internally. Tauri's `fix-path-env` crate repairs HOME/PATH for GUI-launched apps so auth works without a terminal.
+- **Streaming** — Pass `includePartialMessages: true` to `sdkQuery()`. Only yield from `content_block_delta` events (not final message) to avoid duplication. Never `.trim()` SSE data — it strips inter-token spaces.
+- **Bun.serve timeout** — Default `idleTimeout` is 10s; SSE needs 120s for LLM responses.
+
+### Tauri & UI
+- **Radix UI** — Uses unified `radix-ui` package (not individual `@radix-ui/*`). Import from `"radix-ui"` directly.
+- **Tauri v2 detection** — Use `__TAURI_INTERNALS__` (not `__TAURI__`).
+- **Tauri plugins require 3 changes** — (1) Cargo.toml dependency, (2) `.plugin()` registration in `main.rs`, (3) capability permission in `src-tauri/capabilities/default.json`.
+- **Native clipboard** — Use Tauri's Edit menu, not JS handlers. See `src-tauri/src/main.rs`.
+- **Radix ContextMenu** — No controlled `open` prop. Gate opening via capture-phase `stopPropagation` on the `contextmenu` event.
+- **React 19 `useRef`** — Requires initial value: `useRef<T | undefined>(undefined)`, not `useRef<T>()`.
+- **Virtualization** — `react-virtuoso` for virtual scrolling.
+- **Markdown** — `marked` + `dompurify` for rendering. `stripMarkdown()` in `src/ui/formatters/markdown.ts` for plain-text previews. Emphasis-stripping regexes must require word boundaries to avoid corrupting identifiers like `foo_bar_baz`.
+
+### Testing & Build
+- **E2E needs server** — Playwright auto-starts both `bun run server` and `bun run vite`.
+- **E2E fixtures with server state** — Tests creating data via tRPC API (`POST /api/trpc/<proc>` with body `{ json: input }`) must clean up in `afterEach`. Use `page.waitForResponse()` to sync on API calls rather than text selectors.
+- **Agent tests skipped** — `src/services/agent.test.ts` needs rewrite for new SDK.
+- **vitest.config.ts** — Separate from vite.config.ts; both must use `@vitejs/plugin-react` or React hooks break.
+- **Fake timers + `waitFor()`** — Deadlocks. Use `vi.useRealTimers()` before async assertions.
+- **Build minifier** — `esbuild` (not terser) in vite.config.ts.
+- **ESLint complexity limit** — Max 15 per function. Extract sub-components to stay under.
+- **Optimistic updates** — `onMutate` must return rollback context for `onError` when side effects (selection clearing, cache changes) happen.
 
 **Known Issues**: See `docs/operations/issues.md` for detailed issues and resolutions.
+
+## Communication Style
+
+Be honest and push back when you think my approach has issues. Don't just comply — give me your genuine technical opinion, especially on architecture and scope decisions.

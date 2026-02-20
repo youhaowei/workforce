@@ -239,9 +239,10 @@ class SessionServiceImpl implements SessionService {
     return work;
   }
 
-  async create(title?: string, parentId?: string): Promise<Session> {
+  async create(title?: string, parentId?: string, metadata?: Record<string, unknown>): Promise<Session> {
     await this.ensureInitialized();
     const now = Date.now();
+    const initialMetadata = metadata ?? {};
     const session: Session = {
       id: generateId(),
       title,
@@ -249,13 +250,13 @@ class SessionServiceImpl implements SessionService {
       updatedAt: now,
       parentId,
       messages: [],
-      metadata: {},
+      metadata: initialMetadata,
     };
 
     this.registerSession(session, 'ready');
     await journalWriteRecords(this.sessionsDir, session.id, [{
       t: 'header', v: JSONL_VERSION, id: session.id, title: session.title,
-      createdAt: now, updatedAt: now, parentId, metadata: {},
+      createdAt: now, updatedAt: now, parentId, metadata: initialMetadata,
     }]);
 
     getEventBus().emit({ type: 'SessionChange', sessionId: session.id, action: 'created', timestamp: now });
@@ -348,10 +349,11 @@ class SessionServiceImpl implements SessionService {
     return forked;
   }
 
-  async list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<SessionSummary[]> {
+  async list(options?: { limit?: number; offset?: number; orgId?: string; projectId?: string }): Promise<SessionSummary[]> {
     await this.ensureInitialized();
     let results = Array.from(this.sessions.values());
     if (options?.orgId) results = results.filter((s) => s.metadata.orgId === options.orgId);
+    if (options?.projectId) results = results.filter((s) => s.metadata.projectId === options.projectId);
     const sorted = results.sort((a, b) => b.updatedAt - a.updatedAt);
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? sorted.length;

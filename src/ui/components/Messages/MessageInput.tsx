@@ -87,6 +87,7 @@ export default function MessageInput({
 
   // Auto-correct model selection if current model is no longer available.
   // model intentionally omitted from deps — only re-check when the list changes, not on every selection.
+  // Session restore handles its own validation inline (see below).
   useEffect(() => {
     if (models.length === 0) return;
     if (!models.some((m) => m.id === model)) {
@@ -99,6 +100,7 @@ export default function MessageInput({
   // Two-phase approach handles the race: Shell clears messages before the async fetch,
   // so we apply localStorage fallback immediately, then re-apply from session history
   // once messages arrive.
+  // Model is validated against current list to handle stale/deprecated model IDs.
   const sessionConfigRef = useRef<{ sessionId: string | null | undefined; appliedWithMessages: boolean }>({
     sessionId: undefined,
     appliedWithMessages: false,
@@ -110,19 +112,25 @@ export default function MessageInput({
     if (sessionChanged) {
       sessionConfigRef.current = { sessionId: sessionId ?? null, appliedWithMessages: hasMessages };
       const cfg = getInitialConfig(messages, sessionId);
-      setModel(cfg.model);
+      const validModel = models.length > 0 && !models.some((m) => m.id === cfg.model)
+        ? models[0].id
+        : cfg.model;
+      setModel(validModel);
       setThinkingLevel(cfg.thinkingLevel);
       setPermissionMode(cfg.permissionMode);
     } else if (!prev.appliedWithMessages && hasMessages) {
       // Same session: messages just loaded — re-apply to pick up session-specific agentConfig
       sessionConfigRef.current = { ...prev, appliedWithMessages: true };
       const cfg = getInitialConfig(messages, sessionId);
-      setModel(cfg.model);
+      const validModel = models.length > 0 && !models.some((m) => m.id === cfg.model)
+        ? models[0].id
+        : cfg.model;
+      setModel(validModel);
       setThinkingLevel(cfg.thinkingLevel);
       setPermissionMode(cfg.permissionMode);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, messages]);
+  }, [sessionId, messages, models]);
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;

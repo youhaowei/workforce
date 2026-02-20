@@ -1,4 +1,4 @@
-import { ArrowLeft, Menu, MessageSquare, ListTodo, Plus } from 'lucide-react';
+import { ArrowLeft, FolderGit2, Menu, MessageSquare, ListTodo, Plus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -15,6 +15,7 @@ const VIEW_TITLES: Partial<Record<ViewType, string>> = {
   board: 'Supervision Board',
   queue: 'Review Queue',
   sessions: 'Sessions',
+  projects: 'Projects',
   templates: 'Templates',
   workflows: 'Workflows',
   orgs: 'Organizations',
@@ -30,6 +31,8 @@ interface TopBarProps {
   onToggleSidebar: () => void;
   sessionsPanelCollapsed: boolean;
   onToggleSessionsPanel: () => void;
+  projectsPanelCollapsed: boolean;
+  onToggleProjectsPanel: () => void;
   taskPanelOpen: boolean;
   onToggleTask: () => void;
   onQuickCreate: () => void;
@@ -47,6 +50,8 @@ export default function TopBar({
   onToggleSidebar,
   sessionsPanelCollapsed,
   onToggleSessionsPanel,
+  projectsPanelCollapsed,
+  onToggleProjectsPanel,
   taskPanelOpen,
   onToggleTask,
   onQuickCreate,
@@ -84,6 +89,21 @@ export default function TopBar({
               </button>
             </TooltipTrigger>
             <TooltipContent>Show sessions (Cmd+Shift+H)</TooltipContent>
+          </Tooltip>
+        )}
+
+        {currentView === 'projects' && projectsPanelCollapsed && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="glass-pill p-2 text-muted-foreground hover:text-foreground transition-colors"
+                onClick={onToggleProjectsPanel}
+                aria-label="Show projects"
+              >
+                <FolderGit2 className="h-4 w-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Show projects</TooltipContent>
           </Tooltip>
         )}
 

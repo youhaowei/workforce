@@ -61,6 +61,10 @@ export type {
   Org,
   OrgSettings,
   OrgService,
+  // Project
+  Project,
+  ProjectNotFound,
+  ProjectService,
   // Template
   AgentTemplate,
   TemplateValidation,
@@ -92,6 +96,7 @@ import { getHookService, resetHookService } from './hook';
 import { getBackgroundService, resetBackgroundService } from './background';
 import { getTaskService, resetTaskService } from './task';
 import { getOrgService, resetOrgService } from './org';
+import { getProjectService, resetProjectService } from './project';
 import { getTemplateService, resetTemplateService } from './template';
 import { getWorktreeService, resetWorktreeService } from './worktree';
 
@@ -123,6 +128,8 @@ export {
   resetTaskService,
   getOrgService,
   resetOrgService,
+  getProjectService,
+  resetProjectService,
   getTemplateService,
   resetTemplateService,
   getWorktreeService,
@@ -148,6 +155,7 @@ export function disposeAllServices(): void {
   resetBackgroundService();
   resetTaskService();
   resetOrgService();
+  resetProjectService();
   resetTemplateService();
   resetWorktreeService();
 }

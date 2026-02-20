@@ -7,6 +7,7 @@
 export { formatFileRead, formatFileWrite, formatFileEdit } from './file';
 export { formatBash, truncateOutput, stripAnsi } from './bash';
 export { formatGlob, formatGrep, formatGrepMatch } from './search';
+export { stripMarkdown } from './markdown';
 export type { FileReadResult, FileWriteResult, FileEditResult } from './file';
 export type { BashResult } from './bash';
 export type { GlobResult, GrepResult, GrepMatch } from './search';
