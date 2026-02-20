@@ -44,8 +44,12 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
 
   const updateMutation = useMutation(
     trpc.org.update.mutationOptions({
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['org'] });
+      onSuccess: (updatedOrg) => {
+        // Synchronously update cache to avoid stale-data window
+        queryClient.setQueryData(trpc.org.getCurrent.queryKey(), updatedOrg);
+        queryClient.setQueryData(trpc.org.list.queryKey(), (old: Org[] | undefined) =>
+          (old ?? []).map((o) => o.id === updatedOrg.id ? updatedOrg : o),
+        );
         onComplete();
       },
     }),

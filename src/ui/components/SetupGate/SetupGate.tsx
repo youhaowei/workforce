@@ -58,7 +58,8 @@ function resolveStep(
   orgId: string | null,
 ): SetupStep {
   if (isLoading) return 'loading';
-  if (!userExists) return 'user';
+  if (userExists === undefined) return 'loading';
+  if (userExists === false) return 'user';
 
   const orgs = orgList ?? [];
   if (orgs.length === 0) return 'create-org';

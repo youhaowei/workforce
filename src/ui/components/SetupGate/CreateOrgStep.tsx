@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ArrowRight, Loader2 } from 'lucide-react';
+import type { Org } from '@/services/types';
 
 interface CreateOrgStepProps {
   userName: string;
@@ -32,8 +33,11 @@ export function CreateOrgStep({ userName, onComplete }: CreateOrgStepProps) {
         trpcClient.org.activate.mutate({ id: org.id }).catch((err) => {
           console.warn('[SetupGate] Failed to activate org on server:', err);
         });
+        // Synchronously update cache to avoid stale-data window where
+        // orgList is still [] during refetch (causes CreateOrgStep re-mount)
+        queryClient.setQueryData(trpc.org.list.queryKey(), (old: Org[] | undefined) => [...(old ?? []), org]);
+        queryClient.setQueryData(trpc.org.getCurrent.queryKey(), org);
         setCurrentOrgId(org.id);
-        queryClient.invalidateQueries({ queryKey: ['org'] });
         onComplete();
       },
     }),

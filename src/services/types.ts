@@ -843,6 +843,7 @@ export interface UserService extends Disposable {
   get(): Promise<User | null>;
   create(displayName: string): Promise<User>;
   update(updates: Partial<Omit<User, 'id' | 'createdAt'>>): Promise<User>;
+  delete(): Promise<void>;
   exists(): Promise<boolean>;
 }
 

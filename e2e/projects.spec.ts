@@ -1,53 +1,20 @@
 import { test, expect } from '@playwright/test'
-
-const SERVER_URL = 'http://localhost:4096'
-
-/**
- * Helper to call a tRPC mutation on the test server.
- * Uses the single-procedure format: POST /api/trpc/<procedure>
- */
-async function trpcMutate(procedure: string, input: unknown) {
-  const res = await fetch(`${SERVER_URL}/api/trpc/${procedure}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ json: input }),
-  })
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`tRPC ${procedure} failed (${res.status}): ${text}`)
-  }
-  const body = await res.json()
-  return body.result?.data?.json ?? body.result?.data
-}
-
-/**
- * Helper to call a tRPC query on the test server.
- * Uses GET with URL-encoded input: GET /api/trpc/<procedure>?input=...
- */
-async function trpcQuery(procedure: string, input: unknown) {
-  const params = encodeURIComponent(JSON.stringify({ json: input }))
-  const res = await fetch(
-    `${SERVER_URL}/api/trpc/${procedure}?input=${params}`,
-  )
-  if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`tRPC ${procedure} failed (${res.status}): ${text}`)
-  }
-  const body = await res.json()
-  return body.result?.data?.json ?? body.result?.data
-}
+import { trpcMutate, trpcQuery, setupTestUserAndOrg, resetServerState } from './helpers'
 
 test.describe('Projects', () => {
   let orgId: string
 
+  test.beforeAll(async () => {
+    // Ensure user exists so the setup gate is passed
+    await setupTestUserAndOrg()
+  })
+
   test.beforeEach(async ({ page }) => {
-    // Create and activate an org so ProjectsPanel can function
-    const org = await trpcMutate('org.create', {
-      name: 'Test Org',
-      rootPath: '/tmp/test-org',
-    })
+    // Create a fresh org for each test
+    const org = await trpcMutate('org.create', { name: 'Test Org' })
     orgId = org.id
     await trpcMutate('org.activate', { id: orgId })
+    await trpcMutate('org.update', { id: orgId, updates: { initialized: true } })
 
     await page.goto('/')
     // Wait for the org.getCurrent query to complete — this ensures the UI
@@ -62,7 +29,6 @@ test.describe('Projects', () => {
     // Clean up the org (and its projects) to prevent test pollution
     if (orgId) {
       try {
-        // List and delete projects first
         const projects = await trpcQuery('project.list', { orgId })
         for (const p of projects ?? []) {
           await trpcMutate('project.delete', { id: p.id })

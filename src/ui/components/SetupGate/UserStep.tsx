@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,10 +28,25 @@ interface UserStepProps {
 
 export function UserStep({ onComplete }: UserStepProps) {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const [name, setName] = useState('');
 
   const createMutation = useMutation(
-    trpc.user.create.mutationOptions({ onSuccess: onComplete }),
+    trpc.user.create.mutationOptions({
+      onSuccess: (user) => {
+        // Synchronously update cache so SetupGate advances immediately
+        queryClient.setQueryData(trpc.user.exists.queryKey(), true);
+        queryClient.setQueryData(trpc.user.get.queryKey(), user);
+        onComplete();
+      },
+      onError: (err) => {
+        // User already exists (e.g., race with stale query) — update cache and advance
+        if (err.message.includes('already exists')) {
+          queryClient.setQueryData(trpc.user.exists.queryKey(), true);
+          onComplete();
+        }
+      },
+    }),
   );
 
   const handleSubmit = (e: React.FormEvent) => {

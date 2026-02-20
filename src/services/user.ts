@@ -8,7 +8,7 @@
  * This is a single-user service (one user per installation).
  */
 
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
 import { join, dirname } from 'path';
 import type { User, UserService } from './types';
 import { getDataDir } from './data-dir';
@@ -114,6 +114,19 @@ class UserServiceImpl implements UserService {
 
     await this.save();
     return this.user;
+  }
+
+  async delete(): Promise<void> {
+    await this.ensureInitialized();
+    this.user = null;
+    try {
+      await unlink(this.filePath);
+    } catch (err) {
+      const error = err as NodeJS.ErrnoException;
+      if (error.code !== 'ENOENT') {
+        console.error('Failed to delete user file:', error);
+      }
+    }
   }
 
   async exists(): Promise<boolean> {
