@@ -90,6 +90,7 @@ function processMessageRecord(ctx: ReplayContext, record: JournalRecord & { t: '
     role: record.role,
     content: record.content,
     timestamp: record.timestamp,
+    agentConfig: record.agentConfig,
     toolCalls: record.toolCalls,
     toolResults: record.toolResults,
   });
@@ -336,6 +337,7 @@ export async function consolidateSession(sessionsDir: string, session: Session):
         role: msg.role,
         content: msg.content,
         timestamp: msg.timestamp,
+        agentConfig: msg.agentConfig,
         toolCalls: msg.toolCalls,
         toolResults: msg.toolResults,
       } satisfies JournalMessage);

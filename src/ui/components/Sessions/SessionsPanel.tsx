@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronsLeft } from 'lucide-react';
 import { useTRPC } from '@/bridge/react';
 import { useOrgStore } from '@/ui/stores/useOrgStore';
-import type { Session, SessionSummary } from '@/services/types';
+import type { SessionSummary } from '@/services/types';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -19,20 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SessionList } from './SessionList';
-
-function toSessionSummary(session: Session): SessionSummary {
-  const lastMessage = session.messages[session.messages.length - 1];
-  return {
-    id: session.id,
-    title: session.title,
-    createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
-    parentId: session.parentId,
-    metadata: session.metadata,
-    messageCount: session.messages.length,
-    lastMessagePreview: lastMessage?.content,
-  };
-}
+import { toSessionSummary } from '../Shell/shellHelpers';
 
 export interface SessionsPanelProps {
   collapsed: boolean;

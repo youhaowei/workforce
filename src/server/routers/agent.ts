@@ -9,14 +9,28 @@ export const agentRouter = router({
    * Yields token deltas, then completes.
    */
   query: publicProcedure
-    .input(z.object({ prompt: z.string() }))
+    .input(z.object({
+      prompt: z.string(),
+      model: z.string().optional(),
+      maxThinkingTokens: z.number().optional(),
+      permissionMode: z.enum(['plan', 'default', 'acceptEdits', 'bypassPermissions']).optional(),
+    }))
     .subscription(async function* ({ input }) {
-      debugLog('tRPC', 'agent.query subscription started', { prompt: input.prompt.slice(0, 100) });
+      debugLog('tRPC', 'agent.query subscription started', {
+        prompt: input.prompt.slice(0, 100),
+        model: input.model,
+        maxThinkingTokens: input.maxThinkingTokens,
+        permissionMode: input.permissionMode,
+      });
       const agent = getAgentService();
       let tokenCount = 0;
 
       try {
-        for await (const delta of agent.query(input.prompt)) {
+        for await (const delta of agent.query(input.prompt, {
+          model: input.model,
+          maxThinkingTokens: input.maxThinkingTokens,
+          permissionMode: input.permissionMode,
+        })) {
           tokenCount++;
           // Important: never trim tokens — preserves whitespace between LLM tokens (gotcha #16)
           yield { type: 'token' as const, data: delta.token };
@@ -29,6 +43,15 @@ export const agentRouter = router({
         yield { type: 'error' as const, data: message };
       }
     }),
+
+  supportedModels: publicProcedure.query(async () => {
+    try {
+      return await getAgentService().getSupportedModels();
+    } catch (err) {
+      debugLog('tRPC', 'supportedModels failed', { error: err instanceof Error ? err.message : String(err) });
+      return [];
+    }
+  }),
 
   cancel: publicProcedure.mutation(() => {
     getAgentService().cancel();

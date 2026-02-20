@@ -19,7 +19,8 @@ import { useTRPC } from '@/bridge/react';
 import { trpc as trpcClient } from '@/bridge/trpc';
 import { queryClient } from '@/bridge/query-client';
 import { getEventBus } from '@/shared/event-bus';
-import type { SessionSummary } from '@/services/types';
+import type { AgentConfig, SessionSummary } from '@/services/types';
+import { THINKING_TOKENS } from '../Messages/agentConfig';
 import AppSidebar from './AppSidebar';
 import { MainViewContent } from './MainViewContent';
 import { MainContentColumn } from './MainContentColumn';
@@ -295,11 +296,14 @@ function ShellContent() {
     return unsubError;
   }, []);
 
-  const handleSubmit = useCallback((content: string) => {
-    const userMsgId = addUserMessage(content);
+  const handleSubmit = useCallback(({ content, agentConfig }: { content: string; agentConfig: AgentConfig }) => {
+    const userMsgId = addUserMessage(content, agentConfig);
     const assistantMsgId = startAssistantMessage();
     streamSeqRef.current = 0;
     deltaBufferRef.current = [];
+
+    // Convert UI thinking level to SDK maxThinkingTokens
+    const maxThinkingTokens = THINKING_TOKENS[agentConfig.thinkingLevel];
 
     // Start the async persistence + streaming pipeline.
     // Wrapped in an async IIFE so the useCallback itself stays synchronous
@@ -347,7 +351,7 @@ function ShellContent() {
       if (sessId) {
         trpcClient.session.addMessage.mutate({
           sessionId: sessId,
-          message: { id: userMsgId, role: 'user' as const, content, timestamp: Date.now() },
+          message: { id: userMsgId, role: 'user' as const, content, timestamp: Date.now(), agentConfig },
         }).catch(() => {/* best-effort */});
         trpcClient.session.streamStart.mutate({
           sessionId: sessId, messageId: assistantMsgId,
@@ -355,7 +359,12 @@ function ShellContent() {
       }
 
       const subscription = trpcClient.agent.query.subscribe(
-        { prompt: content },
+        {
+          prompt: content,
+          model: agentConfig.model,
+          ...(maxThinkingTokens !== undefined ? { maxThinkingTokens } : {}),
+          permissionMode: agentConfig.permissionMode,
+        },
         {
           onData: (data) => {
             if (data.type === 'token') {

@@ -8,6 +8,7 @@ import { AuditView } from '../Audit';
 import { OrgListView } from '../Org/OrgListView';
 import { HomeView } from '../Home';
 import type { ViewType } from './Shell';
+import type { AgentConfig } from '@/services/types';
 
 interface MainViewContentProps {
   currentView: ViewType;
@@ -21,6 +22,7 @@ interface MainViewContentProps {
     content: string;
     timestamp: number;
     isStreaming: boolean;
+    agentConfig?: AgentConfig;
     toolCalls?: Array<{ id: string; name: string; args: unknown }>;
     toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>;
   }>;
@@ -30,7 +32,7 @@ interface MainViewContentProps {
   onStartChat: () => void;
   onNavigate: (view: ViewType) => void;
   onSelectSession: (sessionId: string) => void;
-  onSubmitMessage: (content: string) => void;
+  onSubmitMessage: (submission: { content: string; agentConfig: AgentConfig }) => void;
   onCancelStream: () => void;
 }
 

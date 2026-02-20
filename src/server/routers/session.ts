@@ -78,6 +78,11 @@ export const sessionRouter = router({
         role: z.enum(['user', 'assistant', 'system']),
         content: z.string(),
         timestamp: z.number(),
+        agentConfig: z.object({
+          model: z.string(),
+          thinkingLevel: z.enum(['off', 'auto', 'low', 'medium', 'high']),
+          permissionMode: z.enum(['plan', 'default', 'acceptEdits', 'bypassPermissions']),
+        }).optional(),
       }),
     }))
     .mutation(({ input }) =>
