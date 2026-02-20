@@ -35,6 +35,7 @@ interface MessageInputProps {
 function getInitialConfig(
   messages?: MessageInputProps['messages'],
   sessionId?: string | null,
+  orgDefaults?: { model: string; thinkingLevel: ThinkingLevel } | null,
 ): AgentConfig {
   // Priority 1: last user message's agentConfig in the current session
   if (sessionId && messages) {
@@ -47,7 +48,15 @@ function getInitialConfig(
   // Priority 2: localStorage last-used config
   const stored = parseStoredAgentConfig(localStorage.getItem(AGENT_CONFIG_LAST_KEY));
   if (stored) return stored;
-  // Priority 3: hardcoded defaults
+  // Priority 3: org-level defaults
+  if (orgDefaults) {
+    return {
+      model: orgDefaults.model,
+      thinkingLevel: orgDefaults.thinkingLevel,
+      permissionMode: DEFAULT_AGENT_CONFIG.permissionMode,
+    };
+  }
+  // Priority 4: hardcoded defaults
   return DEFAULT_AGENT_CONFIG;
 }
 
@@ -63,11 +72,35 @@ export default function MessageInput({
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Fetch org-level defaults for initial config cascade
+  const { data: currentOrg } = useQuery(
+    trpc.org.getCurrent.queryOptions(undefined, { staleTime: 60_000 }),
+  );
+  const orgDefaults = currentOrg?.settings?.agentDefaults ?? null;
+
   const [models, setModels] = useState(() => getModelsFromCache());
   const [initialConfig] = useState(() => getInitialConfig(messages, sessionId));
   const [model, setModel] = useState(initialConfig.model);
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(initialConfig.thinkingLevel);
   const [permissionMode, setPermissionMode] = useState<AgentPermissionMode>(initialConfig.permissionMode);
+
+  // Apply org defaults once they resolve, but only if no higher-priority config was set.
+  // orgDefaults intentionally NOT in the restore effect deps — this one-shot effect handles
+  // the async resolution that the useState initializer missed.
+  const orgDefaultsAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!orgDefaults || orgDefaultsAppliedRef.current) return;
+    orgDefaultsAppliedRef.current = true;
+    // Only apply if current config matches hardcoded defaults (no session/localStorage override)
+    if (model === DEFAULT_AGENT_CONFIG.model && thinkingLevel === DEFAULT_AGENT_CONFIG.thinkingLevel) {
+      const validModel = models.length > 0 && !models.some((m) => m.id === orgDefaults.model)
+        ? models[0].id
+        : orgDefaults.model;
+      setModel(validModel);
+      setThinkingLevel(orgDefaults.thinkingLevel);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgDefaults]);
 
   // Fetch supported models via React Query (5-minute stale window)
   const { data: supportedModels } = useQuery(
