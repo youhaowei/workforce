@@ -5,7 +5,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -17,15 +17,14 @@ import type { WorkflowTemplate } from '@/services/types';
 export function WorkflowListView() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
   const [keyword, setKeyword] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState<WorkflowTemplate | null>(null);
 
   const { data: workflows = [], isLoading } = useQuery(
     trpc.workflow.list.queryOptions(
-      { orgId: orgId! },
-      { enabled: !!orgId },
+      { orgId },
     ),
   );
 
@@ -59,23 +58,12 @@ export function WorkflowListView() {
   }, []);
 
   const handleExecute = useCallback((w: WorkflowTemplate) => {
-    if (!orgId) return;
     executeMutation.mutate({ orgId, id: w.id });
   }, [orgId, executeMutation]);
 
   const handleArchive = useCallback((w: WorkflowTemplate) => {
-    if (!orgId) return;
     archiveMutation.mutate({ orgId, id: w.id });
   }, [orgId, archiveMutation]);
-
-  if (!orgId) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2 p-6">
-        <Workflow className="h-8 w-8" />
-        <p className="text-sm">Select an org to manage workflows</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">

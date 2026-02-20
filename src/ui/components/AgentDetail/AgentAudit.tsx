@@ -18,7 +18,6 @@ export function AgentAudit({ sessionId, orgId }: AgentAuditProps) {
   const { data: entries = [], isLoading } = useQuery(
     trpc.audit.session.queryOptions(
       { sessionId, orgId },
-      { enabled: !!orgId },
     ),
   );
 

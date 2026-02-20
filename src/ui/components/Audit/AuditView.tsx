@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import {
   Select,
   SelectContent,
@@ -30,28 +30,19 @@ const AUDIT_TYPES: Array<{ value: string; label: string }> = [
 
 export function AuditView() {
   const trpc = useTRPC();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
   const [typeFilter, setTypeFilter] = useState('all');
 
   const { data: entries = [], isLoading } = useQuery(
     trpc.audit.org.queryOptions(
       {
-        orgId: orgId!,
+        orgId,
         type: typeFilter !== 'all' ? (typeFilter as AuditEntryType) : undefined,
         limit: 200,
       },
-      { enabled: !!orgId },
+      {},
     ),
   );
-
-  if (!orgId) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2 p-6">
-        <History className="h-8 w-8" />
-        <p className="text-sm">Select an org to view audit log</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">

@@ -5,17 +5,17 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { Badge } from '@/components/ui/badge';
 
 export function ReviewBadge() {
   const trpc = useTRPC();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
 
   const { data: count } = useQuery(
     trpc.review.count.queryOptions(
-      { orgId: orgId! },
-      { enabled: !!orgId, refetchInterval: 3000 },
+      { orgId },
+      { refetchInterval: 3000 },
     ),
   );
 

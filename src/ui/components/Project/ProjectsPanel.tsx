@@ -7,7 +7,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronsLeft, Plus, Search, Trash2, FolderOpen } from 'lucide-react';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { useDialogStore } from '@/ui/stores/useDialogStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,12 +33,12 @@ export function ProjectsPanel({
 }: ProjectsPanelProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
   const [search, setSearch] = useState('');
 
-  const listInput = orgId ? { orgId } : undefined;
+  const listInput = { orgId };
   const { data: projects = [], isLoading } = useQuery(
-    trpc.project.list.queryOptions(listInput, { enabled: !!orgId && !collapsed, refetchInterval: 10000 }),
+    trpc.project.list.queryOptions(listInput, { enabled: !collapsed, refetchInterval: 10000 }),
   );
 
   const deleteMutation = useMutation(

@@ -27,7 +27,6 @@ export function CreateOrgDialog({ open, onOpenChange }: CreateOrgDialogProps) {
   const queryClient = useQueryClient();
   const setCurrentOrgId = useOrgStore((s) => s.setCurrentOrgId);
   const [name, setName] = useState('');
-  const [rootPath, setRootPath] = useState('');
 
   const createMutation = useMutation(
     trpc.org.create.mutationOptions({
@@ -36,15 +35,14 @@ export function CreateOrgDialog({ open, onOpenChange }: CreateOrgDialogProps) {
         queryClient.invalidateQueries({ queryKey: ['org'] });
         onOpenChange(false);
         setName('');
-        setRootPath('');
       },
     }),
   );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !rootPath.trim()) return;
-    createMutation.mutate({ name: name.trim(), rootPath: rootPath.trim() });
+    if (!name.trim()) return;
+    createMutation.mutate({ name: name.trim() });
   };
 
   return (
@@ -58,29 +56,16 @@ export function CreateOrgDialog({ open, onOpenChange }: CreateOrgDialogProps) {
             <Label htmlFor="org-name">Name</Label>
             <Input
               id="org-name"
-              placeholder="My Project"
+              placeholder="My Organization"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="org-path">Root Path</Label>
-            <Input
-              id="org-path"
-              placeholder="/path/to/project"
-              value={rootPath}
-              onChange={(e) => setRootPath(e.target.value)}
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              Absolute path to the project directory
-            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!name.trim() || !rootPath.trim() || createMutation.isPending}>
+            <Button type="submit" disabled={!name.trim() || createMutation.isPending}>
               {createMutation.isPending ? 'Creating...' : 'Create'}
             </Button>
           </DialogFooter>

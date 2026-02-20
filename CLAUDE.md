@@ -310,6 +310,7 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 - **React 19 `useRef`** — Requires initial value: `useRef<T | undefined>(undefined)`, not `useRef<T>()`.
 - **Virtualization** — `react-virtuoso` for virtual scrolling.
 - **Markdown** — `marked` + `dompurify` for rendering. `stripMarkdown()` in `src/ui/formatters/markdown.ts` for plain-text previews. Emphasis-stripping regexes must require word boundaries to avoid corrupting identifiers like `foo_bar_baz`.
+- **`useState` initializer + async queries** — `useState(() => fn(queryData))` captures `queryData` at first render, which is always `undefined`/`null` for async queries. Use a separate `useEffect` to apply async data once it resolves, guarded by a ref to avoid re-application.
 
 ### Testing & Build
 - **E2E needs server** — Playwright auto-starts both `bun run server` and `bun run vite`.
@@ -320,6 +321,7 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 - **Build minifier** — `esbuild` (not terser) in vite.config.ts.
 - **ESLint complexity limit** — Max 15 per function. Extract sub-components to stay under.
 - **Optimistic updates** — `onMutate` must return rollback context for `onError` when side effects (selection clearing, cache changes) happen.
+- **Router tests share global singletons** — Services like `UserService` persist to `~/.workforce/` on disk. `resetXxxService()` clears memory but not disk. Use factory functions (`createXxxService(tempPath)`) for isolated unit tests. Router integration tests sharing `createCaller({})` must account for cross-test disk persistence.
 
 **Known Issues**: See `docs/operations/issues.md` for detailed issues and resolutions.
 
