@@ -13,6 +13,14 @@ vi.mock('@/bridge/react', () => ({
         }),
       },
     },
+    org: {
+      getCurrent: {
+        queryOptions: () => ({
+          queryKey: ['org', 'getCurrent'],
+          queryFn: () => Promise.resolve(null),
+        }),
+      },
+    },
   }),
 }));
 

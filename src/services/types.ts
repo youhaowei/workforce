@@ -30,6 +30,17 @@ export type StreamResult<T> = AsyncGenerator<T, void, unknown>;
 
 export type ThinkingLevel = 'off' | 'auto' | 'low' | 'medium' | 'high';
 
+export type AgentTone = 'friendly' | 'professional' | 'direct' | 'technical';
+export type VerboseLevel = 'concise' | 'balanced' | 'thorough' | 'exhaustive';
+
+/** Org/template-level defaults for WorkAgent behavior. */
+export interface AgentDefaults {
+  model: string;
+  thinkingLevel: ThinkingLevel;
+  tone: AgentTone;
+  verboseLevel: VerboseLevel;
+}
+
 export type AgentPermissionMode =
   | 'plan'
   | 'default'
@@ -787,8 +798,7 @@ export interface Org {
   id: string;
   name: string;
   description?: string;
-  /** Absolute path to the project root directory */
-  rootPath: string;
+  initialized?: boolean;
   createdAt: number;
   updatedAt: number;
   settings: OrgSettings;
@@ -803,16 +813,37 @@ export interface OrgSettings {
   costWarningThreshold?: number;
   /** Cost hard cap in USD (optional) */
   costHardCap?: number;
+  /** Org-level agent behavior defaults (set during workspace initialization) */
+  agentDefaults?: AgentDefaults;
 }
 
 export interface OrgService extends Disposable {
-  create(name: string, rootPath: string): Promise<Org>;
+  create(name: string): Promise<Org>;
   get(id: string): Promise<Org | null>;
   update(id: string, updates: Partial<Omit<Org, 'id' | 'createdAt'>>): Promise<Org>;
   list(): Promise<Org[]>;
   delete(id: string): Promise<void>;
-  getCurrent(): Org | null;
+  getCurrent(): Promise<Org | null>;
   setCurrent(org: Org | null): void;
+}
+
+// =============================================================================
+// User Types
+// =============================================================================
+
+export interface User {
+  id: string;
+  displayName: string;
+  avatarColor: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface UserService extends Disposable {
+  get(): Promise<User | null>;
+  create(displayName: string): Promise<User>;
+  update(updates: Partial<Omit<User, 'id' | 'createdAt'>>): Promise<User>;
+  exists(): Promise<boolean>;
 }
 
 // =============================================================================

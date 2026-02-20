@@ -12,6 +12,9 @@ export type {
   Result,
   StreamResult,
   // Agent
+  AgentTone,
+  VerboseLevel,
+  AgentDefaults,
   AgentService,
   QueryOptions,
   TokenDelta,
@@ -61,6 +64,9 @@ export type {
   Org,
   OrgSettings,
   OrgService,
+  // User
+  User,
+  UserService,
   // Project
   Project,
   ProjectNotFound,
@@ -96,6 +102,7 @@ import { getHookService, resetHookService } from './hook';
 import { getBackgroundService, resetBackgroundService } from './background';
 import { getTaskService, resetTaskService } from './task';
 import { getOrgService, resetOrgService } from './org';
+import { getUserService, resetUserService } from './user';
 import { getProjectService, resetProjectService } from './project';
 import { getTemplateService, resetTemplateService } from './template';
 import { getWorktreeService, resetWorktreeService } from './worktree';
@@ -128,6 +135,8 @@ export {
   resetTaskService,
   getOrgService,
   resetOrgService,
+  getUserService,
+  resetUserService,
   getProjectService,
   resetProjectService,
   getTemplateService,
@@ -155,6 +164,7 @@ export function disposeAllServices(): void {
   resetBackgroundService();
   resetTaskService();
   resetOrgService();
+  resetUserService();
   resetProjectService();
   resetTemplateService();
   resetWorktreeService();

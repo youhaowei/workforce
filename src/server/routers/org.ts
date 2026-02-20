@@ -11,8 +11,8 @@ export const orgRouter = router({
     .query(({ input }) => getOrgService().get(input.id)),
 
   create: publicProcedure
-    .input(z.object({ name: z.string(), rootPath: z.string() }))
-    .mutation(({ input }) => getOrgService().create(input.name, input.rootPath)),
+    .input(z.object({ name: z.string() }))
+    .mutation(({ input }) => getOrgService().create(input.name)),
 
   update: publicProcedure
     .input(z.object({

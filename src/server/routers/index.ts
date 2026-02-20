@@ -2,6 +2,7 @@ import { router, createCallerFactory } from '../trpc';
 import { healthRouter } from './health';
 import { sessionRouter } from './session';
 import { orgRouter } from './org';
+import { userRouter } from './user';
 import { projectRouter } from './project';
 import { templateRouter } from './template';
 import { workflowRouter } from './workflow';
@@ -17,6 +18,7 @@ export const appRouter = router({
   health: healthRouter,
   session: sessionRouter,
   org: orgRouter,
+  user: userRouter,
   project: projectRouter,
   template: templateRouter,
   workflow: workflowRouter,

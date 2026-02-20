@@ -1,8 +1,11 @@
 import type {
   AgentConfig,
+  AgentDefaults,
   AgentModelInfo,
   AgentPermissionMode,
+  AgentTone,
   ThinkingLevel,
+  VerboseLevel,
 } from '@/services/types';
 
 export const AGENT_CONFIG_LAST_KEY = 'agent-config-last';
@@ -38,6 +41,27 @@ export const PERMISSION_OPTIONS: Array<{ value: AgentPermissionMode; label: stri
   { value: 'acceptEdits', label: 'Auto-Edit' },
   { value: 'bypassPermissions', label: 'Bypass' },
 ];
+
+export const TONE_OPTIONS: Array<{ value: AgentTone; label: string }> = [
+  { value: 'friendly', label: 'Friendly' },
+  { value: 'professional', label: 'Professional' },
+  { value: 'direct', label: 'Direct' },
+  { value: 'technical', label: 'Technical' },
+];
+
+export const VERBOSE_OPTIONS: Array<{ value: VerboseLevel; label: string }> = [
+  { value: 'concise', label: 'Concise' },
+  { value: 'balanced', label: 'Balanced' },
+  { value: 'thorough', label: 'Thorough' },
+  { value: 'exhaustive', label: 'Exhaustive' },
+];
+
+export const DEFAULT_AGENT_DEFAULTS: AgentDefaults = {
+  model: 'claude-opus-4-6',
+  thinkingLevel: 'auto',
+  tone: 'friendly',
+  verboseLevel: 'balanced',
+};
 
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   model: SEED_MODELS[2].id, // Sonnet 4.5

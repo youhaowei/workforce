@@ -16,6 +16,7 @@ import { HotkeyProvider } from './hotkeys/HotkeyProvider';
 import { AppContextMenu } from './components/Shell/AppContextMenu';
 import { useEventBusInit } from './hooks/useEventBusInit';
 import { useServerInit } from './hooks/useServerInit';
+import { SetupGate } from './components/SetupGate';
 import Shell from './components/Shell/Shell';
 
 // Detect Tauri runtime
@@ -28,7 +29,11 @@ const platformActions: PlatformActions = {
 function AppInner() {
   useServerInit();
   useEventBusInit();
-  return <Shell />;
+  return (
+    <SetupGate>
+      <Shell />
+    </SetupGate>
+  );
 }
 
 export default function App() {
