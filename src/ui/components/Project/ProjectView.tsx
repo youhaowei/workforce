@@ -7,7 +7,7 @@ import { useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { FolderOpen, MessageSquare } from 'lucide-react';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Project, SessionSummary } from '@/services/types';
@@ -30,11 +30,11 @@ export function ProjectView({
   onSelectSession,
 }: ProjectViewProps) {
   const trpc = useTRPC();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
 
-  const listInput = orgId ? { orgId } : undefined;
+  const listInput = { orgId };
   const { data: projects = [], isFetched: isProjectsFetched } = useQuery(
-    trpc.project.list.queryOptions(listInput, { enabled: !!orgId }),
+    trpc.project.list.queryOptions(listInput),
   );
   const project = useMemo(
     () => (selectedProjectId ? (projects as Project[]).find((p) => p.id === selectedProjectId) ?? null : null),
@@ -42,11 +42,11 @@ export function ProjectView({
   );
 
   useEffect(() => {
-    if (!orgId || !selectedProjectId || !isProjectsFetched) return;
+    if (!selectedProjectId || !isProjectsFetched) return;
     if (!project) onSelectProject?.(null);
-  }, [isProjectsFetched, onSelectProject, orgId, project, selectedProjectId]);
+  }, [isProjectsFetched, onSelectProject, project, selectedProjectId]);
 
-  const sessionsInput = orgId && project ? { orgId, projectId: project.id } : undefined;
+  const sessionsInput = project ? { orgId, projectId: project.id } : undefined;
   const { data: sessions = [] } = useQuery(
     trpc.session.list.queryOptions(
       sessionsInput,
@@ -54,7 +54,7 @@ export function ProjectView({
     ),
   );
 
-  if (!orgId || !selectedProjectId || !project) {
+  if (!selectedProjectId || !project) {
     return (
       <div className="flex-1 flex items-center justify-center pt-14">
         <div className="text-center space-y-3">

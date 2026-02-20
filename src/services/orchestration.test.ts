@@ -86,7 +86,6 @@ describe('OrchestrationService', () => {
   const defaultOrg: Org = {
     id: 'ws_1',
     name: 'Test Org',
-    rootPath: '/projects/test-repo',
     createdAt: Date.now(),
     updatedAt: Date.now(),
     settings: { allowedTools: [] },
@@ -188,7 +187,7 @@ describe('OrchestrationService', () => {
       expect(meta.worktreePath).toBeTruthy();
     });
 
-    it('should use org.rootPath for worktree isolation instead of cwd', async () => {
+    it('should use process.cwd() for worktree isolation', async () => {
       const session = await service.spawn({
         templateId: 'tpl_test',
         goal: 'Isolated task',
@@ -196,14 +195,14 @@ describe('OrchestrationService', () => {
         isolateWorktree: true,
       });
 
-      // The worktree should have been created with org rootPath
+      // The worktree should have been created with process.cwd()
       const wt = worktreeService.getForSession(session.id);
       expect(wt).not.toBeNull();
-      expect(wt!.repoRoot).toBe('/projects/test-repo');
+      expect(wt!.repoRoot).toBe(process.cwd());
 
       // Session metadata should also have repoRoot
       const meta = session.metadata as Record<string, unknown>;
-      expect(meta.repoRoot).toBe('/projects/test-repo');
+      expect(meta.repoRoot).toBe(process.cwd());
     });
 
     it('should pass allowedTools from org settings to agent', async () => {
@@ -211,7 +210,6 @@ describe('OrchestrationService', () => {
       const restrictedWs: Org = {
         id: 'ws_restricted',
         name: 'Restricted',
-        rootPath: '/projects/restricted',
         createdAt: Date.now(),
         updatedAt: Date.now(),
         settings: { allowedTools: ['bash', 'read'] },
@@ -236,7 +234,7 @@ describe('OrchestrationService', () => {
       // Session should be created successfully
       expect(session.id).toBeTruthy();
       const meta = session.metadata as Record<string, unknown>;
-      expect(meta.repoRoot).toBe('/projects/restricted');
+      expect(meta.repoRoot).toBe(process.cwd());
     });
 
     it('should eventually transition to completed after agent finishes', async () => {

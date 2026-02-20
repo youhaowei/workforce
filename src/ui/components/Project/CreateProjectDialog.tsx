@@ -5,7 +5,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import {
   Dialog,
   DialogContent,
@@ -24,8 +24,8 @@ interface CreateProjectDialogProps {
 export function CreateProjectDialog({ open, onOpenChange, onCreated }: CreateProjectDialogProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const orgId = useOrgStore((s) => s.currentOrgId);
-  const listInput = orgId ? { orgId } : undefined;
+  const orgId = useRequiredOrgId();
+  const listInput = { orgId };
 
   const createMutation = useMutation(
     trpc.project.create.mutationOptions({
@@ -43,7 +43,6 @@ export function CreateProjectDialog({ open, onOpenChange, onCreated }: CreatePro
   );
 
   const handleSubmit = (values: ProjectFormValues) => {
-    if (!orgId) return;
     createMutation.mutate({
       orgId,
       name: values.name,
@@ -62,7 +61,6 @@ export function CreateProjectDialog({ open, onOpenChange, onCreated }: CreatePro
           onSubmit={handleSubmit}
           onCancel={() => onOpenChange(false)}
           isPending={createMutation.isPending}
-          disabled={!orgId}
           submitLabel="Create"
           pendingLabel="Creating..."
         />

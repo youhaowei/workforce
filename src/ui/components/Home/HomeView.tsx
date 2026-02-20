@@ -6,7 +6,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
 
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,7 +28,7 @@ interface HomeViewProps {
 
 export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewProps) {
   const trpc = useTRPC();
-  const orgId = useOrgStore((s) => s.currentOrgId)!;
+  const orgId = useRequiredOrgId();
 
   const { data: sessions = [] } = useQuery(
     trpc.session.list.queryOptions(

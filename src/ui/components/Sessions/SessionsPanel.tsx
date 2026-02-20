@@ -11,7 +11,7 @@ import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronsLeft, SlidersHorizontal, X } from 'lucide-react';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { useResizablePanel } from '@/ui/hooks/useResizablePanel';
 import type { SessionSummary, Project } from '@/services/types';
 import { Button } from '@/components/ui/button';
@@ -26,11 +26,11 @@ import { SessionList } from './SessionList';
 import type { GroupByMode } from './sessionListHelpers';
 
 /** Fetches project list for group-by-project and defers grouping while loading. */
-function useProjectGrouping(groupBy: GroupByMode, orgId: string | null) {
+function useProjectGrouping(groupBy: GroupByMode, orgId: string) {
   const trpc = useTRPC();
-  const listInput = orgId ? { orgId } : undefined;
+  const listInput = { orgId };
   const { data: projects = [], isLoading } = useQuery(
-    trpc.project.list.queryOptions(listInput, { enabled: groupBy === 'project' && !!orgId }),
+    trpc.project.list.queryOptions(listInput, { enabled: groupBy === 'project' }),
   );
   const projectMap = useMemo(
     () => new Map((projects as Project[]).map((p) => [p.id, p])),
@@ -132,7 +132,7 @@ export function SessionsPanel({
 }: SessionsPanelProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
   const [typeFilter, setTypeFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState('all');
   const [groupBy, setGroupBy] = useState<'none' | 'project' | 'status'>('none');
@@ -143,7 +143,7 @@ export function SessionsPanel({
     minWidth: 220,
     maxWidth: 480,
   });
-  const listInput = orgId ? { orgId } : undefined;
+  const listInput = { orgId };
   const listQueryKey = trpc.session.list.queryKey(listInput);
 
   const activeFilterCount = useMemo(() => {

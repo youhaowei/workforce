@@ -16,7 +16,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { useHotkey } from '@/ui/hotkeys';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import { useSdkStore } from '@/ui/stores/useSdkStore';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { useTRPC } from '@/bridge/react';
 import { trpc as trpcClient } from '@/bridge/trpc';
 import { queryClient } from '@/bridge/query-client';
@@ -86,8 +86,7 @@ function ShellContent() {
   const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
 
   const trpc = useTRPC();
-  const orgId = useOrgStore((s) => s.currentOrgId);
-  const setCurrentOrgId = useOrgStore((s) => s.setCurrentOrgId);
+  const orgId = useRequiredOrgId();
 
   const messages = useMessagesStore((s) => s.messages);
   const isStreaming = useMessagesStore((s) => s.isStreaming);
@@ -101,20 +100,11 @@ function ShellContent() {
   const cumulativeUsage = useSdkStore((s) => s.cumulativeUsage);
   const currentQueryStats = useSdkStore((s) => s.currentQueryStats);
 
-  const { data: currentOrg } = useQuery(
-    trpc.org.getCurrent.queryOptions(undefined, { enabled: serverConnected }),
-  );
   const { data: projects = [] } = useQuery(
-    trpc.project.list.queryOptions(orgId ? { orgId } : undefined, { enabled: !!orgId }),
+    trpc.project.list.queryOptions({ orgId }),
   );
 
-  const activeSessionTitle = useActiveSessionTitle({ orgId: orgId ?? undefined, selectedSessionId, serverConnected });
-
-  useEffect(() => {
-    if (currentOrg?.id && !orgId) {
-      setCurrentOrgId(currentOrg.id);
-    }
-  }, [currentOrg, orgId, setCurrentOrgId]);
+  const activeSessionTitle = useActiveSessionTitle({ orgId, selectedSessionId, serverConnected });
 
   useEffect(() => {
     setSelectedProjectId(null);
@@ -340,7 +330,7 @@ function ShellContent() {
           const projectIdForSession = newSessionProjectId ?? undefined;
           const session = await trpcClient.session.create.mutate({
             title: content.slice(0, SESSION_TITLE_MAX_LENGTH),
-            ...(orgId && { orgId }),
+            orgId,
             ...(projectIdForSession && { projectId: projectIdForSession }),
           });
           sessId = session.id;
@@ -351,11 +341,11 @@ function ShellContent() {
           const summary = toSessionSummary(session);
           // Optimistic insert: push new session into active session list cache immediately.
           queryClient.setQueriesData<SessionSummary[]>(
-            { queryKey: trpc.session.list.queryKey(orgId ? { orgId } : undefined) },
+            { queryKey: trpc.session.list.queryKey({ orgId }) },
             (old) => old ? [summary, ...old] : [summary],
           );
           // Also insert into the project-scoped cache so the project's session list updates immediately
-          if (projectIdForSession && orgId) {
+          if (projectIdForSession) {
             queryClient.setQueriesData<SessionSummary[]>(
               { queryKey: trpc.session.list.queryKey({ orgId, projectId: projectIdForSession }) },
               (old) => old ? [summary, ...old] : [summary],

@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import {
   Dialog,
   DialogContent,
@@ -62,7 +62,7 @@ function createStep(type: StepType, index: number): WorkflowStep {
 export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -111,7 +111,7 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
   }, []);
 
   const handleSave = () => {
-    if (!orgId || !name.trim()) return;
+    if (!name.trim()) return;
     const data = {
       name: name.trim(),
       description: description.trim(),
@@ -193,7 +193,7 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
         </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || !orgId || isPending}>
+          <Button onClick={handleSave} disabled={!name.trim() || isPending}>
             {saveButtonLabel(isPending, !!workflow)}
           </Button>
         </DialogFooter>

@@ -63,7 +63,7 @@ function makeProject(id: string, name = 'Project A'): Project {
 describe('ProjectsPanel', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    useOrgStore.setState({ currentOrgId: null });
+    useOrgStore.setState({ currentOrgId: 'org_1' });
     capturedDeleteOptions = null;
 
     mockUseQuery.mockReturnValue({ data: [], isLoading: false });
@@ -75,17 +75,16 @@ describe('ProjectsPanel', () => {
     });
   });
 
-  it('disables project list query until an org is selected', () => {
+  it('enables project list query when org is set and panel is not collapsed', () => {
     render(<ProjectsPanel collapsed={false} />);
 
     expect(mockProjectListQueryOptions).toHaveBeenCalledWith(
-      undefined,
-      expect.objectContaining({ enabled: false }),
+      { orgId: 'org_1' },
+      expect.objectContaining({ enabled: true }),
     );
   });
 
   it('does not call onSelectProject when Enter is pressed on delete button', () => {
-    useOrgStore.setState({ currentOrgId: 'org_1' });
     const onSelectProject = vi.fn();
     mockUseQuery.mockReturnValue({ data: [makeProject('proj_1', 'Alpha')], isLoading: false });
 
@@ -102,7 +101,6 @@ describe('ProjectsPanel', () => {
   });
 
   it('clears selected project optimistically on delete', () => {
-    useOrgStore.setState({ currentOrgId: 'org_1' });
     const onClearSelection = vi.fn();
     mockUseQuery.mockReturnValue({ data: [makeProject('proj_1', 'Alpha')], isLoading: false });
 
@@ -120,7 +118,6 @@ describe('ProjectsPanel', () => {
   });
 
   it('restores selection and cache snapshot on delete error', () => {
-    useOrgStore.setState({ currentOrgId: 'org_1' });
     const onClearSelection = vi.fn();
     const onSelectProject = vi.fn();
     const projectList = [makeProject('proj_1', 'Alpha')];
@@ -148,7 +145,6 @@ describe('ProjectsPanel', () => {
   });
 
   it('does not restore selection on error if a different project was deleted', () => {
-    useOrgStore.setState({ currentOrgId: 'org_1' });
     const onSelectProject = vi.fn();
     const projectList = [makeProject('proj_1', 'Alpha'), makeProject('proj_2', 'Beta')];
     mockUseQuery.mockReturnValue({ data: projectList, isLoading: false });
@@ -171,7 +167,6 @@ describe('ProjectsPanel', () => {
 
   describe('confirm dialog integration', () => {
     it('calls confirm dialog when delete button is clicked', async () => {
-      useOrgStore.setState({ currentOrgId: 'org_1' });
       const confirmSpy = vi.fn().mockResolvedValue(true);
       useDialogStore.setState({ confirm: confirmSpy } as never);
       // getState().confirm needs to be spied on
@@ -196,7 +191,6 @@ describe('ProjectsPanel', () => {
     });
 
     it('calls deleteMutation.mutate when user confirms', async () => {
-      useOrgStore.setState({ currentOrgId: 'org_1' });
       const confirmSpy = vi.fn().mockResolvedValue(true);
       vi.spyOn(useDialogStore, 'getState').mockReturnValue({
         ...useDialogStore.getState(),
@@ -216,7 +210,6 @@ describe('ProjectsPanel', () => {
     });
 
     it('does not call deleteMutation.mutate when user cancels', async () => {
-      useOrgStore.setState({ currentOrgId: 'org_1' });
       const confirmSpy = vi.fn().mockResolvedValue(false);
       vi.spyOn(useDialogStore, 'getState').mockReturnValue({
         ...useDialogStore.getState(),

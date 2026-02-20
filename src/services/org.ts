@@ -44,14 +44,18 @@ class OrgServiceImpl implements OrgService {
   private currentOrg: Org | null = null;
   private orgsDir: string;
   private initialized = false;
+  private initPromise: Promise<void> | null = null;
 
   constructor(orgsDir?: string) {
     this.orgsDir = orgsDir ?? ORGS_DIR;
   }
 
-  private async ensureInitialized(): Promise<void> {
-    if (this.initialized) return;
+  private ensureInitialized(): Promise<void> {
+    if (this.initialized) return Promise.resolve();
+    return (this.initPromise ??= this.doInit());
+  }
 
+  private async doInit(): Promise<void> {
     try {
       await mkdir(this.orgsDir, { recursive: true });
 
@@ -75,6 +79,14 @@ class OrgServiceImpl implements OrgService {
       }
     }
 
+    // Auto-select the most recently updated org so getCurrent() isn't null after restart
+    if (!this.currentOrg && this.orgs.size > 0) {
+      const sorted = Array.from(this.orgs.values()).sort(
+        (a, b) => b.updatedAt - a.updatedAt,
+      );
+      this.currentOrg = sorted[0];
+    }
+
     this.initialized = true;
   }
 
@@ -85,14 +97,13 @@ class OrgServiceImpl implements OrgService {
     await writeFile(filePath, JSON.stringify(org, null, 2), 'utf-8');
   }
 
-  async create(name: string, rootPath: string): Promise<Org> {
+  async create(name: string): Promise<Org> {
     await this.ensureInitialized();
 
     const now = Date.now();
     const org: Org = {
       id: generateId(),
       name,
-      rootPath,
       createdAt: now,
       updatedAt: now,
       settings: defaultSettings(),
@@ -181,7 +192,8 @@ class OrgServiceImpl implements OrgService {
     });
   }
 
-  getCurrent(): Org | null {
+  async getCurrent(): Promise<Org | null> {
+    await this.ensureInitialized();
     return this.currentOrg;
   }
 
@@ -202,6 +214,7 @@ class OrgServiceImpl implements OrgService {
     this.orgs.clear();
     this.currentOrg = null;
     this.initialized = false;
+    this.initPromise = null;
   }
 }
 
