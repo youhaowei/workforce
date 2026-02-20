@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import type { Project } from '@/services/types';
 import { MessageList, MessageInput } from '../Messages';
+import type { AgentConfig } from '@/services/types';
 
 const NO_PROJECT_VALUE = '__none__';
 
@@ -29,11 +30,12 @@ interface SessionsViewProps {
     content: string;
     timestamp: number;
     isStreaming: boolean;
+    agentConfig?: AgentConfig;
     toolCalls?: Array<{ id: string; name: string; args: unknown }>;
     toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>;
   }>;
   isStreaming: boolean;
-  onSubmit: (content: string) => void;
+  onSubmit: (submission: { content: string; agentConfig: AgentConfig }) => void;
   onCancel: () => void;
 }
 
@@ -55,7 +57,13 @@ export function SessionsView({
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <MessageList messages={messages} isStreaming={isStreaming} />
-        <MessageInput onSubmit={onSubmit} onCancel={onCancel} isStreaming={isStreaming} />
+        <MessageInput
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+          isStreaming={isStreaming}
+          sessionId={sessionId}
+          messages={messages}
+        />
       </div>
     );
   }
@@ -101,7 +109,13 @@ export function SessionsView({
             </div>
           </div>
         )}
-        <MessageInput onSubmit={onSubmit} onCancel={onCancel} isStreaming={isStreaming} />
+        <MessageInput
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+          isStreaming={isStreaming}
+          sessionId={sessionId}
+          messages={messages}
+        />
       </div>
     </div>
   );

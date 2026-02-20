@@ -2,6 +2,28 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import MessageInput from './MessageInput';
 
+// Mock tRPC + React Query so the component doesn't need a real provider
+vi.mock('@/bridge/react', () => ({
+  useTRPC: () => ({
+    agent: {
+      supportedModels: {
+        queryOptions: () => ({
+          queryKey: ['agent', 'supportedModels'],
+          queryFn: () => Promise.resolve([]),
+        }),
+      },
+    },
+  }),
+}));
+
+vi.mock('@tanstack/react-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+  return {
+    ...actual,
+    useQuery: () => ({ data: undefined, isLoading: false, error: null }),
+  };
+});
+
 describe('MessageInput', () => {
   const mockOnSubmit = vi.fn();
   const mockOnCancel = vi.fn();
@@ -9,6 +31,7 @@ describe('MessageInput', () => {
   beforeEach(() => {
     mockOnSubmit.mockClear();
     mockOnCancel.mockClear();
+    localStorage.clear();
   });
 
   it('renders with default placeholder', () => {
@@ -27,15 +50,21 @@ describe('MessageInput', () => {
     expect(screen.getByPlaceholderText('Ask anything...')).toBeInTheDocument();
   });
 
-  it('calls onSubmit with trimmed value on Enter', () => {
+  it('calls onSubmit with content and agentConfig on Enter', () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
     const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
     fireEvent.change(textarea, { target: { value: '  Hello world  ' } });
     fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
-    expect(mockOnSubmit).toHaveBeenCalledWith('Hello world');
     expect(mockOnSubmit).toHaveBeenCalledTimes(1);
+    const call = mockOnSubmit.mock.calls[0][0];
+    expect(call.content).toBe('Hello world');
+    expect(call.agentConfig).toEqual({
+      model: 'claude-sonnet-4-5-20250929',
+      thinkingLevel: 'auto',
+      permissionMode: 'default',
+    });
   });
 
   it('does not submit on Shift+Enter (allows multiline)', () => {
@@ -153,5 +182,115 @@ describe('MessageInput', () => {
     fireEvent.click(stopButton);
 
     expect(mockOnCancel).toHaveBeenCalledTimes(1);
+  });
+
+  describe('config restoration', () => {
+    it('restores config from localStorage when no session messages', () => {
+      const stored = { model: 'claude-opus-4-6', thinkingLevel: 'high', permissionMode: 'bypassPermissions' };
+      localStorage.setItem('agent-config-last', JSON.stringify(stored));
+
+      render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
+
+      const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
+      fireEvent.change(textarea, { target: { value: 'test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      const call = mockOnSubmit.mock.calls[0][0];
+      expect(call.agentConfig).toEqual(stored);
+    });
+
+    it('restores config from session messages over localStorage', () => {
+      const storedConfig = { model: 'claude-opus-4-6', thinkingLevel: 'high', permissionMode: 'bypassPermissions' };
+      localStorage.setItem('agent-config-last', JSON.stringify(storedConfig));
+
+      const sessionConfig = { model: 'claude-haiku-4-5-20251001', thinkingLevel: 'low' as const, permissionMode: 'plan' as const };
+      const messages = [
+        { role: 'user' as const, agentConfig: sessionConfig },
+        { role: 'assistant' as const },
+      ];
+
+      render(
+        <MessageInput
+          onSubmit={mockOnSubmit}
+          isStreaming={false}
+          sessionId="sess-1"
+          messages={messages}
+        />,
+      );
+
+      const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
+      fireEvent.change(textarea, { target: { value: 'test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      const call = mockOnSubmit.mock.calls[0][0];
+      expect(call.agentConfig).toEqual(sessionConfig);
+    });
+
+    it('ignores invalid localStorage config and falls back to defaults', () => {
+      localStorage.setItem('agent-config-last', JSON.stringify({ model: '', thinkingLevel: 'invalid' }));
+
+      render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
+
+      const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
+      fireEvent.change(textarea, { target: { value: 'test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      const call = mockOnSubmit.mock.calls[0][0];
+      expect(call.agentConfig).toEqual({
+        model: 'claude-sonnet-4-5-20250929',
+        thinkingLevel: 'auto',
+        permissionMode: 'default',
+      });
+    });
+
+    it('persists config to localStorage on submit', () => {
+      render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
+
+      const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
+      fireEvent.change(textarea, { target: { value: 'test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      const stored = JSON.parse(localStorage.getItem('agent-config-last')!);
+      expect(stored).toEqual({
+        model: 'claude-sonnet-4-5-20250929',
+        thinkingLevel: 'auto',
+        permissionMode: 'default',
+      });
+    });
+
+    it('auto-corrects stale model from session restore to first available model', () => {
+      // Cache a known model list
+      const knownModels = [
+        { id: 'claude-opus-4-6', displayName: 'Opus 4.6', description: 'Most capable model' },
+        { id: 'claude-sonnet-4-6', displayName: 'Sonnet 4.6', description: 'Fast and capable' },
+      ];
+      localStorage.setItem('agent-models-cache', JSON.stringify(knownModels));
+
+      // Session has a deprecated model that's not in the list
+      const staleConfig = { model: 'claude-3-opus-20240229', thinkingLevel: 'auto' as const, permissionMode: 'default' as const };
+      const messages = [
+        { role: 'user' as const, agentConfig: staleConfig },
+        { role: 'assistant' as const },
+      ];
+
+      render(
+        <MessageInput
+          onSubmit={mockOnSubmit}
+          isStreaming={false}
+          sessionId="sess-stale"
+          messages={messages}
+        />,
+      );
+
+      const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
+      fireEvent.change(textarea, { target: { value: 'test' } });
+      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+
+      const call = mockOnSubmit.mock.calls[0][0];
+      // Should auto-correct to first model in the list, not the stale one
+      expect(call.agentConfig.model).toBe('claude-opus-4-6');
+      expect(call.agentConfig.thinkingLevel).toBe('auto');
+      expect(call.agentConfig.permissionMode).toBe('default');
+    });
   });
 });

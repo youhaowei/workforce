@@ -341,7 +341,7 @@ class SessionServiceImpl implements SessionService {
       ...forked.messages.map((m): JournalMessage | JournalMessageFinal =>
         m.role === 'assistant'
           ? { t: 'message_final', id: m.id, role: 'assistant', content: m.content, timestamp: m.timestamp, stopReason: 'forked', toolCalls: m.toolCalls, toolResults: m.toolResults }
-          : { t: 'message', id: m.id, role: m.role, content: m.content, timestamp: m.timestamp, toolCalls: m.toolCalls, toolResults: m.toolResults },
+          : { t: 'message', id: m.id, role: m.role, content: m.content, timestamp: m.timestamp, agentConfig: m.agentConfig, toolCalls: m.toolCalls, toolResults: m.toolResults },
       ),
     ];
     await journalWriteRecords(this.sessionsDir, forked.id, records);
@@ -430,7 +430,7 @@ class SessionServiceImpl implements SessionService {
     const ts = Math.max(message.timestamp, Date.now());
     const record: JournalMessage = {
       t: 'message', id: message.id, role: message.role, content: message.content,
-      timestamp: ts, toolCalls: message.toolCalls, toolResults: message.toolResults,
+      timestamp: ts, agentConfig: message.agentConfig, toolCalls: message.toolCalls, toolResults: message.toolResults,
     };
 
     // Mutate in-memory state inside the lock to prevent data-race with consolidation,

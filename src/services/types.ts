@@ -25,6 +25,30 @@ export type Result<T, E = Error> =
 export type StreamResult<T> = AsyncGenerator<T, void, unknown>;
 
 // =============================================================================
+// Agent Configuration Types
+// =============================================================================
+
+export type ThinkingLevel = 'off' | 'auto' | 'low' | 'medium' | 'high';
+
+export type AgentPermissionMode =
+  | 'plan'
+  | 'default'
+  | 'acceptEdits'
+  | 'bypassPermissions';
+
+export interface AgentConfig {
+  model: string;
+  thinkingLevel: ThinkingLevel;
+  permissionMode: AgentPermissionMode;
+}
+
+export interface AgentModelInfo {
+  id: string;
+  displayName: string;
+  description: string;
+}
+
+// =============================================================================
 // Agent Service Types
 // =============================================================================
 
@@ -33,6 +57,10 @@ export interface QueryOptions {
   model?: string;
   /** Maximum tokens in response */
   maxTokens?: number;
+  /** Maximum tokens for Claude thinking blocks (0 = disabled, undefined = SDK decides) */
+  maxThinkingTokens?: number;
+  /** Permission mode for tool execution */
+  permissionMode?: AgentPermissionMode;
   /** System prompt override */
   systemPrompt?: string;
   /** Tools available for this query */
@@ -92,6 +120,12 @@ export interface AgentService extends Disposable {
    * Check if a query is currently in progress.
    */
   isQuerying(): boolean;
+
+  /**
+   * Get the list of models supported by the current Claude Code installation.
+   * Cached with 5-minute TTL.
+   */
+  getSupportedModels(): Promise<AgentModelInfo[]>;
 }
 
 // =============================================================================
@@ -156,6 +190,7 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  agentConfig?: AgentConfig;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
 }
@@ -219,6 +254,7 @@ export interface JournalMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  agentConfig?: AgentConfig;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
 }

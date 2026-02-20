@@ -1,7 +1,7 @@
 import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
 import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { homedir } from 'os';
-import type { AgentService, QueryOptions, TokenDelta, StreamResult } from './types';
+import type { AgentService, AgentModelInfo, QueryOptions, TokenDelta, StreamResult } from './types';
 import { getEventBus } from '@/shared/event-bus';
 import { debugLog } from '@/shared/debug-log';
 import { buildSdkEnv, isAuthError, AgentError } from './agent-instance';
@@ -14,9 +14,11 @@ export type { AgentInstanceOptions, AgentErrorCode } from './agent-instance';
 class AgentServiceImpl implements AgentService {
   private abortController: AbortController | null = null;
   private queryInProgress = false;
+  private supportedModelsCache: AgentModelInfo[] | null = null;
+  private supportedModelsCacheAt = 0;
 
   // eslint-disable-next-line complexity
-  async *query(prompt: string, _options?: QueryOptions): StreamResult<TokenDelta> {
+  async *query(prompt: string, options?: QueryOptions): StreamResult<TokenDelta> {
     debugLog('Agent', 'query() called', { queryInProgress: this.queryInProgress });
 
     if (this.queryInProgress) {
@@ -37,8 +39,20 @@ class AgentServiceImpl implements AgentService {
         env: buildSdkEnv(),
         // Enable streaming events (content_block_delta) instead of just final messages
         includePartialMessages: true,
+        ...(options?.model ? { model: options.model } : {}),
+        ...(options?.maxThinkingTokens !== undefined ? { maxThinkingTokens: options.maxThinkingTokens } : {}),
+        ...(options?.permissionMode ? { permissionMode: options.permissionMode } : {}),
+        ...(options?.permissionMode === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}),
       };
-      debugLog('Agent', 'Starting query', { prompt: prompt.slice(0, 100), options: { includePartialMessages: sdkOptions.includePartialMessages } });
+      debugLog('Agent', 'Starting query', {
+        prompt: prompt.slice(0, 100),
+        options: {
+          includePartialMessages: sdkOptions.includePartialMessages,
+          model: options?.model,
+          maxThinkingTokens: options?.maxThinkingTokens,
+          permissionMode: options?.permissionMode,
+        },
+      });
       const queryStream = sdkQuery({
         prompt,
         options: sdkOptions,
@@ -392,6 +406,40 @@ class AgentServiceImpl implements AgentService {
       debugLog('Agent', 'Query finally block, resetting state');
       this.queryInProgress = false;
       this.abortController = null;
+    }
+  }
+
+  async getSupportedModels(): Promise<AgentModelInfo[]> {
+    const now = Date.now();
+    if (this.supportedModelsCache && now - this.supportedModelsCacheAt < 5 * 60_000) {
+      return this.supportedModelsCache;
+    }
+
+    const abortController = new AbortController();
+    const queryHandle = sdkQuery({
+      prompt: 'List available models.',
+      options: {
+        abortController,
+        cwd: process.cwd(),
+        env: buildSdkEnv(),
+      },
+    });
+
+    try {
+      const models = await queryHandle.supportedModels();
+      const normalized: AgentModelInfo[] = models.map((m: { value: string; displayName: string; description?: string }) => ({
+        id: m.value,
+        displayName: m.displayName,
+        description: m.description ?? '',
+      }));
+      this.supportedModelsCache = normalized;
+      this.supportedModelsCacheAt = now;
+      return normalized;
+    } catch (err) {
+      debugLog('Agent', 'getSupportedModels failed', { error: err instanceof Error ? err.message : String(err) });
+      return [];
+    } finally {
+      abortController.abort();
     }
   }
 

@@ -10,6 +10,7 @@ import { ProjectView } from '../Project';
 import { HomeView } from '../Home';
 import type { Project } from '@/services/types';
 import type { ViewType } from './Shell';
+import type { AgentConfig } from '@/services/types';
 
 interface MainViewContentProps {
   currentView: ViewType;
@@ -26,6 +27,7 @@ interface MainViewContentProps {
     content: string;
     timestamp: number;
     isStreaming: boolean;
+    agentConfig?: AgentConfig;
     toolCalls?: Array<{ id: string; name: string; args: unknown }>;
     toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>;
   }>;
@@ -38,7 +40,7 @@ interface MainViewContentProps {
   onSelectProject: (projectId: string | null) => void;
   onNewSessionProjectChange: (projectId: string | null) => void;
   onCreateProjectForSession: () => void;
-  onSubmitMessage: (content: string) => void;
+  onSubmitMessage: (submission: { content: string; agentConfig: AgentConfig }) => void;
   onCancelStream: () => void;
 }
 
