@@ -17,13 +17,13 @@ import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { Loader2 } from 'lucide-react';
 import type { Org } from '@/services/types';
 
+import { SERVER_URL } from '@/bridge/config';
 import { UserStep } from './UserStep';
 import { CreateOrgStep } from './CreateOrgStep';
 import { SelectOrgStep } from './SelectOrgStep';
 import { InitOrgStep } from './InitOrgStep';
 
-const API_PORT = import.meta.env.VITE_API_PORT || '4096';
-const HEALTH_URL = `http://localhost:${API_PORT}/health`;
+const HEALTH_URL = `${SERVER_URL}/health`;
 
 type SetupStep = 'loading' | 'user' | 'create-org' | 'select-org' | 'init-org' | 'done';
 

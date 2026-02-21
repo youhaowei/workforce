@@ -40,10 +40,12 @@ export function SelectOrgStep({ orgs, onComplete }: SelectOrgStepProps) {
 
   const createMutation = useMutation(
     trpc.org.create.mutationOptions({
-      onSuccess: (org) => {
-        trpcClient.org.activate.mutate({ id: org.id }).catch((err) => {
+      onSuccess: async (org) => {
+        try {
+          await trpcClient.org.activate.mutate({ id: org.id });
+        } catch (err) {
           console.warn('[SetupGate] Failed to activate org on server:', err);
-        });
+        }
         queryClient.setQueryData(trpc.org.list.queryKey(), (old: Org[] | undefined) => [...(old ?? []), org]);
         queryClient.setQueryData(trpc.org.getCurrent.queryKey(), org);
         setCurrentOrgId(org.id);
@@ -113,7 +115,7 @@ export function SelectOrgStep({ orgs, onComplete }: SelectOrgStepProps) {
         {orgs.map((org) => (
           <Card
             key={org.id}
-            className="cursor-pointer transition-colors hover:border-primary/50"
+            className={`cursor-pointer transition-colors hover:border-primary/50 ${activateMutation.isPending ? 'pointer-events-none opacity-60' : ''}`}
             onClick={() => activateMutation.mutate({ id: org.id })}
           >
             <CardHeader className="pb-2">

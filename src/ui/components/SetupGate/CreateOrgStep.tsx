@@ -28,11 +28,14 @@ export function CreateOrgStep({ userName, onComplete }: CreateOrgStepProps) {
 
   const createMutation = useMutation(
     trpc.org.create.mutationOptions({
-      onSuccess: (org) => {
-        // Activate on the server so getCurrent returns it on next restart
-        trpcClient.org.activate.mutate({ id: org.id }).catch((err) => {
+      onSuccess: async (org) => {
+        // Activate on the server so getCurrent returns it on next restart.
+        // Awaited (not fire-and-forget) because persistence matters for restart.
+        try {
+          await trpcClient.org.activate.mutate({ id: org.id });
+        } catch (err) {
           console.warn('[SetupGate] Failed to activate org on server:', err);
-        });
+        }
         // Synchronously update cache to avoid stale-data window where
         // orgList is still [] during refetch (causes CreateOrgStep re-mount)
         queryClient.setQueryData(trpc.org.list.queryKey(), (old: Org[] | undefined) => [...(old ?? []), org]);
