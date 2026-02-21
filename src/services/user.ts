@@ -92,7 +92,7 @@ class UserServiceImpl implements UserService {
     return this.user;
   }
 
-  async update(updates: Partial<Omit<User, 'id' | 'createdAt'>>): Promise<User> {
+  async update(updates: Partial<Pick<User, 'displayName'>>): Promise<User> {
     await this.ensureInitialized();
 
     if (!this.user) {

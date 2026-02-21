@@ -67,9 +67,17 @@ class OrgServiceImpl implements OrgService {
         try {
           const raw = await readFile(filePath, 'utf-8');
           const org = JSON.parse(raw) as Org;
+
+          // Migration: orgs created before SetupGate lack `initialized`.
+          // Treat them as already initialized so returning users skip InitOrgStep.
+          if (org.initialized === undefined) {
+            org.initialized = true;
+            await this.saveOrg(org);
+          }
+
           this.orgs.set(org.id, org);
-        } catch {
-          // Skip unreadable org files
+        } catch (innerErr) {
+          console.warn(`[OrgService] Skipping unreadable org file: ${filePath}`, innerErr);
         }
       }
     } catch (err) {

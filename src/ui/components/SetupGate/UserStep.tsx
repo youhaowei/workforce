@@ -41,7 +41,7 @@ export function UserStep({ onComplete }: UserStepProps) {
       },
       onError: (err) => {
         // User already exists (e.g., race with stale query) — update cache and advance
-        if (err.message.includes('already exists')) {
+        if (err.data?.code === 'CONFLICT') {
           queryClient.setQueryData(trpc.user.exists.queryKey(), true);
           onComplete();
         }
@@ -88,7 +88,7 @@ export function UserStep({ onComplete }: UserStepProps) {
           />
         </div>
 
-        {createMutation.isError && (
+        {createMutation.isError && createMutation.error?.data?.code !== 'CONFLICT' && (
           <p className="text-sm text-destructive">
             {createMutation.error?.message ?? 'Something went wrong. Please try again.'}
           </p>

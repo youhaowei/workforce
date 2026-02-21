@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
+import { trpc as trpcClient } from '@/bridge/trpc';
 import { useOrgStore } from '@/ui/stores/useOrgStore';
 import {
   Dialog,
@@ -30,11 +31,24 @@ export function CreateOrgDialog({ open, onOpenChange }: CreateOrgDialogProps) {
 
   const createMutation = useMutation(
     trpc.org.create.mutationOptions({
-      onSuccess: (org) => {
+      onSuccess: async (org) => {
+        // Mark initialized immediately — orgs created from the management view
+        // should skip the SetupGate's InitOrgStep wizard.
+        try {
+          await trpcClient.org.update.mutate({ id: org.id, updates: { initialized: true } });
+        } catch (err) {
+          console.warn('[CreateOrgDialog] Failed to mark org as initialized:', err);
+        }
+        // Persist selection on server so it survives restart
+        try {
+          await trpcClient.org.activate.mutate({ id: org.id });
+        } catch (err) {
+          console.warn('[CreateOrgDialog] Failed to activate org on server:', err);
+        }
         setCurrentOrgId(org.id);
         queryClient.invalidateQueries({ queryKey: ['org'] });
-        onOpenChange(false);
         setName('');
+        onOpenChange(false);
       },
     }),
   );

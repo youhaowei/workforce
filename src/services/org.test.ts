@@ -182,6 +182,52 @@ describe('OrgService', () => {
     });
   });
 
+  describe('initialized migration', () => {
+    it('should set initialized=true for pre-existing orgs on reload', async () => {
+      const dir = join(TEST_DIR, 'migration-init');
+
+      // Create org — OrgService.create() doesn't set `initialized` (falsy)
+      const service1 = createOrgService(dir);
+      const org = await service1.create('Legacy');
+      expect(org.initialized).toBeFalsy();
+      service1.dispose();
+
+      // Reload — migration in doInit() should set initialized=true
+      const service2 = createOrgService(dir);
+      const reloaded = await service2.get(org.id);
+
+      expect(reloaded).not.toBeNull();
+      expect(reloaded!.initialized).toBe(true);
+
+      service2.dispose();
+    });
+
+    it('should persist the migration to disk', async () => {
+      const dir = join(TEST_DIR, 'migration-persist');
+
+      const service1 = createOrgService(dir);
+      const org = await service1.create('LegacyPersist');
+      service1.dispose();
+
+      // First reload triggers migration
+      const service2 = createOrgService(dir);
+      await service2.list(); // trigger init
+      service2.dispose();
+
+      // Second reload should read already-migrated data
+      const service3 = createOrgService(dir);
+      const reloaded = await service3.get(org.id);
+      expect(reloaded!.initialized).toBe(true);
+
+      // Verify on disk
+      const raw = await readFile(join(dir, org.id, 'org.json'), 'utf-8');
+      const saved = JSON.parse(raw);
+      expect(saved.initialized).toBe(true);
+
+      service3.dispose();
+    });
+  });
+
   describe('persistence across instances', () => {
     it('should load orgs from disk on new instance', async () => {
       const dir = join(TEST_DIR, 'reload-test');

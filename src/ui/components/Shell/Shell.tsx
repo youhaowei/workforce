@@ -58,7 +58,9 @@ function ShellContent() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
     () => localStorage.getItem(SELECTED_SESSION_STORAGE_KEY),
   );
-  const [serverConnected, setServerConnected] = useState(false);
+  // Start true — SetupGate guarantees server is up before Shell mounts.
+  // The periodic check below detects if the server goes down later.
+  const [serverConnected, setServerConnected] = useState(true);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
     const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
     // Backward compat: old key stored 'true'/'false'
@@ -291,13 +293,12 @@ function ShellContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fires once when server is first available
   }, [serverConnected]);
 
+  // Periodic server health check — detects mid-session disconnects.
+  // No immediate check needed; SetupGate guarantees the server is up at mount.
   useEffect(() => {
-    const checkConnection = async () => {
-      const connected = await checkServerConnection();
-      setServerConnected(connected);
-    };
-    checkConnection();
-    const interval = setInterval(checkConnection, 5000);
+    const interval = setInterval(async () => {
+      setServerConnected(await checkServerConnection());
+    }, 5000);
     return () => clearInterval(interval);
   }, []);
 

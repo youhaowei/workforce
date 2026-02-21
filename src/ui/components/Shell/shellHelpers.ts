@@ -1,8 +1,6 @@
 import type { Session, SessionSummary } from '@/services/types';
 import type { ViewType } from './Shell';
-
-const API_PORT = import.meta.env.VITE_API_PORT || '4096';
-const SERVER_URL = `http://localhost:${API_PORT}`;
+import { SERVER_URL } from '@/bridge/config';
 
 export const SIDEBAR_STORAGE_KEY = 'workforce-sidebar-mode';
 export const SESSIONS_PANEL_STORAGE_KEY = 'workforce-sessions-collapsed';
