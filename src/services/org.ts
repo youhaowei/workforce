@@ -147,6 +147,9 @@ class OrgServiceImpl implements OrgService {
     };
 
     this.orgs.set(id, updated);
+    if (this.currentOrg?.id === id) {
+      this.currentOrg = updated;
+    }
     await this.saveOrg(updated);
 
     getEventBus().emit({

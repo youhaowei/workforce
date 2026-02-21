@@ -17,16 +17,12 @@ test.describe('Projects', () => {
     await trpcMutate('org.update', { id: orgId, updates: { initialized: true } })
 
     await page.goto('/')
-    // Wait for the org.getCurrent query to complete — this ensures the UI
-    // has loaded the activated org into the Zustand store before we interact.
-    await page.waitForResponse(
-      (resp) => resp.url().includes('org.getCurrent') && resp.status() === 200,
-      { timeout: 10000 },
-    )
+    // Wait for Shell to load (past setup gate)
+    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 })
   })
 
   test.afterEach(async () => {
-    // Clean up the org (and its projects) to prevent test pollution
+    // Clean up the test org (and its projects) to prevent test pollution
     if (orgId) {
       try {
         const projects = await trpcQuery('project.list', { orgId })
@@ -38,6 +34,8 @@ test.describe('Projects', () => {
         // Best-effort cleanup
       }
     }
+    // Re-activate the base org so other test files see a valid currentOrg
+    await setupTestUserAndOrg()
   })
 
   test('Projects button switches to projects view', async ({ page }) => {
@@ -97,9 +95,10 @@ test.describe('Projects', () => {
     // Dialog should close
     await expect(page.locator('text=New Project')).not.toBeVisible()
 
-    // Project should appear in the list
-    await expect(page.locator('text=My Test Project')).toBeVisible()
-    await expect(page.locator('text=/tmp/my-test-project')).toBeVisible()
+    // Project should appear in the list (use .first() — name also appears in detail heading)
+    await expect(page.locator('text=My Test Project').first()).toBeVisible()
+    // Use getByText to avoid Playwright treating /tmp/... as a regex
+    await expect(page.getByText('/tmp/my-test-project').first()).toBeVisible()
   })
 
   test('can create project from empty state button', async ({ page }) => {
@@ -113,11 +112,11 @@ test.describe('Projects', () => {
     await page.locator('#project-path').fill('/tmp/empty-state')
     await page.locator('button[type="submit"]:has-text("Create")').click()
 
-    await expect(page.locator('text=Empty State Project')).toBeVisible()
+    await expect(page.locator('text=Empty State Project').first()).toBeVisible()
   })
 
   test('can search projects', async ({ page }) => {
-    // Create two projects via API
+    // Create two projects via API then reload to pick them up
     await trpcMutate('project.create', {
       orgId,
       name: 'Alpha Project',
@@ -128,34 +127,38 @@ test.describe('Projects', () => {
       name: 'Beta Project',
       rootPath: '/tmp/beta',
     })
+    await page.reload()
+    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 })
 
     await page.locator('button:has-text("Projects")').click()
 
     // Wait for both projects to appear
-    await expect(page.locator('text=Alpha Project')).toBeVisible()
-    await expect(page.locator('text=Beta Project')).toBeVisible()
+    await expect(page.locator('text=Alpha Project').first()).toBeVisible()
+    await expect(page.locator('text=Beta Project').first()).toBeVisible()
     await expect(page.locator('text=2 projects')).toBeVisible()
 
     // Search for "Alpha"
     await page.locator('input[placeholder="Search projects..."]').fill('Alpha')
-    await expect(page.locator('text=Alpha Project')).toBeVisible()
+    await expect(page.locator('text=Alpha Project').first()).toBeVisible()
     await expect(page.locator('text=Beta Project')).not.toBeVisible()
     await expect(page.locator('text=1 project')).toBeVisible()
   })
 
   test('can select a project', async ({ page }) => {
-    // Create a project via API
+    // Create a project via API then reload to pick it up
     await trpcMutate('project.create', {
       orgId,
       name: 'Selectable Project',
       rootPath: '/tmp/selectable',
     })
+    await page.reload()
+    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 })
 
     await page.locator('button:has-text("Projects")').click()
-    await expect(page.locator('text=Selectable Project')).toBeVisible()
+    await expect(page.locator('text=Selectable Project').first()).toBeVisible({ timeout: 10000 })
 
     // Click the project row
-    await page.locator('text=Selectable Project').click()
+    await page.locator('text=Selectable Project').first().click()
 
     // The row should get the active/accent background
     const projectRow = page.locator('[role="button"]:has-text("Selectable Project")')

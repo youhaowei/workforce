@@ -313,6 +313,8 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 - **`useState` initializer + async queries** — `useState(() => fn(queryData))` captures `queryData` at first render, which is always `undefined`/`null` for async queries. Use a separate `useEffect` to apply async data once it resolves, guarded by a ref to avoid re-application.
 
 ### Testing & Build
+- **NEVER kill user processes** — Do NOT kill processes on ports 4096, 5173, or any port the user's dev server may be running on. E2E tests must use their own isolated server instances. If a port is occupied, fail with a clear error — never kill the process.
+- **E2E isolation** — E2E tests use a temp data dir (`mkdtempSync` in `playwright.config.ts`) and start their own server with `WORKFORCE_DATA_DIR` pointing to that temp dir. Tests NEVER write to `~/.workforce/`. The backend server uses `reuseExistingServer: false` to guarantee isolation.
 - **E2E needs server** — Playwright auto-starts both `bun run server` and `bun run vite`.
 - **E2E fixtures with server state** — Tests creating data via tRPC API (`POST /api/trpc/<proc>` with body `{ json: input }`) must clean up in `afterEach`. Use `page.waitForResponse()` to sync on API calls rather than text selectors.
 - **Agent tests skipped** — `src/services/agent.test.ts` needs rewrite for new SDK.

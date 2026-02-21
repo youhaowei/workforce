@@ -9,6 +9,9 @@ test.describe('Chat', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
     // Wait for Shell to load (past setup gate)
+    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 })
+    // Navigate to Sessions view where MessageInput lives
+    await page.locator('button:has-text("Sessions")').click()
     await expect(
       page.locator('textarea[placeholder="Ask Workforce anything..."]'),
     ).toBeVisible({ timeout: 10000 })
