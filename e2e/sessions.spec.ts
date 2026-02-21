@@ -10,7 +10,7 @@ test.describe('Sessions Panel', () => {
     await page.goto('/')
     // Wait for Shell to load (past setup gate)
     await expect(
-      page.locator('textarea[placeholder="Ask Workforce anything..."]'),
+      page.locator('button:has-text("Home")'),
     ).toBeVisible({ timeout: 10000 })
   })
 

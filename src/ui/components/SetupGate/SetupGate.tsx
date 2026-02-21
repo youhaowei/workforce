@@ -22,7 +22,8 @@ import { CreateOrgStep } from './CreateOrgStep';
 import { SelectOrgStep } from './SelectOrgStep';
 import { InitOrgStep } from './InitOrgStep';
 
-const HEALTH_URL = 'http://localhost:4096/health';
+const API_PORT = import.meta.env.VITE_API_PORT || '4096';
+const HEALTH_URL = `http://localhost:${API_PORT}/health`;
 
 type SetupStep = 'loading' | 'user' | 'create-org' | 'select-org' | 'init-org' | 'done';
 
@@ -67,6 +68,11 @@ function resolveStep(
   const activeOrg = currentOrg ?? (orgId ? orgs.find((o) => o.id === orgId) : null);
   if (!activeOrg) return 'select-org';
   if (!activeOrg.initialized) return 'init-org';
+
+  // Shell uses useRequiredOrgId() which reads from Zustand.
+  // The useEffect that syncs currentOrg.id → Zustand fires after render,
+  // so wait until orgId is set before mounting Shell.
+  if (!orgId) return 'loading';
 
   return 'done';
 }

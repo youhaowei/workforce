@@ -10,7 +10,7 @@ test.describe('Layout', () => {
     await page.goto('/')
     // Wait for Shell to load (past setup gate)
     await expect(
-      page.locator('textarea[placeholder="Ask Workforce anything..."]'),
+      page.locator('button:has-text("Home")'),
     ).toBeVisible({ timeout: 10000 })
   })
 
@@ -23,6 +23,8 @@ test.describe('Layout', () => {
   })
 
   test('status bar shows ready state', async ({ page }) => {
+    // StatusBar only renders in Sessions view
+    await page.locator('button:has-text("Sessions")').click()
     await expect(page.locator('text=Ready')).toBeVisible()
   })
 
@@ -33,7 +35,10 @@ test.describe('Layout', () => {
   })
 
   test('textarea auto-resizes with content', async ({ page }) => {
+    // Navigate to Sessions view where the chat textarea lives
+    await page.locator('button:has-text("Sessions")').click()
     const input = page.locator('textarea[placeholder="Ask Workforce anything..."]')
+    await expect(input).toBeVisible({ timeout: 10000 })
 
     const initialHeight = await input.boundingBox()
 
