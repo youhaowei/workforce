@@ -295,6 +295,7 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 - **tRPC splitLink** — Queries/mutations use `httpBatchLink`, subscriptions use `httpSubscriptionLink` (SSE). Config in `src/bridge/trpc.ts`.
 - **Path aliases** — `@/*` → `src/*` in both tsconfig.json and vite.config.ts (must sync).
 - **Debug logging** — `debug.log` in project root. View via `/debug-log` endpoint or `tail -f`.
+- **SetupGate boundary** — `SetupGate` wraps `Shell` and guarantees user identity + initialized org before Shell mounts. `useRequiredOrgId()` throws if called outside this boundary (before org is set in Zustand). Shell initializes `serverConnected = true` because SetupGate already verified the server. The `initialized` field on `Org` is migrated to `true` for pre-existing orgs in `OrgService.doInit()`.
 
 ### SDK & Streaming
 - **Auth** — SDK uses Claude CLI auth from `~/.claude/.credentials.json`. SDK handles token refresh internally. Tauri's `fix-path-env` crate repairs HOME/PATH for GUI-launched apps so auth works without a terminal.

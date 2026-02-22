@@ -32,6 +32,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.29",
+    "unifai": "file:../unifai",
     "@hono/trpc-server": "^0.4.2",
     "@radix-ui/react-popover": "^1.1.15",
     "@tailwindcss/vite": "^4.1.18",

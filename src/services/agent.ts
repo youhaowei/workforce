@@ -1,7 +1,9 @@
-import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
-import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
+import { createSession, getSupportedModels } from 'unifai';
+import type { AgentEvent, UnifaiSession, Usage } from 'unifai';
 import { homedir } from 'os';
 import type { AgentService, AgentModelInfo, QueryOptions, TokenDelta, StreamResult } from './types';
+import type { QueryResultEvent, HookResponseEvent, TaskNotificationEvent } from '@/shared/event-types';
+import type { EventBus } from '@/shared/event-bus';
 import { getEventBus } from '@/shared/event-bus';
 import { debugLog } from '@/shared/debug-log';
 import { buildSdkEnv, isAuthError, AgentError } from './agent-instance';
@@ -11,13 +13,32 @@ import type { AgentErrorCode } from './agent-instance';
 export { AgentInstance, AgentError, buildSdkEnv, isAuthError } from './agent-instance';
 export type { AgentInstanceOptions, AgentErrorCode } from './agent-instance';
 
+const VALID_SUBTYPES: ReadonlySet<string> = new Set([
+  'success', 'error_during_execution', 'error_max_turns',
+  'error_max_budget_usd', 'error_max_structured_output_retries',
+]);
+
+function validSubtype(s: string | undefined): QueryResultEvent['subtype'] {
+  return s && VALID_SUBTYPES.has(s) ? s as QueryResultEvent['subtype'] : 'success';
+}
+
+/** Map unifai Usage (camelCase) → workforce bus usage (with "Input" suffix). */
+function toBusUsage(u: Usage) {
+  return {
+    inputTokens: u.inputTokens,
+    outputTokens: u.outputTokens,
+    cacheReadInputTokens: u.cacheReadTokens,
+    cacheCreationInputTokens: u.cacheCreationTokens,
+  };
+}
+
 class AgentServiceImpl implements AgentService {
   private abortController: AbortController | null = null;
   private queryInProgress = false;
+  private session: UnifaiSession | null = null;
   private supportedModelsCache: AgentModelInfo[] | null = null;
   private supportedModelsCacheAt = 0;
 
-  // eslint-disable-next-line complexity
   async *query(prompt: string, options?: QueryOptions): StreamResult<TokenDelta> {
     debugLog('Agent', 'query() called', { queryInProgress: this.queryInProgress });
 
@@ -33,380 +54,300 @@ class AgentServiceImpl implements AgentService {
     let tokenIndex = 0;
 
     try {
-      const sdkOptions = {
-        abortController: this.abortController,
-        cwd: process.cwd(),
-        env: buildSdkEnv(),
-        // Enable streaming events (content_block_delta) instead of just final messages
-        includePartialMessages: true,
-        ...(options?.model ? { model: options.model } : {}),
-        ...(options?.maxThinkingTokens !== undefined ? { maxThinkingTokens: options.maxThinkingTokens } : {}),
-        ...(options?.permissionMode ? { permissionMode: options.permissionMode } : {}),
-        ...(options?.permissionMode === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}),
-      };
       debugLog('Agent', 'Starting query', {
         prompt: prompt.slice(0, 100),
         options: {
-          includePartialMessages: sdkOptions.includePartialMessages,
           model: options?.model,
           maxThinkingTokens: options?.maxThinkingTokens,
           permissionMode: options?.permissionMode,
         },
       });
-      const queryStream = sdkQuery({
-        prompt,
-        options: sdkOptions,
+
+      this.session = createSession('claude', {
+        model: options?.model ?? 'sonnet',
+        sdkVersion: 'v1',
+        cwd: process.cwd(),
+        env: buildSdkEnv(),
+        abortController: this.abortController,
+        includePartialMessages: true,
+        includeRawEvents: true,
+        ...(options?.maxThinkingTokens !== undefined ? { maxThinkingTokens: options.maxThinkingTokens } : {}),
+        ...(options?.permissionMode ? { permissionMode: options.permissionMode } : {}),
+        ...(options?.permissionMode === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}),
       });
 
-      let messageCount = 0;
-      let streamEventCount = 0;
-      for await (const message of queryStream) {
-        messageCount++;
-        const now = Date.now();
+      try {
+        let lastMessageId = '';
 
-        // Emit raw SDK message for advanced consumers
-        bus.emit({
-          type: 'RawSdkMessage',
-          sdkMessageType: message.type,
-          payload: message,
-          timestamp: now,
-        });
-
-        // Handle each SDK message type
-        switch (message.type) {
-          case 'stream_event': {
-            streamEventCount++;
-            const event = message.event;
-
-            if (streamEventCount <= 5) {
-              debugLog('Agent', `stream_event #${streamEventCount}`, { eventType: event.type });
-            }
-
-            // Handle different stream event types
-            switch (event.type) {
-              case 'message_start': {
-                const msg = event.message;
-                bus.emit({
-                  type: 'MessageStart',
-                  messageId: msg.id,
-                  model: msg.model,
-                  stopReason: msg.stop_reason,
-                  usage: {
-                    inputTokens: msg.usage.input_tokens,
-                    outputTokens: msg.usage.output_tokens,
-                    cacheReadInputTokens: msg.usage.cache_read_input_tokens ?? undefined,
-                    cacheCreationInputTokens: msg.usage.cache_creation_input_tokens ?? undefined,
-                  },
-                  timestamp: now,
-                });
-                break;
-              }
-
-              case 'message_stop': {
-                bus.emit({
-                  type: 'MessageStop',
-                  messageId: '', // SDK doesn't provide ID in stop event
-                  stopReason: 'end_turn', // Default, actual reason comes from assistant message
-                  timestamp: now,
-                });
-                break;
-              }
-
-              case 'content_block_start': {
-                const block = event.content_block;
-                bus.emit({
-                  type: 'ContentBlockStart',
-                  index: event.index,
-                  contentBlock: {
-                    type: block.type as 'text' | 'tool_use' | 'thinking',
-                    id: 'id' in block ? block.id : undefined,
-                    name: 'name' in block ? block.name : undefined,
-                    text: 'text' in block ? block.text : undefined,
-                  },
-                  timestamp: now,
-                });
-                break;
-              }
-
-              case 'content_block_stop': {
-                bus.emit({
-                  type: 'ContentBlockStop',
-                  index: event.index,
-                  timestamp: now,
-                });
-                break;
-              }
-
-              case 'content_block_delta': {
-                // eslint-disable-next-line max-depth
-                if ('delta' in event) {
-                  const delta = event.delta as { type: string; text?: string; thinking?: string };
-
-                  // eslint-disable-next-line max-depth
-                  if (delta.type === 'text_delta' && delta.text) {
-                    const tokenDelta: TokenDelta = {
-                      token: delta.text,
-                      index: tokenIndex++,
-                    };
-                    bus.emit({
-                      type: 'TokenDelta',
-                      token: tokenDelta.token,
-                      index: tokenDelta.index,
-                      timestamp: now,
-                    });
-                    yield tokenDelta;
-                  } else if (delta.type === 'thinking_delta' && delta.thinking) {
-                    bus.emit({
-                      type: 'ThinkingDelta',
-                      thinking: delta.thinking,
-                      index: event.index,
-                      timestamp: now,
-                    });
-                  }
-                }
-                break;
-              }
-            }
-            break;
-          }
-
-          case 'assistant': {
-            debugLog('Agent', 'Assistant message received', { contentBlocks: message.message?.content?.length });
-            const msg = message.message;
-
-            // Emit full assistant message event
-            bus.emit({
-              type: 'AssistantMessage',
-              messageId: msg.id,
-              uuid: message.uuid,
-              sessionId: message.session_id,
-              model: msg.model,
-              stopReason: msg.stop_reason,
-              usage: {
-                inputTokens: msg.usage.input_tokens,
-                outputTokens: msg.usage.output_tokens,
-                cacheReadInputTokens: msg.usage.cache_read_input_tokens ?? undefined,
-                cacheCreationInputTokens: msg.usage.cache_creation_input_tokens ?? undefined,
-              },
-              content: msg.content.map((block: { type: string; text?: string; id?: string; name?: string; input?: unknown; thinking?: string }) => {
-                if (block.type === 'text') {
-                  return { type: 'text' as const, text: block.text };
-                } else if (block.type === 'tool_use') {
-                  return {
-                    type: 'tool_use' as const,
-                    id: block.id,
-                    name: block.name,
-                    input: block.input,
-                  };
-                } else if (block.type === 'thinking') {
-                  return { type: 'thinking' as const, thinking: block.thinking };
-                }
-                return { type: block.type as 'text' };
-              }),
-              error: message.error,
-              timestamp: now,
-            });
-
-            // Also emit individual ToolStart events for tool_use blocks
-            for (const block of msg.content) {
-              if (block.type === 'tool_use') {
-                debugLog('Agent', 'Processing tool_use block', { toolName: block.name });
-                bus.emit({
-                  type: 'ToolStart',
-                  toolId: block.id,
-                  toolName: block.name,
-                  args: block.input as Record<string, unknown>,
-                  timestamp: now,
-                });
-              }
-            }
-            break;
-          }
-
-          case 'result': {
-            debugLog('Agent', 'Result message received', { subtype: message.subtype });
-            bus.emit({
-              type: 'QueryResult',
-              subtype: message.subtype,
-              durationMs: message.duration_ms,
-              durationApiMs: message.duration_api_ms,
-              numTurns: message.num_turns,
-              totalCostUsd: message.total_cost_usd,
-              result: 'result' in message ? message.result : undefined,
-              structuredOutput: 'structured_output' in message ? message.structured_output : undefined,
-              usage: {
-                inputTokens: message.usage.input_tokens,
-                outputTokens: message.usage.output_tokens,
-                cacheReadInputTokens: message.usage.cache_read_input_tokens,
-                cacheCreationInputTokens: message.usage.cache_creation_input_tokens,
-              },
-              modelUsage: Object.fromEntries(
-                Object.entries(message.modelUsage).map(([model, usage]) => [
-                  model,
-                  {
-                    inputTokens: usage.inputTokens,
-                    outputTokens: usage.outputTokens,
-                    cacheReadInputTokens: usage.cacheReadInputTokens,
-                    cacheCreationInputTokens: usage.cacheCreationInputTokens,
-                    webSearchRequests: usage.webSearchRequests,
-                    costUSD: usage.costUSD,
-                    contextWindow: usage.contextWindow,
-                    maxOutputTokens: usage.maxOutputTokens,
-                  },
-                ])
-              ),
-              errors: 'errors' in message ? message.errors : undefined,
-              timestamp: now,
-            });
-            break;
-          }
-
-          case 'system': {
-            // Handle system message subtypes
-            if (message.subtype === 'init') {
-              debugLog('Agent', 'System init message received');
-              bus.emit({
-                type: 'SystemInit',
-                claudeCodeVersion: message.claude_code_version,
-                cwd: message.cwd,
-                model: message.model,
-                tools: message.tools,
-                mcpServers: message.mcp_servers,
-                permissionMode: message.permissionMode,
-                slashCommands: message.slash_commands,
-                skills: message.skills,
-                sessionId: message.session_id,
-                timestamp: now,
-              });
-            } else if (message.subtype === 'status') {
-              bus.emit({
-                type: 'SystemStatus',
-                status: message.status,
-                permissionMode: message.permissionMode,
-                timestamp: now,
-              });
-            } else if (message.subtype === 'hook_started') {
-              bus.emit({
-                type: 'HookStarted',
-                hookId: message.hook_id,
-                hookName: message.hook_name,
-                hookEvent: message.hook_event,
-                timestamp: now,
-              });
-            } else if (message.subtype === 'hook_progress') {
-              bus.emit({
-                type: 'HookProgress',
-                hookId: message.hook_id,
-                hookName: message.hook_name,
-                hookEvent: message.hook_event,
-                stdout: message.stdout,
-                stderr: message.stderr,
-                output: message.output,
-                timestamp: now,
-              });
-            } else if (message.subtype === 'hook_response') {
-              bus.emit({
-                type: 'HookResponse',
-                hookId: message.hook_id,
-                hookName: message.hook_name,
-                hookEvent: message.hook_event,
-                outcome: message.outcome,
-                output: message.output,
-                exitCode: message.exit_code,
-                timestamp: now,
-              });
-            } else if (message.subtype === 'task_notification') {
-              bus.emit({
-                type: 'TaskNotification',
-                taskId: message.task_id,
-                status: message.status,
-                outputFile: message.output_file,
-                summary: message.summary,
-                timestamp: now,
-              });
-            }
-            break;
-          }
-
-          case 'tool_progress': {
-            bus.emit({
-              type: 'ToolProgress',
-              toolUseId: message.tool_use_id,
-              toolName: message.tool_name,
-              elapsedTimeSeconds: message.elapsed_time_seconds,
-              timestamp: now,
-            });
-            break;
-          }
-
-          case 'tool_use_summary': {
-            bus.emit({
-              type: 'ToolUseSummary',
-              summary: message.summary,
-              precedingToolUseIds: message.preceding_tool_use_ids,
-              timestamp: now,
-            });
-            break;
-          }
-
-          case 'auth_status': {
-            bus.emit({
-              type: 'AuthStatus',
-              isAuthenticating: message.isAuthenticating,
-              output: message.output,
-              error: message.error,
-              timestamp: now,
-            });
-            break;
-          }
-
-          default: {
-            // Log unhandled message types for debugging
-            debugLog('Agent', `Unhandled message type: ${(message as SDKMessage).type}`);
-          }
+        for await (const event of this.session.send(prompt)) {
+          yield* this.handleEvent(event, bus, tokenIndex, lastMessageId);
+          if (event.type === 'text_delta') tokenIndex++;
+          if (event.type === 'message_start') lastMessageId = event.messageId;
         }
+      } finally {
+        this.session.close();
+        this.session = null;
       }
-      debugLog('Agent', 'Query complete', { totalMessages: messageCount, streamEvents: streamEventCount });
+
+      debugLog('Agent', 'Query complete');
     } catch (err) {
-      if (this.abortController?.signal.aborted) {
-        debugLog('Agent', 'Query cancelled by user');
-        const cancelledDelta: TokenDelta = {
-          token: ' [cancelled]',
-          index: tokenIndex++,
-        };
-        bus.emit({
-          type: 'TokenDelta',
-          token: cancelledDelta.token,
-          index: cancelledDelta.index,
-          timestamp: Date.now(),
-        });
-        yield cancelledDelta;
-      } else {
-        // Classify the error for better handling
-        const errorCode: AgentErrorCode = isAuthError(err) ? 'AUTH_ERROR' : 'STREAM_FAILED';
-
-        if (errorCode === 'AUTH_ERROR') {
-          debugLog('Agent', 'Authentication error', {
-            error: err instanceof Error ? err.message : String(err),
-            HOME: process.env.HOME || homedir(),
-            hasApiKey: !!process.env.ANTHROPIC_API_KEY,
-            hasAuthToken: !!process.env.ANTHROPIC_AUTH_TOKEN,
-          });
-        } else {
-          debugLog('Agent', 'Query error', { error: err instanceof Error ? err.message : String(err) });
-        }
-
-        throw new AgentError(
-          err instanceof Error ? err.message : String(err),
-          errorCode,
-          err
-        );
-      }
+      yield* this.handleQueryError(err, bus, tokenIndex);
     } finally {
       debugLog('Agent', 'Query finally block, resetting state');
       this.queryInProgress = false;
       this.abortController = null;
     }
+  }
+
+  private *handleEvent(
+    event: AgentEvent,
+    bus: EventBus,
+    tokenIndex: number,
+    lastMessageId: string,
+  ): Generator<TokenDelta> {
+    const now = Date.now();
+
+    switch (event.type) {
+      case 'text_delta': {
+        const td: TokenDelta = { token: event.text, index: tokenIndex };
+        bus.emit({ type: 'TokenDelta', token: td.token, index: td.index, timestamp: now });
+        yield td;
+        break;
+      }
+      case 'thinking_delta':
+        bus.emit({ type: 'ThinkingDelta', thinking: event.text, index: event.index ?? 0, timestamp: now });
+        break;
+      case 'raw':
+        bus.emit({ type: 'RawSdkMessage', sdkMessageType: event.eventType, payload: event.data, timestamp: now });
+        break;
+      default:
+        this.emitBusEvent(event, bus, now, lastMessageId);
+        break;
+    }
+  }
+
+  // eslint-disable-next-line complexity -- Flat dispatch to domain handlers; each case is a trivial delegation.
+  private emitBusEvent(event: AgentEvent, bus: EventBus, now: number, lastMessageId: string) {
+    switch (event.type) {
+      case 'message_start':
+      case 'message_stop':
+      case 'content_block_start':
+      case 'content_block_stop':
+      case 'assistant_message':
+        this.emitMessageEvent(event, bus, now, lastMessageId);
+        break;
+      case 'tool_start':
+      case 'tool_progress':
+      case 'tool_summary':
+        this.emitToolEvent(event, bus, now);
+        break;
+      case 'session_init':
+      case 'status':
+      case 'session_complete':
+      case 'auth_status':
+      case 'error':
+        this.emitLifecycleEvent(event, bus, now);
+        break;
+      case 'hook_started':
+      case 'hook_progress':
+      case 'hook_response':
+      case 'task_notification':
+        this.emitHookOrTaskEvent(event, bus, now);
+        break;
+      // text_complete, turn_complete, tool_result — intentionally unhandled
+    }
+  }
+
+  private emitMessageEvent(
+    event: Extract<AgentEvent, { type: 'message_start' | 'message_stop' | 'content_block_start' | 'content_block_stop' | 'assistant_message' }>,
+    bus: EventBus,
+    now: number,
+    lastMessageId: string,
+  ) {
+    switch (event.type) {
+      case 'message_start':
+        bus.emit({ type: 'MessageStart', messageId: event.messageId, model: event.model, stopReason: event.stopReason, usage: toBusUsage(event.usage), timestamp: now });
+        break;
+      case 'message_stop':
+        bus.emit({ type: 'MessageStop', messageId: lastMessageId, stopReason: 'end_turn', timestamp: now });
+        break;
+      case 'content_block_start':
+        bus.emit({ type: 'ContentBlockStart', index: event.index, contentBlock: { type: event.blockType, id: event.id, name: event.name }, timestamp: now });
+        break;
+      case 'content_block_stop':
+        bus.emit({ type: 'ContentBlockStop', index: event.index, timestamp: now });
+        break;
+      case 'assistant_message':
+        debugLog('Agent', 'Assistant message received', { contentBlocks: event.content.length });
+        bus.emit({
+          type: 'AssistantMessage',
+          messageId: event.messageId,
+          uuid: event.uuid ?? '',
+          sessionId: event.sessionId,
+          model: event.model,
+          stopReason: event.stopReason,
+          usage: toBusUsage(event.usage),
+          content: event.content,
+          error: event.error,
+          timestamp: now,
+        });
+        break;
+    }
+  }
+
+  private emitToolEvent(
+    event: Extract<AgentEvent, { type: 'tool_start' | 'tool_progress' | 'tool_summary' }>,
+    bus: EventBus,
+    now: number,
+  ) {
+    switch (event.type) {
+      case 'tool_start':
+        debugLog('Agent', 'Processing tool_use block', { toolName: event.toolName });
+        bus.emit({ type: 'ToolStart', toolId: event.toolUseId, toolName: event.toolName, args: event.input, timestamp: now });
+        break;
+      case 'tool_progress':
+        bus.emit({ type: 'ToolProgress', toolUseId: event.toolUseId, toolName: event.toolName, elapsedTimeSeconds: event.elapsedSeconds, timestamp: now });
+        break;
+      case 'tool_summary':
+        bus.emit({ type: 'ToolUseSummary', summary: event.summary, precedingToolUseIds: event.precedingToolUseIds ?? [], timestamp: now });
+        break;
+    }
+  }
+
+  private emitLifecycleEvent(
+    event: Extract<AgentEvent, { type: 'session_init' | 'status' | 'session_complete' | 'auth_status' | 'error' }>,
+    bus: EventBus,
+    now: number,
+  ) {
+    switch (event.type) {
+      case 'session_init':
+        debugLog('Agent', 'System init message received');
+        bus.emit({
+          type: 'SystemInit',
+          claudeCodeVersion: event.claudeCodeVersion ?? '',
+          cwd: event.cwd ?? '',
+          model: event.model ?? '',
+          tools: event.tools ?? [],
+          mcpServers: event.mcpServers ?? [],
+          permissionMode: event.permissionMode ?? '',
+          slashCommands: event.slashCommands ?? [],
+          skills: event.skills ?? [],
+          sessionId: event.sessionId,
+          timestamp: now,
+        });
+        break;
+      case 'status':
+        bus.emit({ type: 'SystemStatus', status: event.message === 'compacting' ? 'compacting' : null, permissionMode: event.permissionMode, timestamp: now });
+        break;
+      case 'session_complete':
+        debugLog('Agent', 'Result message received', { subtype: event.subtype });
+        this.emitSessionComplete(event, bus, now);
+        break;
+      case 'auth_status':
+        bus.emit({ type: 'AuthStatus', isAuthenticating: event.isAuthenticating, output: event.output, error: event.error, timestamp: now });
+        break;
+      case 'error':
+        bus.emit({ type: 'BridgeError', source: 'unifai', error: event.message, code: event.code, timestamp: now });
+        break;
+    }
+  }
+
+  private emitHookOrTaskEvent(
+    event: Extract<AgentEvent, { type: 'hook_started' | 'hook_progress' | 'hook_response' | 'task_notification' }>,
+    bus: EventBus,
+    now: number,
+  ) {
+    switch (event.type) {
+      case 'hook_started':
+        bus.emit({ type: 'HookStarted', hookId: event.hookId, hookName: event.hookName, hookEvent: event.hookEvent, timestamp: now });
+        break;
+      case 'hook_progress':
+        bus.emit({ type: 'HookProgress', hookId: event.hookId, hookName: event.hookName, hookEvent: event.hookEvent, stdout: event.stdout, stderr: event.stderr, output: event.output, timestamp: now });
+        break;
+      case 'hook_response': {
+        // Cast to narrow member satisfies TS includes() signature; all three values are checked at runtime
+        const outcome = (['success', 'error', 'cancelled'] as const).includes(event.outcome as 'success') ? event.outcome as HookResponseEvent['outcome'] : 'error';
+        bus.emit({ type: 'HookResponse', hookId: event.hookId, hookName: event.hookName, hookEvent: event.hookEvent, outcome, output: event.output, exitCode: event.exitCode, timestamp: now });
+        break;
+      }
+      case 'task_notification': {
+        // Cast to narrow member satisfies TS includes() signature; all three values are checked at runtime
+        const status = (['completed', 'failed', 'stopped'] as const).includes(event.status as 'completed') ? event.status as TaskNotificationEvent['status'] : 'failed';
+        bus.emit({ type: 'TaskNotification', taskId: event.taskId, status, outputFile: event.outputFile, summary: event.summary, timestamp: now });
+        break;
+      }
+    }
+  }
+
+  private emitSessionComplete(
+    event: Extract<AgentEvent, { type: 'session_complete' }>,
+    bus: EventBus,
+    now: number,
+  ) {
+    bus.emit({
+      type: 'QueryResult',
+      subtype: validSubtype(event.subtype),
+      durationMs: event.durationMs,
+      durationApiMs: event.durationApiMs ?? 0,
+      numTurns: event.numTurns,
+      totalCostUsd: event.costUsd ?? 0,
+      result: event.result,
+      structuredOutput: event.structuredOutput,
+      usage: {
+        inputTokens: event.usage.inputTokens,
+        outputTokens: event.usage.outputTokens,
+        cacheReadInputTokens: event.usage.cacheReadTokens ?? 0,
+        cacheCreationInputTokens: event.usage.cacheCreationTokens ?? 0,
+      },
+      modelUsage: event.modelUsage
+        ? Object.fromEntries(
+            Object.entries(event.modelUsage).map(([model, mu]) => [
+              model,
+              {
+                inputTokens: mu.inputTokens,
+                outputTokens: mu.outputTokens,
+                cacheReadInputTokens: mu.cacheReadTokens,
+                cacheCreationInputTokens: mu.cacheCreationTokens,
+                webSearchRequests: mu.webSearchRequests ?? 0,
+                costUSD: mu.costUsd ?? 0,
+                contextWindow: mu.contextWindow ?? 0,
+                maxOutputTokens: mu.maxOutputTokens ?? 0,
+              },
+            ])
+          )
+        : {},
+      errors: event.errors,
+      timestamp: now,
+    });
+  }
+
+  private *handleQueryError(err: unknown, bus: EventBus, tokenIndex: number): Generator<TokenDelta> {
+    if (this.abortController?.signal.aborted) {
+      debugLog('Agent', 'Query cancelled by user');
+      const cancelledDelta: TokenDelta = { token: ' [cancelled]', index: tokenIndex };
+      bus.emit({ type: 'TokenDelta', token: cancelledDelta.token, index: cancelledDelta.index, timestamp: Date.now() });
+      yield cancelledDelta;
+      return;
+    }
+
+    const errorCode: AgentErrorCode = isAuthError(err) ? 'AUTH_ERROR' : 'STREAM_FAILED';
+
+    if (errorCode === 'AUTH_ERROR') {
+      debugLog('Agent', 'Authentication error', {
+        error: err instanceof Error ? err.message : String(err),
+        HOME: process.env.HOME || homedir(),
+        hasApiKey: !!process.env.ANTHROPIC_API_KEY,
+        hasAuthToken: !!process.env.ANTHROPIC_AUTH_TOKEN,
+      });
+    } else {
+      debugLog('Agent', 'Query error', { error: err instanceof Error ? err.message : String(err) });
+    }
+
+    throw new AgentError(
+      err instanceof Error ? err.message : String(err),
+      errorCode,
+      err
+    );
   }
 
   async getSupportedModels(): Promise<AgentModelInfo[]> {
@@ -415,22 +356,12 @@ class AgentServiceImpl implements AgentService {
       return this.supportedModelsCache;
     }
 
-    const abortController = new AbortController();
-    const queryHandle = sdkQuery({
-      prompt: 'List available models.',
-      options: {
-        abortController,
-        cwd: process.cwd(),
-        env: buildSdkEnv(),
-      },
-    });
-
     try {
-      const models = await queryHandle.supportedModels();
-      const normalized: AgentModelInfo[] = models.map((m: { value: string; displayName: string; description?: string }) => ({
-        id: m.value,
+      const models = await getSupportedModels('claude', { cwd: process.cwd(), env: buildSdkEnv() });
+      const normalized: AgentModelInfo[] = models.map((m) => ({
+        id: m.id,
         displayName: m.displayName,
-        description: m.description ?? '',
+        description: m.description,
       }));
       this.supportedModelsCache = normalized;
       this.supportedModelsCacheAt = now;
@@ -438,8 +369,6 @@ class AgentServiceImpl implements AgentService {
     } catch (err) {
       debugLog('Agent', 'getSupportedModels failed', { error: err instanceof Error ? err.message : String(err) });
       return [];
-    } finally {
-      abortController.abort();
     }
   }
 
