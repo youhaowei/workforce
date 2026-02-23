@@ -7,8 +7,11 @@ export default {
     version: pkg.version,
   },
   build: {
-    bun: { entrypoint: 'src/bun/index.ts' },
+    bun: {
+      entrypoint: 'src/bun/index.ts',
+      external: ['electrobun/bun'],
+    },
     copy: { 'dist': 'dist' },
-    mac: { codesign: true, notarize: true },
+    mac: { codesign: false, notarize: false },
   },
 };
