@@ -13,6 +13,7 @@ import { readFile, writeFile, readdir, mkdir, rm } from 'fs/promises';
 import { join } from 'path';
 import type { Org, OrgSettings, OrgService } from './types';
 import { getEventBus } from '@/shared/event-bus';
+import { getLogService } from './log';
 import { getDataDir } from './data-dir';
 
 // =============================================================================
@@ -77,13 +78,13 @@ class OrgServiceImpl implements OrgService {
 
           this.orgs.set(org.id, org);
         } catch (innerErr) {
-          console.warn(`[OrgService] Skipping unreadable org file: ${filePath}`, innerErr);
+          getLogService().warn('general', `Skipping unreadable org file: ${filePath}`, { error: String(innerErr) });
         }
       }
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
       if (error.code !== 'ENOENT') {
-        console.error('Failed to initialize orgs:', error);
+        getLogService().error('general', 'Failed to initialize orgs', { error: String(error) });
       }
     }
 

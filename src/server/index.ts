@@ -3,7 +3,8 @@ import { cors } from 'hono/cors'
 import { trpcServer } from '@hono/trpc-server'
 import { existsSync } from 'fs'
 import { homedir } from 'os'
-import { getLogPath } from '@/shared/debug-log'
+import { debugLog, getLogPath } from '@/shared/debug-log'
+import { getLogService } from '@/services/log'
 import { appRouter } from './routers'
 
 /**
@@ -13,15 +14,17 @@ import { appRouter } from './routers'
 function logAuthDiagnostics() {
   const home = process.env.HOME || homedir()
   const credPath = `${home}/.claude/.credentials.json`
+  const log = getLogService()
 
-  console.log('[Auth Diagnostics]')
-  console.log('  CWD:', process.cwd())
-  console.log('  HOME:', home)
-  console.log('  Credentials file exists:', existsSync(credPath))
-  console.log('  ANTHROPIC_API_KEY set:', !!process.env.ANTHROPIC_API_KEY)
-  console.log('  ANTHROPIC_AUTH_TOKEN set:', !!process.env.ANTHROPIC_AUTH_TOKEN)
-  console.log('  PID:', process.pid)
-  console.log('  PPID:', process.ppid)
+  log.info('general', 'Auth diagnostics', {
+    cwd: process.cwd(),
+    home,
+    credentialsExist: existsSync(credPath),
+    anthropicApiKeySet: !!process.env.ANTHROPIC_API_KEY,
+    anthropicAuthTokenSet: !!process.env.ANTHROPIC_AUTH_TOKEN,
+    pid: process.pid,
+    ppid: process.ppid,
+  })
 }
 
 const app = new Hono()
@@ -146,4 +149,4 @@ const server = Bun.serve({
 
 // Log diagnostics on startup to help debug auth issues
 logAuthDiagnostics()
-console.log(`Workforce server running on ${server.url}`)
+debugLog('Server', `Workforce server running on ${server.url}`)

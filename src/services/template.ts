@@ -12,6 +12,7 @@
 
 import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
 import { join } from 'path';
+import { getLogService } from './log';
 import type {
   AgentTemplate,
   AgentProfile,
@@ -78,7 +79,7 @@ class TemplateServiceImpl implements TemplateService {
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
       if (error.code !== 'ENOENT') {
-        console.error(`Failed to load templates for org ${orgId}:`, error);
+        getLogService().error('general', `Failed to load templates for org ${orgId}`, { error: String(error) });
       }
     }
 

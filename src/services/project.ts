@@ -13,6 +13,7 @@ import { join } from 'path';
 import { ProjectNotFound } from './types';
 import type { Project, ProjectService, Result } from './types';
 import { getEventBus } from '@/shared/event-bus';
+import { getLogService } from './log';
 import { getDataDir } from './data-dir';
 import { colorFromName } from '@/shared/palette';
 
@@ -63,7 +64,7 @@ class ProjectServiceImpl implements ProjectService {
           const project = JSON.parse(raw) as Project;
           this.projects.set(project.id, project);
         } catch (err) {
-          console.warn(`Skipping unreadable project file ${filePath}:`, err);
+          getLogService().warn('general', `Skipping unreadable project file ${filePath}`, { error: String(err) });
         }
       }
     } catch (err) {
@@ -71,7 +72,7 @@ class ProjectServiceImpl implements ProjectService {
       if (error.code !== 'ENOENT') {
         // Log and continue — service starts with an empty map.
         // The user will see "No projects" until the underlying issue is resolved.
-        console.error('Failed to initialize projects from disk — service will be empty:', error);
+        getLogService().error('general', 'Failed to initialize projects from disk — service will be empty', { error: String(error) });
       }
     }
 

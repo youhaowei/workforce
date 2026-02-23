@@ -13,6 +13,7 @@ import { join, dirname } from 'path';
 import type { User, UserService } from './types';
 import { getDataDir } from './data-dir';
 import { colorFromName } from '@/shared/palette';
+import { getLogService } from './log';
 
 // =============================================================================
 // Configuration
@@ -54,7 +55,7 @@ class UserServiceImpl implements UserService {
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
       if (error.code !== 'ENOENT') {
-        console.error('Failed to load user:', error);
+        getLogService().error('general', 'Failed to load user', { error: String(error) });
       }
       // No user file yet — that's fine
     }
@@ -124,7 +125,7 @@ class UserServiceImpl implements UserService {
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
       if (error.code !== 'ENOENT') {
-        console.error('Failed to delete user file:', error);
+        getLogService().error('general', 'Failed to delete user file', { error: String(error) });
       }
     }
   }

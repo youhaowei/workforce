@@ -30,6 +30,7 @@ import { getEventBus } from '@/shared/event-bus';
 import { getDataDir } from './data-dir';
 import { runMigrations } from './migration';
 import { debugLog } from '@/shared/debug-log';
+import { getLogService } from './log';
 import {
   appendRecord,
   appendRecords,
@@ -112,7 +113,7 @@ class SessionServiceImpl implements SessionService {
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
       if (error.code !== 'ENOENT') {
-        console.error('Failed to initialize sessions:', error);
+        getLogService().error('general', 'Failed to initialize sessions', { error: String(error) });
       }
     }
 
