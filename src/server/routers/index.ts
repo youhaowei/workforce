@@ -13,6 +13,7 @@ import { worktreeRouter } from './worktree';
 import { taskRouter } from './task';
 import { agentRouter } from './agent';
 import { eventsRouter } from './events';
+import { dialogRouter } from './dialog';
 
 export const appRouter = router({
   health: healthRouter,
@@ -29,6 +30,7 @@ export const appRouter = router({
   task: taskRouter,
   agent: agentRouter,
   events: eventsRouter,
+  dialog: dialogRouter,
 });
 
 export type AppRouter = typeof appRouter;

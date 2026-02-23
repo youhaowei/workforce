@@ -74,56 +74,57 @@ bun run type-check # TypeScript check
 bun run server     # Start backend server (port 4096) - RUN THIS FIRST
 bun run server:watch # Server with hot-reload (used by dev/dev:web automatically)
 bun run dev:web    # Start server + vite for web testing
-bun run clean      # Remove build artifacts (src-tauri/target, dist)
+bun run clean      # Remove build artifacts (dist, .electrobun)
 ```
 
 **User-initiated only (ASK FIRST):**
 
 ```bash
-bun run dev   # Start server + Tauri desktop app
-bun run build # Build Tauri app
+bun run dev   # Start server + Electrobun desktop app
+bun run build # Build Electrobun release
 ```
 
 ### Running the Desktop App
 
-**Dev mode**: `bun run dev` starts the server externally (`server:watch &`), then launches Tauri. The sidecar bootstrap in `useServerInit` is skipped via `import.meta.env.DEV`.
+**Dev mode**: `bun run dev` starts the server externally (`server:watch &`), then launches Electrobun. The BrowserWindow loads from Vite at `:5173`.
 
 ```bash
-bun run dev  # Starts server in background, then Tauri
+bun run dev  # Starts server in background, then Electrobun
 ```
 
 If you need to run them separately:
 ```bash
-bun run server  # Terminal 1
-tauri dev       # Terminal 2
+bun run server     # Terminal 1
+electrobun dev     # Terminal 2
 ```
 
-**Production mode**: Tauri spawns the server as a compiled sidecar binary (no external Bun needed). `useServerInit` calls `startServer()` → Rust spawns the binary → polls `/health` until ready. The `fix-path-env` crate repairs HOME/PATH for GUI-launched apps.
+**Production mode**: The Electrobun main process (`src/bun/index.ts`) calls `startServer()` directly — no sidecar, no health polling. Hono serves both the API and Vite build output on `:4096`.
 
 ## Architecture
 
-### Sidecar Architecture (Tauri + Bun HTTP Server)
+### Architecture (Electrobun + Bun HTTP Server)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Tauri (Rust)                                               │
-│  - Spawns Bun server as sidecar child process               │
-│  - fix-path-env repairs HOME/PATH for GUI apps              │
-│  - Native menus, window management                          │
+│  Electrobun Main Process (src/bun/index.ts)                 │
+│  - Bun-native: startServer() is a direct function call      │
+│  - ApplicationMenu for native Edit/Window menus             │
+│  - BrowserWindow → http://localhost:4096 (prod)             │
 └─────────────────────────────────────────────────────────────┘
-         ↓ start_server/stop_server commands
-┌─────────────────────────────────────────────────────────────┐
-│  UI Layer (React 19 WebView)                                │
-│  - Zustand/Jotai stores, React hooks                        │
-│  - Virtual scrolling (react-virtuoso)                       │
-│  - useServerInit auto-boots sidecar in production           │
-└─────────────────────────────────────────────────────────────┘
-         ↓ tRPC client (splitLink: HTTP + SSE) → localhost:4096
+         ↓ direct function call (no IPC)
 ┌─────────────────────────────────────────────────────────────┐
 │  Bun HTTP Server (Hono + tRPC v11)                          │
 │  - Type-safe API with Zod validation                        │
 │  - SSE subscriptions for streaming + events                 │
 │  - Mounted at /api/trpc/*                                   │
+│  - Serves Vite build output (dist/) in production           │
+└─────────────────────────────────────────────────────────────┘
+         ↓ http://localhost:4096
+┌─────────────────────────────────────────────────────────────┐
+│  UI Layer (React 19 WebView)                                │
+│  - Zustand/Jotai stores, React hooks                        │
+│  - Virtual scrolling (react-virtuoso)                       │
+│  - tRPC client (splitLink: HTTP + SSE)                      │
 └─────────────────────────────────────────────────────────────┘
                     ↓ direct function calls
 ┌─────────────────────────────────────────────────────────────┐
@@ -135,7 +136,7 @@ tauri dev       # Terminal 2
 **Key Design Decision**: tRPC v11 for type-safe client-server communication
 - **Frontend** (WebView): React 19 with Zustand + Jotai + TanStack Query via tRPC
 - **Backend**: Hono HTTP server (port 4096) with tRPC routers wrapping service layer
-- **Sidecar**: In production, Tauri spawns a compiled server binary (`bun build --compile`). In dev, server runs externally via `server:watch`.
+- **Desktop**: Electrobun main process IS Bun — `startServer()` is a direct call, no sidecar
 - **Performance**: First-class concern - streaming via SSE subscriptions, rAF-batched token accumulation
 
 ### Directory Structure
@@ -165,9 +166,8 @@ src/
     ├── event-bus.ts
     └── palette.ts    # Color palette + colorFromName (used by service & UI)
 
-src-tauri/        # Tauri/Rust layer
-├── src/main.rs   # Sidecar lifecycle (start/stop server), env repair, native menus
-└── Cargo.toml    # Tauri dependencies (fix-path-env, shell plugin)
+src/bun/          # Electrobun main process (Bun-native, no browser APIs)
+└── index.ts      # startServer() + BrowserWindow + ApplicationMenu
 
 e2e/              # Playwright E2E tests
 ```
@@ -191,7 +191,7 @@ import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 const messages = useMessagesStore((s) => s.messages);
 ```
 
-**Note**: Services are lazy-initialized singletons. All services implement `dispose()` for cleanup. The service barrel (`src/services/index.ts`) re-exports all getters, reset functions, and factory functions. `server/index.ts` contains only CORS, tRPC mount, and 3 diagnostic routes — all domain logic lives in tRPC routers.
+**Note**: Services are lazy-initialized singletons. All services implement `dispose()` for cleanup. The service barrel (`src/services/index.ts`) re-exports all getters, reset functions, and factory functions. `server/index.ts` exports `startServer()` with CORS, tRPC mount, static file serving, and diagnostic routes — all domain logic lives in tRPC routers.
 
 ### Error Handling
 
@@ -265,7 +265,7 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 ## Tech Stack
 
 -   **Runtime**: Bun (not Node)
--   **Desktop**: Tauri 2.0
+-   **Desktop**: Electrobun (Bun-native)
 -   **UI**: React 19 + Zustand + Jotai + TanStack Query
 -   **API**: tRPC v11 (type-safe, superjson, SSE subscriptions)
 -   **Server**: Hono + @hono/trpc-server
@@ -283,12 +283,14 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 | Stream throughput | - | 14.55 ms/1000 tokens | ✅ PASS |
 | Cold start (dev) | < 2s | ~5s | ⚠️ Dev mode only |
 
-**Note**: Cold start ~5s is dev mode overhead (Rust compilation). Production builds don't have this. See `docs/architecture/learnings.md` for detailed performance analysis.
+**Note**: See `docs/architecture/learnings.md` for detailed performance analysis.
 
 ## Gotchas
 
 ### Architecture
-- **Sidecar server** — Bun HTTP server on port 4096. Dev: started externally by `bun run dev`. Production: Tauri spawns compiled binary via `useServerInit` → `start_server` Rust command.
+- **Server lifecycle** — Bun HTTP server on port 4096. Dev: started externally by `bun run dev`. Production: Electrobun main process (`src/bun/index.ts`) calls `startServer()` directly — no sidecar, no health polling.
+- **`electrobun/bun` imports only in `src/bun/`** — Keep `src/ui/` browser-safe. Native dialogs are exposed via tRPC (`dialog.openDirectory` mutation) with dynamic `import('electrobun/bun')` fallback.
+- **`isDesktop` detection** — `window.location.port === '4096'` in `src/ui/App.tsx`. Dev web uses `:5173`, desktop always loads from `:4096`.
 - **Services use Bun APIs** — Not browser-safe. Lazy-init singletons with `dispose()`. Barrel: `src/services/index.ts` (`getXxxService()`/`resetXxxService()`/`disposeAllServices()`).
 - **Singleflight for lazy init** — `ensureInitialized()` must cache the in-flight promise (`this.initPromise ??= this.doInit()`) to prevent concurrent callers from racing.
 - **Error classes in types.ts** — Domain errors (e.g. `ProjectNotFound`) live in `src/services/types.ts` alongside the interface. Services return `Result<T, E>`, routers map to `TRPCError`.
@@ -298,15 +300,14 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 - **SetupGate boundary** — `SetupGate` wraps `Shell` and guarantees user identity + initialized org before Shell mounts. `useRequiredOrgId()` throws if called outside this boundary (before org is set in Zustand). Shell initializes `serverConnected = true` because SetupGate already verified the server. The `initialized` field on `Org` is migrated to `true` for pre-existing orgs in `OrgService.doInit()`.
 
 ### SDK & Streaming
-- **Auth** — SDK uses Claude CLI auth from `~/.claude/.credentials.json`. SDK handles token refresh internally. Tauri's `fix-path-env` crate repairs HOME/PATH for GUI-launched apps so auth works without a terminal.
+- **Auth** — SDK uses Claude CLI auth from `~/.claude/.credentials.json`. SDK handles token refresh internally.
 - **Streaming** — Pass `includePartialMessages: true` to `sdkQuery()`. Only yield from `content_block_delta` events (not final message) to avoid duplication. Never `.trim()` SSE data — it strips inter-token spaces.
 - **Bun.serve timeout** — Default `idleTimeout` is 10s; SSE needs 120s for LLM responses.
 
-### Tauri & UI
+### Electrobun & UI
 - **Radix UI** — Uses unified `radix-ui` package (not individual `@radix-ui/*`). Import from `"radix-ui"` directly.
-- **Tauri v2 detection** — Use `__TAURI_INTERNALS__` (not `__TAURI__`).
-- **Tauri plugins require 3 changes** — (1) Cargo.toml dependency, (2) `.plugin()` registration in `main.rs`, (3) capability permission in `src-tauri/capabilities/default.json`.
-- **Native clipboard** — Use Tauri's Edit menu, not JS handlers. See `src-tauri/src/main.rs`.
+- **Native clipboard** — Use Electrobun's Edit menu (configured in `src/bun/index.ts`).
+- **Native dialogs** — Exposed via tRPC `dialog.openDirectory` mutation, not direct Electrobun imports in UI code.
 - **Radix ContextMenu** — No controlled `open` prop. Gate opening via capture-phase `stopPropagation` on the `contextmenu` event.
 - **React 19 `useRef`** — Requires initial value: `useRef<T | undefined>(undefined)`, not `useRef<T>()`.
 - **Virtualization** — `react-virtuoso` for virtual scrolling.

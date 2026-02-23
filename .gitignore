@@ -13,12 +13,8 @@ dist-server/
 build/
 *.tsbuildinfo
 
-# Tauri
-.tauri/
-src-tauri/target/
-src-tauri/gen/
-src-tauri/binaries/
-# Note: Cargo.lock should be tracked for applications (not libraries)
+# Electrobun
+.electrobun/
 
 # Testing
 test-results/

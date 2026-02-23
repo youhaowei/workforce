@@ -1,7 +1,7 @@
 /**
  * ProjectForm — Shared form fields for creating and editing projects.
  *
- * Renders name, root path (with native directory picker on Tauri),
+ * Renders name, root path (with native directory picker in desktop mode),
  * and color swatch picker. The parent dialog provides initial values,
  * submit handling, and the dialog chrome (title, footer buttons).
  */

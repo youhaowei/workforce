@@ -2,7 +2,7 @@
  * tRPC v11 initialization — shared router/procedure factories.
  *
  * Uses superjson so Date, Map, Set etc. survive serialization.
- * All procedures are public (auth is handled at the Hono/Tauri layer).
+ * All procedures are public (auth is handled at the Hono layer).
  */
 
 import { initTRPC } from '@trpc/server';

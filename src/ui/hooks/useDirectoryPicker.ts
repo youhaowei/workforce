@@ -1,5 +1,5 @@
 /**
- * useDirectoryPicker — Opens a native folder picker on Tauri, no-op on web.
+ * useDirectoryPicker — Opens a native folder picker via tRPC, no-op on web.
  *
  * Returns `pick()` which resolves to the selected directory path, or null
  * if the user cancelled. On web, `pick` is null (callers should hide the
@@ -8,6 +8,7 @@
 
 import { useCallback, useState } from 'react';
 import { usePlatform } from '@/ui/context/PlatformProvider';
+import { trpc } from '@/bridge/trpc';
 
 interface UseDirectoryPickerResult {
   /** Call to open the native folder picker. null when not available (web). */
@@ -17,16 +18,14 @@ interface UseDirectoryPickerResult {
 }
 
 export function useDirectoryPicker(): UseDirectoryPickerResult {
-  const { isTauri } = usePlatform();
+  const { isDesktop } = usePlatform();
   const [isPicking, setIsPicking] = useState(false);
 
   const pick = useCallback(async (): Promise<string | null> => {
     setIsPicking(true);
     try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selected = await open({ directory: true, multiple: false });
-      // With directory: true, multiple: false → returns string | null
-      return selected as string | null;
+      const result = await trpc.dialog.openDirectory.mutate();
+      return result.path;
     } catch (err) {
       console.warn('Directory picker failed:', err);
       return null;
@@ -35,5 +34,5 @@ export function useDirectoryPicker(): UseDirectoryPickerResult {
     }
   }, []);
 
-  return { pick: isTauri ? pick : null, isPicking };
+  return { pick: isDesktop ? pick : null, isPicking };
 }

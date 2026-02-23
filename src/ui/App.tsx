@@ -15,19 +15,18 @@ import { PlatformProvider, type PlatformActions } from './context/PlatformProvid
 import { HotkeyProvider } from './hotkeys/HotkeyProvider';
 import { AppContextMenu } from './components/Shell/AppContextMenu';
 import { useEventBusInit } from './hooks/useEventBusInit';
-import { useServerInit } from './hooks/useServerInit';
 import { SetupGate } from './components/SetupGate';
 import Shell from './components/Shell/Shell';
+import { API_PORT } from '@/bridge/config';
 
-// Detect Tauri runtime
-const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+// Detect desktop mode: Electrobun loads the UI from the API port, dev web uses Vite's port
+const isDesktop = typeof window !== 'undefined' && window.location.port === API_PORT;
 
 const platformActions: PlatformActions = {
-  isTauri,
+  isDesktop,
 };
 
 function AppInner() {
-  useServerInit();
   useEventBusInit();
   return (
     <SetupGate>

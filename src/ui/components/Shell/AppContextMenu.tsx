@@ -52,7 +52,7 @@ interface AppContextMenuProps {
 }
 
 export function AppContextMenu({ children }: AppContextMenuProps) {
-  const { isTauri } = usePlatform();
+  const { isDesktop } = usePlatform();
   const saved = useRef<Snapshot>({ element: null, text: '' });
 
   // Gate the context menu: only allow the Radix menu to open on text/editable
@@ -61,17 +61,17 @@ export function AppContextMenu({ children }: AppContextMenuProps) {
   useEffect(() => {
     const onContextMenu = (e: MouseEvent) => {
       if (!isTextContext(e.target)) {
-        // Block Radix from opening; let native menu through on web, suppress on Tauri
-        if (isTauri) e.preventDefault();
+        // Block Radix from opening; let native menu through on web, suppress on desktop
+        if (isDesktop) e.preventDefault();
         e.stopPropagation();
         return;
       }
-      if (isTauri) e.preventDefault();
+      if (isDesktop) e.preventDefault();
     };
     // Use capture phase so we intercept before Radix's trigger listener
     document.addEventListener('contextmenu', onContextMenu, true);
     return () => document.removeEventListener('contextmenu', onContextMenu, true);
-  }, [isTauri]);
+  }, [isDesktop]);
 
   // Snapshot active element + selection when the menu opens
   const handleOpenChange = useCallback((nextOpen: boolean) => {
@@ -107,8 +107,8 @@ export function AppContextMenu({ children }: AppContextMenuProps) {
     try {
       const text = await navigator.clipboard.readText();
       document.execCommand('insertText', false, text);
-    } catch {
-      // Clipboard read may require permission
+    } catch (err) {
+      console.warn('[AppContextMenu] Clipboard paste failed:', err);
     }
   }, [restoreFocus]);
 

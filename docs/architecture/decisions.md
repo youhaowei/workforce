@@ -24,19 +24,16 @@ Last updated: 2026-02-17
     - template portability: workspace-local in MVP
 14. **Effect library deferred** — POC evaluated Effect for session persistence error handling. Typed errors are valuable but the paradigm overhead isn't justified yet. Instead: adopt typed error classes + `Result<T, E>` without Effect. Revisit when retry policies, resource scoping, or structured concurrency become needed.
 15. **Error handling strategy** — Use typed domain error classes + discriminated `Result<T, E>` unions at service boundaries. Tracing via structured LogService fields. No new library dependencies until complexity warrants it.
-16. **Sidecar server architecture** — The Bun HTTP server (Hono + tRPC, port 4096) runs as a Tauri-managed sidecar child process rather than in-process or as a user-started external process.
+16. **~~Sidecar server architecture~~ → Electrobun direct-call architecture** — Originally the Bun HTTP server ran as a Tauri-managed sidecar child process (~300 lines of Rust lifecycle management). Migrated to Electrobun in Feb 2026, which eliminated the sidecar entirely — Electrobun's main process IS Bun, so `startServer()` is a direct function call.
 
-    **Problem**: The Claude Agent SDK authenticates via `~/.claude/.credentials.json`, which requires correct HOME and PATH environment variables. macOS GUI apps launched from Finder/Dock inherit a minimal environment that lacks shell-configured paths — the server couldn't find credentials or the `bun` binary.
+    **Original problem**: macOS GUI apps launched from Finder inherit a minimal PATH. Tauri solved this with the `fix-path-env` Rust crate. Electrobun solves it with `execFileSync('zsh', ['-l', '-c', 'echo $PATH'])` in the Bun main process.
 
-    **Why sidecar (not in-process)**: Bun's server APIs (`Bun.serve()`) can't run inside Tauri's WebView — they require a Node/Bun runtime. The server must be a separate OS process.
+    **Current architecture**:
+    - `src/bun/index.ts` — Electrobun main process: repairs PATH, calls `startServer()`, opens `BrowserWindow`
+    - `src/server/index.ts` — Exports `startServer()` with `import.meta.main` guard for standalone mode
+    - In production, Hono serves both the API and Vite build output on `:4096` (same origin, no CORS)
+    - In dev, server runs externally via `server:watch`; Electrobun window points to Vite at `:5173`
+    - Native dialogs exposed via tRPC `dialog.openDirectory` mutation (dynamic `import('electrobun/bun')`)
+    - `isDesktop` detected via `window.location.port === API_PORT` (`:4096` = desktop, `:5173` = web dev)
 
-    **Why Tauri-managed (not user-started)**: Requiring users to open a terminal and run `bun run server` before launching the app is poor UX for a desktop app. Tauri spawning the server as a child process makes the app self-contained — double-click to launch, no terminal needed.
-
-    **How it works**:
-    - `fix-path-env` Rust crate repairs HOME/PATH at Tauri startup by spawning the user's login shell
-    - `start_server` Tauri command spawns the server; `stop_server` kills it; `RunEvent::Exit` cleans up orphans
-    - `useServerInit` React hook bootstraps the sidecar on mount (production only), polls `/health` until ready
-    - Production: `bun build --compile` creates a standalone binary (Bun runtime embedded, no external Bun needed). Bundled via Tauri's `externalBin`.
-    - Dev: sidecar bootstrap is skipped (`import.meta.env.DEV`); the `dev` script starts `server:watch` externally for HMR
-
-    **Key files**: `src-tauri/src/main.rs` (lifecycle), `src/ui/hooks/useServerInit.ts` (boot), `src/ui/lib/server-manager.ts` (invoke wrappers), `scripts/build-server-sidecar.ts` (binary build)
+    **What was removed**: `src-tauri/` (entire Rust backend), `src/ui/lib/server-manager.ts` (Tauri invoke wrappers), `src/ui/hooks/useServerInit.ts` (sidecar boot), `scripts/build-server-sidecar.ts` (binary compilation)
