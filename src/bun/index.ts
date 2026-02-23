@@ -7,7 +7,6 @@
 
 import { BrowserWindow, ApplicationMenu } from 'electrobun/bun';
 import { execFileSync } from 'child_process';
-import { startServer } from '../server/index';
 
 // Detect dev mode via NODE_ENV (set by the `dev` script in package.json)
 const isDev = process.env.NODE_ENV === 'development';
@@ -20,6 +19,11 @@ if (!isDev) {
     if (shellPath) process.env.PATH = shellPath;
   } catch { /* fall through to default PATH */ }
 
+  // Dynamic import via string variable prevents Electrobun's bundler from
+  // trying to resolve the entire server dependency tree at build time.
+  // The server module is loaded at runtime from the unbundled source.
+  const serverModule = '../server/index';
+  const { startServer } = await import(serverModule);
   startServer();
 }
 
