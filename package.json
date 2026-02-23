@@ -4,7 +4,7 @@
   "description": "High-performance desktop agentic orchestrator with Claude Code parity",
   "type": "module",
   "scripts": {
-    "dev": "trap 'kill 0' EXIT; bun run server:watch & sleep 2 && NODE_ENV=development electrobun dev",
+    "dev": "trap 'kill 0' EXIT; bun run server:watch & bun run vite & sleep 2 && NODE_ENV=development electrobun dev",
     "dev:web": "bun run server:watch & bun run vite",
     "server": "bun run src/server/index.ts",
     "server:watch": "bun --watch run src/server/index.ts",
@@ -29,7 +29,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.29",
-    "unifai": "file:../unifai",
+    "unifai": "github:youhaowei/unifai",
     "@hono/trpc-server": "^0.4.2",
     "@radix-ui/react-popover": "^1.1.15",
     "@tailwindcss/vite": "^4.1.18",
