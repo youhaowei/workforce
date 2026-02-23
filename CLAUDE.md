@@ -327,6 +327,18 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 - **Optimistic updates** — `onMutate` must return rollback context for `onError` when side effects (selection clearing, cache changes) happen.
 - **Router tests share global singletons** — Services like `UserService` persist to `~/.workforce/` on disk. `resetXxxService()` clears memory but not disk. Use factory functions (`createXxxService(tempPath)`) for isolated unit tests. Router integration tests sharing `createCaller({})` must account for cross-test disk persistence.
 
+### Cross-Project Dependencies
+- **unifai** — Unified agent abstraction library (`github:youhaowei/unifai`). Used for multi-provider LLM sessions. The package.json uses a GitHub dependency for portability (clones, worktrees, CI). For local development, `bun link` overrides with the local copy at `~/Projects/unifai`.
+- **Local dev setup** (one-time):
+  ```bash
+  cd ~/Projects/unifai && bun link          # register globally
+  cd ~/Projects/workforce && bun link unifai # symlink into workforce
+  ```
+- **After `bun install`** — `bun install` may overwrite the link with the GitHub version. Re-run `bun link unifai` to restore the local override.
+- **In worktrees** — Run `bun link unifai` after creating a worktree to use the local copy. Without it, the GitHub version is used (which is fine for most feature work).
+- **Updating unifai for all consumers** — Push changes to `youhaowei/unifai` on GitHub. Then `bun install` in workforce/knowledgebase pulls the latest.
+- **Why not `file:` or `workspace:`** — `file:../unifai` breaks in git worktrees (relative path resolves to wrong location). Bun workspaces with symlinked members don't work (bun resolves symlinks, breaking relative node_modules paths). `github:` + `bun link` is the only approach that works in all contexts.
+
 **Known Issues**: See `docs/operations/issues.md` for detailed issues and resolutions.
 
 ## Communication Style
