@@ -25,16 +25,15 @@
     "perf:memory": "node scripts/perf-memory.js",
     "perf:stream": "node scripts/perf-stream.js",
     "lint": "eslint src --max-warnings 0",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "cli": "bun run src/cli/index.ts"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.29",
-    "unifai": "github:youhaowei/unifai",
+    "@anthropic-ai/claude-agent-sdk": "^0.2.50",
     "@hono/trpc-server": "^0.4.2",
     "@radix-ui/react-popover": "^1.1.15",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5",
-    "electrobun": "^1.14.4",
     "@trpc/client": "^11",
     "@trpc/server": "^11",
     "@trpc/tanstack-react-query": "^11",
@@ -42,7 +41,9 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "commander": "^14.0.3",
     "dompurify": "^3.3.1",
+    "electrobun": "^1.14.4",
     "hono": "^4.11.7",
     "immer": "^11.1.3",
     "jotai": "^2",
@@ -55,6 +56,7 @@
     "react-virtuoso": "^4.18.1",
     "superjson": "^2.2.6",
     "tailwind-merge": "^3.4.0",
+    "unifai": "github:youhaowei/unifai",
     "zod": "^3.22.0",
     "zustand": "^5"
   },
