@@ -24,6 +24,8 @@ import type {
   OrgService,
   ReviewService,
   ReviewAction,
+  AgentTone,
+  VerboseLevel,
 } from './types';
 import type { Unsubscribe, ReviewItemChangeEvent } from '@/shared/event-bus';
 
@@ -54,11 +56,11 @@ class OrchestrationServiceImpl implements OrchestrationService {
       throw new Error(`Template not found: ${templateId}`);
     }
 
-    // 1b. Fetch org to get rootPath and settings
+    // 1b. Fetch org to get settings (e.g. allowedTools)
     const org = this.orgService
       ? await this.orgService.get(orgId)
       : null;
-    const repoRoot = org?.rootPath ?? process.cwd();
+    const repoRoot = process.cwd();
 
     // 2. Create WorkAgent session (parentId is immutable lineage, set at creation)
     const session = await this.sessionService.createWorkAgent({
@@ -83,8 +85,15 @@ class OrchestrationServiceImpl implements OrchestrationService {
       });
     }
 
-    // 4. Compose system prompt from template
-    const systemPrompt = this.buildSystemPrompt(template.systemPrompt, template.constraints, goal);
+    // 4. Compose system prompt from template + org behavioral defaults
+    const agentDefaults = org?.settings?.agentDefaults;
+    const systemPrompt = this.buildSystemPrompt(
+      template.systemPrompt,
+      template.constraints,
+      goal,
+      agentDefaults?.tone,
+      agentDefaults?.verboseLevel,
+    );
 
     // 5. Create agent instance — pass allowed tools from org settings
     const allowedTools = org?.settings.allowedTools;
@@ -267,8 +276,26 @@ class OrchestrationServiceImpl implements OrchestrationService {
   // Private
   // ===========================================================================
 
-  private buildSystemPrompt(base: string, constraints: string[], goal: string): string {
-    const parts = [base];
+  private buildSystemPrompt(
+    base: string,
+    constraints: string[],
+    goal: string,
+    tone?: AgentTone,
+    verboseLevel?: VerboseLevel,
+  ): string {
+    const parts: string[] = [];
+
+    // Prepend behavioral preamble from org/template defaults
+    const tonePreamble = this.getTonePreamble(tone);
+    const verbosePreamble = this.getVerbosePreamble(verboseLevel);
+    if (tonePreamble || verbosePreamble) {
+      parts.push('## Communication Style');
+      if (tonePreamble) parts.push(tonePreamble);
+      if (verbosePreamble) parts.push(verbosePreamble);
+      parts.push('');
+    }
+
+    parts.push(base);
 
     if (constraints.length > 0) {
       parts.push('\n## Constraints');
@@ -280,6 +307,26 @@ class OrchestrationServiceImpl implements OrchestrationService {
     parts.push(`\n## Goal\n${goal}`);
 
     return parts.join('\n');
+  }
+
+  private getTonePreamble(tone?: AgentTone): string {
+    switch (tone) {
+      case 'friendly': return 'Be warm and approachable. Explain your reasoning.';
+      case 'professional': return 'Be professional and precise. Focus on clarity.';
+      case 'direct': return 'Be direct and concise. Skip pleasantries.';
+      case 'technical': return 'Use technical language. Assume domain expertise.';
+      default: return '';
+    }
+  }
+
+  private getVerbosePreamble(level?: VerboseLevel): string {
+    switch (level) {
+      case 'concise': return 'Keep responses brief.';
+      case 'balanced': return 'Provide moderate detail.';
+      case 'thorough': return 'Provide detailed explanations with examples.';
+      case 'exhaustive': return 'Be comprehensive. Cover edge cases and alternatives.';
+      default: return '';
+    }
   }
 
   /**

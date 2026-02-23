@@ -281,6 +281,14 @@ export interface OrgChangeEvent {
   timestamp: number;
 }
 
+/** Project lifecycle events */
+export interface ProjectChangeEvent {
+  type: 'ProjectChange';
+  projectId: string;
+  action: 'created' | 'updated' | 'deleted';
+  timestamp: number;
+}
+
 /** Session lifecycle state transitions */
 export interface LifecycleTransitionEvent {
   type: 'LifecycleTransition';
@@ -391,6 +399,7 @@ export type BusEvent =
   | RawSdkMessageEvent
   // Workforce orchestration events
   | OrgChangeEvent
+  | ProjectChangeEvent
   | LifecycleTransitionEvent
   | ReviewItemChangeEvent
   | WorktreeChangeEvent
@@ -431,6 +440,7 @@ export const EventType = {
   RawSdkMessage: 'RawSdkMessage',
   // Workforce orchestration events
   OrgChange: 'OrgChange',
+  ProjectChange: 'ProjectChange',
   LifecycleTransition: 'LifecycleTransition',
   ReviewItemChange: 'ReviewItemChange',
   WorktreeChange: 'WorktreeChange',

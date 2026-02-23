@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
+import { trpc as trpcClient } from '@/bridge/trpc';
 import { useOrgStore } from '@/ui/stores/useOrgStore';
 import {
   Dialog,
@@ -27,24 +28,35 @@ export function CreateOrgDialog({ open, onOpenChange }: CreateOrgDialogProps) {
   const queryClient = useQueryClient();
   const setCurrentOrgId = useOrgStore((s) => s.setCurrentOrgId);
   const [name, setName] = useState('');
-  const [rootPath, setRootPath] = useState('');
 
   const createMutation = useMutation(
     trpc.org.create.mutationOptions({
-      onSuccess: (org) => {
+      onSuccess: async (org) => {
+        // Mark initialized immediately — orgs created from the management view
+        // should skip the SetupGate's InitOrgStep wizard.
+        try {
+          await trpcClient.org.update.mutate({ id: org.id, updates: { initialized: true } });
+        } catch (err) {
+          console.warn('[CreateOrgDialog] Failed to mark org as initialized:', err);
+        }
+        // Persist selection on server so it survives restart
+        try {
+          await trpcClient.org.activate.mutate({ id: org.id });
+        } catch (err) {
+          console.warn('[CreateOrgDialog] Failed to activate org on server:', err);
+        }
         setCurrentOrgId(org.id);
         queryClient.invalidateQueries({ queryKey: ['org'] });
-        onOpenChange(false);
         setName('');
-        setRootPath('');
+        onOpenChange(false);
       },
     }),
   );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !rootPath.trim()) return;
-    createMutation.mutate({ name: name.trim(), rootPath: rootPath.trim() });
+    if (!name.trim()) return;
+    createMutation.mutate({ name: name.trim() });
   };
 
   return (
@@ -58,29 +70,16 @@ export function CreateOrgDialog({ open, onOpenChange }: CreateOrgDialogProps) {
             <Label htmlFor="org-name">Name</Label>
             <Input
               id="org-name"
-              placeholder="My Project"
+              placeholder="My Organization"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="org-path">Root Path</Label>
-            <Input
-              id="org-path"
-              placeholder="/path/to/project"
-              value={rootPath}
-              onChange={(e) => setRootPath(e.target.value)}
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              Absolute path to the project directory
-            </p>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!name.trim() || !rootPath.trim() || createMutation.isPending}>
+            <Button type="submit" disabled={!name.trim() || createMutation.isPending}>
               {createMutation.isPending ? 'Creating...' : 'Create'}
             </Button>
           </DialogFooter>

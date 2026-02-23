@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import {
   Dialog,
   DialogContent,
@@ -38,7 +38,7 @@ function saveButtonLabel(isPending: boolean, isEditing: boolean): string {
 export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -90,7 +90,7 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
     input.split(',').map((s) => s.trim()).filter(Boolean);
 
   const handleSave = () => {
-    if (!orgId || !name.trim()) return;
+    if (!name.trim()) return;
 
     const data = {
       name: name.trim(),
@@ -195,7 +195,7 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
         </ScrollArea>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!name.trim() || !orgId || isPending}>
+          <Button onClick={handleSave} disabled={!name.trim() || isPending}>
             {saveButtonLabel(isPending, !!template)}
           </Button>
         </DialogFooter>

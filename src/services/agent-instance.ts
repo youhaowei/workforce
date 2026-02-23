@@ -1,4 +1,5 @@
-import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
+import { createSession } from 'unifai';
+import type { AgentEvent } from 'unifai';
 import { homedir } from 'os';
 import type { StreamResult, TokenDelta } from './types';
 import { getEventBus } from '@/shared/event-bus';
@@ -83,7 +84,6 @@ export class AgentInstance {
     this.abortController = new AbortController();
   }
 
-  // eslint-disable-next-line complexity
   async *query(prompt: string): StreamResult<TokenDelta> {
     if (this.queryInProgress) {
       throw new AgentError('Query already in progress for this instance', 'UNKNOWN');
@@ -99,83 +99,24 @@ export class AgentInstance {
         ? `${this.options.systemPrompt}\n\n${prompt}`
         : prompt;
 
-      const sdkOptions: Record<string, unknown> = {
-        abortController: this.abortController,
+      const session = createSession('claude', {
+        model: 'sonnet',
+        sdkVersion: 'v1',
         cwd: this.options.cwd,
         env: this.options.env ?? buildSdkEnv(),
+        abortController: this.abortController,
         includePartialMessages: true,
-      };
+        includeRawEvents: true,
+        ...(this.options.allowedTools?.length ? { allowedTools: this.options.allowedTools } : {}),
+      });
 
-      if (this.options.allowedTools?.length) {
-        sdkOptions.allowedTools = this.options.allowedTools;
-      }
-
-      const queryStream = sdkQuery({ prompt: fullPrompt, options: sdkOptions });
-
-      for await (const message of queryStream) {
-        const now = Date.now();
-
-        bus.emit({
-          type: 'RawSdkMessage',
-          sdkMessageType: message.type,
-          payload: message,
-          timestamp: now,
-        });
-
-        if (message.type === 'result') {
-          bus.emit({
-            type: 'QueryResult',
-            subtype: message.subtype,
-            durationMs: message.duration_ms,
-            durationApiMs: message.duration_api_ms,
-            numTurns: message.num_turns,
-            totalCostUsd: message.total_cost_usd,
-            result: 'result' in message ? message.result : undefined,
-            structuredOutput: 'structured_output' in message ? message.structured_output : undefined,
-            usage: {
-              inputTokens: message.usage.input_tokens,
-              outputTokens: message.usage.output_tokens,
-              cacheReadInputTokens: message.usage.cache_read_input_tokens,
-              cacheCreationInputTokens: message.usage.cache_creation_input_tokens,
-            },
-            modelUsage: Object.fromEntries(
-              Object.entries(message.modelUsage).map(([model, usage]) => [
-                model,
-                {
-                  inputTokens: usage.inputTokens,
-                  outputTokens: usage.outputTokens,
-                  cacheReadInputTokens: usage.cacheReadInputTokens,
-                  cacheCreationInputTokens: usage.cacheCreationInputTokens,
-                  webSearchRequests: usage.webSearchRequests,
-                  costUSD: usage.costUSD,
-                  contextWindow: usage.contextWindow,
-                  maxOutputTokens: usage.maxOutputTokens,
-                },
-              ])
-            ),
-            errors: 'errors' in message ? message.errors : undefined,
-            timestamp: now,
-          });
-          continue;
+      try {
+        for await (const event of session.send(fullPrompt)) {
+          yield* this.handleEvent(event, bus, tokenIndex);
+          if (event.type === 'text_delta') tokenIndex++;
         }
-
-        if (message.type !== 'stream_event') continue;
-        const event = message.event;
-        if (event.type !== 'content_block_delta' || !('delta' in event)) continue;
-        const delta = event.delta as { type: string; text?: string };
-        if (delta.type !== 'text_delta' || !delta.text) continue;
-
-        const tokenDelta: TokenDelta = {
-          token: delta.text,
-          index: tokenIndex++,
-        };
-        bus.emit({
-          type: 'TokenDelta',
-          token: tokenDelta.token,
-          index: tokenDelta.index,
-          timestamp: now,
-        });
-        yield tokenDelta;
+      } finally {
+        session.close();
       }
     } catch (err) {
       if (this.abortController.signal.aborted) {
@@ -189,6 +130,66 @@ export class AgentInstance {
       }
     } finally {
       this.queryInProgress = false;
+    }
+  }
+
+  private *handleEvent(event: AgentEvent, bus: ReturnType<typeof getEventBus>, tokenIndex: number): Generator<TokenDelta> {
+    const now = Date.now();
+
+    // Pass through raw SDK messages for advanced consumers
+    if (event.type === 'raw') {
+      bus.emit({
+        type: 'RawSdkMessage',
+        sdkMessageType: event.eventType,
+        payload: event.data,
+        timestamp: now,
+      });
+      return;
+    }
+
+    if (event.type === 'text_delta') {
+      const tokenDelta: TokenDelta = { token: event.text, index: tokenIndex };
+      bus.emit({ type: 'TokenDelta', token: tokenDelta.token, index: tokenDelta.index, timestamp: now });
+      yield tokenDelta;
+      return;
+    }
+
+    if (event.type === 'session_complete') {
+      bus.emit({
+        type: 'QueryResult',
+        subtype: (event.subtype ?? 'success') as 'success',
+        durationMs: event.durationMs,
+        durationApiMs: event.durationApiMs ?? 0,
+        numTurns: event.numTurns,
+        totalCostUsd: event.costUsd ?? 0,
+        result: event.result,
+        structuredOutput: event.structuredOutput,
+        usage: {
+          inputTokens: event.usage.inputTokens,
+          outputTokens: event.usage.outputTokens,
+          cacheReadInputTokens: event.usage.cacheReadTokens ?? 0,
+          cacheCreationInputTokens: event.usage.cacheCreationTokens ?? 0,
+        },
+        modelUsage: event.modelUsage
+          ? Object.fromEntries(
+              Object.entries(event.modelUsage).map(([model, mu]) => [
+                model,
+                {
+                  inputTokens: mu.inputTokens,
+                  outputTokens: mu.outputTokens,
+                  cacheReadInputTokens: mu.cacheReadTokens,
+                  cacheCreationInputTokens: mu.cacheCreationTokens,
+                  webSearchRequests: mu.webSearchRequests ?? 0,
+                  costUSD: mu.costUsd ?? 0,
+                  contextWindow: mu.contextWindow ?? 0,
+                  maxOutputTokens: mu.maxOutputTokens ?? 0,
+                },
+              ])
+            )
+          : {},
+        errors: event.errors,
+        timestamp: now,
+      });
     }
   }
 

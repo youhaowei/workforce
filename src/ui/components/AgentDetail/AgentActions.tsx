@@ -20,7 +20,6 @@ export function AgentActions({ sessionId, orgId }: AgentActionsProps) {
   const { data: entries = [] } = useQuery(
     trpc.audit.session.queryOptions(
       { sessionId, orgId },
-      { enabled: !!orgId },
     ),
   );
 

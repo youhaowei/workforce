@@ -156,7 +156,7 @@ Total human involvement: one sentence of intent, one review gate approval, one r
 
 ## Technical Foundation
 
-**Desktop runtime**: Tauri 2.x (Rust backend, WebView frontend)
+**Desktop runtime**: Electrobun (Bun-native, WebView frontend)
 **Frontend**: React 19.2 + Compiler, shadcn/ui, Streamdown, react-virtuoso
 **State**: Zustand (global) + Jotai (per-entity streaming) + TanStack Query (server/API)
 **Server**: Hono on Bun (external process, inherits shell env for Claude CLI auth)
@@ -165,7 +165,7 @@ Total human involvement: one sentence of intent, one review gate approval, one r
 **Sessions**: JSONL persistence with async batched writes
 **Shared state**: TBD for MVP (file-based or git-based), upgradeable to cloud-native
 
-**Hard constraint**: Claude Agent SDK requires OS-level CLI auth. Auth doesn't propagate to Tauri-spawned children. External server architecture is the auth boundary. Each distributed node needs its own auth.
+**Hard constraint**: Claude Agent SDK requires OS-level CLI auth. Each distributed node needs its own auth. GUI-launched apps need PATH repair to find CLI binaries.
 
 ---
 

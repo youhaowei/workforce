@@ -26,6 +26,22 @@ const isMac =
   /mac/i.test(navigator.platform);
 const modKey = isMac ? '⌘' : 'Ctrl+';
 
+/** Returns true when right-click target is an editable element or has text selected. */
+function isTextContext(target: EventTarget | null): boolean {
+  const selection = window.getSelection()?.toString();
+  if (selection) return true;
+
+  if (target instanceof HTMLInputElement) {
+    // Exclude non-text input types (checkbox, radio, range, file, color, etc.)
+    const nonTextTypes = new Set(['checkbox', 'radio', 'range', 'file', 'color', 'button', 'submit', 'reset', 'image', 'hidden']);
+    return !nonTextTypes.has(target.type);
+  }
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (target instanceof HTMLElement && target.contentEditable === 'true') return true;
+
+  return false;
+}
+
 interface Snapshot {
   element: Element | null;
   text: string;
@@ -36,20 +52,30 @@ interface AppContextMenuProps {
 }
 
 export function AppContextMenu({ children }: AppContextMenuProps) {
-  const { isTauri } = usePlatform();
+  const { isDesktop } = usePlatform();
   const saved = useRef<Snapshot>({ element: null, text: '' });
 
-  // Suppress native context menu globally
+  // Gate the context menu: only allow the Radix menu to open on text/editable
+  // targets. For non-text contexts we stop propagation so Radix never sees it
+  // (Radix ContextMenu doesn't support a controlled `open` prop).
   useEffect(() => {
-    if (!isTauri) return;
-    const suppress = (e: MouseEvent) => e.preventDefault();
-    document.addEventListener('contextmenu', suppress);
-    return () => document.removeEventListener('contextmenu', suppress);
-  }, [isTauri]);
+    const onContextMenu = (e: MouseEvent) => {
+      if (!isTextContext(e.target)) {
+        // Block Radix from opening; let native menu through on web, suppress on desktop
+        if (isDesktop) e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (isDesktop) e.preventDefault();
+    };
+    // Use capture phase so we intercept before Radix's trigger listener
+    document.addEventListener('contextmenu', onContextMenu, true);
+    return () => document.removeEventListener('contextmenu', onContextMenu, true);
+  }, [isDesktop]);
 
-  // Capture active element + selection when the context menu opens
-  const handleOpenChange = useCallback((open: boolean) => {
-    if (open) {
+  // Snapshot active element + selection when the menu opens
+  const handleOpenChange = useCallback((nextOpen: boolean) => {
+    if (nextOpen) {
       saved.current = {
         element: document.activeElement,
         text: window.getSelection()?.toString() ?? '',
@@ -81,8 +107,8 @@ export function AppContextMenu({ children }: AppContextMenuProps) {
     try {
       const text = await navigator.clipboard.readText();
       document.execCommand('insertText', false, text);
-    } catch {
-      // Clipboard read may require permission
+    } catch (err) {
+      console.warn('[AppContextMenu] Clipboard paste failed:', err);
     }
   }, [restoreFocus]);
 

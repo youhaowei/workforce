@@ -6,7 +6,7 @@
 import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { ReviewItemCard } from './ReviewItemCard';
 import { CheckCircle } from 'lucide-react';
 import type { ReviewItem } from '@/services/types';
@@ -14,12 +14,12 @@ import type { ReviewItem } from '@/services/types';
 export function ReviewQueue() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
 
   const { data: items = [], isLoading } = useQuery(
     trpc.review.listPending.queryOptions(
-      { orgId: orgId! },
-      { enabled: !!orgId, refetchInterval: 3000 },
+      { orgId },
+      { refetchInterval: 3000 },
     ),
   );
 
@@ -33,7 +33,6 @@ export function ReviewQueue() {
 
   const handleResolve = useCallback(
     (reviewId: string, action: string, comment?: string) => {
-      if (!orgId) return;
       resolveMutation.mutate({
         id: reviewId,
         orgId,

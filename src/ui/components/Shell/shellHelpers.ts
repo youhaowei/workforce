@@ -1,7 +1,6 @@
 import type { Session, SessionSummary } from '@/services/types';
 import type { ViewType } from './Shell';
-
-const SERVER_URL = 'http://localhost:4096';
+import { SERVER_URL } from '@/bridge/config';
 
 export const SIDEBAR_STORAGE_KEY = 'workforce-sidebar-mode';
 export const SESSIONS_PANEL_STORAGE_KEY = 'workforce-sessions-collapsed';
@@ -14,6 +13,7 @@ export const VALID_VIEWS = new Set<ViewType>([
   'board',
   'queue',
   'sessions',
+  'projects',
   'templates',
   'workflows',
   'orgs',

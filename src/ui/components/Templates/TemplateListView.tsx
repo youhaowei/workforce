@@ -6,7 +6,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,7 +19,7 @@ import type { AgentTemplate } from '@/services/types';
 export function TemplateListView() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
   const [keyword, setKeyword] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<AgentTemplate | null>(null);
@@ -28,8 +28,7 @@ export function TemplateListView() {
 
   const { data: templates = [], isLoading } = useQuery(
     trpc.template.list.queryOptions(
-      { orgId: orgId! },
-      { enabled: !!orgId },
+      { orgId },
     ),
   );
 
@@ -68,23 +67,12 @@ export function TemplateListView() {
   }, []);
 
   const handleDuplicate = useCallback((t: AgentTemplate) => {
-    if (!orgId) return;
     duplicateMutation.mutate({ orgId, id: t.id });
   }, [orgId, duplicateMutation]);
 
   const handleArchive = useCallback((t: AgentTemplate) => {
-    if (!orgId) return;
     archiveMutation.mutate({ orgId, id: t.id });
   }, [orgId, archiveMutation]);
-
-  if (!orgId) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2 p-6">
-        <Blocks className="h-8 w-8" />
-        <p className="text-sm">Select an org to manage templates</p>
-      </div>
-    );
-  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">

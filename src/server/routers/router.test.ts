@@ -5,6 +5,7 @@ import { tmpdir } from 'os';
 import { createCaller, resetRouterServices } from './index';
 import { resetSessionService } from '@/services/session';
 import { resetOrgService } from '@/services/org';
+import { resetUserService } from '@/services/user';
 import { resetTaskService } from '@/services/task';
 import { resetTemplateService } from '@/services/template';
 import { getWorktreeService, resetWorktreeService } from '@/services/worktree';
@@ -27,6 +28,7 @@ describe('tRPC Routers', () => {
   afterEach(() => {
     resetSessionService();
     resetOrgService();
+    resetUserService();
     resetTaskService();
     resetTemplateService();
     resetWorktreeService();
@@ -36,6 +38,7 @@ describe('tRPC Routers', () => {
   afterAll(() => {
     resetSessionService();
     resetOrgService();
+    resetUserService();
     resetTaskService();
     resetTemplateService();
     resetWorktreeService();
@@ -71,7 +74,6 @@ describe('tRPC Routers', () => {
     it('create and get org', async () => {
       const ws = await caller.org.create({
         name: 'test-ws',
-        rootPath: '/tmp/test-ws',
       });
       expect(ws).toHaveProperty('id');
       expect(ws.name).toBe('test-ws');
@@ -87,7 +89,6 @@ describe('tRPC Routers', () => {
     it('activate sets current org', async () => {
       const ws = await caller.org.create({
         name: 'active-test',
-        rootPath: '/tmp/active-test',
       });
 
       const activated = await caller.org.activate({ id: ws.id });
@@ -99,6 +100,32 @@ describe('tRPC Routers', () => {
 
       // Cleanup
       await caller.org.delete({ id: ws.id });
+    });
+  });
+
+  describe('user', () => {
+    it('full lifecycle: exists, create, get, update', async () => {
+      resetUserService();
+
+      // Initially no user
+      expect(await caller.user.exists()).toBe(false);
+      expect(await caller.user.get()).toBeNull();
+
+      // Create
+      const user = await caller.user.create({ displayName: 'Jane Doe' });
+      expect(user).toHaveProperty('id');
+      expect(user.displayName).toBe('Jane Doe');
+      expect(user.avatarColor).toMatch(/^#/);
+
+      // Get
+      const fetched = await caller.user.get();
+      expect(fetched).not.toBeNull();
+      expect(fetched!.displayName).toBe('Jane Doe');
+      expect(await caller.user.exists()).toBe(true);
+
+      // Update
+      const updated = await caller.user.update({ displayName: 'Bob' });
+      expect(updated.displayName).toBe('Bob');
     });
   });
 
@@ -172,7 +199,6 @@ describe('tRPC Routers', () => {
       // Create an org first for valid orgId
       const ws = await caller.org.create({
         name: 'review-test',
-        rootPath: '/tmp/review-test',
       });
 
       const result = await caller.review.listPending({ orgId: ws.id });
@@ -190,7 +216,6 @@ describe('tRPC Routers', () => {
     it('org audit returns array', async () => {
       const ws = await caller.org.create({
         name: 'audit-test',
-        rootPath: '/tmp/audit-test',
       });
 
       const entries = await caller.audit.org({ orgId: ws.id });
@@ -260,8 +285,8 @@ describe('tRPC Routers', () => {
   describe('input validation', () => {
     it('rejects missing required fields', async () => {
       await expect(
-        // @ts-expect-error - Testing validation
-        caller.org.create({ name: 'test' }),
+        // @ts-expect-error - Testing validation: missing name
+        caller.org.create({}),
       ).rejects.toThrow();
     });
 

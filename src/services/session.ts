@@ -30,6 +30,7 @@ import { getEventBus } from '@/shared/event-bus';
 import { getDataDir } from './data-dir';
 import { runMigrations } from './migration';
 import { debugLog } from '@/shared/debug-log';
+import { getLogService } from './log';
 import {
   appendRecord,
   appendRecords,
@@ -112,7 +113,7 @@ class SessionServiceImpl implements SessionService {
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
       if (error.code !== 'ENOENT') {
-        console.error('Failed to initialize sessions:', error);
+        getLogService().error('general', 'Failed to initialize sessions', { error: String(error) });
       }
     }
 
@@ -239,9 +240,10 @@ class SessionServiceImpl implements SessionService {
     return work;
   }
 
-  async create(title?: string, parentId?: string): Promise<Session> {
+  async create(title?: string, parentId?: string, metadata?: Record<string, unknown>): Promise<Session> {
     await this.ensureInitialized();
     const now = Date.now();
+    const initialMetadata = metadata ?? {};
     const session: Session = {
       id: generateId(),
       title,
@@ -249,13 +251,13 @@ class SessionServiceImpl implements SessionService {
       updatedAt: now,
       parentId,
       messages: [],
-      metadata: {},
+      metadata: initialMetadata,
     };
 
     this.registerSession(session, 'ready');
     await journalWriteRecords(this.sessionsDir, session.id, [{
       t: 'header', v: JSONL_VERSION, id: session.id, title: session.title,
-      createdAt: now, updatedAt: now, parentId, metadata: {},
+      createdAt: now, updatedAt: now, parentId, metadata: initialMetadata,
     }]);
 
     getEventBus().emit({ type: 'SessionChange', sessionId: session.id, action: 'created', timestamp: now });
@@ -340,7 +342,7 @@ class SessionServiceImpl implements SessionService {
       ...forked.messages.map((m): JournalMessage | JournalMessageFinal =>
         m.role === 'assistant'
           ? { t: 'message_final', id: m.id, role: 'assistant', content: m.content, timestamp: m.timestamp, stopReason: 'forked', toolCalls: m.toolCalls, toolResults: m.toolResults }
-          : { t: 'message', id: m.id, role: m.role, content: m.content, timestamp: m.timestamp, toolCalls: m.toolCalls, toolResults: m.toolResults },
+          : { t: 'message', id: m.id, role: m.role, content: m.content, timestamp: m.timestamp, agentConfig: m.agentConfig, toolCalls: m.toolCalls, toolResults: m.toolResults },
       ),
     ];
     await journalWriteRecords(this.sessionsDir, forked.id, records);
@@ -348,10 +350,11 @@ class SessionServiceImpl implements SessionService {
     return forked;
   }
 
-  async list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<SessionSummary[]> {
+  async list(options?: { limit?: number; offset?: number; orgId?: string; projectId?: string }): Promise<SessionSummary[]> {
     await this.ensureInitialized();
     let results = Array.from(this.sessions.values());
     if (options?.orgId) results = results.filter((s) => s.metadata.orgId === options.orgId);
+    if (options?.projectId) results = results.filter((s) => s.metadata.projectId === options.projectId);
     const sorted = results.sort((a, b) => b.updatedAt - a.updatedAt);
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? sorted.length;
@@ -428,7 +431,7 @@ class SessionServiceImpl implements SessionService {
     const ts = Math.max(message.timestamp, Date.now());
     const record: JournalMessage = {
       t: 'message', id: message.id, role: message.role, content: message.content,
-      timestamp: ts, toolCalls: message.toolCalls, toolResults: message.toolResults,
+      timestamp: ts, agentConfig: message.agentConfig, toolCalls: message.toolCalls, toolResults: message.toolResults,
     };
 
     // Mutate in-memory state inside the lock to prevent data-race with consolidation,

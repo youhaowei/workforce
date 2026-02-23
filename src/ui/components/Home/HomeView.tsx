@@ -5,7 +5,8 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,20 +28,21 @@ interface HomeViewProps {
 
 export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewProps) {
   const trpc = useTRPC();
-  const orgId = useOrgStore((s) => s.currentOrgId);
+  const orgId = useRequiredOrgId();
 
   const { data: sessions = [] } = useQuery(
     trpc.session.list.queryOptions(
-      orgId ? { orgId } : undefined,
+      { orgId },
       { refetchInterval: 5000 },
     ),
   );
 
   const { data: pendingReviews = 0 } = useQuery(
-    trpc.review.count.queryOptions(
-      { orgId: orgId! },
-      { enabled: !!orgId },
-    ),
+    trpc.review.count.queryOptions({ orgId }),
+  );
+
+  const { data: user } = useQuery(
+    trpc.user.get.queryOptions(undefined, { staleTime: 5 * 60_000 }),
   );
 
   const stats = useMemo(() => {
@@ -68,7 +70,9 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
     <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">
       {/* Welcome */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Welcome to Workforce</h1>
+        <h1 className="text-2xl font-bold">
+          {user?.displayName ? `Welcome back, ${user.displayName}` : 'Welcome to Workforce'}
+        </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Your agent orchestration dashboard
         </p>

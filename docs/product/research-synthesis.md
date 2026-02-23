@@ -1,5 +1,12 @@
 # Workforce v2 — Research Synthesis & Migration Blueprint
 
+> **⚠️ ARCHIVED — February 15, 2026**
+> This document is kept as historical reference. Active content has been extracted to:
+> - **Feature specs** → Notion (child pages of [Workforce project](https://www.notion.so/2ffd48ccaf5481d7bb33d67599423042))
+> - **Architecture reference** → Notion: Agent Model, Distributed Architecture, Department Orchestration, Design Principles
+> - **Product overview** → `docs/product/PRD-MVP.md` (slimmed)
+> - **Vision** → `docs/product/vision.md` (unchanged)
+
 *Generated: February 6, 2026*
 *Sources: Current Workforce, Architecture Decisions doc, Craft Agents OSS, OpenCode Desktop, Cursor Self-Driving Codebases, Anthropic C Compiler, Opus 4.6 Finance*
 

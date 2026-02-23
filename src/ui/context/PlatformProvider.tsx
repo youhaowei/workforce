@@ -3,7 +3,7 @@
  *
  * Pattern from craft-agents-oss PlatformContext.tsx.
  * All methods are optional — components check before calling.
- * Tauri provides real implementations; web/test contexts provide no-ops.
+ * Desktop provides real implementations; web/test contexts provide no-ops.
  */
 
 import { createContext, useContext, type ReactNode } from 'react';
@@ -16,7 +16,7 @@ export interface PlatformActions {
   onMinimize?: () => void;
   onMaximize?: () => void;
   onClose?: () => void;
-  isTauri?: boolean;
+  isDesktop?: boolean;
 }
 
 const PlatformContext = createContext<PlatformActions>({});

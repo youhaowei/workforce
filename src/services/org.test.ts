@@ -36,11 +36,10 @@ describe('OrgService', () => {
   describe('create', () => {
     it('should create an org with generated ID', async () => {
       const service = createOrgService(TEST_DIR);
-      const ws = await service.create('My Project', '/home/user/project');
+      const ws = await service.create('My Project');
 
       expect(ws.id).toMatch(/^org_/);
       expect(ws.name).toBe('My Project');
-      expect(ws.rootPath).toBe('/home/user/project');
       expect(ws.settings.allowedTools).toEqual([]);
       expect(ws.createdAt).toBeLessThanOrEqual(Date.now());
 
@@ -52,14 +51,13 @@ describe('OrgService', () => {
       await mkdir(dir, { recursive: true });
 
       const service = createOrgService(dir);
-      const ws = await service.create('Persisted', '/tmp/test');
+      const ws = await service.create('Persisted');
 
       const filePath = join(dir, ws.id, 'org.json');
       const raw = await readFile(filePath, 'utf-8');
       const saved = JSON.parse(raw);
 
       expect(saved.name).toBe('Persisted');
-      expect(saved.rootPath).toBe('/tmp/test');
 
       service.dispose();
     });
@@ -68,7 +66,7 @@ describe('OrgService', () => {
   describe('get', () => {
     it('should return org by ID', async () => {
       const service = createOrgService(join(TEST_DIR, 'get-test'));
-      const created = await service.create('Test', '/tmp');
+      const created = await service.create('Test');
       const found = await service.get(created.id);
 
       expect(found).not.toBeNull();
@@ -90,7 +88,7 @@ describe('OrgService', () => {
   describe('update', () => {
     it('should update org properties', async () => {
       const service = createOrgService(join(TEST_DIR, 'update-test'));
-      const ws = await service.create('Original', '/tmp');
+      const ws = await service.create('Original');
 
       const updated = await service.update(ws.id, {
         name: 'Updated',
@@ -122,9 +120,9 @@ describe('OrgService', () => {
     it('should return all orgs', async () => {
       const service = createOrgService(join(TEST_DIR, 'list-test'));
 
-      await service.create('First', '/a');
-      await service.create('Second', '/b');
-      await service.create('Third', '/c');
+      await service.create('First');
+      await service.create('Second');
+      await service.create('Third');
 
       const list = await service.list();
       expect(list).toHaveLength(3);
@@ -139,7 +137,7 @@ describe('OrgService', () => {
     it('should remove org from memory and disk', async () => {
       const dir = join(TEST_DIR, 'delete-test');
       const service = createOrgService(dir);
-      const ws = await service.create('ToDelete', '/tmp');
+      const ws = await service.create('ToDelete');
 
       await service.delete(ws.id);
 
@@ -154,14 +152,14 @@ describe('OrgService', () => {
 
     it('should clear current org if deleted', async () => {
       const service = createOrgService(join(TEST_DIR, 'delete-current'));
-      const ws = await service.create('Current', '/tmp');
+      const ws = await service.create('Current');
       service.setCurrent(ws);
 
-      expect(service.getCurrent()).not.toBeNull();
+      expect(await service.getCurrent()).not.toBeNull();
 
       await service.delete(ws.id);
 
-      expect(service.getCurrent()).toBeNull();
+      expect(await service.getCurrent()).toBeNull();
 
       service.dispose();
     });
@@ -170,17 +168,63 @@ describe('OrgService', () => {
   describe('current org', () => {
     it('should track current org', async () => {
       const service = createOrgService(join(TEST_DIR, 'current-test'));
-      const ws = await service.create('Active', '/tmp');
+      const ws = await service.create('Active');
 
-      expect(service.getCurrent()).toBeNull();
+      expect(await service.getCurrent()).toBeNull();
 
       service.setCurrent(ws);
-      expect(service.getCurrent()?.id).toBe(ws.id);
+      expect((await service.getCurrent())?.id).toBe(ws.id);
 
       service.setCurrent(null);
-      expect(service.getCurrent()).toBeNull();
+      expect(await service.getCurrent()).toBeNull();
 
       service.dispose();
+    });
+  });
+
+  describe('initialized migration', () => {
+    it('should set initialized=true for pre-existing orgs on reload', async () => {
+      const dir = join(TEST_DIR, 'migration-init');
+
+      // Create org — OrgService.create() doesn't set `initialized` (falsy)
+      const service1 = createOrgService(dir);
+      const org = await service1.create('Legacy');
+      expect(org.initialized).toBeFalsy();
+      service1.dispose();
+
+      // Reload — migration in doInit() should set initialized=true
+      const service2 = createOrgService(dir);
+      const reloaded = await service2.get(org.id);
+
+      expect(reloaded).not.toBeNull();
+      expect(reloaded!.initialized).toBe(true);
+
+      service2.dispose();
+    });
+
+    it('should persist the migration to disk', async () => {
+      const dir = join(TEST_DIR, 'migration-persist');
+
+      const service1 = createOrgService(dir);
+      const org = await service1.create('LegacyPersist');
+      service1.dispose();
+
+      // First reload triggers migration
+      const service2 = createOrgService(dir);
+      await service2.list(); // trigger init
+      service2.dispose();
+
+      // Second reload should read already-migrated data
+      const service3 = createOrgService(dir);
+      const reloaded = await service3.get(org.id);
+      expect(reloaded!.initialized).toBe(true);
+
+      // Verify on disk
+      const raw = await readFile(join(dir, org.id, 'org.json'), 'utf-8');
+      const saved = JSON.parse(raw);
+      expect(saved.initialized).toBe(true);
+
+      service3.dispose();
     });
   });
 
@@ -190,7 +234,7 @@ describe('OrgService', () => {
 
       // Create org with first instance
       const service1 = createOrgService(dir);
-      const ws = await service1.create('Reloaded', '/tmp');
+      const ws = await service1.create('Reloaded');
       service1.dispose();
 
       // Load with second instance
@@ -199,6 +243,25 @@ describe('OrgService', () => {
 
       expect(found).not.toBeNull();
       expect(found!.name).toBe('Reloaded');
+
+      service2.dispose();
+    });
+
+    it('should auto-select the most recent org on cold start', async () => {
+      const dir = join(TEST_DIR, 'auto-select');
+
+      const service1 = createOrgService(dir);
+      await service1.create('First');
+      // Ensure distinct updatedAt so sort order is deterministic
+      await new Promise((r) => setTimeout(r, 5));
+      const second = await service1.create('Second');
+      service1.dispose();
+
+      const service2 = createOrgService(dir);
+      const current = await service2.getCurrent();
+
+      expect(current).not.toBeNull();
+      expect(current!.id).toBe(second.id);
 
       service2.dispose();
     });

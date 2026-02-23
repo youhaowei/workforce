@@ -13,6 +13,8 @@ interface MainContentColumnProps {
   sessionsPanelCollapsed: boolean;
   onToggleSidebar: () => void;
   onToggleSessionsPanel: () => void;
+  projectsPanelCollapsed: boolean;
+  onToggleProjectsPanel: () => void;
   taskPanelOpen: boolean;
   onToggleTask: () => void;
   onQuickCreate: () => void;
@@ -42,6 +44,8 @@ export function MainContentColumn({
   sessionsPanelCollapsed,
   onToggleSidebar,
   onToggleSessionsPanel,
+  projectsPanelCollapsed,
+  onToggleProjectsPanel,
   taskPanelOpen,
   onToggleTask,
   onQuickCreate,
@@ -68,6 +72,8 @@ export function MainContentColumn({
         onToggleSidebar={onToggleSidebar}
         sessionsPanelCollapsed={sessionsPanelCollapsed}
         onToggleSessionsPanel={onToggleSessionsPanel}
+        projectsPanelCollapsed={projectsPanelCollapsed}
+        onToggleProjectsPanel={onToggleProjectsPanel}
         taskPanelOpen={taskPanelOpen}
         onToggleTask={onToggleTask}
         onQuickCreate={onQuickCreate}

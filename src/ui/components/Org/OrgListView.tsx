@@ -5,7 +5,7 @@ import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Plus, Settings, FolderOpen, Check } from 'lucide-react';
+import { Plus, Settings, Check } from 'lucide-react';
 import { CreateOrgDialog } from './CreateOrgDialog';
 import { OrgSettings } from './OrgSettings';
 import type { Org } from '@/services/types';
@@ -49,7 +49,7 @@ export function OrgListView() {
       {orgs.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
-            <FolderOpen className="h-10 w-10 mx-auto text-muted-foreground/50" />
+            <Settings className="h-10 w-10 mx-auto text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">No organizations yet</p>
             <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -59,7 +59,7 @@ export function OrgListView() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto">
-          {(orgs as Org[]).map((org) => {
+          {orgs.map((org) => {
             const isActive = org.id === orgId;
             return (
               <Card
@@ -97,8 +97,8 @@ export function OrgListView() {
                   )}
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <p className="text-xs text-muted-foreground font-mono truncate">
-                    {org.rootPath}
+                  <p className="text-xs text-muted-foreground">
+                    Created {new Date(org.createdAt).toLocaleDateString()}
                   </p>
                 </CardContent>
               </Card>

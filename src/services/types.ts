@@ -25,6 +25,41 @@ export type Result<T, E = Error> =
 export type StreamResult<T> = AsyncGenerator<T, void, unknown>;
 
 // =============================================================================
+// Agent Configuration Types
+// =============================================================================
+
+export type ThinkingLevel = 'off' | 'auto' | 'low' | 'medium' | 'high';
+
+export type AgentTone = 'friendly' | 'professional' | 'direct' | 'technical';
+export type VerboseLevel = 'concise' | 'balanced' | 'thorough' | 'exhaustive';
+
+/** Org/template-level defaults for WorkAgent behavior. */
+export interface AgentDefaults {
+  model: string;
+  thinkingLevel: ThinkingLevel;
+  tone: AgentTone;
+  verboseLevel: VerboseLevel;
+}
+
+export type AgentPermissionMode =
+  | 'plan'
+  | 'default'
+  | 'acceptEdits'
+  | 'bypassPermissions';
+
+export interface AgentConfig {
+  model: string;
+  thinkingLevel: ThinkingLevel;
+  permissionMode: AgentPermissionMode;
+}
+
+export interface AgentModelInfo {
+  id: string;
+  displayName: string;
+  description: string;
+}
+
+// =============================================================================
 // Agent Service Types
 // =============================================================================
 
@@ -33,6 +68,10 @@ export interface QueryOptions {
   model?: string;
   /** Maximum tokens in response */
   maxTokens?: number;
+  /** Maximum tokens for Claude thinking blocks (0 = disabled, undefined = SDK decides) */
+  maxThinkingTokens?: number;
+  /** Permission mode for tool execution */
+  permissionMode?: AgentPermissionMode;
   /** System prompt override */
   systemPrompt?: string;
   /** Tools available for this query */
@@ -92,6 +131,12 @@ export interface AgentService extends Disposable {
    * Check if a query is currently in progress.
    */
   isQuerying(): boolean;
+
+  /**
+   * Get the list of models supported by the current Claude Code installation.
+   * Cached with 5-minute TTL.
+   */
+  getSupportedModels(): Promise<AgentModelInfo[]>;
 }
 
 // =============================================================================
@@ -156,6 +201,7 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  agentConfig?: AgentConfig;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
 }
@@ -219,6 +265,7 @@ export interface JournalMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  agentConfig?: AgentConfig;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
 }
@@ -284,8 +331,9 @@ export interface SessionService extends Disposable {
    * Create a new session.
    * @param title Optional session title.
    * @param parentId Immutable parent session ID (set once in the header record).
+   * @param metadata Optional initial metadata (e.g. `{ orgId, projectId }`).
    */
-  create(title?: string, parentId?: string): Promise<Session>;
+  create(title?: string, parentId?: string, metadata?: Record<string, unknown>): Promise<Session>;
 
   /**
    * Get a session by ID.
@@ -315,7 +363,7 @@ export interface SessionService extends Disposable {
    * Intentionally excludes full `messages` history for responsiveness in list UIs.
    * Use `getMessages`, `get`, or `search` for deep/history-aware operations.
    */
-  list(options?: { limit?: number; offset?: number; orgId?: string }): Promise<SessionSummary[]>;
+  list(options?: { limit?: number; offset?: number; orgId?: string; projectId?: string }): Promise<SessionSummary[]>;
 
   /**
    * Search sessions by content.
@@ -750,8 +798,7 @@ export interface Org {
   id: string;
   name: string;
   description?: string;
-  /** Absolute path to the project root directory */
-  rootPath: string;
+  initialized?: boolean;
   createdAt: number;
   updatedAt: number;
   settings: OrgSettings;
@@ -766,16 +813,68 @@ export interface OrgSettings {
   costWarningThreshold?: number;
   /** Cost hard cap in USD (optional) */
   costHardCap?: number;
+  /** Org-level agent behavior defaults (set during workspace initialization) */
+  agentDefaults?: AgentDefaults;
 }
 
 export interface OrgService extends Disposable {
-  create(name: string, rootPath: string): Promise<Org>;
+  create(name: string): Promise<Org>;
   get(id: string): Promise<Org | null>;
   update(id: string, updates: Partial<Omit<Org, 'id' | 'createdAt'>>): Promise<Org>;
   list(): Promise<Org[]>;
   delete(id: string): Promise<void>;
-  getCurrent(): Org | null;
+  getCurrent(): Promise<Org | null>;
   setCurrent(org: Org | null): void;
+}
+
+// =============================================================================
+// User Types
+// =============================================================================
+
+export interface User {
+  id: string;
+  displayName: string;
+  avatarColor: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface UserService extends Disposable {
+  get(): Promise<User | null>;
+  create(displayName: string): Promise<User>;
+  update(updates: Partial<Pick<User, 'displayName'>>): Promise<User>;
+  delete(): Promise<void>;
+  exists(): Promise<boolean>;
+}
+
+// =============================================================================
+// Project Types
+// =============================================================================
+
+export interface Project {
+  id: string;
+  orgId: string;
+  name: string;
+  rootPath: string;
+  /** Hex color for the project avatar, auto-generated from name if not provided */
+  color: string;
+  /** Optional URL/path to image/SVG icon, overrides the letter avatar */
+  icon?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export class ProjectNotFound {
+  readonly _tag = 'ProjectNotFound';
+  constructor(readonly projectId: string) {}
+}
+
+export interface ProjectService extends Disposable {
+  create(orgId: string, name: string, rootPath: string, opts?: { color?: string; icon?: string }): Promise<Project>;
+  get(id: string): Promise<Project | null>;
+  update(id: string, updates: Partial<Omit<Project, 'id' | 'orgId' | 'createdAt'>>): Promise<Result<Project, ProjectNotFound>>;
+  list(orgId?: string): Promise<Project[]>;
+  delete(id: string): Promise<void>;
 }
 
 // =============================================================================

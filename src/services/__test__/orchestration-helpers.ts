@@ -243,11 +243,10 @@ export function createMockOrgService(orgs: Org[] = []): OrgService {
   let current: Org | null = null;
 
   return {
-    async create(name: string, rootPath: string) {
+    async create(name: string) {
       const org: Org = {
         id: `org_${++_idCounter}`,
         name,
-        rootPath,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         settings: { allowedTools: [] },
@@ -265,7 +264,7 @@ export function createMockOrgService(orgs: Org[] = []): OrgService {
     },
     async list() { return Array.from(map.values()); },
     async delete(id: string) { map.delete(id); },
-    getCurrent: () => current,
+    getCurrent: async () => current,
     setCurrent: (o: Org | null) => { current = o; },
     dispose() { map.clear(); current = null; },
   };

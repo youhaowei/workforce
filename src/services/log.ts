@@ -93,6 +93,14 @@ function deepRedact(obj: unknown): unknown {
 }
 
 // ============================================================================
+// Fallback (used when LogService itself fails — avoids circular calls)
+// ============================================================================
+
+function stderrFallback(error: unknown): void {
+  process.stderr.write(`[LogService] Fallback error: ${error}\n`);
+}
+
+// ============================================================================
 // Log Level Ordering
 // ============================================================================
 
@@ -135,22 +143,22 @@ export class LogService {
 
     // Set up periodic flush
     this.flushInterval = setInterval(() => {
-      this.flush().catch(console.error);
+      this.flush().catch(stderrFallback);
     }, this.flushIntervalMs);
 
     // Set up crash handlers
     process.on('uncaughtException', (error) => {
       this.error('general', 'Uncaught exception', { error: error.message, stack: error.stack });
-      this.flush().catch(console.error);
+      this.flush().catch(stderrFallback);
     });
 
     process.on('unhandledRejection', (reason) => {
       this.error('general', 'Unhandled rejection', { reason: String(reason) });
-      this.flush().catch(console.error);
+      this.flush().catch(stderrFallback);
     });
 
     process.on('beforeExit', () => {
-      this.flush().catch(console.error);
+      this.flush().catch(stderrFallback);
     });
 
     // Subscribe to EventBus for automatic logging
@@ -339,7 +347,7 @@ export class LogService {
 
       return filepath;
     } catch (error) {
-      console.error('Failed to flush logs:', error);
+      stderrFallback(error);
       return null;
     }
   }
@@ -392,7 +400,7 @@ export async function initLogService(options?: LogServiceOptions): Promise<LogSe
 
 export function disposeLogService(): void {
   if (instance) {
-    instance.dispose().catch(console.error);
+    instance.dispose().catch(stderrFallback);
     instance = null;
   }
 }

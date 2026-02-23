@@ -4,26 +4,47 @@
  */
 
 import { MessageSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import type { Project } from '@/services/types';
 import { MessageList, MessageInput } from '../Messages';
+import type { AgentConfig } from '@/services/types';
+
+const NO_PROJECT_VALUE = '__none__';
 
 interface SessionsViewProps {
   sessionId: string | null;
+  projects: Project[];
+  newSessionProjectId: string | null;
+  onNewSessionProjectChange: (projectId: string | null) => void;
+  onCreateProjectForSession: () => void;
   messages: Array<{
     id: string;
     role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: number;
     isStreaming: boolean;
+    agentConfig?: AgentConfig;
     toolCalls?: Array<{ id: string; name: string; args: unknown }>;
     toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>;
   }>;
   isStreaming: boolean;
-  onSubmit: (content: string) => void;
+  onSubmit: (submission: { content: string; agentConfig: AgentConfig }) => void;
   onCancel: () => void;
 }
 
 export function SessionsView({
   sessionId,
+  projects,
+  newSessionProjectId,
+  onNewSessionProjectChange,
+  onCreateProjectForSession,
   messages,
   isStreaming,
   onSubmit,
@@ -36,7 +57,13 @@ export function SessionsView({
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <MessageList messages={messages} isStreaming={isStreaming} />
-        <MessageInput onSubmit={onSubmit} onCancel={onCancel} isStreaming={isStreaming} />
+        <MessageInput
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+          isStreaming={isStreaming}
+          sessionId={sessionId}
+          messages={messages}
+        />
       </div>
     );
   }
@@ -54,7 +81,41 @@ export function SessionsView({
             {sessionId ? 'Send a message to continue' : 'Ask Workforce anything to begin'}
           </p>
         </div>
-        <MessageInput onSubmit={onSubmit} onCancel={onCancel} isStreaming={isStreaming} />
+        {!sessionId && (
+          <div className="mb-4 rounded-md border p-3">
+            <p className="text-xs text-muted-foreground mb-2">
+              Optional: assign this session to a project.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Select
+                value={newSessionProjectId ?? NO_PROJECT_VALUE}
+                onValueChange={(value) => {
+                  onNewSessionProjectChange(value === NO_PROJECT_VALUE ? null : value);
+                }}
+              >
+                <SelectTrigger className="sm:flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_PROJECT_VALUE}>No project</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button type="button" variant="outline" onClick={onCreateProjectForSession}>
+                New Project
+              </Button>
+            </div>
+          </div>
+        )}
+        <MessageInput
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+          isStreaming={isStreaming}
+          sessionId={sessionId}
+          messages={messages}
+        />
       </div>
     </div>
   );

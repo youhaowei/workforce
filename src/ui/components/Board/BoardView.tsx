@@ -6,7 +6,7 @@
 import { useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { BoardColumn } from './BoardColumn';
 import type { SessionLifecycle, SessionSummary } from '@/services/types';
 
@@ -21,8 +21,8 @@ const LIFECYCLE_COLUMNS = ['created', 'active', 'paused', 'completed', 'failed',
 export function BoardView({ onSelectAgent, keyword, statusFilter }: BoardViewProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const orgId = useOrgStore((s) => s.currentOrgId);
-  const listInput = orgId ? { orgId } : undefined;
+  const orgId = useRequiredOrgId();
+  const listInput = { orgId };
   const listQueryKey = trpc.session.list.queryKey(listInput);
 
   const { data: sessions = [] } = useQuery(

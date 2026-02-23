@@ -8,7 +8,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { ToolCall, ToolResult } from '@/services/types';
+import type { AgentConfig, ToolCall, ToolResult } from '@/services/types';
 
 // =============================================================================
 // Types
@@ -20,6 +20,7 @@ export interface MessageState {
   content: string;
   timestamp: number;
   isStreaming: boolean;
+  agentConfig?: AgentConfig;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
 }
@@ -32,7 +33,7 @@ interface MessagesStore {
   isStreaming: boolean;
 
   // Actions
-  addUserMessage: (content: string) => string;
+  addUserMessage: (content: string, agentConfig?: AgentConfig) => string;
   startAssistantMessage: () => string;
   appendToStreamingMessage: (token: string) => void;
   finishStreamingMessage: () => void;
@@ -40,7 +41,7 @@ interface MessagesStore {
   addToolResult: (messageId: string, result: ToolResult) => void;
   clearMessages: () => void;
   setActiveSession: (sessionId: string | null) => void;
-  loadMessages: (messages: Array<{ id: string; role: string; content: string; timestamp: number; toolCalls?: ToolCall[]; toolResults?: ToolResult[] }>) => void;
+  loadMessages: (messages: Array<{ id: string; role: string; content: string; timestamp: number; agentConfig?: AgentConfig; toolCalls?: ToolCall[]; toolResults?: ToolResult[] }>) => void;
 }
 
 // =============================================================================
@@ -63,7 +64,7 @@ export const useMessagesStore = create<MessagesStore>()(
     streamingMessageId: null,
     isStreaming: false,
 
-    addUserMessage: (content) => {
+    addUserMessage: (content, agentConfig) => {
       const id = generateId();
       set((state) => {
         state.messages.push({
@@ -72,6 +73,7 @@ export const useMessagesStore = create<MessagesStore>()(
           content,
           timestamp: Date.now(),
           isStreaming: false,
+          agentConfig,
         });
       });
       return id;
@@ -160,6 +162,7 @@ export const useMessagesStore = create<MessagesStore>()(
           content: m.content,
           timestamp: m.timestamp,
           isStreaming: false,
+          agentConfig: m.agentConfig,
           toolCalls: m.toolCalls,
           toolResults: m.toolResults,
         }));

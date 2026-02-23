@@ -3,6 +3,28 @@ import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 import { getOrgService } from '@/services/org';
 
+const agentDefaultsSchema = z.object({
+  model: z.string(),
+  thinkingLevel: z.enum(['off', 'auto', 'low', 'medium', 'high']),
+  tone: z.enum(['friendly', 'professional', 'direct', 'technical']),
+  verboseLevel: z.enum(['concise', 'balanced', 'thorough', 'exhaustive']),
+});
+
+const orgSettingsSchema = z.object({
+  allowedTools: z.array(z.string()).optional().default([]),
+  defaultTemplateId: z.string().optional(),
+  costWarningThreshold: z.number().optional(),
+  costHardCap: z.number().optional(),
+  agentDefaults: agentDefaultsSchema.optional(),
+});
+
+const orgUpdateSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  initialized: z.boolean().optional(),
+  settings: orgSettingsSchema.optional(),
+});
+
 export const orgRouter = router({
   list: publicProcedure.query(() => getOrgService().list()),
 
@@ -11,13 +33,13 @@ export const orgRouter = router({
     .query(({ input }) => getOrgService().get(input.id)),
 
   create: publicProcedure
-    .input(z.object({ name: z.string(), rootPath: z.string() }))
-    .mutation(({ input }) => getOrgService().create(input.name, input.rootPath)),
+    .input(z.object({ name: z.string() }))
+    .mutation(({ input }) => getOrgService().create(input.name)),
 
   update: publicProcedure
     .input(z.object({
       id: z.string(),
-      updates: z.record(z.unknown()),
+      updates: orgUpdateSchema,
     }))
     .mutation(({ input }) => getOrgService().update(input.id, input.updates)),
 
