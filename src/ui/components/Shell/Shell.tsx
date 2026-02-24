@@ -1,15 +1,12 @@
-/**
- * Shell - Main application layout.
- *
- * Four-column layout: sidebar | sessions panel | content column (TopBar → banners → main → StatusBar) | task panel.
- * Sessions and task panels are persistent full-height siblings. Board filters are lifted to TopBar.
- */
+/** Shell - Main application layout (sidebar | sessions | content | plan | chatinfo | task). */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { TaskPanel } from '../Task';
+import { ChatInfoPanel } from '../ChatInfo';
+import { PlanPanel } from '../Plan';
 import { SessionsPanel } from '../Sessions';
 import { ProjectsPanel, CreateProjectDialog } from '../Project';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -27,6 +24,7 @@ import AppSidebar from './AppSidebar';
 import { MainViewContent } from './MainViewContent';
 import { MainContentColumn } from './MainContentColumn';
 import { useActiveSessionTitle } from './useActiveSessionTitle';
+import { usePlanMode } from '@/ui/hooks/usePlanMode';
 import {
   SIDEBAR_STORAGE_KEY,
   SESSIONS_PANEL_STORAGE_KEY,
@@ -70,13 +68,12 @@ function ShellContent() {
   });
   const cancelStreamRef = useRef<(() => void) | null>(null);
   const intendedSessionRef = useRef<string | null>(null);
-  /** Tracks the current session ID for imperative cross-callback coordination.
-   *  Unlike `selectedSessionId` (React state), this is updated synchronously
-   *  and visible immediately to `handleCancel` during the same event loop tick. */
   const activeSessionRef = useRef<string | null>(selectedSessionId);
   const streamSeqRef = useRef(0);
   const deltaBufferRef = useRef<Array<{ delta: string; seq: number }>>([]);
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Stable ref for plan-ready handler (set after usePlanMode, read inside handleSubmit closure). */
+  const planReadyRef = useRef<(path: string, sessId: string | null) => void>(() => {});
 
   // Board filter state — lifted here so TopBar and BoardView share it
   const [boardKeyword, setBoardKeyword] = useState('');
@@ -99,6 +96,9 @@ function ShellContent() {
   const clearMessages = useMessagesStore((s) => s.clearMessages);
   const setActiveSession = useMessagesStore((s) => s.setActiveSession);
   const loadMessages = useMessagesStore((s) => s.loadMessages);
+  const addToolActivity = useMessagesStore((s) => s.addToolActivity);
+  const setCurrentTool = useMessagesStore((s) => s.setCurrentTool);
+  const getPendingToolActivities = () => useMessagesStore.getState().pendingToolActivities;
   const cumulativeUsage = useSdkStore((s) => s.cumulativeUsage);
   const currentQueryStats = useSdkStore((s) => s.currentQueryStats);
 
@@ -116,38 +116,29 @@ function ShellContent() {
   const navigateToDetail = useCallback((sessionId: string) => { setSelectedAgentId(sessionId); setCurrentView('detail'); }, []);
   const navigateBack = useCallback(() => { setSelectedAgentId(null); setCurrentView('board'); }, []);
 
-  /** Cancel any in-flight agent stream: unsubscribe SSE, flush buffered deltas,
-   *  and reset stream-related refs. Shared by handleCancel, handleDeleteSession,
-   *  and handleCreateSession to avoid shotgun-surgery duplication. */
+  /** Cancel any in-flight agent stream and flush buffered deltas. */
   const cancelActiveStream = useCallback(() => {
     trpcClient.agent.cancel.mutate().catch(() => {/* best-effort */});
     if (cancelStreamRef.current) {
       cancelStreamRef.current();
       cancelStreamRef.current = null;
     }
-    // Flush buffered deltas before clearing
+    setCurrentTool(null);
     const sessId = activeSessionRef.current;
     const msgId = useMessagesStore.getState().streamingMessageId;
     if (deltaBufferRef.current.length > 0 && sessId && msgId) {
       const deltas = deltaBufferRef.current;
-      deltaBufferRef.current = [];
-      if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
-      trpcClient.session.streamDeltaBatch.mutate({
-        sessionId: sessId, messageId: msgId, deltas,
-      }).catch(() => {/* best-effort */});
-    } else {
-      // No deltas to flush — just clear the buffer and timer
-      deltaBufferRef.current = [];
-      if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
+      trpcClient.session.streamDeltaBatch.mutate({ sessionId: sessId, messageId: msgId, deltas }).catch(() => {});
     }
+    deltaBufferRef.current = [];
+    if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
     streamSeqRef.current = 0;
-  }, []);
+  }, [setCurrentTool]);
 
   const handleCancel = useCallback(() => {
     const sessId = activeSessionRef.current;
     const msgId = useMessagesStore.getState().streamingMessageId;
     cancelActiveStream();
-    // Abort persistent stream if active
     if (sessId && msgId) {
       trpcClient.session.streamAbort.mutate({
         sessionId: sessId, messageId: msgId, reason: 'user_cancelled',
@@ -185,7 +176,9 @@ function ShellContent() {
   }, []);
 
   const handleSelectSession = useCallback((sessionId: string) => {
-    if (sessionId === intendedSessionRef.current) return;
+    if (sessionId === activeSessionRef.current || sessionId === intendedSessionRef.current) return;
+    cancelActiveStream();
+    finishStreamingMessage();
     intendedSessionRef.current = sessionId;
     setNewSessionProjectId(null);
     clearMessages();
@@ -193,25 +186,19 @@ function ShellContent() {
     setSelectedSessionId(sessionId);
     activeSessionRef.current = sessionId;
     setCurrentView('sessions');
-    // Fetch full messages from server (triggers lazy replay if needed)
     trpcClient.session.messages.query({ sessionId }).then((msgs) => {
-      // Guard: only load if this session is still selected
       if (intendedSessionRef.current === sessionId && msgs.length > 0) {
         loadMessages(msgs);
       }
-    }).catch(() => { /* session may have been deleted */ })
+    }).catch(() => {})
       .finally(() => {
-        // Clear the dedup guard so clicking the same session again will re-fetch
         if (intendedSessionRef.current === sessionId) {
           intendedSessionRef.current = null;
         }
       });
-  }, [clearMessages, loadMessages, setActiveSession]);
+  }, [cancelActiveStream, finishStreamingMessage, clearMessages, loadMessages, setActiveSession]);
 
-  /** Called by SessionsPanel when the currently-active session is deleted.
-   *  Clears all session-related state so the chat area doesn't show stale messages. */
   const handleDeleteSession = useCallback((sessionId: string) => {
-    // Defensive guard: only clear state if the deleted session is actually active
     if (sessionId !== activeSessionRef.current) return;
     cancelActiveStream();
     clearMessages();
@@ -228,13 +215,10 @@ function ShellContent() {
     clearMessages();
     setActiveSession(null);
     setSelectedSessionId(null);
-    // Carry over the selected project when starting from the Projects view
-    // so the new session inherits metadata.projectId on first message.
     setNewSessionProjectId(currentView === 'projects' ? selectedProjectId : null);
     activeSessionRef.current = null;
     intendedSessionRef.current = null;
     setCurrentView('sessions');
-    // Ensure sessions panel is visible
     setSessionsPanelCollapsed(false);
     localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, 'false');
   }, [cancelActiveStream, clearMessages, setActiveSession, currentView, selectedProjectId]);
@@ -243,27 +227,14 @@ function ShellContent() {
   useHotkey('toggleTasks', () => setTaskPanelOpen((prev) => !prev));
   useHotkey('cancelStream', handleCancel, isStreaming);
 
-  useEffect(() => {
-    return () => {
-      cancelStreamRef.current?.();
-    };
-  }, []);
+  useEffect(() => () => { cancelStreamRef.current?.(); }, []);
 
-  // Persist view state to localStorage so it survives reload/HMR
-  useEffect(() => {
-    localStorage.setItem(VIEW_STORAGE_KEY, currentView);
-  }, [currentView]);
+  useEffect(() => { localStorage.setItem(VIEW_STORAGE_KEY, currentView); }, [currentView]);
 
   useEffect(() => {
-    if (selectedSessionId) {
-      localStorage.setItem(SELECTED_SESSION_STORAGE_KEY, selectedSessionId);
-    } else {
-      localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
-    }
+    selectedSessionId ? localStorage.setItem(SELECTED_SESSION_STORAGE_KEY, selectedSessionId) : localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
   }, [selectedSessionId]);
 
-  // When the server comes online with a persisted session, reload its messages.
-  // Gated on `serverConnected` so we don't fire before the server is reachable.
   const hasRestoredSession = useRef(false);
   useEffect(() => {
     if (!serverConnected || hasRestoredSession.current) return;
@@ -277,7 +248,6 @@ function ShellContent() {
         loadMessages(msgs);
       }
     }).catch(() => {
-      // Session was deleted between persist and restore — reset to clean state
       setSelectedSessionId(null);
       activeSessionRef.current = null;
       setActiveSession(null);
@@ -285,7 +255,6 @@ function ShellContent() {
       setCurrentView('home');
       localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
     }).finally(() => {
-      // Clear dedup guard so clicking the same session in the panel works
       if (intendedSessionRef.current === selectedSessionId) {
         intendedSessionRef.current = null;
       }
@@ -293,22 +262,13 @@ function ShellContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fires once when server is first available
   }, [serverConnected]);
 
-  // Periodic server health check — detects mid-session disconnects.
-  // No immediate check needed; SetupGate guarantees the server is up at mount.
   useEffect(() => {
-    const interval = setInterval(async () => {
-      setServerConnected(await checkServerConnection());
-    }, 5000);
-    return () => clearInterval(interval);
+    const id = setInterval(async () => { setServerConnected(await checkServerConnection()); }, 5000);
+    return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
-    const bus = getEventBus();
-    const unsubError = bus.on('BridgeError', (event) => {
-      setError((event as { error: string }).error);
-      setTimeout(() => setError(null), 5000);
-    });
-    return unsubError;
+    return getEventBus().on('BridgeError', (e) => { setError((e as { error: string }).error); setTimeout(() => setError(null), 5000); });
   }, []);
 
   const handleSubmit = useCallback(({ content, agentConfig }: { content: string; agentConfig: AgentConfig }) => {
@@ -317,14 +277,9 @@ function ShellContent() {
     streamSeqRef.current = 0;
     deltaBufferRef.current = [];
 
-    // Convert UI thinking level to SDK maxThinkingTokens
     const maxThinkingTokens = THINKING_TOKENS[agentConfig.thinkingLevel];
 
-    // Start the async persistence + streaming pipeline.
-    // Wrapped in an async IIFE so the useCallback itself stays synchronous
-    // (React expects void from event handlers, not a Promise).
     void (async () => {
-      // Resolve session ID: create a backend session on first message if needed
       let sessId = selectedSessionId;
       if (!sessId) {
         try {
@@ -340,12 +295,10 @@ function ShellContent() {
           setNewSessionProjectId(null);
           activeSessionRef.current = sessId;
           const summary = toSessionSummary(session);
-          // Optimistic insert: push new session into active session list cache immediately.
           queryClient.setQueriesData<SessionSummary[]>(
             { queryKey: trpc.session.list.queryKey({ orgId }) },
             (old) => old ? [summary, ...old] : [summary],
           );
-          // Also insert into the project-scoped cache so the project's session list updates immediately
           if (projectIdForSession) {
             queryClient.setQueriesData<SessionSummary[]>(
               { queryKey: trpc.session.list.queryKey({ orgId, projectId: projectIdForSession }) },
@@ -353,14 +306,11 @@ function ShellContent() {
             );
           }
         } catch {
-          // Session creation failed — continue without persistence.
-          // The user still sees their conversation in the UI, but it won't survive a refresh.
           setError('Could not save session. Your conversation is temporary.');
           setTimeout(() => setError(null), 5000);
         }
       }
 
-      // Flush buffered deltas as a single batch mutation
       const flushDeltas = () => {
         if (deltaBufferRef.current.length === 0) return;
         const deltas = deltaBufferRef.current;
@@ -373,7 +323,6 @@ function ShellContent() {
         }
       };
 
-      // Persist user message + start assistant stream (best-effort, don't block UI)
       if (sessId) {
         trpcClient.session.addMessage.mutate({
           sessionId: sessId,
@@ -394,20 +343,26 @@ function ShellContent() {
         {
           onData: (data) => {
             if (data.type === 'token') {
+              setCurrentTool(null);
               appendToStreamingMessage(data.data);
-              // Buffer delta for batched persistence (flushes every 150ms)
               if (sessId) {
                 deltaBufferRef.current.push({ delta: data.data, seq: streamSeqRef.current++ });
                 if (!flushTimerRef.current) {
                   flushTimerRef.current = setTimeout(flushDeltas, 150);
                 }
               }
+            } else if (data.type === 'tool_start') {
+              addToolActivity(data.name, data.input);
+              setCurrentTool(data.name);
+            } else if (data.type === 'status') {
+              setCurrentTool(data.data);
+            } else if (data.type === 'plan_ready') {
+              planReadyRef.current(data.path, sessId);
             } else if (data.type === 'done') {
-              // Assemble full content before finishing (Zustand hasn't committed yet)
               const fullContent = useMessagesStore.getState().streamingContent;
+              const toolActivities = getPendingToolActivities();
               finishStreamingMessage();
               cancelStreamRef.current = null;
-              // Flush remaining deltas then persist finalized message
               flushDeltas();
               if (sessId) {
                 trpcClient.session.streamFinalize.mutate({
@@ -415,13 +370,13 @@ function ShellContent() {
                   messageId: assistantMsgId,
                   fullContent: fullContent.trim(),
                   stopReason: 'end_turn',
+                  ...(toolActivities.length > 0 && { toolActivities }),
                 }).catch(() => {/* best-effort */});
               }
             } else if (data.type === 'error') {
               finishStreamingMessage();
               setError(data.data);
               cancelStreamRef.current = null;
-              // Flush remaining deltas then persist abort
               flushDeltas();
               if (sessId) {
                 trpcClient.session.streamAbort.mutate({
@@ -434,7 +389,6 @@ function ShellContent() {
             finishStreamingMessage();
             setError(err instanceof Error ? err.message : String(err));
             cancelStreamRef.current = null;
-            // Flush remaining deltas then persist abort
             flushDeltas();
             if (sessId) {
               trpcClient.session.streamAbort.mutate({
@@ -447,7 +401,14 @@ function ShellContent() {
       );
       cancelStreamRef.current = () => subscription.unsubscribe();
     })();
-  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, newSessionProjectId, orgId, selectedSessionId, setActiveSession, trpc]);
+  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, addToolActivity, setCurrentTool, newSessionProjectId, orgId, selectedSessionId, setActiveSession, trpc]);
+
+  // Plan mode (extracted to keep Shell under max-lines)
+  const {
+    isPlanMode, planPanelOpen, planArtifact, planContent, planLoadError,
+    handlePlanReady, handlePlanApprove, handlePlanReject, handlePlanClose, handleOpenPlan,
+  } = usePlanMode({ selectedSessionId, messages, onCancelStream: handleCancel, onSubmit: handleSubmit });
+  planReadyRef.current = handlePlanReady;
 
   const handleProjectDialogOpenChange = useCallback((open: boolean) => {
     setCreateProjectDialogOpen(open);
@@ -462,6 +423,8 @@ function ShellContent() {
   }, [createProjectDialogSource]);
 
   const dismissError = useCallback(() => setError(null), []);
+
+  const showChatInfo = currentView === 'sessions' && !!selectedSessionId;
 
   return (
     <TooltipProvider>
@@ -543,14 +506,31 @@ function ShellContent() {
             onSelectSession={handleSelectSession}
             onSelectProject={setSelectedProjectId}
             onNewSessionProjectChange={setNewSessionProjectId}
-            onCreateProjectForSession={() => {
-              setCreateProjectDialogSource('new-session');
-              setCreateProjectDialogOpen(true);
-            }}
+            onCreateProjectForSession={() => { setCreateProjectDialogSource('new-session'); setCreateProjectDialogOpen(true); }}
             onSubmitMessage={handleSubmit}
             onCancelStream={handleCancel}
           />
         </MainContentColumn>
+
+        {/* Plan panel — slides in when plan mode is active or plan is ready */}
+        <PlanPanel
+          isOpen={planPanelOpen}
+          isPlanMode={isPlanMode}
+          artifact={planArtifact}
+          content={planContent}
+          loadError={planLoadError}
+          onApprove={handlePlanApprove}
+          onReject={handlePlanReject}
+          onClose={handlePlanClose}
+        />
+
+        {/* Chat info panel — session metadata, always visible in sessions view */}
+        <ChatInfoPanel
+          isOpen={showChatInfo}
+          sessionId={selectedSessionId}
+          planArtifact={planArtifact}
+          onOpenPlan={handleOpenPlan}
+        />
 
         {/* Task panel — full height, same level as sidebar and sessions */}
         <TaskPanel

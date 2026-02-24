@@ -1,8 +1,9 @@
 import { createSession } from 'unifai';
 import type { AgentEvent } from 'unifai';
 import { homedir } from 'os';
-import type { StreamResult, TokenDelta } from './types';
+import type { StreamResult, AgentStreamEvent } from './types';
 import { getEventBus } from '@/shared/event-bus';
+import { formatToolInput } from './agent';
 
 /**
  * Build environment variables for the SDK subprocess.
@@ -84,7 +85,7 @@ export class AgentInstance {
     this.abortController = new AbortController();
   }
 
-  async *query(prompt: string): StreamResult<TokenDelta> {
+  async *query(prompt: string): StreamResult<AgentStreamEvent> {
     if (this.queryInProgress) {
       throw new AgentError('Query already in progress for this instance', 'UNKNOWN');
     }
@@ -120,7 +121,7 @@ export class AgentInstance {
       }
     } catch (err) {
       if (this.abortController.signal.aborted) {
-        yield { token: ' [cancelled]', index: tokenIndex++ };
+        yield { type: 'token' as const, token: ' [cancelled]' };
       } else {
         throw new AgentError(
           err instanceof Error ? err.message : String(err),
@@ -133,7 +134,7 @@ export class AgentInstance {
     }
   }
 
-  private *handleEvent(event: AgentEvent, bus: ReturnType<typeof getEventBus>, tokenIndex: number): Generator<TokenDelta> {
+  private *handleEvent(event: AgentEvent, bus: ReturnType<typeof getEventBus>, _tokenIndex: number): Generator<AgentStreamEvent> {
     const now = Date.now();
 
     // Pass through raw SDK messages for advanced consumers
@@ -148,10 +149,16 @@ export class AgentInstance {
     }
 
     if (event.type === 'text_delta') {
-      const tokenDelta: TokenDelta = { token: event.text, index: tokenIndex };
-      bus.emit({ type: 'TokenDelta', token: tokenDelta.token, index: tokenDelta.index, timestamp: now });
-      yield tokenDelta;
+      yield { type: 'token', token: event.text };
       return;
+    }
+
+    if (event.type === 'tool_start') {
+      yield { type: 'tool_start', name: event.toolName, input: formatToolInput(event.toolName, event.input) };
+    }
+
+    if (event.type === 'status') {
+      yield { type: 'status', message: event.message };
     }
 
     if (event.type === 'session_complete') {

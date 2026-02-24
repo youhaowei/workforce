@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Send, Square } from 'lucide-react';
 import { useTRPC } from '@/bridge/react';
 import type { AgentConfig, AgentPermissionMode, ThinkingLevel } from '@/services/types';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import AgentConfigToolbar from './AgentConfigToolbar';
 import {
   AGENT_CONFIG_LAST_KEY,
@@ -69,6 +70,7 @@ export default function MessageInput({
   messages,
 }: MessageInputProps) {
   const trpc = useTRPC();
+  const currentTool = useMessagesStore((s) => s.currentTool);
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -263,7 +265,7 @@ export default function MessageInput({
           {isStreaming && (
             <span className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Workforce is thinking...
+              {currentTool ? `Using ${currentTool}...` : 'Workforce is thinking...'}
             </span>
           )}
         </div>

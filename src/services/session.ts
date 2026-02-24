@@ -16,6 +16,7 @@ import type {
   SessionSavePatch,
   SessionSearchResult,
   Message,
+  ToolActivity,
   WorkAgentConfig,
   LifecycleState,
   SessionLifecycle,
@@ -464,18 +465,22 @@ class SessionServiceImpl implements SessionService {
     await this.writeRecords(sessionId, deltas.map((d) => ({ t: 'message_delta' as const, id: messageId, delta: d.delta, seq: d.seq })));
   }
 
-  async recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string): Promise<void> {
+  async recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string, toolActivities?: ToolActivity[]): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
 
     const now = Date.now();
     const record: JournalMessageFinal = {
       t: 'message_final', id: messageId, role: 'assistant', content: fullContent, timestamp: now, stopReason,
+      ...(toolActivities?.length ? { toolActivities } : {}),
     };
 
     // Mutate in-memory state inside the lock to prevent data-race with consolidation
     await this.appendLock.acquire(sessionId, async () => {
-      session.messages.push({ id: messageId, role: 'assistant', content: fullContent, timestamp: now });
+      session.messages.push({
+        id: messageId, role: 'assistant', content: fullContent, timestamp: now,
+        ...(toolActivities?.length ? { toolActivities } : {}),
+      });
       session.updatedAt = now;
       await appendRecord(this.sessionsDir, sessionId, record);
     });

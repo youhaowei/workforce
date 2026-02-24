@@ -82,9 +82,36 @@ export interface QueryOptions {
   sessionId?: string;
 }
 
-export interface TokenDelta {
-  token: string;
-  index: number;
+/** A single entry in the tool activity trace. */
+export interface ToolActivity {
+  name: string;
+  input: string;
+}
+
+/** Events yielded by AgentService.query() through the stream. */
+export type AgentStreamEvent =
+  | { type: 'token'; token: string }
+  | { type: 'tool_start'; name: string; input: string }
+  | { type: 'status'; message: string }
+  | { type: 'plan_ready'; path: string };
+
+// =============================================================================
+// Plan Artifact Types
+// =============================================================================
+
+export type PlanArtifactStatus = 'pending_review' | 'approved' | 'rejected' | 'executing';
+
+export interface PlanArtifact {
+  /** Absolute path to the .md file on disk */
+  path: string;
+  /** Display title (extracted from first H1 or filename) */
+  title: string;
+  /** Review status */
+  status: PlanArtifactStatus;
+  /** Permission mode chosen on approval */
+  approvedPermission?: AgentPermissionMode;
+  /** Timestamp of last status change */
+  updatedAt: number;
 }
 
 export interface ToolCall {
@@ -116,11 +143,8 @@ export interface AgentResponse {
 }
 
 export interface AgentService extends Disposable {
-  /**
-   * Query the agent with streaming response.
-   * Emits TokenDelta events via EventBus.
-   */
-  query(prompt: string, options?: QueryOptions): StreamResult<TokenDelta>;
+  /** Query the agent with streaming response. */
+  query(prompt: string, options?: QueryOptions): StreamResult<AgentStreamEvent>;
 
   /**
    * Cancel the current query.
@@ -204,6 +228,7 @@ export interface Message {
   agentConfig?: AgentConfig;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
+  toolActivities?: ToolActivity[];
 }
 
 export interface Session {
@@ -268,6 +293,7 @@ export interface JournalMessage {
   agentConfig?: AgentConfig;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
+  toolActivities?: ToolActivity[];
 }
 
 /** Marks the start of an assistant streaming response. */
@@ -297,6 +323,7 @@ export interface JournalMessageFinal {
   stopReason: string;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
+  toolActivities?: ToolActivity[];
 }
 
 /** Stream aborted/interrupted marker. */
@@ -430,7 +457,7 @@ export interface SessionService extends Disposable {
   recordStreamDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>): Promise<void>;
 
   /** Record the finalized assistant message. Source of truth on replay. */
-  recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string): Promise<void>;
+  recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string, toolActivities?: ToolActivity[]): Promise<void>;
 
   /** Record an aborted assistant stream. */
   recordStreamAbort(sessionId: string, messageId: string, reason: string): Promise<void>;

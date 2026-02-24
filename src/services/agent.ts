@@ -1,7 +1,7 @@
 import { createSession, getSupportedModels } from 'unifai';
 import type { AgentEvent, UnifaiSession, Usage } from 'unifai';
 import { homedir } from 'os';
-import type { AgentService, AgentModelInfo, QueryOptions, TokenDelta, StreamResult } from './types';
+import type { AgentService, AgentModelInfo, QueryOptions, AgentStreamEvent, StreamResult } from './types';
 import type { QueryResultEvent, HookResponseEvent, TaskNotificationEvent } from '@/shared/event-types';
 import type { EventBus } from '@/shared/event-bus';
 import { getEventBus } from '@/shared/event-bus';
@@ -12,6 +12,28 @@ import type { AgentErrorCode } from './agent-instance';
 // Re-export for backward compatibility
 export { AgentInstance, AgentError, buildSdkEnv, isAuthError } from './agent-instance';
 export type { AgentInstanceOptions, AgentErrorCode } from './agent-instance';
+
+function truncateStr(s: string, max = 80) {
+  return s.length > max ? s.slice(0, max) + '...' : s;
+}
+
+/** Maps tool name → the arg key that best summarizes the invocation. */
+const TOOL_SUMMARY_KEY: Record<string, string> = {
+  Read: 'file_path', Edit: 'file_path', Write: 'file_path',
+  Bash: 'command', Glob: 'pattern', Task: 'description',
+};
+
+/** Format tool input args into a human-readable one-liner for the activity trace. */
+export function formatToolInput(name: string, input: unknown): string {
+  const args = (input ?? {}) as Record<string, unknown>;
+  const key = TOOL_SUMMARY_KEY[name];
+  if (key) return truncateStr(String(args[key] ?? ''));
+  if (name === 'Grep') {
+    const suffix = args.path ? ` in ${args.path}` : '';
+    return truncateStr(`${args.pattern ?? ''}${suffix}`);
+  }
+  return truncateStr(JSON.stringify(input ?? '').slice(0, 120));
+}
 
 const VALID_SUBTYPES: ReadonlySet<string> = new Set([
   'success', 'error_during_execution', 'error_max_turns',
@@ -38,8 +60,12 @@ class AgentServiceImpl implements AgentService {
   private session: UnifaiSession | null = null;
   private supportedModelsCache: AgentModelInfo[] | null = null;
   private supportedModelsCacheAt = 0;
+  /** Whether the agent is currently in plan mode (between EnterPlanMode and ExitPlanMode). */
+  private inPlanMode = false;
+  /** Tracks the last Write to a .md file while in plan mode, used for plan detection. */
+  private lastPlanPath: string | null = null;
 
-  async *query(prompt: string, options?: QueryOptions): StreamResult<TokenDelta> {
+  async *query(prompt: string, options?: QueryOptions): StreamResult<AgentStreamEvent> {
     debugLog('Agent', 'query() called', { queryInProgress: this.queryInProgress });
 
     if (this.queryInProgress) {
@@ -49,6 +75,8 @@ class AgentServiceImpl implements AgentService {
 
     this.queryInProgress = true;
     this.abortController = new AbortController();
+    this.lastPlanPath = null;
+    this.inPlanMode = false;
     debugLog('Agent', 'Query started, set queryInProgress=true');
     const bus = getEventBus();
     let tokenIndex = 0;
@@ -104,16 +132,13 @@ class AgentServiceImpl implements AgentService {
     bus: EventBus,
     tokenIndex: number,
     lastMessageId: string,
-  ): Generator<TokenDelta> {
+  ): Generator<AgentStreamEvent> {
     const now = Date.now();
 
     switch (event.type) {
-      case 'text_delta': {
-        const td: TokenDelta = { token: event.text, index: tokenIndex };
-        bus.emit({ type: 'TokenDelta', token: td.token, index: td.index, timestamp: now });
-        yield td;
+      case 'text_delta':
+        yield { type: 'token', token: event.text };
         break;
-      }
       case 'thinking_delta':
         bus.emit({ type: 'ThinkingDelta', thinking: event.text, index: event.index ?? 0, timestamp: now });
         break;
@@ -122,6 +147,24 @@ class AgentServiceImpl implements AgentService {
         break;
       default:
         this.emitBusEvent(event, bus, now, lastMessageId);
+        // Yield stream events for tool activity and system status (keeps SSE alive + feeds UI trace)
+        if (event.type === 'tool_start') {
+          if (event.toolName === 'EnterPlanMode') this.inPlanMode = true;
+          // Track last Write to .md file only while in plan mode
+          if (this.inPlanMode && event.toolName === 'Write') {
+            const filePath = String((event.input as Record<string, unknown>).file_path ?? '');
+            if (filePath.endsWith('.md')) this.lastPlanPath = filePath;
+          }
+          // Detect ExitPlanMode → yield plan_ready
+          if (event.toolName === 'ExitPlanMode' && this.lastPlanPath) {
+            this.inPlanMode = false;
+            yield { type: 'plan_ready', path: this.lastPlanPath };
+            this.lastPlanPath = null;
+          }
+          yield { type: 'tool_start', name: event.toolName, input: formatToolInput(event.toolName, event.input) };
+        } else if (event.type === 'status') {
+          yield { type: 'status', message: event.message };
+        }
         break;
     }
   }
@@ -321,12 +364,10 @@ class AgentServiceImpl implements AgentService {
     });
   }
 
-  private *handleQueryError(err: unknown, bus: EventBus, tokenIndex: number): Generator<TokenDelta> {
+  private *handleQueryError(err: unknown, _bus: EventBus, _tokenIndex: number): Generator<AgentStreamEvent> {
     if (this.abortController?.signal.aborted) {
       debugLog('Agent', 'Query cancelled by user');
-      const cancelledDelta: TokenDelta = { token: ' [cancelled]', index: tokenIndex };
-      bus.emit({ type: 'TokenDelta', token: cancelledDelta.token, index: cancelledDelta.index, timestamp: Date.now() });
-      yield cancelledDelta;
+      yield { type: 'token', token: ' [cancelled]' };
       return;
     }
 

@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { resolve, relative } from 'path';
+import { realpath } from 'fs/promises';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 import { getSessionService } from '@/services/session';
 import { getOrchestrationService } from './_services';
-import type { LifecycleState } from '@/services/types';
+import type { LifecycleState, PlanArtifact } from '@/services/types';
 
 export const sessionRouter = router({
   list: publicProcedure
@@ -142,10 +145,11 @@ export const sessionRouter = router({
       messageId: z.string(),
       fullContent: z.string(),
       stopReason: z.string(),
+      toolActivities: z.array(z.object({ name: z.string(), input: z.string() })).optional(),
     }))
     .mutation(({ input }) =>
       getSessionService().recordStreamEnd(
-        input.sessionId, input.messageId, input.fullContent, input.stopReason,
+        input.sessionId, input.messageId, input.fullContent, input.stopReason, input.toolActivities,
       ),
     ),
 
@@ -173,4 +177,81 @@ export const sessionRouter = router({
         offset: input.offset,
       }),
     ),
+
+  // ─── Session Info ──────────────────────────────────────────────────
+
+  rename: publicProcedure
+    .input(z.object({ sessionId: z.string(), title: z.string() }))
+    .mutation(({ input }) =>
+      getSessionService().updateSession(input.sessionId, { title: input.title }),
+    ),
+
+  updateNotes: publicProcedure
+    .input(z.object({ sessionId: z.string(), notes: z.string() }))
+    .mutation(async ({ input }) => {
+      const session = await getSessionService().get(input.sessionId);
+      if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: `Session not found: ${input.sessionId}` });
+      await getSessionService().updateSession(input.sessionId, {
+        metadata: { ...session.metadata, notes: input.notes },
+      });
+    }),
+
+  // ─── Plan Artifacts ────────────────────────────────────────────────
+
+  readFile: publicProcedure
+    .input(z.object({ path: z.string() }))
+    .query(async ({ input }) => {
+      const projectRoot = process.cwd();
+      const resolved = resolve(projectRoot, input.path);
+      let real: string;
+      try {
+        real = await realpath(resolved);
+      } catch {
+        throw new TRPCError({ code: 'NOT_FOUND', message: `File not found: ${input.path}` });
+      }
+      const rel = relative(projectRoot, real);
+      if (rel.startsWith('..') || resolve(projectRoot, rel) !== real) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Path must be within project directory' });
+      }
+      const file = Bun.file(real);
+      const MAX_SIZE = 1024 * 1024; // 1 MB
+      if (file.size > MAX_SIZE) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: `File too large: ${file.size} bytes (max ${MAX_SIZE})` });
+      }
+      try {
+        return await file.text();
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code === 'ENOENT') {
+          throw new TRPCError({ code: 'NOT_FOUND', message: `File not found: ${input.path}` });
+        }
+        throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Failed to read file: ${input.path}` });
+      }
+    }),
+
+  updatePlanArtifact: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      artifact: z.object({
+        path: z.string(),
+        title: z.string(),
+        status: z.enum(['pending_review', 'approved', 'rejected', 'executing']),
+        approvedPermission: z.enum(['plan', 'default', 'acceptEdits', 'bypassPermissions']).optional(),
+        updatedAt: z.number(),
+      }),
+    }))
+    .mutation(async ({ input }) => {
+      const session = await getSessionService().get(input.sessionId);
+      if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: `Session not found: ${input.sessionId}` });
+      const existing = [...((session.metadata.planArtifacts as PlanArtifact[] | undefined) ?? [])];
+      const idx = existing.findIndex((a) => a.path === input.artifact.path);
+      if (idx >= 0) {
+        existing[idx] = input.artifact;
+      } else {
+        existing.push(input.artifact);
+      }
+      await getSessionService().updateSession(input.sessionId, {
+        metadata: { ...session.metadata, planArtifacts: existing },
+      });
+    }),
 });

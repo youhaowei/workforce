@@ -8,7 +8,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { AgentConfig, ToolCall, ToolResult } from '@/services/types';
+import type { AgentConfig, ToolActivity, ToolCall, ToolResult } from '@/services/types';
 
 // =============================================================================
 // Types
@@ -23,6 +23,7 @@ export interface MessageState {
   agentConfig?: AgentConfig;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
+  toolActivities?: ToolActivity[];
 }
 
 interface MessagesStore {
@@ -31,17 +32,21 @@ interface MessagesStore {
   streamingContent: string;
   streamingMessageId: string | null;
   isStreaming: boolean;
+  pendingToolActivities: ToolActivity[];
+  currentTool: string | null;
 
   // Actions
   addUserMessage: (content: string, agentConfig?: AgentConfig) => string;
   startAssistantMessage: () => string;
   appendToStreamingMessage: (token: string) => void;
   finishStreamingMessage: () => void;
+  addToolActivity: (name: string, input: string) => void;
+  setCurrentTool: (name: string | null) => void;
   addToolCall: (messageId: string, toolCall: ToolCall) => void;
   addToolResult: (messageId: string, result: ToolResult) => void;
   clearMessages: () => void;
   setActiveSession: (sessionId: string | null) => void;
-  loadMessages: (messages: Array<{ id: string; role: string; content: string; timestamp: number; agentConfig?: AgentConfig; toolCalls?: ToolCall[]; toolResults?: ToolResult[] }>) => void;
+  loadMessages: (messages: Array<{ id: string; role: string; content: string; timestamp: number; agentConfig?: AgentConfig; toolCalls?: ToolCall[]; toolResults?: ToolResult[]; toolActivities?: ToolActivity[] }>) => void;
 }
 
 // =============================================================================
@@ -63,6 +68,8 @@ export const useMessagesStore = create<MessagesStore>()(
     streamingContent: '',
     streamingMessageId: null,
     isStreaming: false,
+    pendingToolActivities: [],
+    currentTool: null,
 
     addUserMessage: (content, agentConfig) => {
       const id = generateId();
@@ -92,6 +99,8 @@ export const useMessagesStore = create<MessagesStore>()(
         state.streamingMessageId = id;
         state.streamingContent = '';
         state.isStreaming = true;
+        state.pendingToolActivities = [];
+        state.currentTool = null;
       });
       return id;
     },
@@ -111,11 +120,28 @@ export const useMessagesStore = create<MessagesStore>()(
             // Trim only outer whitespace of complete message (gotcha #16)
             msg.content = state.streamingContent.trim();
             msg.isStreaming = false;
+            if (state.pendingToolActivities.length > 0) {
+              msg.toolActivities = [...state.pendingToolActivities];
+            }
           }
         }
         state.streamingMessageId = null;
         state.streamingContent = '';
         state.isStreaming = false;
+        state.pendingToolActivities = [];
+        state.currentTool = null;
+      });
+    },
+
+    addToolActivity: (name, input) => {
+      set((state) => {
+        state.pendingToolActivities.push({ name, input });
+      });
+    },
+
+    setCurrentTool: (name) => {
+      set((state) => {
+        state.currentTool = name;
       });
     },
 
@@ -145,6 +171,8 @@ export const useMessagesStore = create<MessagesStore>()(
         state.streamingMessageId = null;
         state.streamingContent = '';
         state.isStreaming = false;
+        state.pendingToolActivities = [];
+        state.currentTool = null;
       });
     },
 
@@ -165,6 +193,7 @@ export const useMessagesStore = create<MessagesStore>()(
           agentConfig: m.agentConfig,
           toolCalls: m.toolCalls,
           toolResults: m.toolResults,
+          toolActivities: m.toolActivities,
         }));
       });
     },

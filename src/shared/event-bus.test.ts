@@ -4,7 +4,7 @@ import {
   createEventBus,
   getEventBus,
   EventType,
-  type TokenDeltaEvent,
+  type SessionChangeEvent,
   type ToolStartEvent,
   type TaskUpdateEvent as _TaskUpdateEvent,
   type BusEvent,
@@ -23,15 +23,15 @@ describe('EventBus', () => {
 
   describe('on/off subscription', () => {
     it('should subscribe and receive events', () => {
-      const received: TokenDeltaEvent[] = [];
-      bus.on(EventType.TokenDelta, (event) => {
+      const received: SessionChangeEvent[] = [];
+      bus.on(EventType.SessionChange, (event) => {
         received.push(event);
       });
 
-      const event: TokenDeltaEvent = {
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+      const event: SessionChangeEvent = {
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       };
       bus.emit(event);
@@ -41,15 +41,15 @@ describe('EventBus', () => {
     });
 
     it('should unsubscribe via returned function', () => {
-      const received: TokenDeltaEvent[] = [];
-      const unsubscribe = bus.on(EventType.TokenDelta, (event) => {
+      const received: SessionChangeEvent[] = [];
+      const unsubscribe = bus.on(EventType.SessionChange, (event) => {
         received.push(event);
       });
 
-      const event: TokenDeltaEvent = {
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+      const event: SessionChangeEvent = {
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       };
       bus.emit(event);
@@ -60,28 +60,28 @@ describe('EventBus', () => {
     });
 
     it('should unsubscribe via off method', () => {
-      const received: TokenDeltaEvent[] = [];
-      const listener = (event: TokenDeltaEvent) => {
+      const received: SessionChangeEvent[] = [];
+      const listener = (event: SessionChangeEvent) => {
         received.push(event);
       };
-      bus.on(EventType.TokenDelta, listener);
+      bus.on(EventType.SessionChange, listener);
 
-      const event: TokenDeltaEvent = {
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+      const event: SessionChangeEvent = {
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       };
       bus.emit(event);
-      bus.off(EventType.TokenDelta, listener);
+      bus.off(EventType.SessionChange, listener);
       bus.emit(event);
 
       expect(received).toHaveLength(1);
     });
 
     it('should not receive events of different types', () => {
-      const received: TokenDeltaEvent[] = [];
-      bus.on(EventType.TokenDelta, (event) => {
+      const received: SessionChangeEvent[] = [];
+      bus.on(EventType.SessionChange, (event) => {
         received.push(event);
       });
 
@@ -100,15 +100,15 @@ describe('EventBus', () => {
 
   describe('once (one-time listeners)', () => {
     it('should only fire once', () => {
-      const received: TokenDeltaEvent[] = [];
-      bus.once(EventType.TokenDelta, (event) => {
+      const received: SessionChangeEvent[] = [];
+      bus.once(EventType.SessionChange, (event) => {
         received.push(event);
       });
 
-      const event: TokenDeltaEvent = {
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+      const event: SessionChangeEvent = {
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       };
       bus.emit(event);
@@ -119,18 +119,18 @@ describe('EventBus', () => {
     });
 
     it('should auto-remove after first invocation', () => {
-      bus.once(EventType.TokenDelta, () => {});
+      bus.once(EventType.SessionChange, () => {});
 
-      expect(bus.listenerCount(EventType.TokenDelta)).toBe(1);
+      expect(bus.listenerCount(EventType.SessionChange)).toBe(1);
 
       bus.emit({
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       });
 
-      expect(bus.listenerCount(EventType.TokenDelta)).toBe(0);
+      expect(bus.listenerCount(EventType.SessionChange)).toBe(0);
     });
   });
 
@@ -141,10 +141,10 @@ describe('EventBus', () => {
         received.push(event);
       });
 
-      const tokenEvent: TokenDeltaEvent = {
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+      const sessionEvent: SessionChangeEvent = {
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       };
       const toolEvent: ToolStartEvent = {
@@ -155,11 +155,11 @@ describe('EventBus', () => {
         timestamp: Date.now(),
       };
 
-      bus.emit(tokenEvent);
+      bus.emit(sessionEvent);
       bus.emit(toolEvent);
 
       expect(received).toHaveLength(2);
-      expect(received[0]).toBe(tokenEvent);
+      expect(received[0]).toBe(sessionEvent);
       expect(received[1]).toBe(toolEvent);
     });
 
@@ -170,9 +170,9 @@ describe('EventBus', () => {
       });
 
       bus.emit({
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       });
       bus.emit({
@@ -191,14 +191,14 @@ describe('EventBus', () => {
     it('should call higher priority listeners first', () => {
       const order: number[] = [];
 
-      bus.on(EventType.TokenDelta, () => order.push(1), { priority: 1 });
-      bus.on(EventType.TokenDelta, () => order.push(3), { priority: 3 });
-      bus.on(EventType.TokenDelta, () => order.push(2), { priority: 2 });
+      bus.on(EventType.SessionChange, () => order.push(1), { priority: 1 });
+      bus.on(EventType.SessionChange, () => order.push(3), { priority: 3 });
+      bus.on(EventType.SessionChange, () => order.push(2), { priority: 2 });
 
       bus.emit({
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       });
 
@@ -209,15 +209,15 @@ describe('EventBus', () => {
   describe('async listeners', () => {
     it('should handle async listeners without blocking emit', async () => {
       let asyncCompleted = false;
-      bus.on(EventType.TokenDelta, async () => {
+      bus.on(EventType.SessionChange, async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
         asyncCompleted = true;
       });
 
       bus.emit({
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       });
 
@@ -228,15 +228,15 @@ describe('EventBus', () => {
 
     it('should wait for async listeners with emitAsync', async () => {
       let asyncCompleted = false;
-      bus.on(EventType.TokenDelta, async () => {
+      bus.on(EventType.SessionChange, async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
         asyncCompleted = true;
       });
 
       await bus.emitAsync({
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       });
 
@@ -246,14 +246,14 @@ describe('EventBus', () => {
     it('should catch async errors without crashing', async () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
-      bus.on(EventType.TokenDelta, async () => {
+      bus.on(EventType.SessionChange, async () => {
         throw new Error('Async error');
       });
 
       await bus.emitAsync({
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       });
 
@@ -264,10 +264,10 @@ describe('EventBus', () => {
 
   describe('backpressure controller', () => {
     it('should pause and resume event dispatch', () => {
-      const received: TokenDeltaEvent[] = [];
+      const received: SessionChangeEvent[] = [];
       const controller = bus.getBackpressureController();
 
-      bus.on(EventType.TokenDelta, (event) => {
+      bus.on(EventType.SessionChange, (event) => {
         received.push(event);
       });
 
@@ -275,9 +275,9 @@ describe('EventBus', () => {
       expect(controller.isPaused()).toBe(true);
 
       bus.emit({
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       });
 
@@ -291,18 +291,18 @@ describe('EventBus', () => {
     });
 
     it('should clear queued events', () => {
-      const received: TokenDeltaEvent[] = [];
+      const received: SessionChangeEvent[] = [];
       const controller = bus.getBackpressureController();
 
-      bus.on(EventType.TokenDelta, (event) => {
+      bus.on(EventType.SessionChange, (event) => {
         received.push(event);
       });
 
       controller.pause();
       bus.emit({
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       });
 
@@ -317,15 +317,15 @@ describe('EventBus', () => {
 
   describe('zero-copy event passing', () => {
     it('should pass event by reference not clone', () => {
-      let receivedEvent: TokenDeltaEvent | null = null;
-      bus.on(EventType.TokenDelta, (event) => {
+      let receivedEvent: SessionChangeEvent | null = null;
+      bus.on(EventType.SessionChange, (event) => {
         receivedEvent = event;
       });
 
-      const event: TokenDeltaEvent = {
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+      const event: SessionChangeEvent = {
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       };
       bus.emit(event);
@@ -336,36 +336,36 @@ describe('EventBus', () => {
 
   describe('listener management', () => {
     it('should track listener count', () => {
-      expect(bus.listenerCount(EventType.TokenDelta)).toBe(0);
+      expect(bus.listenerCount(EventType.SessionChange)).toBe(0);
 
-      const unsub1 = bus.on(EventType.TokenDelta, () => {});
-      const unsub2 = bus.on(EventType.TokenDelta, () => {});
+      const unsub1 = bus.on(EventType.SessionChange, () => {});
+      const unsub2 = bus.on(EventType.SessionChange, () => {});
       bus.on(EventType.ToolStart, () => {});
 
-      expect(bus.listenerCount(EventType.TokenDelta)).toBe(2);
+      expect(bus.listenerCount(EventType.SessionChange)).toBe(2);
       expect(bus.listenerCount(EventType.ToolStart)).toBe(1);
       expect(bus.totalListenerCount()).toBe(3);
 
       unsub1();
-      expect(bus.listenerCount(EventType.TokenDelta)).toBe(1);
+      expect(bus.listenerCount(EventType.SessionChange)).toBe(1);
 
       unsub2();
-      expect(bus.listenerCount(EventType.TokenDelta)).toBe(0);
+      expect(bus.listenerCount(EventType.SessionChange)).toBe(0);
     });
 
     it('should remove all listeners for a type', () => {
-      bus.on(EventType.TokenDelta, () => {});
-      bus.on(EventType.TokenDelta, () => {});
+      bus.on(EventType.SessionChange, () => {});
+      bus.on(EventType.SessionChange, () => {});
       bus.on(EventType.ToolStart, () => {});
 
-      bus.removeAllListeners(EventType.TokenDelta);
+      bus.removeAllListeners(EventType.SessionChange);
 
-      expect(bus.listenerCount(EventType.TokenDelta)).toBe(0);
+      expect(bus.listenerCount(EventType.SessionChange)).toBe(0);
       expect(bus.listenerCount(EventType.ToolStart)).toBe(1);
     });
 
     it('should remove all listeners', () => {
-      bus.on(EventType.TokenDelta, () => {});
+      bus.on(EventType.SessionChange, () => {});
       bus.on(EventType.ToolStart, () => {});
 
       bus.removeAllListeners();
@@ -379,20 +379,20 @@ describe('EventBus', () => {
       const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
       const received: number[] = [];
 
-      bus.on(EventType.TokenDelta, () => received.push(1), { priority: 3 });
+      bus.on(EventType.SessionChange, () => received.push(1), { priority: 3 });
       bus.on(
-        EventType.TokenDelta,
+        EventType.SessionChange,
         () => {
           throw new Error('Listener error');
         },
         { priority: 2 }
       );
-      bus.on(EventType.TokenDelta, () => received.push(3), { priority: 1 });
+      bus.on(EventType.SessionChange, () => received.push(3), { priority: 1 });
 
       bus.emit({
-        type: 'TokenDelta',
-        token: 'hello',
-        index: 0,
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       });
 
@@ -404,7 +404,7 @@ describe('EventBus', () => {
 
   describe('dispose', () => {
     it('should clean up on dispose', () => {
-      bus.on(EventType.TokenDelta, () => {});
+      bus.on(EventType.SessionChange, () => {});
       bus.on(EventType.ToolStart, () => {});
 
       bus.dispose();
@@ -423,10 +423,10 @@ describe('EventBus', () => {
 
   describe('type safety', () => {
     it('should enforce typed event payloads', () => {
-      bus.on(EventType.TokenDelta, (event) => {
-        expect(event.type).toBe('TokenDelta');
-        expect(typeof event.token).toBe('string');
-        expect(typeof event.index).toBe('number');
+      bus.on(EventType.SessionChange, (event) => {
+        expect(event.type).toBe('SessionChange');
+        expect(typeof event.sessionId).toBe('string');
+        expect(typeof event.action).toBe('string');
       });
 
       bus.on(EventType.TaskUpdate, (event) => {
@@ -436,9 +436,9 @@ describe('EventBus', () => {
       });
 
       bus.emit({
-        type: 'TokenDelta',
-        token: 'test',
-        index: 0,
+        type: 'SessionChange',
+        sessionId: 'sess-1',
+        action: 'created',
         timestamp: Date.now(),
       });
 
@@ -460,7 +460,7 @@ describe('EventBus Memory', () => {
     const startMemory = process.memoryUsage().heapUsed;
 
     for (let i = 0; i < iterations; i++) {
-      const unsub = bus.on(EventType.TokenDelta, () => {});
+      const unsub = bus.on(EventType.SessionChange, () => {});
       unsub();
     }
 
@@ -468,7 +468,7 @@ describe('EventBus Memory', () => {
     const endMemory = process.memoryUsage().heapUsed;
     const memoryGrowth = endMemory - startMemory;
 
-    expect(bus.listenerCount(EventType.TokenDelta)).toBe(0);
+    expect(bus.listenerCount(EventType.SessionChange)).toBe(0);
     expect(memoryGrowth).toBeLessThan(5 * 1024 * 1024);
 
     bus.dispose();
@@ -479,14 +479,14 @@ describe('EventBus Performance', () => {
   it('should dispatch events in under 0.1ms', () => {
     const bus = createEventBus();
 
-    bus.on(EventType.TokenDelta, () => {});
-    bus.on(EventType.TokenDelta, () => {});
-    bus.on(EventType.TokenDelta, () => {});
+    bus.on(EventType.SessionChange, () => {});
+    bus.on(EventType.SessionChange, () => {});
+    bus.on(EventType.SessionChange, () => {});
 
-    const event: TokenDeltaEvent = {
-      type: 'TokenDelta',
-      token: 'hello',
-      index: 0,
+    const event: SessionChangeEvent = {
+      type: 'SessionChange',
+      sessionId: 'sess-1',
+      action: 'created',
       timestamp: Date.now(),
     };
 

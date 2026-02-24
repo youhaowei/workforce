@@ -26,14 +26,22 @@ export const agentRouter = router({
       let tokenCount = 0;
 
       try {
-        for await (const delta of agent.query(input.prompt, {
+        for await (const event of agent.query(input.prompt, {
           model: input.model,
           maxThinkingTokens: input.maxThinkingTokens,
           permissionMode: input.permissionMode,
         })) {
-          tokenCount++;
-          // Important: never trim tokens — preserves whitespace between LLM tokens (gotcha #16)
-          yield { type: 'token' as const, data: delta.token };
+          if (event.type === 'token') {
+            tokenCount++;
+            // Important: never trim tokens — preserves whitespace between LLM tokens (gotcha #16)
+            yield { type: 'token' as const, data: event.token };
+          } else if (event.type === 'tool_start') {
+            yield { type: 'tool_start' as const, name: event.name, input: event.input };
+          } else if (event.type === 'status') {
+            yield { type: 'status' as const, data: event.message };
+          } else if (event.type === 'plan_ready') {
+            yield { type: 'plan_ready' as const, path: event.path };
+          }
         }
         debugLog('tRPC', 'agent.query complete', { totalTokens: tokenCount });
         yield { type: 'done' as const, data: '' };

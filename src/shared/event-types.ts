@@ -1,10 +1,3 @@
-export interface TokenDeltaEvent {
-  type: 'TokenDelta';
-  token: string;
-  index: number;
-  timestamp: number;
-}
-
 export interface ToolStartEvent {
   type: 'ToolStart';
   toolId: string;
@@ -371,7 +364,6 @@ export interface AuditEntryEvent {
 }
 
 export type BusEvent =
-  | TokenDeltaEvent
   | ToolStartEvent
   | ToolEndEvent
   | TaskUpdateEvent
@@ -412,7 +404,6 @@ export type BusEvent =
   | SessionConsolidationStartedEvent;
 
 export const EventType = {
-  TokenDelta: 'TokenDelta',
   ToolStart: 'ToolStart',
   ToolEnd: 'ToolEnd',
   TaskUpdate: 'TaskUpdate',
