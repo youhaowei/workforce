@@ -344,3 +344,7 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 ## Communication Style
 
 Be honest and push back when you think my approach has issues. Don't just comply — give me your genuine technical opinion, especially on architecture and scope decisions.
+
+## Design Philosophy
+
+This is a **greenfield application** — no external consumers or legacy integrations. Prioritize clean architecture and correct abstractions over backward compatibility. Replace dead types entirely rather than keeping them around.
