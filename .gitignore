@@ -70,6 +70,9 @@ Desktop.ini
 # Sisyphus (deprecated — docs moved to docs/)
 .sisyphus/
 
+# Claude Code (local-only files)
+.claude/settings.local.json
+
 # Misc
 *.pem
 *.key
