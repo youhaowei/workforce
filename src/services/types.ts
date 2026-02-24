@@ -88,10 +88,19 @@ export interface ToolActivity {
   input: string;
 }
 
+/** Structured content block for interleaved text/tool rendering. */
+export type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; id: string; name: string; input: string; result?: unknown; error?: string; status: 'running' | 'complete' | 'error' }
+  | { type: 'thinking'; text: string };
+
 /** Events yielded by AgentService.query() through the stream. */
 export type AgentStreamEvent =
   | { type: 'token'; token: string }
-  | { type: 'tool_start'; name: string; input: string }
+  | { type: 'tool_start'; name: string; input: string; toolUseId: string; inputRaw: unknown }
+  | { type: 'tool_result'; toolUseId: string; toolName: string; result: unknown; isError: boolean }
+  | { type: 'content_block_start'; index: number; blockType: string; id?: string; name?: string }
+  | { type: 'content_block_stop'; index: number }
   | { type: 'status'; message: string }
   | { type: 'plan_ready'; path: string };
 
@@ -229,6 +238,7 @@ export interface Message {
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
   toolActivities?: ToolActivity[];
+  contentBlocks?: ContentBlock[];
 }
 
 export interface Session {
@@ -294,6 +304,7 @@ export interface JournalMessage {
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
   toolActivities?: ToolActivity[];
+  contentBlocks?: ContentBlock[];
 }
 
 /** Marks the start of an assistant streaming response. */
@@ -324,6 +335,7 @@ export interface JournalMessageFinal {
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
   toolActivities?: ToolActivity[];
+  contentBlocks?: ContentBlock[];
 }
 
 /** Stream aborted/interrupted marker. */
@@ -457,7 +469,7 @@ export interface SessionService extends Disposable {
   recordStreamDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>): Promise<void>;
 
   /** Record the finalized assistant message. Source of truth on replay. */
-  recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string, toolActivities?: ToolActivity[]): Promise<void>;
+  recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string, toolActivities?: ToolActivity[], contentBlocks?: ContentBlock[]): Promise<void>;
 
   /** Record an aborted assistant stream. */
   recordStreamAbort(sessionId: string, messageId: string, reason: string): Promise<void>;

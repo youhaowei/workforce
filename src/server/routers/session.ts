@@ -146,10 +146,15 @@ export const sessionRouter = router({
       fullContent: z.string(),
       stopReason: z.string(),
       toolActivities: z.array(z.object({ name: z.string(), input: z.string() })).optional(),
+      contentBlocks: z.array(z.discriminatedUnion('type', [
+        z.object({ type: z.literal('text'), text: z.string() }),
+        z.object({ type: z.literal('tool_use'), id: z.string(), name: z.string(), input: z.string(), result: z.unknown().optional(), error: z.string().optional(), status: z.enum(['running', 'complete', 'error']) }),
+        z.object({ type: z.literal('thinking'), text: z.string() }),
+      ])).optional(),
     }))
     .mutation(({ input }) =>
       getSessionService().recordStreamEnd(
-        input.sessionId, input.messageId, input.fullContent, input.stopReason, input.toolActivities,
+        input.sessionId, input.messageId, input.fullContent, input.stopReason, input.toolActivities, input.contentBlocks,
       ),
     ),
 

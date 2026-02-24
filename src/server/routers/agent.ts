@@ -36,7 +36,13 @@ export const agentRouter = router({
             // Important: never trim tokens — preserves whitespace between LLM tokens (gotcha #16)
             yield { type: 'token' as const, data: event.token };
           } else if (event.type === 'tool_start') {
-            yield { type: 'tool_start' as const, name: event.name, input: event.input };
+            yield { type: 'tool_start' as const, name: event.name, input: event.input, toolUseId: event.toolUseId, inputRaw: event.inputRaw };
+          } else if (event.type === 'tool_result') {
+            yield { type: 'tool_result' as const, toolUseId: event.toolUseId, toolName: event.toolName, result: event.result, isError: event.isError };
+          } else if (event.type === 'content_block_start') {
+            yield { type: 'content_block_start' as const, index: event.index, blockType: event.blockType, id: event.id, name: event.name };
+          } else if (event.type === 'content_block_stop') {
+            yield { type: 'content_block_stop' as const, index: event.index };
           } else if (event.type === 'status') {
             yield { type: 'status' as const, data: event.message };
           } else if (event.type === 'plan_ready') {

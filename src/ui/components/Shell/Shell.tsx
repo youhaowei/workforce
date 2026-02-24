@@ -31,22 +31,18 @@ import {
   VIEW_STORAGE_KEY,
   SELECTED_SESSION_STORAGE_KEY,
   SESSION_TITLE_MAX_LENGTH,
-  VALID_VIEWS,
   checkServerConnection,
   toSessionSummary,
+  handleStreamEvent,
+  handleStreamError,
+  getInitialView,
+  getInitialSidebarMode,
 } from './shellHelpers';
 
 export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'projects' | 'templates' | 'workflows' | 'orgs' | 'audit' | 'detail'; export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
 
 function ShellContent() {
-  const [currentView, setCurrentView] = useState<ViewType>(() => {
-    const stored = localStorage.getItem(VIEW_STORAGE_KEY);
-    if (stored && VALID_VIEWS.has(stored as ViewType)) {
-      // 'detail' requires selectedAgentId which isn't persisted — fall back to board
-      return stored === 'detail' ? 'board' : (stored as ViewType);
-    }
-    return 'home';
-  });
+  const [currentView, setCurrentView] = useState<ViewType>(getInitialView);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [taskPanelOpen, setTaskPanelOpen] = useState(false);
@@ -59,13 +55,7 @@ function ShellContent() {
   // Start true — SetupGate guarantees server is up before Shell mounts.
   // The periodic check below detects if the server goes down later.
   const [serverConnected, setServerConnected] = useState(true);
-  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
-    const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    // Backward compat: old key stored 'true'/'false'
-    if (stored === 'true') return 'collapsed';
-    if (stored === 'collapsed' || stored === 'hidden') return stored;
-    return 'expanded';
-  });
+  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(getInitialSidebarMode);
   const cancelStreamRef = useRef<(() => void) | null>(null);
   const intendedSessionRef = useRef<string | null>(null);
   const activeSessionRef = useRef<string | null>(selectedSessionId);
@@ -98,7 +88,11 @@ function ShellContent() {
   const loadMessages = useMessagesStore((s) => s.loadMessages);
   const addToolActivity = useMessagesStore((s) => s.addToolActivity);
   const setCurrentTool = useMessagesStore((s) => s.setCurrentTool);
-  const getPendingToolActivities = () => useMessagesStore.getState().pendingToolActivities;
+  const appendToTextBlock = useMessagesStore((s) => s.appendToTextBlock);
+  const startContentBlock = useMessagesStore((s) => s.startContentBlock);
+  const startToolBlock = useMessagesStore((s) => s.startToolBlock);
+  const setToolResult = useMessagesStore((s) => s.setToolResult);
+  const finishContentBlock = useMessagesStore((s) => s.finishContentBlock);
   const cumulativeUsage = useSdkStore((s) => s.cumulativeUsage);
   const currentQueryStats = useSdkStore((s) => s.currentQueryStats);
 
@@ -342,66 +336,33 @@ function ShellContent() {
         },
         {
           onData: (data) => {
-            if (data.type === 'token') {
-              setCurrentTool(null);
-              appendToStreamingMessage(data.data);
-              if (sessId) {
-                deltaBufferRef.current.push({ delta: data.data, seq: streamSeqRef.current++ });
-                if (!flushTimerRef.current) {
-                  flushTimerRef.current = setTimeout(flushDeltas, 150);
+            const actions = {
+              appendToStreamingMessage, appendToTextBlock,
+              addToolActivity, setCurrentTool,
+              startToolBlock, setToolResult,
+              startContentBlock, finishContentBlock,
+              finishStreamingMessage, setError,
+              planReady: (path: string, sid: string | null) => planReadyRef.current(path, sid),
+              onDelta: (delta: string) => {
+                if (sessId) {
+                  deltaBufferRef.current.push({ delta, seq: streamSeqRef.current++ });
+                  if (!flushTimerRef.current) {
+                    flushTimerRef.current = setTimeout(flushDeltas, 150);
+                  }
                 }
-              }
-            } else if (data.type === 'tool_start') {
-              addToolActivity(data.name, data.input);
-              setCurrentTool(data.name);
-            } else if (data.type === 'status') {
-              setCurrentTool(data.data);
-            } else if (data.type === 'plan_ready') {
-              planReadyRef.current(data.path, sessId);
-            } else if (data.type === 'done') {
-              const fullContent = useMessagesStore.getState().streamingContent;
-              const toolActivities = getPendingToolActivities();
-              finishStreamingMessage();
-              cancelStreamRef.current = null;
-              flushDeltas();
-              if (sessId) {
-                trpcClient.session.streamFinalize.mutate({
-                  sessionId: sessId,
-                  messageId: assistantMsgId,
-                  fullContent: fullContent.trim(),
-                  stopReason: 'end_turn',
-                  ...(toolActivities.length > 0 && { toolActivities }),
-                }).catch(() => {/* best-effort */});
-              }
-            } else if (data.type === 'error') {
-              finishStreamingMessage();
-              setError(data.data);
-              cancelStreamRef.current = null;
-              flushDeltas();
-              if (sessId) {
-                trpcClient.session.streamAbort.mutate({
-                  sessionId: sessId, messageId: assistantMsgId, reason: data.data,
-                }).catch(() => {/* best-effort */});
-              }
-            }
+              },
+              flushDeltas,
+            };
+            handleStreamEvent(data as { type: string; [key: string]: unknown }, sessId, assistantMsgId, actions, cancelStreamRef);
           },
           onError: (err) => {
-            finishStreamingMessage();
-            setError(err instanceof Error ? err.message : String(err));
-            cancelStreamRef.current = null;
-            flushDeltas();
-            if (sessId) {
-              trpcClient.session.streamAbort.mutate({
-                sessionId: sessId, messageId: assistantMsgId,
-                reason: err instanceof Error ? err.message : String(err),
-              }).catch(() => {/* best-effort */});
-            }
+            handleStreamError(err, sessId, assistantMsgId, { finishStreamingMessage, setError, flushDeltas }, cancelStreamRef);
           },
         },
       );
       cancelStreamRef.current = () => subscription.unsubscribe();
     })();
-  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, addToolActivity, setCurrentTool, newSessionProjectId, orgId, selectedSessionId, setActiveSession, trpc]);
+  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, addToolActivity, setCurrentTool, appendToTextBlock, startContentBlock, startToolBlock, setToolResult, finishContentBlock, newSessionProjectId, orgId, selectedSessionId, setActiveSession, trpc]);
 
   // Plan mode (extracted to keep Shell under max-lines)
   const {

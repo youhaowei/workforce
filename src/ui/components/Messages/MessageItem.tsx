@@ -4,9 +4,10 @@
 
 import { useMemo } from 'react';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
-import type { ToolActivity } from '@/services/types';
+import type { ContentBlock, ToolActivity } from '@/services/types';
 import ToolOutput from '../Tools/ToolOutput';
 import ToolActivityTrace from './ToolActivityTrace';
+import ContentBlockRenderer from './ContentBlockRenderer';
 import Markdown from './Markdown';
 
 interface MessageItemProps {
@@ -19,6 +20,7 @@ interface MessageItemProps {
     toolCalls?: Array<{ id: string; name: string; args: unknown }>;
     toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>;
     toolActivities?: ToolActivity[];
+    contentBlocks?: ContentBlock[];
   };
 }
 
@@ -33,21 +35,45 @@ function getMessageBoxClass(isUser: boolean): string {
   return 'bg-card border rounded-2xl rounded-bl-md px-4 py-3 shadow-sm';
 }
 
+function formatTime(timestamp: number) {
+  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Renders the message body: user text, content blocks, or legacy markdown. */
+function MessageContent({ isUser, displayContent, contentBlocks, isStreaming }: {
+  isUser: boolean;
+  displayContent: string;
+  contentBlocks: ContentBlock[];
+  isStreaming: boolean;
+}) {
+  if (isUser) return <div className="whitespace-pre-wrap">{displayContent}</div>;
+  if (contentBlocks.length > 0) return <ContentBlockRenderer blocks={contentBlocks} isStreaming={isStreaming} />;
+  return (
+    <div className={isStreaming ? 'streaming-cursor' : ''}>
+      <Markdown content={displayContent} />
+    </div>
+  );
+}
+
 export default function MessageItem({ message }: MessageItemProps) {
   const streamingContent = useMessagesStore((s) => s.streamingContent);
+  const streamingBlocks = useMessagesStore((s) => s.streamingBlocks);
   const pendingToolActivities = useMessagesStore((s) => s.pendingToolActivities);
   const currentTool = useMessagesStore((s) => s.currentTool);
 
   const isUser = message.role === 'user';
   const showTrace = message.isStreaming || (message.toolActivities && message.toolActivities.length > 0);
 
-  const formatTime = (timestamp: number) =>
-    new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
   const displayContent = useMemo(
     () => (message.isStreaming ? streamingContent : message.content),
     [message.isStreaming, message.content, streamingContent],
   );
+
+  const contentBlocks = useMemo(
+    () => (message.isStreaming ? streamingBlocks : message.contentBlocks) ?? [],
+    [message.isStreaming, streamingBlocks, message.contentBlocks],
+  );
+  const hasContentBlocks = contentBlocks.length > 0;
 
   return (
     <div className={`py-4 px-6 ${isUser ? '' : 'bg-muted/30'}`}>
@@ -73,17 +99,17 @@ export default function MessageItem({ message }: MessageItemProps) {
             )}
           </div>
 
-          {/* Content */}
-          <div className={`text-sm leading-relaxed ${message.isStreaming ? 'streaming-cursor' : ''}`}>
-            {isUser ? (
-              <div className="whitespace-pre-wrap">{displayContent}</div>
-            ) : (
-              <Markdown content={displayContent} />
-            )}
+          <div className="text-sm leading-relaxed">
+            <MessageContent
+              isUser={isUser}
+              displayContent={displayContent}
+              contentBlocks={contentBlocks}
+              isStreaming={message.isStreaming}
+            />
           </div>
 
-          {/* Tool Calls */}
-          {message.toolCalls && message.toolCalls.length > 0 && (
+          {/* Legacy tool calls (only for messages without content blocks) */}
+          {!hasContentBlocks && message.toolCalls && message.toolCalls.length > 0 && (
             <div className="mt-3 space-y-2">
               {message.toolCalls.map((toolCall) => {
                 const toolResult = getToolResult(toolCall.id, message.toolResults);

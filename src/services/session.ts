@@ -17,6 +17,7 @@ import type {
   SessionSearchResult,
   Message,
   ToolActivity,
+  ContentBlock,
   WorkAgentConfig,
   LifecycleState,
   SessionLifecycle,
@@ -465,7 +466,7 @@ class SessionServiceImpl implements SessionService {
     await this.writeRecords(sessionId, deltas.map((d) => ({ t: 'message_delta' as const, id: messageId, delta: d.delta, seq: d.seq })));
   }
 
-  async recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string, toolActivities?: ToolActivity[]): Promise<void> {
+  async recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string, toolActivities?: ToolActivity[], contentBlocks?: ContentBlock[]): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
 
@@ -473,6 +474,7 @@ class SessionServiceImpl implements SessionService {
     const record: JournalMessageFinal = {
       t: 'message_final', id: messageId, role: 'assistant', content: fullContent, timestamp: now, stopReason,
       ...(toolActivities?.length ? { toolActivities } : {}),
+      ...(contentBlocks?.length ? { contentBlocks } : {}),
     };
 
     // Mutate in-memory state inside the lock to prevent data-race with consolidation
@@ -480,6 +482,7 @@ class SessionServiceImpl implements SessionService {
       session.messages.push({
         id: messageId, role: 'assistant', content: fullContent, timestamp: now,
         ...(toolActivities?.length ? { toolActivities } : {}),
+        ...(contentBlocks?.length ? { contentBlocks } : {}),
       });
       session.updatedAt = now;
       await appendRecord(this.sessionsDir, sessionId, record);

@@ -93,6 +93,8 @@ function processMessageRecord(ctx: ReplayContext, record: JournalRecord & { t: '
     agentConfig: record.agentConfig,
     toolCalls: record.toolCalls,
     toolResults: record.toolResults,
+    toolActivities: record.toolActivities,
+    contentBlocks: record.contentBlocks,
   });
   if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
 }
@@ -119,6 +121,8 @@ function processMessageFinal(ctx: ReplayContext, record: JournalRecord & { t: 'm
     timestamp: record.timestamp,
     toolCalls: record.toolCalls,
     toolResults: record.toolResults,
+    toolActivities: record.toolActivities,
+    contentBlocks: record.contentBlocks,
   });
   if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
 }
@@ -329,6 +333,8 @@ export async function consolidateSession(sessionsDir: string, session: Session):
         stopReason: 'consolidated',
         toolCalls: msg.toolCalls,
         toolResults: msg.toolResults,
+        toolActivities: msg.toolActivities,
+        contentBlocks: msg.contentBlocks,
       } satisfies JournalMessageFinal);
     } else {
       records.push({
@@ -340,6 +346,8 @@ export async function consolidateSession(sessionsDir: string, session: Session):
         agentConfig: msg.agentConfig,
         toolCalls: msg.toolCalls,
         toolResults: msg.toolResults,
+        toolActivities: msg.toolActivities,
+        contentBlocks: msg.contentBlocks,
       } satisfies JournalMessage);
     }
   }

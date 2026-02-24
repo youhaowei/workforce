@@ -154,7 +154,19 @@ export class AgentInstance {
     }
 
     if (event.type === 'tool_start') {
-      yield { type: 'tool_start', name: event.toolName, input: formatToolInput(event.toolName, event.input) };
+      yield { type: 'tool_start', name: event.toolName, input: formatToolInput(event.toolName, event.input), toolUseId: event.toolUseId, inputRaw: event.input };
+    }
+
+    if (event.type === 'tool_result') {
+      yield { type: 'tool_result', toolUseId: event.toolUseId, toolName: event.toolName, result: event.result, isError: event.isError };
+    }
+
+    if (event.type === 'content_block_start') {
+      yield { type: 'content_block_start', index: event.index, blockType: event.blockType, id: event.id, name: event.name };
+    }
+
+    if (event.type === 'content_block_stop') {
+      yield { type: 'content_block_stop', index: event.index };
     }
 
     if (event.type === 'status') {

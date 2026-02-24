@@ -8,7 +8,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import type { AgentConfig, ToolActivity, ToolCall, ToolResult } from '@/services/types';
+import type { AgentConfig, ContentBlock, ToolActivity, ToolCall, ToolResult } from '@/services/types';
 
 // =============================================================================
 // Types
@@ -24,12 +24,14 @@ export interface MessageState {
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
   toolActivities?: ToolActivity[];
+  contentBlocks?: ContentBlock[];
 }
 
 interface MessagesStore {
   messages: MessageState[];
   activeSessionId: string | null;
   streamingContent: string;
+  streamingBlocks: ContentBlock[];
   streamingMessageId: string | null;
   isStreaming: boolean;
   pendingToolActivities: ToolActivity[];
@@ -46,7 +48,14 @@ interface MessagesStore {
   addToolResult: (messageId: string, result: ToolResult) => void;
   clearMessages: () => void;
   setActiveSession: (sessionId: string | null) => void;
-  loadMessages: (messages: Array<{ id: string; role: string; content: string; timestamp: number; agentConfig?: AgentConfig; toolCalls?: ToolCall[]; toolResults?: ToolResult[]; toolActivities?: ToolActivity[] }>) => void;
+  loadMessages: (messages: Array<{ id: string; role: string; content: string; timestamp: number; agentConfig?: AgentConfig; toolCalls?: ToolCall[]; toolResults?: ToolResult[]; toolActivities?: ToolActivity[]; contentBlocks?: ContentBlock[] }>) => void;
+
+  // Block-level streaming actions
+  startContentBlock: (index: number, blockType: string, id?: string, name?: string) => void;
+  appendToTextBlock: (text: string) => void;
+  startToolBlock: (toolUseId: string, name: string, input: string) => void;
+  setToolResult: (toolUseId: string, result: unknown, isError: boolean) => void;
+  finishContentBlock: (index: number) => void;
 }
 
 // =============================================================================
@@ -66,6 +75,7 @@ export const useMessagesStore = create<MessagesStore>()(
     messages: [],
     activeSessionId: null,
     streamingContent: '',
+    streamingBlocks: [],
     streamingMessageId: null,
     isStreaming: false,
     pendingToolActivities: [],
@@ -98,6 +108,7 @@ export const useMessagesStore = create<MessagesStore>()(
         });
         state.streamingMessageId = id;
         state.streamingContent = '';
+        state.streamingBlocks = [];
         state.isStreaming = true;
         state.pendingToolActivities = [];
         state.currentTool = null;
@@ -123,10 +134,14 @@ export const useMessagesStore = create<MessagesStore>()(
             if (state.pendingToolActivities.length > 0) {
               msg.toolActivities = [...state.pendingToolActivities];
             }
+            if (state.streamingBlocks.length > 0) {
+              msg.contentBlocks = [...state.streamingBlocks];
+            }
           }
         }
         state.streamingMessageId = null;
         state.streamingContent = '';
+        state.streamingBlocks = [];
         state.isStreaming = false;
         state.pendingToolActivities = [];
         state.currentTool = null;
@@ -170,6 +185,7 @@ export const useMessagesStore = create<MessagesStore>()(
         state.messages = [];
         state.streamingMessageId = null;
         state.streamingContent = '';
+        state.streamingBlocks = [];
         state.isStreaming = false;
         state.pendingToolActivities = [];
         state.currentTool = null;
@@ -194,8 +210,64 @@ export const useMessagesStore = create<MessagesStore>()(
           toolCalls: m.toolCalls,
           toolResults: m.toolResults,
           toolActivities: m.toolActivities,
+          contentBlocks: m.contentBlocks,
         }));
       });
+    },
+
+    // ─── Block-level streaming actions ──────────────────────────────
+
+    startContentBlock: (_index, blockType, id, name) => {
+      set((state) => {
+        if (blockType === 'text') {
+          state.streamingBlocks.push({ type: 'text', text: '' });
+        } else if (blockType === 'tool_use' && id && name) {
+          state.streamingBlocks.push({ type: 'tool_use', id, name, input: '', status: 'running' });
+        } else if (blockType === 'thinking') {
+          state.streamingBlocks.push({ type: 'thinking', text: '' });
+        }
+      });
+    },
+
+    appendToTextBlock: (text) => {
+      set((state) => {
+        const last = state.streamingBlocks[state.streamingBlocks.length - 1];
+        if (last && last.type === 'text') {
+          last.text += text;
+        } else {
+          // No active text block — start one implicitly
+          state.streamingBlocks.push({ type: 'text', text });
+        }
+      });
+    },
+
+    startToolBlock: (toolUseId, name, input) => {
+      set((state) => {
+        state.streamingBlocks.push({
+          type: 'tool_use', id: toolUseId, name, input, status: 'running',
+        });
+      });
+    },
+
+    setToolResult: (toolUseId, result, isError) => {
+      set((state) => {
+        const block = state.streamingBlocks.find(
+          (b): b is ContentBlock & { type: 'tool_use' } => b.type === 'tool_use' && b.id === toolUseId,
+        );
+        if (block) {
+          block.status = isError ? 'error' : 'complete';
+          if (isError) {
+            block.error = typeof result === 'string' ? result : JSON.stringify(result);
+          } else {
+            block.result = result;
+          }
+        }
+      });
+    },
+
+    finishContentBlock: (_index) => {
+      // Block completion is implicit — the block is already in streamingBlocks.
+      // This hook exists for future use (e.g. marking thinking blocks complete).
     },
   })),
 );

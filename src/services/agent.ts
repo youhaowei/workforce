@@ -147,26 +147,39 @@ class AgentServiceImpl implements AgentService {
         break;
       default:
         this.emitBusEvent(event, bus, now, lastMessageId);
-        // Yield stream events for tool activity and system status (keeps SSE alive + feeds UI trace)
-        if (event.type === 'tool_start') {
-          if (event.toolName === 'EnterPlanMode') this.inPlanMode = true;
-          // Track last Write to .md file only while in plan mode
-          if (this.inPlanMode && event.toolName === 'Write') {
-            const filePath = String((event.input as Record<string, unknown>).file_path ?? '');
-            if (filePath.endsWith('.md')) this.lastPlanPath = filePath;
-          }
-          // Detect ExitPlanMode → yield plan_ready
-          if (event.toolName === 'ExitPlanMode' && this.lastPlanPath) {
-            this.inPlanMode = false;
-            yield { type: 'plan_ready', path: this.lastPlanPath };
-            this.lastPlanPath = null;
-          }
-          yield { type: 'tool_start', name: event.toolName, input: formatToolInput(event.toolName, event.input) };
-        } else if (event.type === 'status') {
-          yield { type: 'status', message: event.message };
-        }
+        yield* this.yieldStreamEvents(event);
         break;
     }
+  }
+
+  /** Yield stream events for tool activity, content blocks, and system status. */
+  private *yieldStreamEvents(event: AgentEvent): Generator<AgentStreamEvent> {
+    if (event.type === 'tool_start') {
+      yield* this.handleToolStartEvent(event);
+    } else if (event.type === 'tool_result') {
+      yield { type: 'tool_result', toolUseId: event.toolUseId, toolName: event.toolName, result: event.result, isError: event.isError };
+    } else if (event.type === 'content_block_start') {
+      yield { type: 'content_block_start', index: event.index, blockType: event.blockType, id: event.id, name: event.name };
+    } else if (event.type === 'content_block_stop') {
+      yield { type: 'content_block_stop', index: event.index };
+    } else if (event.type === 'status') {
+      yield { type: 'status', message: event.message };
+    }
+  }
+
+  /** Handle tool_start: plan mode tracking + yield tool_start event. */
+  private *handleToolStartEvent(event: AgentEvent & { type: 'tool_start' }): Generator<AgentStreamEvent> {
+    if (event.toolName === 'EnterPlanMode') this.inPlanMode = true;
+    if (this.inPlanMode && event.toolName === 'Write') {
+      const filePath = String((event.input as Record<string, unknown>).file_path ?? '');
+      if (filePath.endsWith('.md')) this.lastPlanPath = filePath;
+    }
+    if (event.toolName === 'ExitPlanMode' && this.lastPlanPath) {
+      this.inPlanMode = false;
+      yield { type: 'plan_ready', path: this.lastPlanPath };
+      this.lastPlanPath = null;
+    }
+    yield { type: 'tool_start', name: event.toolName, input: formatToolInput(event.toolName, event.input), toolUseId: event.toolUseId, inputRaw: event.input };
   }
 
   // eslint-disable-next-line complexity -- Flat dispatch to domain handlers; each case is a trivial delegation.
@@ -182,6 +195,7 @@ class AgentServiceImpl implements AgentService {
       case 'tool_start':
       case 'tool_progress':
       case 'tool_summary':
+      case 'tool_result':
         this.emitToolEvent(event, bus, now);
         break;
       case 'session_init':
@@ -197,7 +211,7 @@ class AgentServiceImpl implements AgentService {
       case 'task_notification':
         this.emitHookOrTaskEvent(event, bus, now);
         break;
-      // text_complete, turn_complete, tool_result — intentionally unhandled
+      // text_complete, turn_complete — intentionally unhandled
     }
   }
 
@@ -239,7 +253,7 @@ class AgentServiceImpl implements AgentService {
   }
 
   private emitToolEvent(
-    event: Extract<AgentEvent, { type: 'tool_start' | 'tool_progress' | 'tool_summary' }>,
+    event: Extract<AgentEvent, { type: 'tool_start' | 'tool_progress' | 'tool_summary' | 'tool_result' }>,
     bus: EventBus,
     now: number,
   ) {
@@ -253,6 +267,9 @@ class AgentServiceImpl implements AgentService {
         break;
       case 'tool_summary':
         bus.emit({ type: 'ToolUseSummary', summary: event.summary, precedingToolUseIds: event.precedingToolUseIds ?? [], timestamp: now });
+        break;
+      case 'tool_result':
+        // tool_result is yielded as a stream event in handleEvent; no separate bus event needed
         break;
     }
   }
