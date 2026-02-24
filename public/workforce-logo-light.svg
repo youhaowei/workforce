@@ -5,12 +5,12 @@
       <rect width="1024" height="1024" rx="228" ry="228"/>
     </clipPath>
     <radialGradient id="bgGrad" cx="50%" cy="42%" r="65%">
-      <stop offset="0%" stop-color="#1e293b"/>
-      <stop offset="100%" stop-color="#0f172a"/>
+      <stop offset="0%" stop-color="#f1f5f9"/>
+      <stop offset="100%" stop-color="#e2e8f0"/>
     </radialGradient>
     <radialGradient id="centerGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#e2e8f0" stop-opacity="0.22"/>
-      <stop offset="100%" stop-color="#e2e8f0" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#1e293b" stop-opacity="0"/>
     </radialGradient>
     <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur in="SourceGraphic" stdDeviation="14"/>
@@ -28,7 +28,7 @@
     <g transform="translate(512,512) scale(1.4) translate(-512,-512)">
 
       <!-- Connection lines: center to each outer hex -->
-      <g stroke="#94a3b8" stroke-width="4" opacity="0.5">
+      <g stroke="#64748b" stroke-width="4" opacity="0.35">
         <line x1="512" y1="512" x2="512" y2="312"/>
         <line x1="512" y1="512" x2="685" y2="412"/>
         <line x1="512" y1="512" x2="685" y2="612"/>
@@ -38,7 +38,7 @@
       </g>
 
       <!-- Ring connections: outer hex to outer hex -->
-      <g stroke="#94a3b8" stroke-width="2.5" opacity="0.25">
+      <g stroke="#64748b" stroke-width="2.5" opacity="0.18">
         <line x1="512" y1="312" x2="685" y2="412"/>
         <line x1="685" y1="412" x2="685" y2="612"/>
         <line x1="685" y1="612" x2="512" y2="712"/>
@@ -48,50 +48,50 @@
       </g>
 
       <!-- Glow layer behind center hex -->
-      <g filter="url(#softGlow)" opacity="0.6">
+      <g filter="url(#softGlow)" opacity="0.4">
         <polygon points="512,407 603,459.5 603,564.5 512,617 421,564.5 421,459.5"
-                 fill="#e2e8f0" fill-opacity="0.2" stroke="#e2e8f0" stroke-width="8"/>
+                 fill="#1e293b" fill-opacity="0.12" stroke="#334155" stroke-width="8"/>
       </g>
 
       <!-- 6 outer hexagons (pointy-top, radius 78) -->
       <!-- Top: (512, 312) -->
       <polygon points="512,234 579.5,273 579.5,351 512,390 444.5,351 444.5,273"
-               fill="#94a3b8" fill-opacity="0.25" stroke="#94a3b8" stroke-width="4"/>
+               fill="#94a3b8" fill-opacity="0.2" stroke="#64748b" stroke-width="4"/>
       <!-- Top-right: (685, 412) -->
       <polygon points="685,334 752.5,373 752.5,451 685,490 617.5,451 617.5,373"
-               fill="#94a3b8" fill-opacity="0.25" stroke="#94a3b8" stroke-width="4"/>
+               fill="#94a3b8" fill-opacity="0.2" stroke="#64748b" stroke-width="4"/>
       <!-- Bottom-right: (685, 612) -->
       <polygon points="685,534 752.5,573 752.5,651 685,690 617.5,651 617.5,573"
-               fill="#94a3b8" fill-opacity="0.25" stroke="#94a3b8" stroke-width="4"/>
+               fill="#94a3b8" fill-opacity="0.2" stroke="#64748b" stroke-width="4"/>
       <!-- Bottom: (512, 712) -->
       <polygon points="512,634 579.5,673 579.5,751 512,790 444.5,751 444.5,673"
-               fill="#94a3b8" fill-opacity="0.25" stroke="#94a3b8" stroke-width="4"/>
+               fill="#94a3b8" fill-opacity="0.2" stroke="#64748b" stroke-width="4"/>
       <!-- Bottom-left: (339, 612) -->
       <polygon points="339,534 406.5,573 406.5,651 339,690 271.5,651 271.5,573"
-               fill="#94a3b8" fill-opacity="0.25" stroke="#94a3b8" stroke-width="4"/>
+               fill="#94a3b8" fill-opacity="0.2" stroke="#64748b" stroke-width="4"/>
       <!-- Top-left: (339, 412) -->
       <polygon points="339,334 406.5,373 406.5,451 339,490 271.5,451 271.5,373"
-               fill="#94a3b8" fill-opacity="0.25" stroke="#94a3b8" stroke-width="4"/>
+               fill="#94a3b8" fill-opacity="0.2" stroke="#64748b" stroke-width="4"/>
 
       <!-- Center hexagon — the orchestrator (radius 105) -->
       <polygon points="512,407 602.9,459.5 602.9,564.5 512,617 421.1,564.5 421.1,459.5"
-               fill="#e2e8f0" fill-opacity="0.15" stroke="#e2e8f0" stroke-width="5"/>
+               fill="#334155" fill-opacity="0.1" stroke="#334155" stroke-width="5"/>
 
-      <!-- Inner hex — the core (radius 42) — bright focal point -->
+      <!-- Inner hex — the core (radius 42) — dark focal point -->
       <polygon points="512,470 548.4,491 548.4,533 512,554 477.4,533 477.4,491"
-               fill="#e2e8f0" fill-opacity="0.8" stroke="#e2e8f0" stroke-width="2"/>
+               fill="#1e293b" fill-opacity="0.75" stroke="#334155" stroke-width="2"/>
 
       <!-- Activity dots on outer hex centers -->
-      <circle cx="512" cy="312" r="10" fill="#e2e8f0" opacity="0.9"/>
-      <circle cx="685" cy="412" r="10" fill="#e2e8f0" opacity="0.65"/>
-      <circle cx="685" cy="612" r="10" fill="#e2e8f0" opacity="0.75"/>
-      <circle cx="512" cy="712" r="10" fill="#e2e8f0" opacity="0.55"/>
-      <circle cx="339" cy="612" r="10" fill="#e2e8f0" opacity="0.85"/>
-      <circle cx="339" cy="412" r="10" fill="#e2e8f0" opacity="0.65"/>
+      <circle cx="512" cy="312" r="10" fill="#334155" opacity="0.8"/>
+      <circle cx="685" cy="412" r="10" fill="#334155" opacity="0.55"/>
+      <circle cx="685" cy="612" r="10" fill="#334155" opacity="0.65"/>
+      <circle cx="512" cy="712" r="10" fill="#334155" opacity="0.45"/>
+      <circle cx="339" cy="612" r="10" fill="#334155" opacity="0.75"/>
+      <circle cx="339" cy="412" r="10" fill="#334155" opacity="0.55"/>
 
       <!-- Pulse rings on "active" agents -->
-      <circle cx="512" cy="312" r="18" fill="none" stroke="#e2e8f0" stroke-width="2" opacity="0.35"/>
-      <circle cx="339" cy="612" r="18" fill="none" stroke="#e2e8f0" stroke-width="2" opacity="0.3"/>
+      <circle cx="512" cy="312" r="18" fill="none" stroke="#334155" stroke-width="2" opacity="0.3"/>
+      <circle cx="339" cy="612" r="18" fill="none" stroke="#334155" stroke-width="2" opacity="0.25"/>
     </g>
   </g>
 </svg>
