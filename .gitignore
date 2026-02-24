@@ -72,6 +72,7 @@ Desktop.ini
 
 # Claude Code (local-only files)
 .claude/settings.local.json
+.claude/worktrees/
 
 # Misc
 *.pem
