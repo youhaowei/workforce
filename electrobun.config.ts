@@ -12,6 +12,6 @@ export default {
       external: ['electrobun/bun'],
     },
     copy: { 'dist': 'dist' },
-    mac: { codesign: false, notarize: false },
+    mac: { codesign: false, notarize: false, icons: 'icon.iconset' },
   },
 };
