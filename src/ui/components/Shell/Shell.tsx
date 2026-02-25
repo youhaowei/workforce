@@ -41,7 +41,7 @@ import {
 
 export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'projects' | 'templates' | 'workflows' | 'orgs' | 'audit' | 'detail'; export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
 
-function ShellContent() {
+export default function Shell() {
   const [currentView, setCurrentView] = useState<ViewType>(getInitialView);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -508,8 +508,4 @@ function ShellContent() {
       <ConfirmDialog />
     </TooltipProvider>
   );
-}
-
-export default function Shell() {
-  return <ShellContent />;
 }

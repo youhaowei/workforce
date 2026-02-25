@@ -1,9 +1,7 @@
 /**
  * SessionItem - Individual session row in the sidebar list.
  *
- * Layout: [state-dot + type-icon] Title          time-ago
- *                                 Preview text...
- *                                 3 msgs · forked   [delete]
+ * Layout: [state-dot + type-icon] Title   time [delete]
  *
  * State is conveyed by a small colored dot (green=active, amber=paused,
  * red=failed, etc.) instead of text badges for faster visual scanning.
@@ -11,7 +9,6 @@
 
 import { useMemo, type MouseEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Trash2, Bot, MessageSquare } from 'lucide-react';
 import type { LifecycleState, SessionLifecycle, SessionSummary, SessionType } from '@/services/types';
 import { stripMarkdown } from '@/ui/formatters';
@@ -67,7 +64,7 @@ export function SessionItem({
     <div
       role="button"
       tabIndex={0}
-      className={`group px-3 py-2.5 cursor-pointer border-b transition-colors ${
+      className={`group px-3 py-2 cursor-pointer border-b transition-colors overflow-hidden ${
         isActive
           ? 'bg-accent border-l-2 border-l-primary'
           : 'hover:bg-muted/50'
@@ -81,10 +78,9 @@ export function SessionItem({
         }
       }}
     >
-      {/* Row 1: icon + title + time */}
-      <div className="flex items-center gap-1.5 mb-0.5">
+      <div className="flex items-start gap-1.5">
         {/* Type icon with state dot overlay */}
-        <div className="relative shrink-0">
+        <div className="relative shrink-0 mt-0.5">
           {sessionType === 'workagent' ? (
             <Bot className="h-3.5 w-3.5 text-muted-foreground" />
           ) : (
@@ -97,34 +93,13 @@ export function SessionItem({
             />
           )}
         </div>
-        <span className={`text-sm font-medium truncate flex-1 min-w-0 ${isActive ? 'text-primary' : ''}`}>
+        <span className={`text-sm font-medium flex-1 min-w-0 break-words line-clamp-2 ${isActive ? 'text-primary' : ''}`}>
           {title}
         </span>
         <span className="text-[11px] text-muted-foreground shrink-0 tabular-nums">
           {timeAgo}
         </span>
-      </div>
-
-      {/* Row 2: preview — up to 3 lines in sidebar */}
-      {session.lastMessagePreview && (
-        <p className="text-xs text-muted-foreground line-clamp-3 mb-1 pl-5">
-          {stripMarkdown(session.lastMessagePreview)}
-        </p>
-      )}
-
-      {/* Row 3: meta + hover actions */}
-      <div className="flex items-center justify-between pl-5">
-        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
-          {session.messageCount > 0 && (
-            <span>{session.messageCount} msg{session.messageCount !== 1 ? 's' : ''}</span>
-          )}
-          {session.parentId && (
-            <Badge variant="secondary" className="text-[10px] h-3.5 px-1 leading-none">fork</Badge>
-          )}
-        </div>
-
-        {/* Actions — visible on hover, focus, or when active */}
-        <div className={`flex gap-0.5 shrink-0 transition-opacity ${
+        <div className={`shrink-0 transition-opacity ${
           isActive
             ? 'opacity-100'
             : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
