@@ -34,22 +34,11 @@ describe('SessionItem', () => {
     expect(screen.getByText('Untitled')).toBeInTheDocument();
   });
 
-  it('shows message count', () => {
+  it('renders session title only (no preview)', () => {
     render(<SessionItem session={baseSession} />);
-    expect(screen.getByText('2 msgs')).toBeInTheDocument();
-  });
-
-  it('shows preview of last message', () => {
-    render(<SessionItem session={baseSession} />);
-    expect(screen.getByText('Hi! How can I help?')).toBeInTheDocument();
-  });
-
-  it('hides message count when zero', () => {
-    render(
-      <SessionItem session={{ ...baseSession, messageCount: 0, lastMessagePreview: undefined }} />,
-    );
-    // No "0 msgs" or "No messages" text — count is hidden when zero
-    expect(screen.queryByText(/msg/)).not.toBeInTheDocument();
+    expect(screen.getByText('Test Session')).toBeInTheDocument();
+    // Verify that preview is not shown
+    expect(screen.queryByText('Hi! How can I help?')).not.toBeInTheDocument();
   });
 
   it('calls onSelect when clicked', () => {

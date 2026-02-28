@@ -15,6 +15,7 @@ import { PlatformProvider, type PlatformActions } from './context/PlatformProvid
 import { HotkeyProvider } from './hotkeys/HotkeyProvider';
 import { AppContextMenu } from './components/Shell/AppContextMenu';
 import { useEventBusInit } from './hooks/useEventBusInit';
+import { useServerEventInvalidation } from './hooks/useServerEventInvalidation';
 import { SetupGate } from './components/SetupGate';
 import Shell from './components/Shell/Shell';
 import { API_PORT } from '@/bridge/config';
@@ -28,6 +29,7 @@ const platformActions: PlatformActions = {
 
 function AppInner() {
   useEventBusInit();
+  useServerEventInvalidation();
   return (
     <SetupGate>
       <Shell />
