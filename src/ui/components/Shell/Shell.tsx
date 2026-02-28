@@ -10,6 +10,8 @@ import { PlanPanel } from '../Plan';
 import { SessionsPanel } from '../Sessions';
 import { ProjectsPanel, CreateProjectDialog } from '../Project';
 import { ConfirmDialog } from './ConfirmDialog';
+import { AgentQuestionDialog } from './AgentQuestionDialog';
+import { useAgentQuestionStore } from '@/ui/stores/useAgentQuestionStore';
 import { useHotkey } from '@/ui/hotkeys';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import { useSdkStore } from '@/ui/stores/useSdkStore';
@@ -18,12 +20,13 @@ import { useTRPC } from '@/bridge/react';
 import { trpc as trpcClient } from '@/bridge/trpc';
 import { queryClient } from '@/bridge/query-client';
 import { getEventBus } from '@/shared/event-bus';
-import type { AgentConfig, Project, SessionSummary } from '@/services/types';
-import { THINKING_TOKENS } from '../Messages/agentConfig';
+import type { AgentConfig, AgentQuestion, ContentBlock, Project, SessionSummary } from '@/services/types';
+import { THINKING_TOKENS, DEFAULT_AGENT_CONFIG } from '../Messages/agentConfig';
 import AppSidebar from './AppSidebar';
 import { MainViewContent } from './MainViewContent';
 import { MainContentColumn } from './MainContentColumn';
 import { useActiveSessionTitle } from './useActiveSessionTitle';
+import { useForkActions } from './useForkActions';
 import { usePlanMode } from '@/ui/hooks/usePlanMode';
 import {
   SIDEBAR_STORAGE_KEY,
@@ -57,11 +60,9 @@ export default function Shell() {
   const [serverConnected, setServerConnected] = useState(true);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(getInitialSidebarMode);
   const cancelStreamRef = useRef<(() => void) | null>(null);
-  const intendedSessionRef = useRef<string | null>(null);
   const activeSessionRef = useRef<string | null>(selectedSessionId);
-  const streamSeqRef = useRef(0);
-  const deltaBufferRef = useRef<Array<{ delta: string; seq: number }>>([]);
-  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Tracks which session was last loaded by the React Query restore hook. */
+  const lastLoadedSessionRef = useRef<string | null>(null);
   /** Stable ref for plan-ready handler (set after usePlanMode, read inside handleSubmit closure). */
   const planReadyRef = useRef<(path: string, sessId: string | null) => void>(() => {});
 
@@ -89,10 +90,15 @@ export default function Shell() {
   const addToolActivity = useMessagesStore((s) => s.addToolActivity);
   const setCurrentTool = useMessagesStore((s) => s.setCurrentTool);
   const appendToTextBlock = useMessagesStore((s) => s.appendToTextBlock);
+  const appendToThinkingBlock = useMessagesStore((s) => s.appendToThinkingBlock);
   const startContentBlock = useMessagesStore((s) => s.startContentBlock);
   const startToolBlock = useMessagesStore((s) => s.startToolBlock);
   const setToolResult = useMessagesStore((s) => s.setToolResult);
+  const completeRunningTools = useMessagesStore((s) => s.completeRunningTools);
+  const completeNonTaskTools = useMessagesStore((s) => s.completeNonTaskTools);
   const finishContentBlock = useMessagesStore((s) => s.finishContentBlock);
+  const resumeStreaming = useMessagesStore((s) => s.resumeStreaming);
+  const applySnapshot = useMessagesStore((s) => s.applySnapshot);
   const cumulativeUsage = useSdkStore((s) => s.cumulativeUsage);
   const currentQueryStats = useSdkStore((s) => s.currentQueryStats);
 
@@ -110,7 +116,7 @@ export default function Shell() {
   const navigateToDetail = useCallback((sessionId: string) => { setSelectedAgentId(sessionId); setCurrentView('detail'); }, []);
   const navigateBack = useCallback(() => { setSelectedAgentId(null); setCurrentView('board'); }, []);
 
-  /** Cancel any in-flight agent stream and flush buffered deltas. */
+  /** Cancel any in-flight agent stream. */
   const cancelActiveStream = useCallback(() => {
     trpcClient.agent.cancel.mutate().catch(() => {/* best-effort */});
     if (cancelStreamRef.current) {
@@ -118,21 +124,13 @@ export default function Shell() {
       cancelStreamRef.current = null;
     }
     setCurrentTool(null);
-    const sessId = activeSessionRef.current;
-    const msgId = useMessagesStore.getState().streamingMessageId;
-    if (deltaBufferRef.current.length > 0 && sessId && msgId) {
-      const deltas = deltaBufferRef.current;
-      trpcClient.session.streamDeltaBatch.mutate({ sessionId: sessId, messageId: msgId, deltas }).catch(() => {});
-    }
-    deltaBufferRef.current = [];
-    if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
-    streamSeqRef.current = 0;
   }, [setCurrentTool]);
 
   const handleCancel = useCallback(() => {
     const sessId = activeSessionRef.current;
     const msgId = useMessagesStore.getState().streamingMessageId;
     cancelActiveStream();
+    useAgentQuestionStore.getState().clear();
     if (sessId && msgId) {
       trpcClient.session.streamAbort.mutate({
         sessionId: sessId, messageId: msgId, reason: 'user_cancelled',
@@ -170,27 +168,22 @@ export default function Shell() {
   }, []);
 
   const handleSelectSession = useCallback((sessionId: string) => {
-    if (sessionId === activeSessionRef.current || sessionId === intendedSessionRef.current) return;
+    const hasMessages = useMessagesStore.getState().messages.length > 0;
+    if (sessionId === activeSessionRef.current && hasMessages) return;
+
     cancelActiveStream();
     finishStreamingMessage();
-    intendedSessionRef.current = sessionId;
     setNewSessionProjectId(null);
     clearMessages();
     setActiveSession(sessionId);
     setSelectedSessionId(sessionId);
     activeSessionRef.current = sessionId;
+    lastLoadedSessionRef.current = null; // allow React Query to reload
     setCurrentView('sessions');
-    trpcClient.session.messages.query({ sessionId }).then((msgs) => {
-      if (intendedSessionRef.current === sessionId && msgs.length > 0) {
-        loadMessages(msgs);
-      }
-    }).catch(() => {})
-      .finally(() => {
-        if (intendedSessionRef.current === sessionId) {
-          intendedSessionRef.current = null;
-        }
-      });
-  }, [cancelActiveStream, finishStreamingMessage, clearMessages, loadMessages, setActiveSession]);
+    // Invalidate the messages query so React Query refetches for the new session.
+    // The useQuery hook in the restore block handles the actual load into Zustand.
+    queryClient.invalidateQueries({ queryKey: trpc.session.messages.queryKey({ sessionId }) });
+  }, [cancelActiveStream, finishStreamingMessage, clearMessages, setActiveSession, trpc]);
 
   const handleDeleteSession = useCallback((sessionId: string) => {
     if (sessionId !== activeSessionRef.current) return;
@@ -200,7 +193,7 @@ export default function Shell() {
     setSelectedSessionId(null);
     setNewSessionProjectId(null);
     activeSessionRef.current = null;
-    intendedSessionRef.current = null;
+    lastLoadedSessionRef.current = null;
     localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
   }, [cancelActiveStream, clearMessages, setActiveSession]);
 
@@ -211,11 +204,17 @@ export default function Shell() {
     setSelectedSessionId(null);
     setNewSessionProjectId(currentView === 'projects' ? selectedProjectId : null);
     activeSessionRef.current = null;
-    intendedSessionRef.current = null;
+    lastLoadedSessionRef.current = null;
     setCurrentView('sessions');
     setSessionsPanelCollapsed(false);
     localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, 'false');
   }, [cancelActiveStream, clearMessages, setActiveSession, currentView, selectedProjectId]);
+
+  // ─── Forks (query + rewind/fork handlers) ──────────────────────────
+  const { forksMap, handleRewind, handleFork } = useForkActions({
+    selectedSessionId, activeSessionRef,
+    handleSelectSession, setError, currentView,
+  });
 
   useHotkey('toggleHistory', toggleSessionsPanel);
   useHotkey('toggleTasks', () => setTaskPanelOpen((prev) => !prev));
@@ -229,32 +228,107 @@ export default function Shell() {
     selectedSessionId ? localStorage.setItem(SELECTED_SESSION_STORAGE_KEY, selectedSessionId) : localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
   }, [selectedSessionId]);
 
-  const hasRestoredSession = useRef(false);
+  // Restore session messages via React Query — handles retry, dedup, and caching
+  // automatically. Only enabled when we have a selected session in sessions view
+  // and no messages are loaded yet (avoids clobbering in-flight streaming).
+  const restoreEnabled = !!selectedSessionId && currentView === 'sessions' && !isStreaming;
+  const { data: restoredMessages, error: restoreError } = useQuery(
+    trpc.session.messages.queryOptions(
+      { sessionId: selectedSessionId! },
+      {
+        enabled: restoreEnabled,
+        staleTime: Infinity,
+        retry: 2,
+        retryDelay: 1000,
+      },
+    ),
+  );
+
+  // Sync restored messages into the Zustand store
   useEffect(() => {
-    if (!serverConnected || hasRestoredSession.current) return;
-    if (!selectedSessionId || currentView !== 'sessions') return;
-    hasRestoredSession.current = true;
-    intendedSessionRef.current = selectedSessionId;
-    clearMessages();
+    if (!selectedSessionId || !restoredMessages) return;
+    // Don't overwrite if already loaded or if streaming is active
+    if (lastLoadedSessionRef.current === selectedSessionId && useMessagesStore.getState().messages.length > 0) return;
+    lastLoadedSessionRef.current = selectedSessionId;
     setActiveSession(selectedSessionId);
-    trpcClient.session.messages.query({ sessionId: selectedSessionId }).then((msgs) => {
-      if (intendedSessionRef.current === selectedSessionId && msgs.length > 0) {
-        loadMessages(msgs);
+    activeSessionRef.current = selectedSessionId;
+    loadMessages(restoredMessages);
+  }, [selectedSessionId, restoredMessages, setActiveSession, loadMessages]);
+
+  // Reconnect to an active agent stream after HMR / page reload.
+  // Runs after messages are restored — checks if the server is still streaming
+  // and, if so, subscribes to the in-flight stream.
+  useEffect(() => {
+    if (!selectedSessionId || isStreaming) return;
+    // Only attempt reconnection after messages have been restored for this session
+    if (!restoredMessages) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const state = await trpcClient.agent.activeStream.query();
+        if (cancelled || !state.running) return;
+        // Only reconnect if the active stream matches our selected session
+        if (state.sessionId && state.sessionId !== selectedSessionId) return;
+
+        const messageId = state.messageId ?? `resume_${Date.now()}`;
+        resumeStreaming(messageId);
+
+        const subscription = trpcClient.agent.resumeStream.subscribe(undefined, {
+          onData: (data) => {
+            if (cancelled) return;
+            const event = data as { type: string; [key: string]: unknown };
+            if (event.type === 'snapshot') {
+              applySnapshot(
+                event.blocks as ContentBlock[],
+                event.fullText as string,
+              );
+              // Restore pending question from snapshot (reconnect scenario)
+              const pq = event.pendingQuestion as { requestId: string; questions: AgentQuestion[] } | undefined;
+              if (pq) {
+                useAgentQuestionStore.getState().setPending({ requestId: pq.requestId, sessionId: selectedSessionId, questions: pq.questions });
+              }
+            } else {
+              const actions = {
+                appendToStreamingMessage, appendToTextBlock, appendToThinkingBlock,
+                addToolActivity, setCurrentTool,
+                startToolBlock, setToolResult, completeRunningTools, completeNonTaskTools,
+                startContentBlock, finishContentBlock,
+                finishStreamingMessage, setError,
+                planReady: (path: string, sid: string | null) => planReadyRef.current(path, sid),
+                agentQuestion: (requestId: string, questions: AgentQuestion[]) => {
+                  useAgentQuestionStore.getState().setPending({ requestId, sessionId: selectedSessionId, questions });
+                },
+              };
+              handleStreamEvent(event, selectedSessionId, messageId, actions, cancelStreamRef);
+            }
+          },
+          onError: (err) => {
+            handleStreamError(err, selectedSessionId, messageId, { finishStreamingMessage, setError, completeRunningTools }, cancelStreamRef);
+          },
+        });
+        cancelStreamRef.current = () => subscription.unsubscribe();
+      } catch {
+        // Server unreachable or no active stream — not an error
       }
-    }).catch(() => {
-      setSelectedSessionId(null);
-      activeSessionRef.current = null;
-      setActiveSession(null);
-      clearMessages();
-      setCurrentView('home');
-      localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
-    }).finally(() => {
-      if (intendedSessionRef.current === selectedSessionId) {
-        intendedSessionRef.current = null;
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fires once when server is first available
-  }, [serverConnected]);
+    })();
+
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- reconnect when session messages are restored
+  }, [selectedSessionId, restoredMessages]);
+
+  // On permanent failure (all retries exhausted), clear selection gracefully
+  useEffect(() => {
+    if (!restoreError) return;
+    console.error('[Shell] Session restore failed after retries:', restoreError);
+    setSelectedSessionId(null);
+    activeSessionRef.current = null;
+    lastLoadedSessionRef.current = null;
+    setActiveSession(null);
+    clearMessages();
+    setCurrentView('home');
+    localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
+  }, [restoreError, setActiveSession, clearMessages]);
 
   useEffect(() => {
     const id = setInterval(async () => { setServerConnected(await checkServerConnection()); }, 5000);
@@ -268,8 +342,6 @@ export default function Shell() {
   const handleSubmit = useCallback(({ content, agentConfig }: { content: string; agentConfig: AgentConfig }) => {
     const userMsgId = addUserMessage(content, agentConfig);
     const assistantMsgId = startAssistantMessage();
-    streamSeqRef.current = 0;
-    deltaBufferRef.current = [];
 
     const maxThinkingTokens = THINKING_TOKENS[agentConfig.thinkingLevel];
 
@@ -305,64 +377,57 @@ export default function Shell() {
         }
       }
 
-      const flushDeltas = () => {
-        if (deltaBufferRef.current.length === 0) return;
-        const deltas = deltaBufferRef.current;
-        deltaBufferRef.current = [];
-        if (flushTimerRef.current) { clearTimeout(flushTimerRef.current); flushTimerRef.current = null; }
-        if (sessId) {
-          trpcClient.session.streamDeltaBatch.mutate({
-            sessionId: sessId, messageId: assistantMsgId, deltas,
-          }).catch(() => {/* best-effort */});
-        }
-      };
-
+      // Persist user message (server is source of truth for the assistant message)
       if (sessId) {
         trpcClient.session.addMessage.mutate({
           sessionId: sessId,
           message: { id: userMsgId, role: 'user' as const, content, timestamp: Date.now(), agentConfig },
         }).catch(() => {/* best-effort */});
-        trpcClient.session.streamStart.mutate({
-          sessionId: sessId, messageId: assistantMsgId,
-        }).catch(() => {/* best-effort */});
       }
 
-      const subscription = trpcClient.agent.query.subscribe(
+      const subscription = trpcClient.agent.run.subscribe(
         {
           prompt: content,
           model: agentConfig.model,
           ...(maxThinkingTokens !== undefined ? { maxThinkingTokens } : {}),
           permissionMode: agentConfig.permissionMode,
+          sessionId: sessId ?? undefined,
+          messageId: assistantMsgId,
         },
         {
           onData: (data) => {
             const actions = {
-              appendToStreamingMessage, appendToTextBlock,
+              appendToStreamingMessage, appendToTextBlock, appendToThinkingBlock,
               addToolActivity, setCurrentTool,
-              startToolBlock, setToolResult,
+              startToolBlock, setToolResult, completeRunningTools, completeNonTaskTools,
               startContentBlock, finishContentBlock,
               finishStreamingMessage, setError,
               planReady: (path: string, sid: string | null) => planReadyRef.current(path, sid),
-              onDelta: (delta: string) => {
-                if (sessId) {
-                  deltaBufferRef.current.push({ delta, seq: streamSeqRef.current++ });
-                  if (!flushTimerRef.current) {
-                    flushTimerRef.current = setTimeout(flushDeltas, 150);
-                  }
-                }
+              agentQuestion: (requestId: string, questions: AgentQuestion[]) => {
+                useAgentQuestionStore.getState().setPending({ requestId, sessionId: sessId, questions });
               },
-              flushDeltas,
             };
             handleStreamEvent(data as { type: string; [key: string]: unknown }, sessId, assistantMsgId, actions, cancelStreamRef);
           },
           onError: (err) => {
-            handleStreamError(err, sessId, assistantMsgId, { finishStreamingMessage, setError, flushDeltas }, cancelStreamRef);
+            handleStreamError(err, sessId, assistantMsgId, { finishStreamingMessage, setError, completeRunningTools }, cancelStreamRef);
           },
         },
       );
       cancelStreamRef.current = () => subscription.unsubscribe();
     })();
-  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, addToolActivity, setCurrentTool, appendToTextBlock, startContentBlock, startToolBlock, setToolResult, finishContentBlock, newSessionProjectId, orgId, selectedSessionId, setActiveSession, trpc]);
+  }, [addUserMessage, startAssistantMessage, appendToStreamingMessage, finishStreamingMessage, addToolActivity, setCurrentTool, appendToTextBlock, appendToThinkingBlock, startContentBlock, startToolBlock, setToolResult, completeRunningTools, completeNonTaskTools, finishContentBlock, newSessionProjectId, orgId, selectedSessionId, setActiveSession, trpc]);
+
+  // Register sendMessage for cold-replay question continuation
+  useEffect(() => {
+    useAgentQuestionStore.getState().setSendMessage((content: string) => {
+      // Derive agent config from the last user message or use defaults
+      const msgs = useMessagesStore.getState().messages;
+      const lastUserMsg = [...msgs].reverse().find((m) => m.role === 'user');
+      const agentConfig = lastUserMsg?.agentConfig ?? DEFAULT_AGENT_CONFIG;
+      handleSubmit({ content, agentConfig });
+    });
+  }, [handleSubmit]);
 
   // Plan mode (extracted to keep Shell under max-lines)
   const {
@@ -460,6 +525,7 @@ export default function Shell() {
             boardStatusFilter={boardStatusFilter}
             messages={messages}
             isStreaming={isStreaming}
+            forksMap={forksMap}
             onSelectAgent={navigateToDetail}
             onBackFromDetail={navigateBack}
             onStartChat={handleCreateSession}
@@ -470,6 +536,8 @@ export default function Shell() {
             onCreateProjectForSession={() => { setCreateProjectDialogSource('new-session'); setCreateProjectDialogOpen(true); }}
             onSubmitMessage={handleSubmit}
             onCancelStream={handleCancel}
+            onRewind={handleRewind}
+            onFork={handleFork}
           />
         </MainContentColumn>
 
@@ -506,6 +574,7 @@ export default function Shell() {
         onCreated={handleProjectCreated}
       />
       <ConfirmDialog />
+      <AgentQuestionDialog />
     </TooltipProvider>
   );
 }

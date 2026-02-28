@@ -1,7 +1,6 @@
-import type { ContentBlock, Session, SessionSummary, ToolActivity } from '@/services/types';
+import type { Session, SessionSummary, AgentQuestion } from '@/services/types';
 import type { SidebarMode, ViewType } from './Shell';
 import { SERVER_URL } from '@/bridge/config';
-import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import { trpc as trpcClient } from '@/bridge/trpc';
 
 export const SIDEBAR_STORAGE_KEY = 'workforce-sidebar-mode';
@@ -47,13 +46,15 @@ export function handleStreamError(
   err: unknown,
   sessId: string | null,
   assistantMsgId: string,
-  actions: Pick<StreamEventActions, 'finishStreamingMessage' | 'setError' | 'flushDeltas'>,
+  actions: Pick<StreamEventActions, 'finishStreamingMessage' | 'setError' | 'completeRunningTools'>,
   cancelStreamRef: { current: (() => void) | null },
 ) {
+  actions.completeRunningTools();
   actions.finishStreamingMessage();
   actions.setError(err instanceof Error ? err.message : String(err));
   cancelStreamRef.current = null;
-  actions.flushDeltas();
+  // Server persists partial data in its catch block. Client-side abort is a
+  // fallback only for transport errors where the server generator may not fire.
   if (sessId) {
     trpcClient.session.streamAbort.mutate({
       sessionId: sessId, messageId: assistantMsgId,
@@ -92,24 +93,29 @@ export function toSessionSummary(session: Session): SessionSummary {
 export interface StreamEventActions {
   appendToStreamingMessage: (token: string) => void;
   appendToTextBlock: (text: string) => void;
+  appendToThinkingBlock: (text: string) => void;
   addToolActivity: (name: string, input: string) => void;
   setCurrentTool: (name: string | null) => void;
-  startToolBlock: (toolUseId: string, name: string, input: string) => void;
+  startToolBlock: (toolUseId: string, name: string, input: string, inputRaw?: unknown) => void;
   setToolResult: (toolUseId: string, result: unknown, isError: boolean) => void;
+  completeRunningTools: () => void;
+  completeNonTaskTools: () => void;
   startContentBlock: (index: number, blockType: string, id?: string, name?: string) => void;
   finishContentBlock: (index: number) => void;
   finishStreamingMessage: () => void;
   setError: (error: string) => void;
   planReady: (path: string, sessId: string | null) => void;
-  onDelta: (delta: string, seq: number) => void;
-  flushDeltas: () => void;
+  agentQuestion: (requestId: string, questions: AgentQuestion[]) => void;
 }
 
-/** Handle a single SSE event from the agent subscription. Returns true if stream is done. */
+/**
+ * Handle a single SSE event from the agent subscription. Returns true if stream is done.
+ * Note: `assistantMsgId` is retained for transport-error abort fallback (handleStreamError).
+ */
 export function handleStreamEvent(
   data: { type: string; [key: string]: unknown },
   sessId: string | null,
-  assistantMsgId: string,
+  _assistantMsgId: string,
   actions: StreamEventActions,
   cancelStreamRef: { current: (() => void) | null },
 ): boolean {
@@ -118,17 +124,23 @@ export function handleStreamEvent(
       actions.setCurrentTool(null);
       actions.appendToStreamingMessage(data.data as string);
       actions.appendToTextBlock(data.data as string);
-      actions.onDelta(data.data as string, 0); // seq managed by caller
+      return false;
+
+    case 'turn_complete':
       return false;
 
     case 'tool_start':
       actions.addToolActivity(data.name as string, data.input as string);
       actions.setCurrentTool(data.name as string);
-      if (data.toolUseId) actions.startToolBlock(data.toolUseId as string, data.name as string, data.input as string);
+      if (data.toolUseId) actions.startToolBlock(data.toolUseId as string, data.name as string, data.input as string, data.inputRaw);
       return false;
 
     case 'tool_result':
       if (data.toolUseId) actions.setToolResult(data.toolUseId as string, data.result, !!data.isError);
+      return false;
+
+    case 'thinking_delta':
+      actions.appendToThinkingBlock(data.data as string);
       return false;
 
     case 'content_block_start':
@@ -147,20 +159,25 @@ export function handleStreamEvent(
       actions.planReady(data.path as string, sessId);
       return false;
 
+    case 'agent_question':
+      // Complete non-task tools but leave AskUserQuestion in 'running' state
+      actions.completeNonTaskTools();
+      actions.agentQuestion(data.requestId as string, data.questions as AgentQuestion[]);
+      return false;
+
     case 'done':
-      finalizeStream(sessId, assistantMsgId, actions, cancelStreamRef);
+      // Server already persisted the message_final. UI just cleans up.
+      actions.completeRunningTools();
+      actions.finishStreamingMessage();
+      cancelStreamRef.current = null;
       return true;
 
     case 'error':
+      // Server already persisted partial data in its catch block.
+      actions.completeRunningTools();
       actions.finishStreamingMessage();
       actions.setError(data.data as string);
       cancelStreamRef.current = null;
-      actions.flushDeltas();
-      if (sessId) {
-        trpcClient.session.streamAbort.mutate({
-          sessionId: sessId, messageId: assistantMsgId, reason: data.data as string,
-        }).catch(() => {/* best-effort */});
-      }
       return true;
 
     default:
@@ -168,28 +185,3 @@ export function handleStreamEvent(
   }
 }
 
-function finalizeStream(
-  sessId: string | null,
-  assistantMsgId: string,
-  actions: StreamEventActions,
-  cancelStreamRef: { current: (() => void) | null },
-) {
-  const storeState = useMessagesStore.getState();
-  const fullContent = storeState.streamingContent;
-  const contentBlocks: ContentBlock[] | undefined =
-    storeState.streamingBlocks.length > 0 ? [...storeState.streamingBlocks] : undefined;
-  const toolActivities: ToolActivity[] = [...storeState.pendingToolActivities];
-  actions.finishStreamingMessage();
-  cancelStreamRef.current = null;
-  actions.flushDeltas();
-  if (sessId) {
-    trpcClient.session.streamFinalize.mutate({
-      sessionId: sessId,
-      messageId: assistantMsgId,
-      fullContent: fullContent.trim(),
-      stopReason: 'end_turn',
-      ...(toolActivities.length > 0 && { toolActivities }),
-      ...(contentBlocks && { contentBlocks }),
-    }).catch(() => {/* best-effort */});
-  }
-}
