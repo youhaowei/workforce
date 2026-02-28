@@ -339,7 +339,7 @@ class OrchestrationServiceImpl implements OrchestrationService {
 
     try {
       const tokens: string[] = [];
-      for await (const delta of instance.query(goal)) {
+      for await (const delta of instance.run(goal)) {
         if (delta.type === 'token') {
           tokens.push(delta.token);
         }
