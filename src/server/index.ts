@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serveStatic } from 'hono/bun'
 import { trpcServer } from '@hono/trpc-server'
-import { existsSync } from 'fs'
+import { existsSync, writeFileSync, unlinkSync } from 'fs'
 import { homedir } from 'os'
 import { join } from 'path'
 import { debugLog, getLogPath } from '@/shared/debug-log'
@@ -145,16 +145,39 @@ if (distPath) {
   }
 }
 
+const DEV_PORT_FILE = join(import.meta.dir, '../../.dev-port')
+
+function tryServe(port: number): ReturnType<typeof Bun.serve> {
+  try {
+    return Bun.serve({
+      port,
+      hostname: 'localhost',
+      fetch: app.fetch,
+      idleTimeout: 120,
+    })
+  } catch {
+    // Port in use — let the OS assign a free one
+    debugLog('Server', `Port ${port} in use, requesting OS-assigned port`)
+    return Bun.serve({
+      port: 0,
+      hostname: 'localhost',
+      fetch: app.fetch,
+      idleTimeout: 120,
+    })
+  }
+}
+
 export function startServer(overrides?: { port?: number }) {
-  const port = overrides?.port ?? parseInt(process.env.PORT || '4096')
-  const server = Bun.serve({
-    port,
-    hostname: 'localhost',
-    fetch: app.fetch,
-    // SSE streams may have long pauses while waiting for SDK responses
-    // Default 10s timeout is too short for agent queries
-    idleTimeout: 120, // 2 minutes
-  })
+  const basePort = overrides?.port ?? parseInt(process.env.PORT || '4096')
+  const server = tryServe(basePort)
+
+  // Write actual port so vite can discover it
+  if (import.meta.main) {
+    writeFileSync(DEV_PORT_FILE, String(server.port))
+    process.on('exit', () => { try { unlinkSync(DEV_PORT_FILE) } catch { /* cleanup best-effort */ } })
+    process.on('SIGINT', () => process.exit(0))
+    process.on('SIGTERM', () => process.exit(0))
+  }
 
   logAuthDiagnostics()
   debugLog('Server', `Workforce server running on ${server.url}`)

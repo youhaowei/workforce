@@ -38,7 +38,7 @@ import {
   toSessionSummary,
 } from './shellHelpers';
 
-export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'projects' | 'templates' | 'workflows' | 'orgs' | 'audit' | 'detail'; export type SidebarMode = 'expanded' | 'collapsed' | 'hidden';
+export type ViewType = 'home' | 'board' | 'queue' | 'sessions' | 'projects' | 'templates' | 'workflows' | 'orgs' | 'audit' | 'detail'; export type SidebarMode = 'expanded' | 'collapsed';
 
 function ShellContent() {
   const [currentView, setCurrentView] = useState<ViewType>(() => {
@@ -63,9 +63,8 @@ function ShellContent() {
   const [serverConnected, setServerConnected] = useState(true);
   const [sidebarMode, setSidebarMode] = useState<SidebarMode>(() => {
     const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-    // Backward compat: old key stored 'true'/'false'
-    if (stored === 'true') return 'collapsed';
-    if (stored === 'collapsed' || stored === 'hidden') return stored;
+    // Backward compat: old key stored 'true'/'false' or 'hidden'
+    if (stored === 'true' || stored === 'collapsed' || stored === 'hidden') return 'collapsed';
     return 'expanded';
   });
   const cancelStreamRef = useRef<(() => void) | null>(null);
@@ -164,13 +163,8 @@ function ShellContent() {
     });
   }, []);
 
-  const toggleSidebarVisibility = useCallback(() => {
-    setSidebarMode((prev) => {
-      const next: SidebarMode = prev === 'hidden' ? 'expanded' : 'hidden';
-      localStorage.setItem(SIDEBAR_STORAGE_KEY, next);
-      return next;
-    });
-  }, []);
+  // Sidebar visibility toggle removed — navbar is always visible.
+  // Only expand/collapse is supported via toggleSidebarSize.
 
   const toggleSessionsPanel = useCallback(() => {
     setSessionsPanelCollapsed((prev) => {
@@ -465,7 +459,7 @@ function ShellContent() {
 
   return (
     <TooltipProvider>
-      <div className="h-screen flex bg-background overflow-hidden">
+      <div className="h-screen flex overflow-hidden shell-base">
         <AppSidebar
           currentView={currentView}
           onViewChange={setCurrentView}
@@ -481,7 +475,8 @@ function ShellContent() {
             onSelectSession={handleSelectSession}
             onDeleteSession={handleDeleteSession}
             onCreateSession={handleCreateSession}
-            onCollapse={toggleSessionsPanel}
+            sidebarCollapsed={sidebarMode === 'collapsed'}
+            onToggleSidebar={toggleSidebarSize}
           />
         )}
 
@@ -506,7 +501,7 @@ function ShellContent() {
           onBack={currentView === 'detail' ? navigateBack : undefined}
           sidebarMode={sidebarMode}
           sessionsPanelCollapsed={sessionsPanelCollapsed}
-          onToggleSidebar={toggleSidebarVisibility}
+          onToggleSidebar={toggleSidebarSize}
           onToggleSessionsPanel={toggleSessionsPanel}
           projectsPanelCollapsed={projectsPanelCollapsed}
           onToggleProjectsPanel={toggleProjectsPanel}

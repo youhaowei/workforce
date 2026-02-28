@@ -27,7 +27,7 @@ interface TopBarProps {
   /** Title of the active session — shown in the page title pill on the sessions view. */
   sessionTitle?: string;
   onBack?: () => void;
-  sidebarHidden: boolean;
+  sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
   sessionsPanelCollapsed: boolean;
   onToggleSessionsPanel: () => void;
@@ -46,7 +46,7 @@ export default function TopBar({
   currentView,
   sessionTitle,
   onBack,
-  sidebarHidden,
+  sidebarCollapsed,
   onToggleSidebar,
   sessionsPanelCollapsed,
   onToggleSessionsPanel,
@@ -69,12 +69,12 @@ export default function TopBar({
             <button
               className="glass-pill p-2 text-muted-foreground hover:text-foreground transition-colors"
               onClick={onToggleSidebar}
-              aria-label={sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               <Menu className="h-4 w-4" />
             </button>
           </TooltipTrigger>
-          <TooltipContent>{sidebarHidden ? 'Show sidebar' : 'Hide sidebar'}</TooltipContent>
+          <TooltipContent>{sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
         </Tooltip>
 
         {sessionsPanelCollapsed && (

@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronsLeft, SlidersHorizontal, X } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, SlidersHorizontal, X } from 'lucide-react';
 import { useTRPC } from '@/bridge/react';
 import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { useResizablePanel } from '@/ui/hooks/useResizablePanel';
@@ -104,6 +104,7 @@ function FilterToolbar({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="date">Group by date</SelectItem>
           <SelectItem value="none">No grouping</SelectItem>
           <SelectItem value="project">Group by project</SelectItem>
           <SelectItem value="status">Group by status</SelectItem>
@@ -119,7 +120,8 @@ export interface SessionsPanelProps {
   onSelectSession?: (sessionId: string) => void;
   onDeleteSession?: (sessionId: string) => void;
   onCreateSession?: () => void;
-  onCollapse?: () => void;
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
 }
 
 export function SessionsPanel({
@@ -128,14 +130,15 @@ export function SessionsPanel({
   onSelectSession,
   onDeleteSession,
   onCreateSession,
-  onCollapse,
+  sidebarCollapsed,
+  onToggleSidebar,
 }: SessionsPanelProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const orgId = useRequiredOrgId();
   const [typeFilter, setTypeFilter] = useState('all');
   const [stateFilter, setStateFilter] = useState('all');
-  const [groupBy, setGroupBy] = useState<'none' | 'project' | 'status'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'date' | 'project' | 'status'>('date');
   const [filtersOpen, setFiltersOpen] = useState(false);
   const { width: panelWidth, isDragging, onResizeStart } = useResizablePanel({
     storageKey: 'workforce:sessions-panel-width',
@@ -199,20 +202,36 @@ export function SessionsPanel({
 
   return (
     <div
-      className={`shrink-0 flex flex-col bg-background border-r overflow-hidden relative ${
-        collapsed ? 'w-0 border-r-0' : ''
+      data-collapsed={collapsed}
+      className={`shrink-0 flex flex-col panel-surface relative ${
+        collapsed ? 'w-0' : ''
       } ${isDragging ? '' : 'transition-[width] duration-200 ease-in-out'}`}
       style={collapsed ? undefined : { width: panelWidth }}
       aria-hidden={collapsed}
       inert={collapsed ? true : undefined}
     >
-      {/* Header — title, filter toggle with badge, collapse */}
-      <div className="flex items-center gap-1 px-3 py-2.5 border-b">
-        <h2 className="font-semibold text-sm flex-1">Sessions</h2>
+      {/* Header — centered title, filter icon right */}
+      <div className="flex items-center h-10 px-3 border-b border-border/50 relative">
+        {onToggleSidebar && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground absolute left-2"
+            onClick={onToggleSidebar}
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeftOpen className="h-3.5 w-3.5" />
+            ) : (
+              <PanelLeftClose className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        )}
+        <h2 className="font-semibold text-sm mx-auto select-none">All Sessions</h2>
         <Button
           variant="ghost"
           size="icon"
-          className={`h-6 w-6 relative ${filtersOpen || activeFilterCount > 0 ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`h-6 w-6 absolute right-2 ${filtersOpen || activeFilterCount > 0 ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
           onClick={() => setFiltersOpen((prev) => !prev)}
           aria-label="Toggle filters"
           aria-expanded={filtersOpen}
@@ -224,17 +243,6 @@ export function SessionsPanel({
             </span>
           )}
         </Button>
-        {onCollapse && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground"
-            onClick={onCollapse}
-            aria-label="Hide sessions"
-          >
-            <ChevronsLeft className="h-3.5 w-3.5" />
-          </Button>
-        )}
       </div>
 
       {/* Collapsible filters */}

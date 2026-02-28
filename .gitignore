@@ -7,6 +7,9 @@ node_modules/
 .bun/
 bun.lockb
 
+# Dev server port discovery
+.dev-port
+
 # Build outputs
 dist/
 dist-server/

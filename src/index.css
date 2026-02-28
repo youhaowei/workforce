@@ -39,6 +39,14 @@
 
 :root {
   --radius: 0.625rem;
+  /* Panel elevation system */
+  --panel-edge-spacing: 6px;
+  --panel-gap: 5px;
+  --panel-radius: 14px;
+  --panel-shadow: 0 0 0 1px oklch(0 0 0 / 3%),
+                  0 1px 2px oklch(0 0 0 / 4%),
+                  0 3px 6px oklch(0 0 0 / 3%),
+                  0 6px 12px oklch(0 0 0 / 2%);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -74,6 +82,10 @@
 }
 
 .dark {
+  --panel-shadow: 0 0 0 1px oklch(1 0 0 / 5%),
+                  0 1px 2px oklch(0 0 0 / 15%),
+                  0 3px 6px oklch(0 0 0 / 10%),
+                  0 6px 12px oklch(0 0 0 / 8%);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -135,6 +147,28 @@
   .glass-pill {
     @apply px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-md
            border border-border/50 shadow-sm;
+  }
+}
+
+/* Shell base layer — the "ground" behind elevated panels */
+@layer components {
+  .shell-base {
+    background: var(--sidebar);
+    padding: var(--panel-edge-spacing);
+    gap: var(--panel-gap);
+  }
+}
+
+/* Elevated panel surface — floats above the base layer */
+@layer components {
+  .panel-surface {
+    @apply bg-background overflow-hidden;
+    border-radius: var(--panel-radius);
+    box-shadow: var(--panel-shadow);
+  }
+  .panel-surface[data-collapsed="true"] {
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 

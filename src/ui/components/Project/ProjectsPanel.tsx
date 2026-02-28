@@ -91,8 +91,9 @@ export function ProjectsPanel({
 
   return (
     <div
-      className={`shrink-0 flex flex-col bg-background border-r transition-[width] duration-200 ease-in-out overflow-hidden ${
-        collapsed ? 'w-0 border-r-0' : 'w-72'
+      data-collapsed={collapsed}
+      className={`shrink-0 flex flex-col panel-surface transition-[width] duration-200 ease-in-out ${
+        collapsed ? 'w-0' : 'w-72'
       }`}
       aria-hidden={collapsed}
       inert={collapsed ? true : undefined}

@@ -77,8 +77,9 @@ export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
 
   return (
     <div
-      className={`flex-shrink-0 flex flex-col bg-card border-l transition-[width] duration-200 ease-in-out overflow-hidden ${
-        isOpen ? 'w-80' : 'w-0 border-l-0'
+      data-collapsed={!isOpen}
+      className={`flex-shrink-0 flex flex-col panel-surface transition-[width] duration-200 ease-in-out ${
+        isOpen ? 'w-80' : 'w-0'
       }`}
       aria-hidden={!isOpen}
       inert={!isOpen ? true : undefined}

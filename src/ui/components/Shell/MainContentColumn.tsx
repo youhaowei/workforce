@@ -63,12 +63,12 @@ export function MainContentColumn({
   messageCount,
 }: MainContentColumnProps) {
   return (
-    <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+    <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative panel-surface">
       <TopBar
         currentView={currentView}
         sessionTitle={sessionTitle}
         onBack={onBack}
-        sidebarHidden={sidebarMode === 'hidden'}
+        sidebarCollapsed={sidebarMode === 'collapsed'}
         onToggleSidebar={onToggleSidebar}
         sessionsPanelCollapsed={sessionsPanelCollapsed}
         onToggleSessionsPanel={onToggleSessionsPanel}

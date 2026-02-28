@@ -45,7 +45,6 @@ const NAV_ITEMS: NavItem[] = [
 const SIDEBAR_WIDTH_CLASSES: Record<SidebarMode, string> = {
   expanded: 'w-[200px]',
   collapsed: 'w-12',
-  hidden: 'w-0 border-r-0',
 };
 
 interface AppSidebarProps {
@@ -63,19 +62,16 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const activeView = currentView === 'detail' ? 'board' : currentView;
   const isCollapsed = mode === 'collapsed';
-  const isHidden = mode === 'hidden';
 
   return (
     <nav
       aria-label="Main navigation"
-      aria-hidden={isHidden}
-      inert={isHidden ? true : undefined}
-      className={`flex-shrink-0 flex flex-col bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-[width] duration-200 ease-in-out overflow-hidden ${
+      className={`flex-shrink-0 flex flex-col text-sidebar-foreground transition-[width] duration-200 ease-in-out overflow-hidden ${
         SIDEBAR_WIDTH_CLASSES[mode]
       }`}
     >
       {/* Logo */}
-      <div className="flex items-center gap-2 px-3 h-14 border-b border-sidebar-border overflow-hidden">
+      <div className="flex items-center gap-2 px-3 h-14 overflow-hidden">
         <div className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-bold text-xs">
           W
         </div>
@@ -123,7 +119,7 @@ export default function AppSidebar({
 
       {/* Collapse / Expand toggle */}
       {onToggleSize && (
-        <div className="p-1.5 border-t border-sidebar-border">
+        <div className="p-1.5">
           {isCollapsed ? (
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
