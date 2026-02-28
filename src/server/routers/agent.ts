@@ -1,62 +1,47 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { getAgentService } from '@/services/agent';
+import { getAgentRunner } from '@/server/agent-runner';
 import { debugLog } from '@/shared/debug-log';
 
 export const agentRouter = router({
   /**
-   * Streaming query via tRPC subscription (SSE).
-   * Yields token deltas, then completes.
+   * Start an agent run via tRPC subscription (SSE).
+   *
+   * The run is decoupled from the SSE connection — if the client disconnects
+   * (e.g. HMR), the agent continues running. Use `resumeStream` to reconnect.
    */
-  query: publicProcedure
+  run: publicProcedure
     .input(z.object({
       prompt: z.string(),
       model: z.string().optional(),
       maxThinkingTokens: z.number().optional(),
       permissionMode: z.enum(['plan', 'default', 'acceptEdits', 'bypassPermissions']).optional(),
+      sessionId: z.string().optional(),
+      messageId: z.string().optional(),
     }))
     .subscription(async function* ({ input }) {
-      debugLog('tRPC', 'agent.query subscription started', {
-        prompt: input.prompt.slice(0, 100),
-        model: input.model,
-        maxThinkingTokens: input.maxThinkingTokens,
-        permissionMode: input.permissionMode,
-      });
-      const agent = getAgentService();
-      let tokenCount = 0;
-
-      try {
-        for await (const event of agent.query(input.prompt, {
-          model: input.model,
-          maxThinkingTokens: input.maxThinkingTokens,
-          permissionMode: input.permissionMode,
-        })) {
-          if (event.type === 'token') {
-            tokenCount++;
-            // Important: never trim tokens — preserves whitespace between LLM tokens (gotcha #16)
-            yield { type: 'token' as const, data: event.token };
-          } else if (event.type === 'tool_start') {
-            yield { type: 'tool_start' as const, name: event.name, input: event.input, toolUseId: event.toolUseId, inputRaw: event.inputRaw };
-          } else if (event.type === 'tool_result') {
-            yield { type: 'tool_result' as const, toolUseId: event.toolUseId, toolName: event.toolName, result: event.result, isError: event.isError };
-          } else if (event.type === 'content_block_start') {
-            yield { type: 'content_block_start' as const, index: event.index, blockType: event.blockType, id: event.id, name: event.name };
-          } else if (event.type === 'content_block_stop') {
-            yield { type: 'content_block_stop' as const, index: event.index };
-          } else if (event.type === 'status') {
-            yield { type: 'status' as const, data: event.message };
-          } else if (event.type === 'plan_ready') {
-            yield { type: 'plan_ready' as const, path: event.path };
-          }
-        }
-        debugLog('tRPC', 'agent.query complete', { totalTokens: tokenCount });
-        yield { type: 'done' as const, data: '' };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        debugLog('tRPC', 'agent.query error', { error: message });
-        yield { type: 'error' as const, data: message };
-      }
+      const runner = getAgentRunner();
+      runner.startRun(input);
+      yield* runner.observe();
     }),
+
+  /**
+   * Reconnect to an in-flight agent stream.
+   *
+   * Yields a `snapshot` event with the current accumulated state (blocks, text,
+   * activities), then live events from that point onward. If no run is active,
+   * yields `done` immediately.
+   */
+  resumeStream: publicProcedure
+    .subscription(async function* () {
+      yield* getAgentRunner().observe();
+    }),
+
+  /**
+   * Check if an agent run is active and get its session/message context.
+   */
+  activeStream: publicProcedure.query(() => getAgentRunner().getState()),
 
   supportedModels: publicProcedure.query(async () => {
     try {
@@ -68,11 +53,17 @@ export const agentRouter = router({
   }),
 
   cancel: publicProcedure.mutation(() => {
-    getAgentService().cancel();
+    getAgentRunner().cancel();
     return { ok: true };
   }),
 
-  isQuerying: publicProcedure.query(() => ({
-    querying: getAgentService().isQuerying(),
-  })),
+  submitAnswer: publicProcedure
+    .input(z.object({
+      requestId: z.string(),
+      answers: z.record(z.string(), z.array(z.string())),
+    }))
+    .mutation(({ input }) => {
+      getAgentService().submitAnswer(input.requestId, input.answers);
+      return { ok: true };
+    }),
 });

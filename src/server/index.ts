@@ -7,7 +7,15 @@ import { homedir } from 'os'
 import { join } from 'path'
 import { debugLog, getLogPath } from '@/shared/debug-log'
 import { getLogService } from '@/services/log'
+import { getAgentService } from '@/services/agent'
 import { appRouter } from './routers'
+
+// Eagerly create the AgentService singleton at module-load time so the Claude
+// SDK subprocess and model cache begin loading as early as possible — well
+// before the HTTP server is bound or the first UI request arrives.
+// In production (Electrobun), this runs as soon as the dynamic import resolves;
+// in dev, as soon as `bun run server:watch` evaluates the entry point.
+getAgentService();
 
 /**
  * Log auth-related diagnostics on server startup.
@@ -158,6 +166,17 @@ export function startServer(overrides?: { port?: number }) {
 
   logAuthDiagnostics()
   debugLog('Server', `Workforce server running on ${server.url}`)
+
+  // Warm up model list cache eagerly so it's ready before the first query.
+  // getSupportedModels() will first try disk cache (instant) then refresh
+  // from the SDK subprocess in the background. Concurrent callers during
+  // warm-up piggyback on the same in-flight promise, avoiding duplicate
+  // subprocess spawns.
+  getAgentService().getSupportedModels().then(
+    (models) => debugLog('Server', `Model cache warmed: ${models.length} models`),
+    (err) => debugLog('Server', 'Model cache warm-up failed (will retry on demand)', { error: err instanceof Error ? err.message : String(err) }),
+  )
+
   return server
 }
 

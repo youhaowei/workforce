@@ -43,8 +43,51 @@ export const sessionRouter = router({
     .mutation(({ input }) => getSessionService().resume(input.sessionId)),
 
   fork: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      atMessageIndex: z.number().int().min(-1).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        return await getSessionService().fork(input.sessionId, { atMessageIndex: input.atMessageIndex });
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('not found'))
+          throw new TRPCError({ code: 'NOT_FOUND', message: err.message });
+        if (err instanceof Error && (err.message.includes('Invalid message') || err.message.includes('empty session')))
+          throw new TRPCError({ code: 'BAD_REQUEST', message: err.message });
+        throw err;
+      }
+    }),
+
+  rewind: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      messageIndex: z.number().int().min(-1),
+    }))
+    .mutation(async ({ input }) => {
+      try {
+        return await getSessionService().truncate(input.sessionId, input.messageIndex);
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('not found'))
+          throw new TRPCError({ code: 'NOT_FOUND', message: err.message });
+        if (err instanceof Error && err.message.includes('Invalid message'))
+          throw new TRPCError({ code: 'BAD_REQUEST', message: err.message });
+        throw err;
+      }
+    }),
+
+  forks: publicProcedure
     .input(z.object({ sessionId: z.string() }))
-    .mutation(({ input }) => getSessionService().fork(input.sessionId)),
+    .query(async ({ input }) => {
+      const children = await getSessionService().getChildren(input.sessionId);
+      return children
+        .filter((c) => c.metadata?.forkAtMessageId)
+        .map((c) => ({
+          messageId: c.metadata.forkAtMessageId as string,
+          sessionId: c.id,
+          title: c.title,
+        }));
+    }),
 
   delete: publicProcedure
     .input(z.object({ sessionId: z.string() }))
@@ -166,6 +209,17 @@ export const sessionRouter = router({
     }))
     .mutation(({ input }) =>
       getSessionService().recordStreamAbort(input.sessionId, input.messageId, input.reason),
+    ),
+
+  updateBlockResult: publicProcedure
+    .input(z.object({
+      sessionId: z.string(),
+      messageId: z.string(),
+      blockId: z.string(),
+      result: z.unknown(),
+    }))
+    .mutation(({ input }) =>
+      getSessionService().updateBlockResult(input.sessionId, input.messageId, input.blockId, input.result),
     ),
 
   // ─── Messages ───────────────────────────────────────────────────────
