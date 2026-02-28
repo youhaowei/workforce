@@ -76,7 +76,7 @@ export interface AgentInstanceOptions {
  */
 export class AgentInstance {
   private abortController: AbortController;
-  private queryInProgress = false;
+  private runInProgress = false;
 
   constructor(
     public readonly sessionId: string,
@@ -85,12 +85,12 @@ export class AgentInstance {
     this.abortController = new AbortController();
   }
 
-  async *query(prompt: string): StreamResult<AgentStreamEvent> {
-    if (this.queryInProgress) {
+  async *run(prompt: string): StreamResult<AgentStreamEvent> {
+    if (this.runInProgress) {
       throw new AgentError('Query already in progress for this instance', 'UNKNOWN');
     }
 
-    this.queryInProgress = true;
+    this.runInProgress = true;
     this.abortController = new AbortController();
     const bus = getEventBus();
     let tokenIndex = 0;
@@ -102,7 +102,6 @@ export class AgentInstance {
 
       const session = createSession('claude', {
         model: 'sonnet',
-        sdkVersion: 'v1',
         cwd: this.options.cwd,
         env: this.options.env ?? buildSdkEnv(),
         abortController: this.abortController,
@@ -130,7 +129,7 @@ export class AgentInstance {
         );
       }
     } finally {
-      this.queryInProgress = false;
+      this.runInProgress = false;
     }
   }
 
@@ -216,8 +215,8 @@ export class AgentInstance {
     this.abortController.abort();
   }
 
-  isQuerying(): boolean {
-    return this.queryInProgress;
+  isRunning(): boolean {
+    return this.runInProgress;
   }
 
   dispose(): void {

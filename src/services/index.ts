@@ -16,7 +16,7 @@ export type {
   VerboseLevel,
   AgentDefaults,
   AgentService,
-  QueryOptions,
+  RunOptions,
   AgentStreamEvent,
   ToolActivity,
   ToolCall,

@@ -1,13 +1,14 @@
-import { createSession, getSupportedModels } from 'unifai';
-import type { AgentEvent, UnifaiSession, Usage } from 'unifai';
+import { createSession } from 'unifai';
+import type { AgentEvent, AgentQuestionResponse, UnifaiSession, Usage } from 'unifai';
 import { homedir } from 'os';
-import type { AgentService, AgentModelInfo, QueryOptions, AgentStreamEvent, StreamResult } from './types';
+import type { AgentService, AgentModelInfo, AgentQuestion, RunOptions, AgentStreamEvent, StreamResult } from './types';
 import type { QueryResultEvent, HookResponseEvent, TaskNotificationEvent } from '@/shared/event-types';
 import type { EventBus } from '@/shared/event-bus';
 import { getEventBus } from '@/shared/event-bus';
 import { debugLog } from '@/shared/debug-log';
 import { buildSdkEnv, isAuthError, AgentError } from './agent-instance';
 import type { AgentErrorCode } from './agent-instance';
+import { ModelCache, readLastUsedModelSync, writeLastUsedModel } from './agent-models';
 
 // Re-export for backward compatibility
 export { AgentInstance, AgentError, buildSdkEnv, isAuthError } from './agent-instance';
@@ -56,73 +57,147 @@ function toBusUsage(u: Usage) {
 
 class AgentServiceImpl implements AgentService {
   private abortController: AbortController | null = null;
-  private queryInProgress = false;
+  private runInProgress = false;
   private session: UnifaiSession | null = null;
-  private supportedModelsCache: AgentModelInfo[] | null = null;
-  private supportedModelsCacheAt = 0;
+  private modelCache = new ModelCache();
   /** Whether the agent is currently in plan mode (between EnterPlanMode and ExitPlanMode). */
   private inPlanMode = false;
   /** Tracks the last Write to a .md file while in plan mode, used for plan detection. */
   private lastPlanPath: string | null = null;
+  /** Pre-created session kept alive between queries for fast startup. */
+  private warmSession: UnifaiSession | null = null;
+  /** Model of the warm session (used to check reusability). */
+  private warmSessionModel: string | null = null;
 
-  async *query(prompt: string, options?: QueryOptions): StreamResult<AgentStreamEvent> {
-    debugLog('Agent', 'query() called', { queryInProgress: this.queryInProgress });
+  /** Pending agent questions — keyed by requestId, resolved when UI submits answers. */
+  private pendingQuestions = new Map<string, (answers: Record<string, string[]>) => void>();
 
-    if (this.queryInProgress) {
-      debugLog('Agent', 'Query already in progress, rejecting');
-      throw new AgentError('Query already in progress', 'UNKNOWN');
+  /** Questions data for pending requests — used to restore question on reconnect. */
+  private pendingQuestionData = new Map<string, AgentQuestion[]>();
+
+  /** Buffer for events emitted by the onAgentQuestion callback (flushed in the query loop). */
+  private pendingQuestionEvents: AgentStreamEvent[] = [];
+
+
+  constructor() {
+    this.warmUp();
+  }
+
+  /** Callback passed to unifai — blocks the agent stream until the user answers. */
+  private handleAgentQuestion = (request: { id: string; questions: AgentQuestion[] }): Promise<AgentQuestionResponse> => {
+    return new Promise((resolve) => {
+      this.pendingQuestionData.set(request.id, request.questions);
+      this.pendingQuestions.set(request.id, (answers) => {
+        this.pendingQuestions.delete(request.id);
+        this.pendingQuestionData.delete(request.id);
+        resolve({ answers });
+      });
+      // Buffer the event so the query generator can yield it
+      this.pendingQuestionEvents.push({
+        type: 'agent_question',
+        requestId: request.id,
+        questions: request.questions,
+      });
+    });
+  };
+
+  /**
+   * Pre-create a V2 session and eagerly start its Claude subprocess so it's
+   * fully ready before the first query arrives.
+   */
+  private warmUp(): void {
+    try {
+      const model = readLastUsedModelSync() ?? 'sonnet';
+      this.warmSession = createSession('claude', {
+        model,
+        env: buildSdkEnv(),
+        includeRawEvents: true,
+        interaction: { onAgentQuestion: this.handleAgentQuestion },
+      });
+      this.warmSessionModel = model;
+
+      debugLog('Agent', `Pre-created warm V2 session for fast startup (model: ${model})`);
+    } catch (err) {
+      debugLog('Agent', 'Failed to pre-create warm session', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /** Resolve or create the session for this query. Reuses warm session when possible. */
+  private resolveSession(model: string, options?: RunOptions): UnifaiSession {
+    const needsV1 = options?.maxThinkingTokens !== undefined ||
+                    options?.permissionMode === 'bypassPermissions';
+
+    if (this.warmSession && this.warmSessionModel === model && !needsV1) {
+      const session = this.warmSession;
+      this.warmSession = null;
+      this.warmSessionModel = null;
+      debugLog('Agent', 'Reusing warm session', { model });
+      return session;
     }
 
-    this.queryInProgress = true;
+    if (this.warmSession) {
+      this.warmSession.close();
+      this.warmSession = null;
+      this.warmSessionModel = null;
+    }
+
+    return createSession('claude', {
+      model,
+      env: buildSdkEnv(),
+      includeRawEvents: true,
+      interaction: { onAgentQuestion: this.handleAgentQuestion },
+      ...(needsV1 ? {
+        sdkVersion: 'v1' as const,
+        cwd: process.cwd(),
+        includePartialMessages: true,
+        ...(options?.maxThinkingTokens !== undefined ? { maxThinkingTokens: options.maxThinkingTokens } : {}),
+        ...(options?.permissionMode === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}),
+      } : {
+        sdkVersion: 'v2' as const,
+      }),
+      ...(options?.permissionMode ? { permissionMode: options.permissionMode } : {}),
+    });
+  }
+
+  async *run(prompt: string, options?: RunOptions): StreamResult<AgentStreamEvent> {
+    if (this.runInProgress) {
+      throw new AgentError('Run already in progress', 'UNKNOWN');
+    }
+
+    this.runInProgress = true;
     this.abortController = new AbortController();
     this.lastPlanPath = null;
     this.inPlanMode = false;
-    debugLog('Agent', 'Query started, set queryInProgress=true');
     const bus = getEventBus();
     let tokenIndex = 0;
+    const model = options?.model ?? 'sonnet';
 
     try {
-      debugLog('Agent', 'Starting query', {
-        prompt: prompt.slice(0, 100),
-        options: {
-          model: options?.model,
-          maxThinkingTokens: options?.maxThinkingTokens,
-          permissionMode: options?.permissionMode,
-        },
-      });
-
-      this.session = createSession('claude', {
-        model: options?.model ?? 'sonnet',
-        sdkVersion: 'v1',
-        cwd: process.cwd(),
-        env: buildSdkEnv(),
-        abortController: this.abortController,
-        includePartialMessages: true,
-        includeRawEvents: true,
-        ...(options?.maxThinkingTokens !== undefined ? { maxThinkingTokens: options.maxThinkingTokens } : {}),
-        ...(options?.permissionMode ? { permissionMode: options.permissionMode } : {}),
-        ...(options?.permissionMode === 'bypassPermissions' ? { allowDangerouslySkipPermissions: true } : {}),
-      });
+      writeLastUsedModel(model);
+      this.session = this.resolveSession(model, options);
 
       try {
         let lastMessageId = '';
-
         for await (const event of this.session.send(prompt)) {
           yield* this.handleEvent(event, bus, tokenIndex, lastMessageId);
           if (event.type === 'text_delta') tokenIndex++;
           if (event.type === 'message_start') lastMessageId = event.messageId;
         }
       } finally {
-        this.session.close();
+        if (!this.abortController?.signal.aborted && this.session) {
+          this.warmSession = this.session;
+          this.warmSessionModel = model;
+        } else if (this.session) {
+          this.session.close();
+        }
         this.session = null;
       }
-
-      debugLog('Agent', 'Query complete');
     } catch (err) {
-      yield* this.handleQueryError(err, bus, tokenIndex);
+      yield* this.handleRunError(err, bus, tokenIndex);
     } finally {
-      debugLog('Agent', 'Query finally block, resetting state');
-      this.queryInProgress = false;
+      this.runInProgress = false;
       this.abortController = null;
     }
   }
@@ -133,6 +208,11 @@ class AgentServiceImpl implements AgentService {
     tokenIndex: number,
     lastMessageId: string,
   ): Generator<AgentStreamEvent> {
+    // Flush any agent_question events buffered by the onAgentQuestion callback
+    while (this.pendingQuestionEvents.length > 0) {
+      yield this.pendingQuestionEvents.shift()!;
+    }
+
     const now = Date.now();
 
     switch (event.type) {
@@ -141,6 +221,7 @@ class AgentServiceImpl implements AgentService {
         break;
       case 'thinking_delta':
         bus.emit({ type: 'ThinkingDelta', thinking: event.text, index: event.index ?? 0, timestamp: now });
+        yield { type: 'thinking_delta', text: event.text };
         break;
       case 'raw':
         bus.emit({ type: 'RawSdkMessage', sdkMessageType: event.eventType, payload: event.data, timestamp: now });
@@ -154,7 +235,9 @@ class AgentServiceImpl implements AgentService {
 
   /** Yield stream events for tool activity, content blocks, and system status. */
   private *yieldStreamEvents(event: AgentEvent): Generator<AgentStreamEvent> {
-    if (event.type === 'tool_start') {
+    if (event.type === 'assistant_message') {
+      yield { type: 'turn_complete' };
+    } else if (event.type === 'tool_start') {
       yield* this.handleToolStartEvent(event);
     } else if (event.type === 'tool_result') {
       yield { type: 'tool_result', toolUseId: event.toolUseId, toolName: event.toolName, result: event.result, isError: event.isError };
@@ -381,7 +464,7 @@ class AgentServiceImpl implements AgentService {
     });
   }
 
-  private *handleQueryError(err: unknown, _bus: EventBus, _tokenIndex: number): Generator<AgentStreamEvent> {
+  private *handleRunError(err: unknown, _bus: EventBus, _tokenIndex: number): Generator<AgentStreamEvent> {
     if (this.abortController?.signal.aborted) {
       debugLog('Agent', 'Query cancelled by user');
       yield { type: 'token', token: ' [cancelled]' };
@@ -409,25 +492,23 @@ class AgentServiceImpl implements AgentService {
   }
 
   async getSupportedModels(): Promise<AgentModelInfo[]> {
-    const now = Date.now();
-    if (this.supportedModelsCache && now - this.supportedModelsCacheAt < 5 * 60_000) {
-      return this.supportedModelsCache;
-    }
+    return this.modelCache.getSupportedModels();
+  }
 
-    try {
-      const models = await getSupportedModels('claude', { cwd: process.cwd(), env: buildSdkEnv() });
-      const normalized: AgentModelInfo[] = models.map((m) => ({
-        id: m.id,
-        displayName: m.displayName,
-        description: m.description,
-      }));
-      this.supportedModelsCache = normalized;
-      this.supportedModelsCacheAt = now;
-      return normalized;
-    } catch (err) {
-      debugLog('Agent', 'getSupportedModels failed', { error: err instanceof Error ? err.message : String(err) });
-      return [];
+  submitAnswer(requestId: string, answers: Record<string, string[]>): void {
+    const resolve = this.pendingQuestions.get(requestId);
+    if (resolve) {
+      resolve(answers);
+    } else {
+      debugLog('Agent', 'submitAnswer: no pending question', { requestId });
     }
+  }
+
+  getPendingQuestion(): { requestId: string; questions: AgentQuestion[] } | null {
+    for (const [requestId, questions] of this.pendingQuestionData) {
+      return { requestId, questions };
+    }
+    return null;
   }
 
   cancel(): void {
@@ -435,14 +516,31 @@ class AgentServiceImpl implements AgentService {
       this.abortController.abort();
       this.abortController = null;
     }
+    // Drain pending questions so the onAgentQuestion promise unblocks
+    for (const resolve of this.pendingQuestions.values()) {
+      resolve({});
+    }
+    this.pendingQuestions.clear();
+    this.pendingQuestionData.clear();
+    this.pendingQuestionEvents.length = 0;
+    // Abort the session's in-flight send() directly — needed because reused
+    // warm sessions may not have an embedded AbortController.
+    if (this.session) {
+      this.session.abort();
+    }
   }
 
-  isQuerying(): boolean {
-    return this.queryInProgress;
+  isRunning(): boolean {
+    return this.runInProgress;
   }
 
   dispose(): void {
     this.cancel();
+    if (this.warmSession) {
+      this.warmSession.close();
+      this.warmSession = null;
+      this.warmSessionModel = null;
+    }
   }
 }
 

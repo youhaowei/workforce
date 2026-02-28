@@ -106,7 +106,7 @@ describe('AgentService', () => {
       const service = getAgentService();
       const tokens: string[] = [];
 
-      for await (const delta of service.query('Hello')) {
+      for await (const delta of service.run('Hello')) {
         tokens.push(delta.token);
       }
 
@@ -128,7 +128,7 @@ describe('AgentService', () => {
       });
 
       const service = getAgentService();
-      for await (const _delta of service.query('Test')) {
+      for await (const _delta of service.run('Test')) {
         // Consume stream
       }
 
@@ -151,12 +151,12 @@ describe('AgentService', () => {
       const service = getAgentService();
 
       // Start first query but don't await
-      const iter1 = service.query('First');
+      const iter1 = service.run('First');
       iter1.next(); // Start iteration
 
       // Try to start second query - should throw
       try {
-        for await (const _ of service.query('Second')) {
+        for await (const _ of service.run('Second')) {
           // Should throw before getting here
         }
         expect.fail('Should have thrown');
@@ -197,7 +197,7 @@ describe('AgentService', () => {
       // Start query and cancel after first token has time to be processed
       setTimeout(() => service.cancel(), 20);
 
-      for await (const delta of service.query('Test')) {
+      for await (const delta of service.run('Test')) {
         tokens.push(delta.token);
       }
 
@@ -229,7 +229,7 @@ describe('AgentService', () => {
       bus.on('ToolEnd', (event) => toolEnds.push(event));
 
       const service = getAgentService();
-      for await (const _delta of service.query('Test')) {
+      for await (const _delta of service.run('Test')) {
         // Consume stream
       }
 
@@ -258,7 +258,7 @@ describe('AgentService', () => {
       const service = getAgentService();
 
       try {
-        for await (const _ of service.query('Test')) {
+        for await (const _ of service.run('Test')) {
           // Should throw
         }
         expect.fail('Should have thrown');
@@ -283,7 +283,7 @@ describe('AgentService', () => {
 
       // Should throw with error info
       try {
-        for await (const _ of service.query('Test')) {
+        for await (const _ of service.run('Test')) {
           // Should throw
         }
         expect.fail('Should have thrown');
@@ -296,7 +296,7 @@ describe('AgentService', () => {
   });
 
   describe('state management', () => {
-    it('should track isQuerying state', async () => {
+    it('should track isRunning state', async () => {
       let resolveStream: () => void;
       const streamComplete = new Promise<void>((r) => {
         resolveStream = r;
@@ -315,23 +315,23 @@ describe('AgentService', () => {
 
       const service = getAgentService();
 
-      expect(service.isQuerying()).toBe(false);
+      expect(service.isRunning()).toBe(false);
 
       const queryPromise = (async () => {
-        for await (const _ of service.query('Test')) {
+        for await (const _ of service.run('Test')) {
           // Consume
         }
       })();
 
       // Wait a tick for the query to start
       await new Promise((r) => setTimeout(r, 10));
-      expect(service.isQuerying()).toBe(true);
+      expect(service.isRunning()).toBe(true);
 
       // Complete the stream
       resolveStream!();
       await queryPromise;
 
-      expect(service.isQuerying()).toBe(false);
+      expect(service.isRunning()).toBe(false);
     });
 
     it('should reset after dispose', async () => {
@@ -344,13 +344,13 @@ describe('AgentService', () => {
       const service = getAgentService();
 
       // Use the service
-      for await (const _ of service.query('Test')) {
+      for await (const _ of service.run('Test')) {
         // Consume
       }
 
       service.dispose();
 
-      expect(service.isQuerying()).toBe(false);
+      expect(service.isRunning()).toBe(false);
     });
   });
 });
