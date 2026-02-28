@@ -63,7 +63,7 @@ export interface AgentModelInfo {
 // Agent Service Types
 // =============================================================================
 
-export interface QueryOptions {
+export interface RunOptions {
   /** Model to use (defaults to claude-sonnet) */
   model?: string;
   /** Maximum tokens in response */
@@ -74,7 +74,7 @@ export interface QueryOptions {
   permissionMode?: AgentPermissionMode;
   /** System prompt override */
   systemPrompt?: string;
-  /** Tools available for this query */
+  /** Tools available for this run */
   tools?: ToolDefinition[];
   /** AbortSignal for cancellation */
   signal?: AbortSignal;
@@ -90,19 +90,33 @@ export interface ToolActivity {
 
 /** Structured content block for interleaved text/tool rendering. */
 export type ContentBlock =
-  | { type: 'text'; text: string }
-  | { type: 'tool_use'; id: string; name: string; input: string; result?: unknown; error?: string; status: 'running' | 'complete' | 'error' }
-  | { type: 'thinking'; text: string };
+  | { type: 'text'; text: string; status?: 'running' | 'complete' }
+  | { type: 'tool_use'; id: string; name: string; input: string; inputRaw?: unknown; result?: unknown; error?: string; status: 'running' | 'complete' | 'error' }
+  | { type: 'thinking'; text: string; status?: 'running' | 'complete' };
 
-/** Events yielded by AgentService.query() through the stream. */
+/** A structured question the agent asks the user. */
+export interface AgentQuestion {
+  id: string;
+  header: string;
+  question: string;
+  freeform: boolean;
+  secret: boolean;
+  multiSelect?: boolean;
+  options?: Array<{ label: string; description: string }>;
+}
+
+/** Events yielded by AgentService.run() through the stream. */
 export type AgentStreamEvent =
   | { type: 'token'; token: string }
+  | { type: 'thinking_delta'; text: string }
+  | { type: 'turn_complete' }
   | { type: 'tool_start'; name: string; input: string; toolUseId: string; inputRaw: unknown }
   | { type: 'tool_result'; toolUseId: string; toolName: string; result: unknown; isError: boolean }
   | { type: 'content_block_start'; index: number; blockType: string; id?: string; name?: string }
   | { type: 'content_block_stop'; index: number }
   | { type: 'status'; message: string }
-  | { type: 'plan_ready'; path: string };
+  | { type: 'plan_ready'; path: string }
+  | { type: 'agent_question'; requestId: string; questions: AgentQuestion[] };
 
 // =============================================================================
 // Plan Artifact Types
@@ -152,18 +166,24 @@ export interface AgentResponse {
 }
 
 export interface AgentService extends Disposable {
-  /** Query the agent with streaming response. */
-  query(prompt: string, options?: QueryOptions): StreamResult<AgentStreamEvent>;
+  /** Run the agent with streaming response. */
+  run(prompt: string, options?: RunOptions): StreamResult<AgentStreamEvent>;
 
   /**
-   * Cancel the current query.
+   * Cancel the current run.
    */
   cancel(): void;
 
+  /** Submit answers to a pending agent question. */
+  submitAnswer(requestId: string, answers: Record<string, string[]>): void;
+
+  /** Get the currently pending question (if any). Used for snapshot on reconnect. */
+  getPendingQuestion(): { requestId: string; questions: AgentQuestion[] } | null;
+
   /**
-   * Check if a query is currently in progress.
+   * Check if a run is currently in progress.
    */
-  isQuerying(): boolean;
+  isRunning(): boolean;
 
   /**
    * Get the list of models supported by the current Claude Code installation.
@@ -338,6 +358,14 @@ export interface JournalMessageFinal {
   contentBlocks?: ContentBlock[];
 }
 
+/** Snapshot of content blocks during streaming (survives page refresh). */
+export interface JournalMessageBlocks {
+  t: 'message_blocks';
+  id: string;
+  contentBlocks: ContentBlock[];
+  toolActivities?: ToolActivity[];
+}
+
 /** Stream aborted/interrupted marker. */
 export interface JournalMessageAbort {
   t: 'message_abort';
@@ -358,6 +386,7 @@ export type JournalRecord =
   | JournalMessage
   | JournalMessageStart
   | JournalMessageDelta
+  | JournalMessageBlocks
   | JournalMessageFinal
   | JournalMessageAbort
   | JournalMeta;
@@ -391,9 +420,17 @@ export interface SessionService extends Disposable {
   resume(sessionId: string): Promise<Session>;
 
   /**
-   * Fork a session (create child with shared history).
+   * Fork a session at a specific message point (create child with history up to that point).
+   * When `atMessageIndex` is provided, only messages [0..atMessageIndex] are copied.
+   * Stores `forkAtMessageId` in child metadata for fork indicators.
    */
-  fork(sessionId: string): Promise<Session>;
+  fork(sessionId: string, options?: { atMessageIndex?: number }): Promise<Session>;
+
+  /**
+   * Truncate a session to keep only messages [0..upToMessageIndex].
+   * Destructive: messages after the index are permanently removed.
+   */
+  truncate(sessionId: string, upToMessageIndex: number): Promise<Session>;
 
   /**
    * List lightweight session summaries with optional pagination and org scoping.
@@ -471,8 +508,14 @@ export interface SessionService extends Disposable {
   /** Record the finalized assistant message. Source of truth on replay. */
   recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string, toolActivities?: ToolActivity[], contentBlocks?: ContentBlock[]): Promise<void>;
 
+  /** Snapshot in-progress content blocks (best-effort, for crash recovery). */
+  recordStreamBlocks(sessionId: string, messageId: string, contentBlocks: ContentBlock[], toolActivities?: ToolActivity[]): Promise<void>;
+
   /** Record an aborted assistant stream. */
   recordStreamAbort(sessionId: string, messageId: string, reason: string): Promise<void>;
+
+  /** Update the result field on a content block (e.g. cold-replay question answers). */
+  updateBlockResult(sessionId: string, messageId: string, blockId: string, result: unknown): Promise<void>;
 
   /**
    * Read messages for a session with optional pagination.
