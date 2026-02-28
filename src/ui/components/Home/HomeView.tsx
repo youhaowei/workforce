@@ -30,13 +30,12 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
   const trpc = useTRPC();
   const orgId = useRequiredOrgId();
 
+  // No refetchInterval — SSE event invalidation (useServerEventInvalidation) handles freshness.
   const { data: sessions = [] } = useQuery(
-    trpc.session.list.queryOptions(
-      { orgId },
-      { refetchInterval: 5000 },
-    ),
+    trpc.session.list.queryOptions({ orgId }),
   );
 
+  // No refetchInterval — SSE event invalidation handles freshness.
   const { data: pendingReviews = 0 } = useQuery(
     trpc.review.count.queryOptions({ orgId }),
   );

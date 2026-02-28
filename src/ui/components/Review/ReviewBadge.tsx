@@ -13,10 +13,7 @@ export function ReviewBadge() {
   const orgId = useRequiredOrgId();
 
   const { data: count } = useQuery(
-    trpc.review.count.queryOptions(
-      { orgId },
-      { refetchInterval: 3000 },
-    ),
+    trpc.review.count.queryOptions({ orgId }),
   );
 
   if (!count || count <= 0) return null;

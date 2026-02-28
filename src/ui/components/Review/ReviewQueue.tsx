@@ -17,10 +17,7 @@ export function ReviewQueue() {
   const orgId = useRequiredOrgId();
 
   const { data: items = [], isLoading } = useQuery(
-    trpc.review.listPending.queryOptions(
-      { orgId },
-      { refetchInterval: 3000 },
-    ),
+    trpc.review.listPending.queryOptions({ orgId }),
   );
 
   const resolveMutation = useMutation(

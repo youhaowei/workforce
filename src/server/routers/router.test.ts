@@ -155,6 +155,167 @@ describe('tRPC Routers', () => {
         }),
       ).rejects.toThrow();
     });
+
+    // ─── fork ──────────────────────────────────────────────────────────
+
+    it('fork creates child session with parent messages', async () => {
+      const parent = await caller.session.create({ title: 'Fork Parent' });
+      await caller.session.addMessage({
+        sessionId: parent.id,
+        message: { id: 'msg_1', role: 'user', content: 'Hello', timestamp: 1 },
+      });
+      await caller.session.addMessage({
+        sessionId: parent.id,
+        message: { id: 'msg_2', role: 'user', content: 'World', timestamp: 2 },
+      });
+
+      const forked = await caller.session.fork({ sessionId: parent.id, atMessageIndex: 0 });
+
+      expect(forked.parentId).toBe(parent.id);
+      expect(forked.messages).toHaveLength(1);
+      expect(forked.messages[0].content).toBe('Hello');
+      expect(forked.title).toBe('Fork Parent (fork)');
+
+      // Parent unchanged
+      const parentAfter = await caller.session.get({ sessionId: parent.id });
+      expect(parentAfter!.messages).toHaveLength(2);
+
+      await caller.session.delete({ sessionId: forked.id });
+      await caller.session.delete({ sessionId: parent.id });
+    });
+
+    it('fork rejects non-existent session with NOT_FOUND', async () => {
+      await expect(
+        caller.session.fork({ sessionId: 'ghost' }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('fork rejects empty session with BAD_REQUEST', async () => {
+      const empty = await caller.session.create({ title: 'Empty' });
+
+      await expect(
+        caller.session.fork({ sessionId: empty.id }),
+      ).rejects.toThrow(/empty session/i);
+
+      await caller.session.delete({ sessionId: empty.id });
+    });
+
+    it('fork rejects out-of-range index with BAD_REQUEST', async () => {
+      const session = await caller.session.create({ title: 'Range' });
+      await caller.session.addMessage({
+        sessionId: session.id,
+        message: { id: 'msg_1', role: 'user', content: 'Hi', timestamp: 1 },
+      });
+
+      await expect(
+        caller.session.fork({ sessionId: session.id, atMessageIndex: 99 }),
+      ).rejects.toThrow(/Invalid message index/i);
+
+      await caller.session.delete({ sessionId: session.id });
+    });
+
+    // ─── rewind ────────────────────────────────────────────────────────
+
+    it('rewind truncates session to message index', async () => {
+      const session = await caller.session.create({ title: 'Rewind' });
+      await caller.session.addMessage({
+        sessionId: session.id,
+        message: { id: 'msg_1', role: 'user', content: 'Keep', timestamp: 1 },
+      });
+      await caller.session.addMessage({
+        sessionId: session.id,
+        message: { id: 'msg_2', role: 'user', content: 'Remove', timestamp: 2 },
+      });
+
+      const result = await caller.session.rewind({ sessionId: session.id, messageIndex: 0 });
+
+      expect(result.messages).toHaveLength(1);
+      expect(result.messages[0].content).toBe('Keep');
+
+      // Verify persistence
+      const reloaded = await caller.session.get({ sessionId: session.id });
+      expect(reloaded!.messages).toHaveLength(1);
+
+      await caller.session.delete({ sessionId: session.id });
+    });
+
+    it('rewind rejects non-existent session with NOT_FOUND', async () => {
+      await expect(
+        caller.session.rewind({ sessionId: 'ghost', messageIndex: 0 }),
+      ).rejects.toThrow(/not found/i);
+    });
+
+    it('rewind with -1 clears all messages', async () => {
+      const session = await caller.session.create({ title: 'Rewind Clear' });
+      await caller.session.addMessage({
+        sessionId: session.id,
+        message: { id: 'msg_1', role: 'user', content: 'Hi', timestamp: 1 },
+      });
+      await caller.session.addMessage({
+        sessionId: session.id,
+        message: { id: 'msg_2', role: 'assistant', content: 'Hello', timestamp: 2 },
+      });
+
+      const result = await caller.session.rewind({ sessionId: session.id, messageIndex: -1 });
+      expect(result.messages).toHaveLength(0);
+
+      await caller.session.delete({ sessionId: session.id });
+    });
+
+    it('rewind rejects out-of-range index with BAD_REQUEST', async () => {
+      const session = await caller.session.create({ title: 'Rewind Range' });
+      await caller.session.addMessage({
+        sessionId: session.id,
+        message: { id: 'msg_1', role: 'user', content: 'Hi', timestamp: 1 },
+      });
+
+      await expect(
+        caller.session.rewind({ sessionId: session.id, messageIndex: 5 }),
+      ).rejects.toThrow(/Invalid message index/i);
+
+      await caller.session.delete({ sessionId: session.id });
+    });
+
+    // ─── forks query ───────────────────────────────────────────────────
+
+    it('forks query returns fork info keyed by message ID', async () => {
+      const parent = await caller.session.create({ title: 'Forks Parent' });
+      await caller.session.addMessage({
+        sessionId: parent.id,
+        message: { id: 'msg_1', role: 'user', content: 'A', timestamp: 1 },
+      });
+      await caller.session.addMessage({
+        sessionId: parent.id,
+        message: { id: 'msg_2', role: 'user', content: 'B', timestamp: 2 },
+      });
+
+      // Fork at message 0 and message 1
+      const fork1 = await caller.session.fork({ sessionId: parent.id, atMessageIndex: 0 });
+      const fork2 = await caller.session.fork({ sessionId: parent.id, atMessageIndex: 1 });
+
+      const forks = await caller.session.forks({ sessionId: parent.id });
+
+      expect(forks).toHaveLength(2);
+      expect(forks.find((f) => f.sessionId === fork1.id)?.messageId).toBe('msg_1');
+      expect(forks.find((f) => f.sessionId === fork2.id)?.messageId).toBe('msg_2');
+
+      await caller.session.delete({ sessionId: fork1.id });
+      await caller.session.delete({ sessionId: fork2.id });
+      await caller.session.delete({ sessionId: parent.id });
+    });
+
+    it('forks query returns empty array for session with no forks', async () => {
+      const session = await caller.session.create({ title: 'No Forks' });
+      await caller.session.addMessage({
+        sessionId: session.id,
+        message: { id: 'msg_1', role: 'user', content: 'Hi', timestamp: 1 },
+      });
+
+      const forks = await caller.session.forks({ sessionId: session.id });
+      expect(forks).toEqual([]);
+
+      await caller.session.delete({ sessionId: session.id });
+    });
   });
 
   describe('task', () => {

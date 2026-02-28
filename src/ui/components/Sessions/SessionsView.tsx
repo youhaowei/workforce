@@ -15,6 +15,7 @@ import {
 import type { Project } from '@/services/types';
 import { MessageList, MessageInput } from '../Messages';
 import type { AgentConfig } from '@/services/types';
+import type { ForkInfo } from '../Messages/MessageItem';
 
 const NO_PROJECT_VALUE = '__none__';
 
@@ -35,8 +36,12 @@ interface SessionsViewProps {
     toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>;
   }>;
   isStreaming: boolean;
+  forksMap?: Map<string, ForkInfo[]>;
   onSubmit: (submission: { content: string; agentConfig: AgentConfig }) => void;
   onCancel: () => void;
+  onRewind?: (messageIndex: number) => void;
+  onFork?: (messageIndex: number) => void;
+  onSelectSession?: (sessionId: string) => void;
 }
 
 export function SessionsView({
@@ -47,8 +52,12 @@ export function SessionsView({
   onCreateProjectForSession,
   messages,
   isStreaming,
+  forksMap,
   onSubmit,
   onCancel,
+  onRewind,
+  onFork,
+  onSelectSession,
 }: SessionsViewProps) {
   const hasMessages = messages.length > 0 || isStreaming;
 
@@ -56,7 +65,14 @@ export function SessionsView({
   if (hasMessages) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
-        <MessageList messages={messages} isStreaming={isStreaming} />
+        <MessageList
+          messages={messages}
+          isStreaming={isStreaming}
+          forksMap={forksMap}
+          onRewind={onRewind}
+          onFork={onFork}
+          onSelectSession={onSelectSession}
+        />
         <MessageInput
           onSubmit={onSubmit}
           onCancel={onCancel}

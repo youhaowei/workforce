@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "workforce-web",
+      "name": "workforce",
       "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "dev:web"],
+      "runtimeArgs": ["run", "dev"],
       "port": 5173
     }
   ]

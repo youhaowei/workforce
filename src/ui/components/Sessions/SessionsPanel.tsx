@@ -162,7 +162,7 @@ export function SessionsPanel({
   }, []);
 
   const { data: sessions = [], isLoading } = useQuery(
-    trpc.session.list.queryOptions(listInput, { refetchInterval: 5000 }),
+    trpc.session.list.queryOptions(listInput),
   );
 
   const { projectMap, effectiveGroupBy } = useProjectGrouping(groupBy, orgId);

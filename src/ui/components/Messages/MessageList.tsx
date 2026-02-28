@@ -9,7 +9,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { Button } from '@/components/ui/button';
 import { ArrowDown } from 'lucide-react';
-import MessageItem from './MessageItem';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
+import MessageItem, { type ForkInfo } from './MessageItem';
 
 interface MessageListProps {
   messages: Array<{
@@ -22,12 +23,20 @@ interface MessageListProps {
     toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>;
   }>;
   isStreaming: boolean;
+  forksMap?: Map<string, ForkInfo[]>;
+  onRewind?: (messageIndex: number) => void;
+  onFork?: (messageIndex: number) => void;
+  onSelectSession?: (sessionId: string) => void;
 }
 
-export default function MessageList({ messages, isStreaming }: MessageListProps) {
+export default function MessageList({
+  messages, isStreaming, forksMap, onRewind, onFork, onSelectSession,
+}: MessageListProps) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const [showJumpButton, setShowJumpButton] = useState(false);
   const prevFirstMsgId = useRef<string | null>(null);
+  const isAtBottomRef = useRef(true);
+  const storeIsStreaming = useMessagesStore((s) => s.isStreaming);
   const firstMsgId = messages[0]?.id ?? null;
 
   // When messages are bulk-loaded (session switch / restore), scroll to bottom.
@@ -47,10 +56,30 @@ export default function MessageList({ messages, isStreaming }: MessageListProps)
 
   const handleAtBottomStateChange = useCallback(
     (atBottom: boolean) => {
+      isAtBottomRef.current = atBottom;
       setShowJumpButton(!atBottom && messages.length > 3);
     },
     [messages.length],
   );
+
+  // Auto-scroll during streaming: height changes in the streaming message
+  // don't trigger Virtuoso's followOutput, so we poll while at bottom.
+  useEffect(() => {
+    if (!storeIsStreaming || !isAtBottomRef.current) return;
+    let rafId: number;
+    const tick = () => {
+      if (isAtBottomRef.current) {
+        virtuosoRef.current?.scrollToIndex({
+          index: messages.length - 1,
+          align: 'end',
+          behavior: 'auto',
+        });
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [storeIsStreaming, messages.length]);
 
   const jumpToBottom = useCallback(() => {
     virtuosoRef.current?.scrollToIndex({
@@ -59,6 +88,25 @@ export default function MessageList({ messages, isStreaming }: MessageListProps)
       align: 'end',
     });
   }, [messages.length]);
+
+  // Stable render function for Virtuoso items
+  const renderItem = useCallback(
+    (index: number, message: (typeof messages)[number]) => {
+      const forks = forksMap?.get(message.id);
+      return (
+        <MessageItem
+          key={message.id}
+          message={message}
+          messageIndex={index}
+          forks={forks}
+          onRewind={onRewind}
+          onFork={onFork}
+          onSelectSession={onSelectSession}
+        />
+      );
+    },
+    [forksMap, onRewind, onFork, onSelectSession],
+  );
 
   // Empty state is handled by the parent (SessionsView)
   if (messages.length === 0 && !isStreaming) {
@@ -76,7 +124,7 @@ export default function MessageList({ messages, isStreaming }: MessageListProps)
         followOutput="smooth"
         overscan={200}
         components={{ Header: () => <div className="h-14" /> }}
-        itemContent={(_index, message) => <MessageItem key={message.id} message={message} />}
+        itemContent={renderItem}
         className="flex-1"
       />
 

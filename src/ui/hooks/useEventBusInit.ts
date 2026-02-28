@@ -4,7 +4,7 @@
  * Call this once at the App root. It subscribes to all relevant
  * EventBus events and routes them to the appropriate Zustand stores.
  *
- * Note: Message streaming (TokenDelta, startAssistantMessage, finishStreamingMessage)
+ * Note: Message streaming (token/tool_start/status events, startAssistantMessage, finishStreamingMessage)
  * is handled directly by Shell.tsx via tRPC subscriptions, not through EventBus.
  */
 
@@ -56,7 +56,7 @@ export function useEventBusInit() {
       bus.on('ToolStart', (e) => tool.handleToolStart(e as ToolStartEvent)),
       bus.on('ToolEnd', (e) => tool.handleToolEnd(e as ToolEndEvent)),
 
-      // Note: TokenDelta → messages.appendToStreamingMessage() is handled
+      // Note: Streaming events (token/tool_start/status) → messages store is handled
       // by Shell.tsx via tRPC subscription, not EventBus.
     ];
 

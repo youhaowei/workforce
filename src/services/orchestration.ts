@@ -339,8 +339,10 @@ class OrchestrationServiceImpl implements OrchestrationService {
 
     try {
       const tokens: string[] = [];
-      for await (const delta of instance.query(goal)) {
-        tokens.push(delta.token);
+      for await (const delta of instance.run(goal)) {
+        if (delta.type === 'token') {
+          tokens.push(delta.token);
+        }
       }
 
       // Agent completed successfully

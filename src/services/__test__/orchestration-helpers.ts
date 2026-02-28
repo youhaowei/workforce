@@ -93,12 +93,26 @@ export function createMockSessionService(): SessionService {
       if (!s) throw new Error('Session not found');
       return s;
     },
-    async fork(sessionId: string) {
+    async fork(sessionId: string, options?: { atMessageIndex?: number }) {
       const parent = sessions.get(sessionId);
       if (!parent) throw new Error('Session not found');
+      const messages = options?.atMessageIndex !== undefined
+        ? parent.messages.slice(0, options.atMessageIndex + 1)
+        : [...parent.messages];
       const child = mockSession({ parentId: parent.id });
+      child.messages = messages;
       sessions.set(child.id, child);
       return child;
+    },
+    async truncate(sessionId: string, upToMessageIndex: number) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error('Session not found');
+      if (upToMessageIndex === -1 && session.messages.length === 0) return session;
+      if (upToMessageIndex < -1 || upToMessageIndex >= session.messages.length)
+        throw new Error(`Invalid message index: ${upToMessageIndex}`);
+      session.messages = upToMessageIndex === -1 ? [] : session.messages.slice(0, upToMessageIndex + 1);
+      session.updatedAt = Date.now();
+      return session;
     },
     async list() {
       return Array.from(sessions.values()).map(toSummary);
@@ -161,7 +175,9 @@ export function createMockSessionService(): SessionService {
       if (!session) throw new Error('Session not found');
       session.messages.push({ id: messageId, role: 'assistant', content: fullContent, timestamp: Date.now() });
     },
+    async recordStreamBlocks() { /* no-op for mock */ },
     async recordStreamAbort() { /* no-op for mock */ },
+    async updateBlockResult() { /* no-op for mock */ },
     async getMessages(sessionId: string) {
       const session = sessions.get(sessionId);
       if (!session) throw new Error('Session not found');

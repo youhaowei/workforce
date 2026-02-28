@@ -9,6 +9,9 @@ import { readFile, writeFile, appendFile, mkdir, rename } from 'fs/promises';
 import { join } from 'path';
 import type {
   Session,
+  Message,
+  ContentBlock,
+  ToolActivity,
   JournalRecord,
   JournalHeader,
   JournalMessage,
@@ -53,6 +56,8 @@ export async function writeRecords(sessionsDir: string, sessionId: string, recor
 interface StreamState {
   deltas: Array<{ delta: string; seq: number }>;
   timestamp: number;
+  contentBlocks?: ContentBlock[];
+  toolActivities?: ToolActivity[];
 }
 
 /** Reconstruct partial content from ordered deltas. */
@@ -93,6 +98,8 @@ function processMessageRecord(ctx: ReplayContext, record: JournalRecord & { t: '
     agentConfig: record.agentConfig,
     toolCalls: record.toolCalls,
     toolResults: record.toolResults,
+    toolActivities: record.toolActivities,
+    contentBlocks: record.contentBlocks,
   });
   if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
 }
@@ -119,8 +126,18 @@ function processMessageFinal(ctx: ReplayContext, record: JournalRecord & { t: 'm
     timestamp: record.timestamp,
     toolCalls: record.toolCalls,
     toolResults: record.toolResults,
+    toolActivities: record.toolActivities,
+    contentBlocks: record.contentBlocks,
   });
   if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
+}
+
+function processMessageBlocks(ctx: ReplayContext, record: JournalRecord & { t: 'message_blocks' }): void {
+  const stream = ctx.activeStreams.get(record.id);
+  if (stream) {
+    stream.contentBlocks = record.contentBlocks;
+    stream.toolActivities = record.toolActivities;
+  }
 }
 
 function processMessageAbort(ctx: ReplayContext, record: JournalRecord & { t: 'message_abort' }): void {
@@ -146,6 +163,7 @@ function applyRecord(ctx: ReplayContext, record: JournalRecord): void {
     case 'message': return processMessageRecord(ctx, record);
     case 'message_start': return processMessageStart(ctx, record);
     case 'message_delta': return processMessageDelta(ctx, record);
+    case 'message_blocks': return processMessageBlocks(ctx, record);
     case 'message_final': return processMessageFinal(ctx, record);
     case 'message_abort': return processMessageAbort(ctx, record);
   }
@@ -156,13 +174,36 @@ function recoverOrphanedStreams(ctx: ReplayContext): void {
   for (const [msgId, stream] of ctx.activeStreams) {
     if (ctx.finalizedIds.has(msgId)) continue;
     const content = assembleDeltas(stream);
-    if (content.length > 0) {
+    if (content.length > 0 || stream.contentBlocks?.length) {
       ctx.session.messages.push({
         id: msgId,
         role: 'assistant',
         content,
         timestamp: stream.timestamp,
+        ...(stream.contentBlocks?.length ? { contentBlocks: stream.contentBlocks } : {}),
+        ...(stream.toolActivities?.length ? { toolActivities: stream.toolActivities } : {}),
       });
+    }
+  }
+}
+
+/**
+ * Backfill AskUserQuestion blocks that have no result but are followed by a user message.
+ * This happens when cold-replay answers were submitted before the updateBlockResult fix.
+ * Mutates in place — the corrected result will be persisted on the next consolidation.
+ */
+function backfillQuestionResults(messages: Message[]): void {
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    if (msg.role !== 'assistant' || !msg.contentBlocks) continue;
+    for (const block of msg.contentBlocks) {
+      if (block.type !== 'tool_use' || block.name !== 'AskUserQuestion') continue;
+      if (block.result != null) continue;
+      // Find the next user message as the answer
+      const nextUser = messages.slice(i + 1).find((m) => m.role === 'user');
+      if (nextUser) {
+        block.result = { _fromFollowUp: true, answer: nextUser.content };
+      }
     }
   }
 }
@@ -249,6 +290,7 @@ export async function replaySession(sessionsDir: string, sessionId: string): Pro
   }
 
   recoverOrphanedStreams(ctx);
+  backfillQuestionResults(ctx.session.messages);
   return ctx.session;
 }
 
@@ -319,29 +361,7 @@ export async function consolidateSession(sessionsDir: string, session: Session):
   });
 
   for (const msg of session.messages) {
-    if (msg.role === 'assistant') {
-      records.push({
-        t: 'message_final',
-        id: msg.id,
-        role: 'assistant',
-        content: msg.content,
-        timestamp: msg.timestamp,
-        stopReason: 'consolidated',
-        toolCalls: msg.toolCalls,
-        toolResults: msg.toolResults,
-      } satisfies JournalMessageFinal);
-    } else {
-      records.push({
-        t: 'message',
-        id: msg.id,
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp,
-        agentConfig: msg.agentConfig,
-        toolCalls: msg.toolCalls,
-        toolResults: msg.toolResults,
-      } satisfies JournalMessage);
-    }
+    records.push(messageToRecord(msg, 'consolidated'));
   }
 
   const tmpPath = join(sessionsDir, `${session.id}.jsonl.tmp`);
@@ -349,6 +369,35 @@ export async function consolidateSession(sessionsDir: string, session: Session):
   const content = records.map((r) => JSON.stringify(r)).join('\n') + '\n';
   await writeFile(tmpPath, content, 'utf-8');
   await rename(tmpPath, finalPath);
+}
+
+/** Convert a Message to the appropriate JournalRecord for serialization. */
+function messageToRecord(m: Session['messages'][number], stopReason?: string): JournalMessage | JournalMessageFinal {
+  if (m.role === 'assistant') {
+    return {
+      t: 'message_final', id: m.id, role: 'assistant', content: m.content,
+      timestamp: m.timestamp, stopReason: stopReason ?? 'consolidated',
+      toolCalls: m.toolCalls, toolResults: m.toolResults,
+      toolActivities: m.toolActivities, contentBlocks: m.contentBlocks,
+    } satisfies JournalMessageFinal;
+  }
+  return {
+    t: 'message', id: m.id, role: m.role, content: m.content,
+    timestamp: m.timestamp, agentConfig: m.agentConfig,
+    toolCalls: m.toolCalls, toolResults: m.toolResults,
+    toolActivities: m.toolActivities, contentBlocks: m.contentBlocks,
+  } satisfies JournalMessage;
+}
+
+/** Write a forked session's JSONL from scratch (header + all messages). */
+export async function writeForkSession(sessionsDir: string, forked: Session): Promise<void> {
+  const records: JournalRecord[] = [
+    { t: 'header', v: JSONL_VERSION, id: forked.id, title: forked.title,
+      createdAt: forked.createdAt, updatedAt: forked.updatedAt,
+      parentId: forked.parentId, metadata: forked.metadata },
+    ...forked.messages.map((m) => messageToRecord(m, 'forked')),
+  ];
+  await writeRecords(sessionsDir, forked.id, records);
 }
 
 // =============================================================================

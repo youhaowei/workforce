@@ -115,6 +115,19 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
   const orgId = useOrgStore((s) => s.currentOrgId);
   const serverConnected = useServerHealth();
 
+  // Eagerly preload models as soon as server is up so the model list is ready
+  // by the time the user interacts with the model selector. We do NOT gate the
+  // Shell on this — the UI falls back to seed/cached models from localStorage
+  // and updates once the real list arrives.
+  useQuery(
+    trpc.agent.supportedModels.queryOptions(undefined, {
+      enabled: serverConnected,
+      staleTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    }),
+  );
+
   // Data queries (enabled once server is up)
   const { data: userExists, isLoading: isLoadingUserExists } = useQuery(
     trpc.user.exists.queryOptions(undefined, { enabled: serverConnected }),

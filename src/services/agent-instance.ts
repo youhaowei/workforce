@@ -1,8 +1,9 @@
 import { createSession } from 'unifai';
 import type { AgentEvent } from 'unifai';
 import { homedir } from 'os';
-import type { StreamResult, TokenDelta } from './types';
+import type { StreamResult, AgentStreamEvent } from './types';
 import { getEventBus } from '@/shared/event-bus';
+import { formatToolInput } from './agent';
 
 /**
  * Build environment variables for the SDK subprocess.
@@ -75,7 +76,7 @@ export interface AgentInstanceOptions {
  */
 export class AgentInstance {
   private abortController: AbortController;
-  private queryInProgress = false;
+  private runInProgress = false;
 
   constructor(
     public readonly sessionId: string,
@@ -84,12 +85,12 @@ export class AgentInstance {
     this.abortController = new AbortController();
   }
 
-  async *query(prompt: string): StreamResult<TokenDelta> {
-    if (this.queryInProgress) {
+  async *run(prompt: string): StreamResult<AgentStreamEvent> {
+    if (this.runInProgress) {
       throw new AgentError('Query already in progress for this instance', 'UNKNOWN');
     }
 
-    this.queryInProgress = true;
+    this.runInProgress = true;
     this.abortController = new AbortController();
     const bus = getEventBus();
     let tokenIndex = 0;
@@ -101,7 +102,6 @@ export class AgentInstance {
 
       const session = createSession('claude', {
         model: 'sonnet',
-        sdkVersion: 'v1',
         cwd: this.options.cwd,
         env: this.options.env ?? buildSdkEnv(),
         abortController: this.abortController,
@@ -120,7 +120,7 @@ export class AgentInstance {
       }
     } catch (err) {
       if (this.abortController.signal.aborted) {
-        yield { token: ' [cancelled]', index: tokenIndex++ };
+        yield { type: 'token' as const, token: ' [cancelled]' };
       } else {
         throw new AgentError(
           err instanceof Error ? err.message : String(err),
@@ -129,11 +129,11 @@ export class AgentInstance {
         );
       }
     } finally {
-      this.queryInProgress = false;
+      this.runInProgress = false;
     }
   }
 
-  private *handleEvent(event: AgentEvent, bus: ReturnType<typeof getEventBus>, tokenIndex: number): Generator<TokenDelta> {
+  private *handleEvent(event: AgentEvent, bus: ReturnType<typeof getEventBus>, _tokenIndex: number): Generator<AgentStreamEvent> {
     const now = Date.now();
 
     // Pass through raw SDK messages for advanced consumers
@@ -148,10 +148,28 @@ export class AgentInstance {
     }
 
     if (event.type === 'text_delta') {
-      const tokenDelta: TokenDelta = { token: event.text, index: tokenIndex };
-      bus.emit({ type: 'TokenDelta', token: tokenDelta.token, index: tokenDelta.index, timestamp: now });
-      yield tokenDelta;
+      yield { type: 'token', token: event.text };
       return;
+    }
+
+    if (event.type === 'tool_start') {
+      yield { type: 'tool_start', name: event.toolName, input: formatToolInput(event.toolName, event.input), toolUseId: event.toolUseId, inputRaw: event.input };
+    }
+
+    if (event.type === 'tool_result') {
+      yield { type: 'tool_result', toolUseId: event.toolUseId, toolName: event.toolName, result: event.result, isError: event.isError };
+    }
+
+    if (event.type === 'content_block_start') {
+      yield { type: 'content_block_start', index: event.index, blockType: event.blockType, id: event.id, name: event.name };
+    }
+
+    if (event.type === 'content_block_stop') {
+      yield { type: 'content_block_stop', index: event.index };
+    }
+
+    if (event.type === 'status') {
+      yield { type: 'status', message: event.message };
     }
 
     if (event.type === 'session_complete') {
@@ -197,8 +215,8 @@ export class AgentInstance {
     this.abortController.abort();
   }
 
-  isQuerying(): boolean {
-    return this.queryInProgress;
+  isRunning(): boolean {
+    return this.runInProgress;
   }
 
   dispose(): void {

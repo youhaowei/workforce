@@ -96,7 +96,7 @@ export function MainContentColumn({
       )}
 
       {error && (
-        <div className="px-4 py-2 bg-destructive/10 border-b flex items-center justify-between">
+        <div className="absolute top-12 inset-x-0 z-20 mx-4 px-4 py-2 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center justify-between shadow-sm">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-destructive" />
             <span className="text-sm text-destructive">{error}</span>

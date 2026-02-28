@@ -46,7 +46,7 @@ vi.mock('./agent-instance', () => {
         this.sessionId = sessionId;
       }
 
-      async *query(_prompt: string) {
+      async *run(_prompt: string) {
         // Read delay at call time (allows per-test control)
         const delay = agentDelay;
         if (delay > 0) {
@@ -58,7 +58,7 @@ vi.mock('./agent-instance', () => {
       }
 
       cancel() { this.cancelled = true; }
-      isQuerying() { return false; }
+      isRunning() { return false; }
       dispose() { this.cancelled = true; }
     },
     AgentError: class extends Error {

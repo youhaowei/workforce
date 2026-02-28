@@ -7,7 +7,7 @@
     "dev": "trap 'kill 0' EXIT; bun run server:watch & bun run vite & sleep 2 && NODE_ENV=development electrobun dev",
     "dev:web": "bun run server:watch & bun run vite",
     "server": "bun run src/server/index.ts",
-    "server:watch": "bun --watch run src/server/index.ts",
+    "server:watch": "PORT=4096 bun --watch run src/server/index.ts",
     "build": "bun run vite:build && electrobun build:release",
     "clean": "rm -rf dist .electrobun",
     "vite": "vite",

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Send, Square } from 'lucide-react';
 import { useTRPC } from '@/bridge/react';
 import type { AgentConfig, AgentPermissionMode, ThinkingLevel } from '@/services/types';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import AgentConfigToolbar from './AgentConfigToolbar';
 import {
   AGENT_CONFIG_LAST_KEY,
@@ -69,6 +70,7 @@ export default function MessageInput({
   messages,
 }: MessageInputProps) {
   const trpc = useTRPC();
+  const currentTool = useMessagesStore((s) => s.currentTool);
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -102,7 +104,7 @@ export default function MessageInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgDefaults]);
 
-  // Fetch supported models via React Query (5-minute stale window)
+  // Fetch supported models via React Query — polls to pick up background SDK refresh
   const { data: supportedModels } = useQuery(
     trpc.agent.supportedModels.queryOptions(undefined, {
       staleTime: 5 * 60_000,
@@ -164,6 +166,18 @@ export default function MessageInput({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, messages, models]);
+
+  // Consume draft input set by rewind/fork — populate textarea once, then clear.
+  const draftInput = useMessagesStore((s) => s.draftInput);
+  const setDraftInput = useMessagesStore((s) => s.setDraftInput);
+  useEffect(() => {
+    if (draftInput !== null) {
+      setValue(draftInput);
+      setDraftInput(null);
+      // Defer focus so the textarea has the new value when focused
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    }
+  }, [draftInput, setDraftInput]);
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
@@ -263,7 +277,7 @@ export default function MessageInput({
           {isStreaming && (
             <span className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              Workforce is thinking...
+              {currentTool ? `Using ${currentTool}...` : 'Workforce is thinking...'}
             </span>
           )}
         </div>

@@ -11,6 +11,7 @@ import { HomeView } from '../Home';
 import type { Project } from '@/services/types';
 import type { ViewType } from './Shell';
 import type { AgentConfig } from '@/services/types';
+import type { ForkInfo } from '../Messages/MessageItem';
 
 interface MainViewContentProps {
   currentView: ViewType;
@@ -32,6 +33,7 @@ interface MainViewContentProps {
     toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>;
   }>;
   isStreaming: boolean;
+  forksMap?: Map<string, ForkInfo[]>;
   onSelectAgent: (sessionId: string) => void;
   onBackFromDetail: () => void;
   onStartChat: () => void;
@@ -42,6 +44,8 @@ interface MainViewContentProps {
   onCreateProjectForSession: () => void;
   onSubmitMessage: (submission: { content: string; agentConfig: AgentConfig }) => void;
   onCancelStream: () => void;
+  onRewind?: (messageIndex: number) => void;
+  onFork?: (messageIndex: number) => void;
 }
 
 export function MainViewContent({
@@ -55,6 +59,7 @@ export function MainViewContent({
   boardStatusFilter,
   messages,
   isStreaming,
+  forksMap,
   onSelectAgent,
   onBackFromDetail,
   onStartChat,
@@ -65,6 +70,8 @@ export function MainViewContent({
   onCreateProjectForSession,
   onSubmitMessage,
   onCancelStream,
+  onRewind,
+  onFork,
 }: MainViewContentProps) {
   switch (currentView) {
     case 'board':
@@ -103,8 +110,12 @@ export function MainViewContent({
           onCreateProjectForSession={onCreateProjectForSession}
           messages={messages}
           isStreaming={isStreaming}
+          forksMap={forksMap}
           onSubmit={onSubmitMessage}
           onCancel={onCancelStream}
+          onRewind={onRewind}
+          onFork={onFork}
+          onSelectSession={onSelectSession}
         />
       );
     case 'projects':

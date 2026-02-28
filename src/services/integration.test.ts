@@ -53,73 +53,73 @@ describe('EventBus integration', () => {
       events.push(event.type);
     });
 
-    bus.emit({ type: 'TokenDelta', token: 'a', index: 0, timestamp: Date.now() });
+    bus.emit({ type: 'SessionChange', sessionId: 'sess-1', action: 'created', timestamp: Date.now() });
     bus.emit({ type: 'ToolStart', toolId: '1', toolName: 'Read', args: {}, timestamp: Date.now() });
     bus.emit({ type: 'ToolEnd', toolId: '1', toolName: 'Read', result: {}, duration: 100, timestamp: Date.now() });
 
-    expect(events).toEqual(['TokenDelta', 'ToolStart', 'ToolEnd']);
+    expect(events).toEqual(['SessionChange', 'ToolStart', 'ToolEnd']);
   });
 
   it('typed listener only receives matching events', () => {
-    const tokenEvents: string[] = [];
+    const sessionIds: string[] = [];
 
-    bus.on('TokenDelta', (event) => {
-      tokenEvents.push(event.token);
+    bus.on('SessionChange', (event) => {
+      sessionIds.push(event.sessionId);
     });
 
-    bus.emit({ type: 'TokenDelta', token: 'a', index: 0, timestamp: Date.now() });
+    bus.emit({ type: 'SessionChange', sessionId: 'sess-1', action: 'created', timestamp: Date.now() });
     bus.emit({ type: 'ToolStart', toolId: '1', toolName: 'Read', args: {}, timestamp: Date.now() });
-    bus.emit({ type: 'TokenDelta', token: 'b', index: 1, timestamp: Date.now() });
+    bus.emit({ type: 'SessionChange', sessionId: 'sess-2', action: 'resumed', timestamp: Date.now() });
 
-    expect(tokenEvents).toEqual(['a', 'b']);
+    expect(sessionIds).toEqual(['sess-1', 'sess-2']);
   });
 
   it('once listener fires only once', () => {
     let count = 0;
 
-    bus.once('TokenDelta', () => {
+    bus.once('SessionChange', () => {
       count++;
     });
 
-    bus.emit({ type: 'TokenDelta', token: 'a', index: 0, timestamp: Date.now() });
-    bus.emit({ type: 'TokenDelta', token: 'b', index: 1, timestamp: Date.now() });
-    bus.emit({ type: 'TokenDelta', token: 'c', index: 2, timestamp: Date.now() });
+    bus.emit({ type: 'SessionChange', sessionId: 'sess-1', action: 'created', timestamp: Date.now() });
+    bus.emit({ type: 'SessionChange', sessionId: 'sess-2', action: 'resumed', timestamp: Date.now() });
+    bus.emit({ type: 'SessionChange', sessionId: 'sess-3', action: 'terminated', timestamp: Date.now() });
 
     expect(count).toBe(1);
   });
 
   it('backpressure pauses and resumes events', () => {
-    const events: number[] = [];
+    const sessionIds: string[] = [];
 
-    bus.on('TokenDelta', (event) => {
-      events.push(event.index);
+    bus.on('SessionChange', (event) => {
+      sessionIds.push(event.sessionId);
     });
 
     const controller = bus.getBackpressureController();
 
     // Pause and queue events
     controller.pause();
-    bus.emit({ type: 'TokenDelta', token: 'a', index: 0, timestamp: Date.now() });
-    bus.emit({ type: 'TokenDelta', token: 'b', index: 1, timestamp: Date.now() });
+    bus.emit({ type: 'SessionChange', sessionId: 'sess-1', action: 'created', timestamp: Date.now() });
+    bus.emit({ type: 'SessionChange', sessionId: 'sess-2', action: 'resumed', timestamp: Date.now() });
 
-    expect(events).toEqual([]); // Paused, nothing delivered
+    expect(sessionIds).toEqual([]); // Paused, nothing delivered
     expect(controller.queueSize()).toBe(2);
 
     // Resume and flush
     controller.resume();
 
-    expect(events).toEqual([0, 1]);
+    expect(sessionIds).toEqual(['sess-1', 'sess-2']);
     expect(controller.queueSize()).toBe(0);
   });
 
   it('priority listeners fire in order', () => {
     const order: number[] = [];
 
-    bus.on('TokenDelta', () => order.push(3), { priority: 1 });
-    bus.on('TokenDelta', () => order.push(1), { priority: 10 }); // Highest priority
-    bus.on('TokenDelta', () => order.push(2), { priority: 5 });
+    bus.on('SessionChange', () => order.push(3), { priority: 1 });
+    bus.on('SessionChange', () => order.push(1), { priority: 10 }); // Highest priority
+    bus.on('SessionChange', () => order.push(2), { priority: 5 });
 
-    bus.emit({ type: 'TokenDelta', token: 'a', index: 0, timestamp: Date.now() });
+    bus.emit({ type: 'SessionChange', sessionId: 'sess-1', action: 'created', timestamp: Date.now() });
 
     expect(order).toEqual([1, 2, 3]);
   });
@@ -255,11 +255,11 @@ describe('error handling integration', () => {
       errorCaught = true;
     };
 
-    bus.on('TokenDelta', async () => {
+    bus.on('SessionChange', async () => {
       throw new Error('Async listener error');
     });
 
-    await bus.emitAsync({ type: 'TokenDelta', token: 'a', index: 0, timestamp: Date.now() });
+    await bus.emitAsync({ type: 'SessionChange', sessionId: 'sess-1', action: 'created', timestamp: Date.now() });
 
     // Wait for async error to be caught
     await new Promise((r) => setTimeout(r, 10));
@@ -309,7 +309,7 @@ describe('execFileNoThrow', () => {
 describe('service cleanup', () => {
   it('EventBus dispose clears all listeners', () => {
     const bus = createEventBus();
-    bus.on('TokenDelta', () => {});
+    bus.on('SessionChange', () => {});
     bus.on('ToolStart', () => {});
     bus.on('*', () => {});
 
