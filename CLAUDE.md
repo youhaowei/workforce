@@ -253,14 +253,49 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 | ----- | ------ |
 | `@/*` | `src/*` |
 
-## Testing
+## Testing & Debugging Strategy
 
--   **Unit tests**: `bun run test` (Vitest)
--   **E2E tests**: `bun run test:e2e` (Playwright)
--   **E2E headed**: `bun run test:e2e:headed` (watch tests run)
--   **E2E debug**: `bun run test:e2e:debug` (step through)
+```bash
+bun run test       # Unit tests (Vitest)
+bun run test:e2e   # Playwright E2E tests
+bun run test:e2e:headed   # Watch tests run
+bun run test:e2e:debug    # Step through
+```
 
-**Test Coverage**: All HIGH/MEDIUM priority components tested.
+### Test at Every Layer
+
+Every non-trivial change should have tests. The layer where the bug or feature lives determines the test type:
+
+- **Server** — Service logic, persistence, validation, error paths. `router.test.ts` (via `createCaller`), or service-level tests with factory functions + temp dirs.
+- **UI** — Component rendering, user interactions, store behavior. React Testing Library + jsdom.
+- **E2E** — Full user workflows (create session → send message → fork → navigate). Playwright tests the real stack.
+
+Don't just test the layer you changed — if a fix touches service + UI, write tests at both levels.
+
+### Session Reconstruction for Bug Reproduction
+
+Session JSONL journals are the source of truth. To reproduce a state bug, construct the specific journal records that trigger it and replay via `replaySession()`. This is more reliable than mocking UI state.
+
+### Logging Philosophy
+
+Inspired by [loggingsucks.com](https://loggingsucks.com/) — logs should be structured, queryable, and context-rich.
+
+**Wide events over breadcrumbs** — Instead of scattering `debugLog('thing happened')` across code, build context throughout an operation and emit one rich event at the end. An agent run should produce one entry with session ID, tools invoked, duration, outcome — not 20 separate lines.
+
+**Structured, not strings** — Logs should be JSON-queryable. When a bug is reported, you want to filter by `sessionId` or `toolName`, not grep for substrings.
+
+**Always log errors and slow operations in full** — Normal operations can be summarized.
+
+Currently `debugLog()` writes to `debug.log` (viewable via `/debug-log` endpoint or `tail -f`). This is a known area for improvement — see task backlog.
+
+### Conventions
+
+- **Co-located tests** — `Foo.test.ts` next to `Foo.ts`, not in `__tests__/` directories
+- **Environments** — Node (default) for services/routers; `jsdom` for `src/ui/**/*.test.tsx` (auto-matched in vitest.config.ts)
+- **Shared mocks** — `src/services/__test__/orchestration-helpers.ts`: `mockSession()`, `createMockSessionService()`, etc.
+- **Temp data** — `WORKFORCE_DATA_DIR` points to tmpdir in tests, never `~/.workforce/`
+- **Fake timers + `waitFor()`** — deadlocks. Use `vi.useRealTimers()` before async assertions
+- **Router tests** share global singletons — `resetXxxService()` in `afterEach` is mandatory
 
 ## Tech Stack
 
@@ -303,6 +338,7 @@ See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated 
 - **Auth** — SDK uses Claude CLI auth from `~/.claude/.credentials.json`. SDK handles token refresh internally.
 - **Streaming** — Pass `includePartialMessages: true` to `sdkQuery()`. Only yield from `content_block_delta` events (not final message) to avoid duplication. Never `.trim()` SSE data — it strips inter-token spaces.
 - **Bun.serve timeout** — Default `idleTimeout` is 10s; SSE needs 120s for LLM responses.
+- **Cold-replay answers** — When a user answers an AskUserQuestion via cold replay, the answer is persisted in `block.result` via `updateBlockResult`. Historical sessions may have answers as follow-up user messages; `backfillQuestionResults` in `session-journal.ts` handles migration on load. `block.result` shape: `Record<string, string[]>` (live) or `{ _fromFollowUp, answer }` (backfill).
 
 ### Electrobun & UI
 - **Radix UI** — Uses unified `radix-ui` package (not individual `@radix-ui/*`). Import from `"radix-ui"` directly.
