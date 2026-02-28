@@ -25,8 +25,9 @@ export function BoardView({ onSelectAgent, keyword, statusFilter }: BoardViewPro
   const listInput = { orgId };
   const listQueryKey = trpc.session.list.queryKey(listInput);
 
+  // No refetchInterval — SSE event invalidation handles freshness.
   const { data: sessions = [] } = useQuery(
-    trpc.session.list.queryOptions(listInput, { refetchInterval: 5000 }),
+    trpc.session.list.queryOptions(listInput),
   );
 
   const invalidateSessionList = useCallback(() => {

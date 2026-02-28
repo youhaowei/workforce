@@ -50,7 +50,7 @@ export function ProjectView({
   const { data: sessions = [] } = useQuery(
     trpc.session.list.queryOptions(
       sessionsInput,
-      { enabled: !!sessionsInput, refetchInterval: 5000 },
+      { enabled: !!sessionsInput },
     ),
   );
 

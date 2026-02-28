@@ -38,7 +38,7 @@ export function ProjectsPanel({
 
   const listInput = { orgId };
   const { data: projects = [], isLoading } = useQuery(
-    trpc.project.list.queryOptions(listInput, { enabled: !collapsed, refetchInterval: 10000 }),
+    trpc.project.list.queryOptions(listInput, { enabled: !collapsed }),
   );
 
   const deleteMutation = useMutation(

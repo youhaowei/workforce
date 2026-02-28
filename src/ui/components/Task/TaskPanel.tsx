@@ -25,7 +25,6 @@ export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
   const { data: tasks = [] } = useQuery(
     trpc.task.list.queryOptions(undefined, {
       enabled: isOpen,
-      refetchInterval: 2000,
     })
   );
 
