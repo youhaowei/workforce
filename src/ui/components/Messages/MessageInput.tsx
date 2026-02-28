@@ -104,7 +104,7 @@ export default function MessageInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orgDefaults]);
 
-  // Fetch supported models via React Query (5-minute stale window)
+  // Fetch supported models via React Query — polls to pick up background SDK refresh
   const { data: supportedModels } = useQuery(
     trpc.agent.supportedModels.queryOptions(undefined, {
       staleTime: 5 * 60_000,
@@ -166,6 +166,18 @@ export default function MessageInput({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, messages, models]);
+
+  // Consume draft input set by rewind/fork — populate textarea once, then clear.
+  const draftInput = useMessagesStore((s) => s.draftInput);
+  const setDraftInput = useMessagesStore((s) => s.setDraftInput);
+  useEffect(() => {
+    if (draftInput !== null) {
+      setValue(draftInput);
+      setDraftInput(null);
+      // Defer focus so the textarea has the new value when focused
+      requestAnimationFrame(() => textareaRef.current?.focus());
+    }
+  }, [draftInput, setDraftInput]);
 
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
