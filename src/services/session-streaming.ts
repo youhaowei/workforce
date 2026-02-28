@@ -1,0 +1,92 @@
+/**
+ * Session Streaming — JSONL stream record methods.
+ *
+ * Free functions for recording stream start/delta/final/abort events.
+ */
+
+import type {
+  Session,
+  ToolActivity,
+  ContentBlock,
+  JournalMessageFinal,
+  JournalRecord,
+} from './types';
+import { appendRecord } from './session-journal';
+import { AppendLock } from './session-journal';
+
+export interface StreamingDeps {
+  readonly sessions: Map<string, Session>;
+  readonly sessionsDir: string;
+  readonly appendLock: AppendLock;
+  ensureInitialized(): Promise<void>;
+  writeRecords(sessionId: string, records: JournalRecord[]): Promise<void>;
+  scheduleConsolidation(sessionId: string): void;
+}
+
+export async function recordStreamStart(
+  deps: StreamingDeps, sessionId: string, messageId: string, meta?: Record<string, unknown>,
+): Promise<void> {
+  await deps.ensureInitialized();
+  if (!deps.sessions.has(sessionId)) throw new Error(`Session not found: ${sessionId}`);
+  await deps.writeRecords(sessionId, [{ t: 'message_start', id: messageId, role: 'assistant', timestamp: Date.now(), meta }]);
+}
+
+export async function recordStreamDelta(
+  deps: StreamingDeps, sessionId: string, messageId: string, delta: string, seq: number,
+): Promise<void> {
+  await deps.writeRecords(sessionId, [{ t: 'message_delta', id: messageId, delta, seq }]);
+}
+
+export async function recordStreamDeltaBatch(
+  deps: StreamingDeps, sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>,
+): Promise<void> {
+  if (deltas.length === 0) return;
+  await deps.writeRecords(sessionId, deltas.map((d) => ({ t: 'message_delta' as const, id: messageId, delta: d.delta, seq: d.seq })));
+}
+
+export async function recordStreamEnd(
+  deps: StreamingDeps,
+  sessionId: string,
+  messageId: string,
+  fullContent: string,
+  stopReason: string,
+  toolActivities?: ToolActivity[],
+  contentBlocks?: ContentBlock[],
+): Promise<void> {
+  const session = deps.sessions.get(sessionId);
+  if (!session) throw new Error(`Session not found: ${sessionId}`);
+
+  const now = Date.now();
+  const record: JournalMessageFinal = {
+    t: 'message_final', id: messageId, role: 'assistant', content: fullContent, timestamp: now, stopReason,
+    ...(toolActivities?.length ? { toolActivities } : {}),
+    ...(contentBlocks?.length ? { contentBlocks } : {}),
+  };
+
+  await deps.appendLock.acquire(sessionId, async () => {
+    session.messages.push({
+      id: messageId, role: 'assistant', content: fullContent, timestamp: now,
+      ...(toolActivities?.length ? { toolActivities } : {}),
+      ...(contentBlocks?.length ? { contentBlocks } : {}),
+    });
+    session.updatedAt = now;
+    await appendRecord(deps.sessionsDir, sessionId, record);
+  });
+  deps.scheduleConsolidation(sessionId);
+}
+
+export async function recordStreamBlocks(
+  deps: StreamingDeps, sessionId: string, messageId: string,
+  contentBlocks: ContentBlock[], toolActivities?: ToolActivity[],
+): Promise<void> {
+  await deps.writeRecords(sessionId, [{
+    t: 'message_blocks', id: messageId, contentBlocks,
+    ...(toolActivities?.length ? { toolActivities } : {}),
+  }]);
+}
+
+export async function recordStreamAbort(
+  deps: StreamingDeps, sessionId: string, messageId: string, reason: string,
+): Promise<void> {
+  await deps.writeRecords(sessionId, [{ t: 'message_abort', id: messageId, reason, timestamp: Date.now() }]);
+}

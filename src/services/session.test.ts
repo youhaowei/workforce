@@ -9,9 +9,8 @@ import { describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from
 import { mkdir, writeFile, rm, readFile, readdir } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
+import { resetSessionService, createSessionService } from './session';
 import {
-  resetSessionService,
-  createSessionService,
   JSONL_VERSION,
   replaySession,
   replaySessionMetadata,
@@ -19,7 +18,7 @@ import {
   appendRecords,
   writeRecords,
   consolidateSession,
-} from './session';
+} from './session-journal';
 
 // Each test suite gets its own temp root
 const TEST_ROOT = join(tmpdir(), 'workforce-session-test-' + Date.now());
@@ -534,6 +533,186 @@ describe('SessionService', () => {
       const service = createSessionService(dir);
 
       await expect(service.fork('non-existent')).rejects.toThrow('Session not found');
+    });
+
+    it('should clear all messages when truncating with -1', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const session = await service.create('ClearAll');
+      await service.recordMessage(session.id, { id: 'msg_1', role: 'user', content: 'First', timestamp: 1 });
+      await service.recordMessage(session.id, { id: 'msg_2', role: 'assistant', content: 'Reply', timestamp: 2 });
+
+      const truncated = await service.truncate(session.id, -1);
+      expect(truncated.messages).toHaveLength(0);
+
+      // Verify persistence — reload from disk
+      const reloaded = await service.get(session.id);
+      expect(reloaded!.messages).toHaveLength(0);
+    });
+
+    it('should throw when forking an empty session', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const empty = await service.create('Empty');
+
+      await expect(service.fork(empty.id)).rejects.toThrow('Cannot fork an empty session');
+    });
+
+    it('should fork at a specific message index', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const parent = await service.create('Parent');
+
+      await service.recordMessage(parent.id, { id: 'msg_1', role: 'user', content: 'First', timestamp: 1 });
+      await service.recordMessage(parent.id, { id: 'msg_2', role: 'user', content: 'Second', timestamp: 2 });
+      await service.recordMessage(parent.id, { id: 'msg_3', role: 'user', content: 'Third', timestamp: 3 });
+
+      const forked = await service.fork(parent.id, { atMessageIndex: 1 });
+
+      expect(forked.messages).toHaveLength(2);
+      expect(forked.messages[0].content).toBe('First');
+      expect(forked.messages[1].content).toBe('Second');
+      expect(forked.parentId).toBe(parent.id);
+    });
+
+    it('should store forkAtMessageId in forked session metadata', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const parent = await service.create('Parent');
+
+      await service.recordMessage(parent.id, { id: 'msg_1', role: 'user', content: 'A', timestamp: 1 });
+      await service.recordMessage(parent.id, { id: 'msg_2', role: 'user', content: 'B', timestamp: 2 });
+
+      const forked = await service.fork(parent.id, { atMessageIndex: 0 });
+
+      expect(forked.metadata.forkAtMessageId).toBe('msg_1');
+    });
+
+    it('should preserve parent session when forking', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const parent = await service.create('Parent');
+
+      await service.recordMessage(parent.id, { id: 'msg_1', role: 'user', content: 'A', timestamp: 1 });
+      await service.recordMessage(parent.id, { id: 'msg_2', role: 'user', content: 'B', timestamp: 2 });
+
+      await service.fork(parent.id, { atMessageIndex: 0 });
+
+      const parentAfter = await service.get(parent.id);
+      expect(parentAfter!.messages).toHaveLength(2);
+    });
+
+    it('should throw for invalid message index', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const parent = await service.create('Parent');
+
+      await service.recordMessage(parent.id, { id: 'msg_1', role: 'user', content: 'A', timestamp: 1 });
+
+      await expect(service.fork(parent.id, { atMessageIndex: 5 })).rejects.toThrow('Invalid message index');
+      await expect(service.fork(parent.id, { atMessageIndex: -2 })).rejects.toThrow('Invalid message index');
+    });
+
+    it('should persist fork-at-index JSONL with correct messages', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const parent = await service.create('Parent');
+
+      await service.recordMessage(parent.id, { id: 'msg_1', role: 'user', content: 'A', timestamp: 1 });
+      await service.recordMessage(parent.id, { id: 'msg_2', role: 'user', content: 'B', timestamp: 2 });
+
+      const forked = await service.fork(parent.id, { atMessageIndex: 0 });
+
+      const filePath = join(dir, `${forked.id}.jsonl`);
+      const records = await readJsonl(filePath);
+      const msgRecords = records.filter((r) => (r as Record<string, unknown>).t === 'message' || (r as Record<string, unknown>).t === 'message_final');
+
+      expect(msgRecords).toHaveLength(1);
+      expect((msgRecords[0] as Record<string, unknown>).content).toBe('A');
+    });
+  });
+
+  // ─── truncate ─────────────────────────────────────────────────────────────
+
+  describe('truncate', () => {
+    it('should truncate session to specified message index', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const session = await service.create('Truncate Test');
+
+      await service.recordMessage(session.id, { id: 'msg_1', role: 'user', content: 'Keep', timestamp: 1 });
+      await service.recordMessage(session.id, { id: 'msg_2', role: 'user', content: 'Remove', timestamp: 2 });
+      await service.recordMessage(session.id, { id: 'msg_3', role: 'user', content: 'Also remove', timestamp: 3 });
+
+      const truncated = await service.truncate(session.id, 0);
+
+      expect(truncated.messages).toHaveLength(1);
+      expect(truncated.messages[0].content).toBe('Keep');
+    });
+
+    it('should persist truncation to disk', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const session = await service.create('Persist Truncate');
+
+      await service.recordMessage(session.id, { id: 'msg_1', role: 'user', content: 'A', timestamp: 1 });
+      await service.recordMessage(session.id, { id: 'msg_2', role: 'user', content: 'B', timestamp: 2 });
+
+      await service.truncate(session.id, 0);
+
+      // Reload from disk
+      const fresh = createSessionService(dir);
+      const loaded = await fresh.get(session.id);
+
+      expect(loaded!.messages).toHaveLength(1);
+      expect(loaded!.messages[0].content).toBe('A');
+    });
+
+    it('should update updatedAt timestamp', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const session = await service.create('Timestamp Test');
+
+      await service.recordMessage(session.id, { id: 'msg_1', role: 'user', content: 'A', timestamp: 1 });
+      await service.recordMessage(session.id, { id: 'msg_2', role: 'user', content: 'B', timestamp: 2 });
+
+      const before = session.updatedAt;
+      const truncated = await service.truncate(session.id, 0);
+
+      expect(truncated.updatedAt).toBeGreaterThanOrEqual(before);
+    });
+
+    it('should throw for non-existent session', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+
+      await expect(service.truncate('non-existent', 0)).rejects.toThrow('Session not found');
+    });
+
+    it('should throw for out-of-range index', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const session = await service.create('Range Test');
+
+      await service.recordMessage(session.id, { id: 'msg_1', role: 'user', content: 'A', timestamp: 1 });
+
+      await expect(service.truncate(session.id, 5)).rejects.toThrow('Invalid message index');
+      await expect(service.truncate(session.id, -2)).rejects.toThrow('Invalid message index');
+    });
+
+    it('should be idempotent when truncating to last message', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const session = await service.create('Idempotent Test');
+
+      await service.recordMessage(session.id, { id: 'msg_1', role: 'user', content: 'A', timestamp: 1 });
+      await service.recordMessage(session.id, { id: 'msg_2', role: 'user', content: 'B', timestamp: 2 });
+
+      const truncated = await service.truncate(session.id, 1);
+
+      expect(truncated.messages).toHaveLength(2);
+      expect(truncated.messages[0].content).toBe('A');
+      expect(truncated.messages[1].content).toBe('B');
     });
   });
 
@@ -1122,6 +1301,7 @@ describe('SessionService', () => {
       const service = createSessionService(dir);
 
       const parent = await service.create('Parent');
+      await service.recordMessage(parent.id, { id: 'msg_1', role: 'user', content: 'Hi', timestamp: 1 });
       const child1 = await service.fork(parent.id);
       const child2 = await service.fork(parent.id);
 
