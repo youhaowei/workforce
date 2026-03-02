@@ -24,14 +24,14 @@ function Pill({ label, disabled, children }: PillProps) {
       <DropdownMenuTrigger
         disabled={disabled}
         className={cn(
-          'inline-flex items-center gap-1 h-6 px-2 rounded-full text-xs border bg-muted/50',
-          'hover:bg-muted transition-colors outline-none',
+          'inline-flex items-center gap-1 h-[22px] px-2 rounded-md text-[11px]',
+          'text-muted-foreground/70 hover:text-muted-foreground transition-colors outline-none',
           'focus-visible:ring-1 focus-visible:ring-ring',
-          'disabled:opacity-40 disabled:cursor-not-allowed',
+          'disabled:opacity-30 disabled:cursor-not-allowed',
         )}
       >
         {label}
-        <ChevronDown className="h-3 w-3 opacity-60" />
+        <ChevronDown className="h-2.5 w-2.5 opacity-40" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="min-w-[160px]">
         {children}

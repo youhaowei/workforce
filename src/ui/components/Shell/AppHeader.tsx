@@ -1,6 +1,5 @@
-import { ArrowLeft, FolderGit2, Menu, MessageSquare, ListTodo, Plus } from 'lucide-react';
+import { ArrowLeft, FolderGit2, MessageSquare, ListTodo, Plus } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
 import {
   Tooltip,
   TooltipContent,
@@ -24,11 +23,8 @@ const VIEW_TITLES: Partial<Record<ViewType, string>> = {
 
 interface TopBarProps {
   currentView: ViewType;
-  /** Title of the active session — shown in the page title pill on the sessions view. */
   sessionTitle?: string;
   onBack?: () => void;
-  sidebarCollapsed: boolean;
-  onToggleSidebar: () => void;
   sessionsPanelCollapsed: boolean;
   onToggleSessionsPanel: () => void;
   projectsPanelCollapsed: boolean;
@@ -46,8 +42,6 @@ export default function TopBar({
   currentView,
   sessionTitle,
   onBack,
-  sidebarCollapsed,
-  onToggleSidebar,
   sessionsPanelCollapsed,
   onToggleSessionsPanel,
   projectsPanelCollapsed,
@@ -60,32 +54,23 @@ export default function TopBar({
   boardStatusFilter,
   onBoardStatusFilterChange,
 }: TopBarProps) {
-  return (
-    <header className="absolute top-0 inset-x-0 z-10 flex items-center justify-between gap-4 px-4 py-2 pointer-events-none">
-      {/* Left group — reopen pills (when collapsed) + page title pill */}
-      <div className="flex items-center gap-2 pointer-events-auto">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              className="glass-pill p-2 text-muted-foreground hover:text-foreground transition-colors"
-              onClick={onToggleSidebar}
-              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>{sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}</TooltipContent>
-        </Tooltip>
+  const title = currentView === 'sessions' && sessionTitle
+    ? sessionTitle
+    : (VIEW_TITLES[currentView] ?? currentView);
 
-        {sessionsPanelCollapsed && (
+  return (
+    <header className="shell-topbar electrobun-webkit-app-region-drag">
+      {/* Left — reopen toggles + title */}
+      <div className="flex items-center gap-2 min-w-0 flex-1 electrobun-webkit-app-region-no-drag">
+        {sessionsPanelCollapsed && currentView === 'sessions' && (
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                className="glass-pill p-2 text-muted-foreground hover:text-foreground transition-colors"
+                className="topbar-glass-btn"
                 onClick={onToggleSessionsPanel}
                 aria-label="Show sessions"
               >
-                <MessageSquare className="h-4 w-4" />
+                <MessageSquare className="h-3 w-3" />
               </button>
             </TooltipTrigger>
             <TooltipContent>Show sessions (Cmd+Shift+H)</TooltipContent>
@@ -96,39 +81,32 @@ export default function TopBar({
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                className="glass-pill p-2 text-muted-foreground hover:text-foreground transition-colors"
+                className="topbar-glass-btn"
                 onClick={onToggleProjectsPanel}
                 aria-label="Show projects"
               >
-                <FolderGit2 className="h-4 w-4" />
+                <FolderGit2 className="h-3 w-3" />
               </button>
             </TooltipTrigger>
             <TooltipContent>Show projects</TooltipContent>
           </Tooltip>
         )}
 
-        {/* Page title pill */}
-        <div className="glass-pill flex items-center gap-2 max-w-[280px]">
-          {currentView === 'detail' && onBack ? (
-            <>
-              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onBack} aria-label="Go back">
-                <ArrowLeft className="h-3.5 w-3.5" />
-              </Button>
-              <span className="text-sm font-medium truncate">Agent Detail</span>
-            </>
-          ) : (
-            <span className="text-sm font-medium truncate">
-              {currentView === 'sessions' && sessionTitle
-                ? sessionTitle
-                : (VIEW_TITLES[currentView] ?? currentView)}
-            </span>
-          )}
-        </div>
+        {currentView === 'detail' && onBack ? (
+          <div className="flex items-center gap-1.5 min-w-0">
+            <button className="topbar-glass-btn" onClick={onBack} aria-label="Go back">
+              <ArrowLeft className="h-3 w-3" />
+            </button>
+            <span className="text-[11px] text-foreground/50 truncate">{title}</span>
+          </div>
+        ) : (
+          <span className="text-[11px] text-foreground/50 truncate">{title}</span>
+        )}
       </div>
 
-      {/* Center pill — view-specific controls */}
+      {/* Center — view-specific controls */}
       {currentView === 'board' && (
-        <div className="glass-pill pointer-events-auto">
+        <div className="electrobun-webkit-app-region-no-drag">
           <BoardFilters
             keyword={boardKeyword}
             onKeywordChange={onBoardKeywordChange}
@@ -138,40 +116,25 @@ export default function TopBar({
         </div>
       )}
 
-      {/* Spacer when no center pill */}
-      {currentView !== 'board' && <div className="flex-1" />}
+      {/* Right — global actions */}
+      <div className="flex items-center gap-0.5 shrink-0 electrobun-webkit-app-region-no-drag">
+        <button
+          className="topbar-glass-btn gap-1"
+          onClick={onQuickCreate}
+          aria-label="New session"
+        >
+          <Plus className="h-3 w-3" />
+          <span>New</span>
+        </button>
 
-      {/* Right pill — global actions */}
-      <div className="glass-pill flex items-center gap-1 pointer-events-auto">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 rounded-full"
-              onClick={onQuickCreate}
-              aria-label="New session"
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>New session</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={taskPanelOpen ? 'secondary' : 'ghost'}
-              size="icon"
-              className="h-7 w-7 rounded-full"
-              onClick={onToggleTask}
-              aria-label="Toggle tasks panel"
-            >
-              <ListTodo className="h-3.5 w-3.5" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Tasks (Cmd+Shift+T)</TooltipContent>
-        </Tooltip>
+        <button
+          className={`topbar-glass-btn gap-1 ${taskPanelOpen ? 'topbar-glass-btn-active' : ''}`}
+          onClick={onToggleTask}
+          aria-label="Toggle tasks panel"
+        >
+          <ListTodo className="h-3 w-3" />
+          <span>Tasks</span>
+        </button>
       </div>
     </header>
   );

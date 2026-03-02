@@ -12,8 +12,6 @@ import {
   PanelLeftOpen,
 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-
 import {
   Tooltip,
   TooltipContent,
@@ -44,7 +42,7 @@ const NAV_ITEMS: NavItem[] = [
 
 const SIDEBAR_WIDTH_CLASSES: Record<SidebarMode, string> = {
   expanded: 'w-[200px]',
-  collapsed: 'w-12',
+  collapsed: 'w-[68px]',
 };
 
 interface AppSidebarProps {
@@ -66,22 +64,25 @@ export default function AppSidebar({
   return (
     <nav
       aria-label="Main navigation"
-      className={`flex-shrink-0 flex flex-col text-sidebar-foreground transition-[width] duration-200 ease-in-out overflow-hidden ${
-        SIDEBAR_WIDTH_CLASSES[mode]
-      }`}
+      className={`flex-shrink-0 flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden electrobun-webkit-app-region-drag ${SIDEBAR_WIDTH_CLASSES[mode]}`}
     >
+      {/* Traffic light zone — extra height so macOS controls feel vertically centered */}
+      <div className="h-10 shrink-0" />
+
       {/* Logo */}
-      <div className="flex items-center gap-2 px-3 h-14 overflow-hidden">
-        <div className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground font-bold text-xs">
+      <div className={`flex items-center overflow-hidden h-8 electrobun-webkit-app-region-no-drag ${isCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3'}`}>
+        <div className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-foreground/90 text-background font-bold text-[11px] tracking-tight">
           W
         </div>
         {!isCollapsed && (
-          <span className="text-sm font-semibold truncate">Workforce</span>
+          <span className="text-[13px] font-semibold text-foreground/80 truncate tracking-tight">
+            Workforce
+          </span>
         )}
       </div>
 
       {/* Nav items */}
-      <div className="flex-1 flex flex-col gap-0.5 p-1.5 overflow-y-auto">
+      <div className={`flex-1 flex flex-col gap-0.5 overflow-y-auto electrobun-webkit-app-region-no-drag ${isCollapsed ? 'px-2 py-2' : 'px-2 py-2'}`}>
         {NAV_ITEMS.map((item) => {
           const isActive = activeView === item.id;
           const Icon = item.icon;
@@ -90,13 +91,14 @@ export default function AppSidebar({
             <button
               key={item.id}
               onClick={() => onViewChange(item.id)}
-              className={`relative flex items-center gap-2.5 w-full rounded-md px-2.5 py-2 text-sm transition-colors ${
-                isActive
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground'
+              className={`nav-glass-item relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 ${
+                isCollapsed ? 'px-0 py-2 justify-center' : 'px-2.5 py-[7px]'
+              } ${isActive
+                ? 'nav-glass-active text-foreground font-medium'
+                : 'text-foreground/50 hover:text-foreground/80 hover:bg-white/30 dark:hover:bg-white/5'
               }`}
             >
-              <Icon className="h-4 w-4 flex-shrink-0" />
+              <Icon className={`h-[18px] w-[18px] flex-shrink-0 ${isActive ? '' : ''}`} />
               {!isCollapsed && <span className="truncate">{item.label}</span>}
               {!isActive && item.badge}
             </button>
@@ -119,12 +121,12 @@ export default function AppSidebar({
 
       {/* Collapse / Expand toggle */}
       {onToggleSize && (
-        <div className="p-1.5">
+        <div className={`electrobun-webkit-app-region-no-drag ${isCollapsed ? 'px-2 py-2' : 'px-2 py-2'}`}>
           {isCollapsed ? (
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
-                  className="flex items-center justify-center w-full rounded-md py-2 text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground transition-colors"
+                  className="flex items-center justify-center w-full rounded-lg py-2 text-foreground/40 hover:text-foreground/70 hover:bg-white/30 dark:hover:bg-white/5 transition-all duration-150"
                   onClick={onToggleSize}
                   aria-label="Expand sidebar"
                 >
@@ -134,15 +136,13 @@ export default function AppSidebar({
               <TooltipContent side="right" sideOffset={8}>Expand</TooltipContent>
             </Tooltip>
           ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start gap-2 text-sidebar-foreground/70 hover:text-sidebar-foreground"
+            <button
+              className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-[7px] text-foreground/40 hover:text-foreground/70 hover:bg-white/30 dark:hover:bg-white/5 transition-all duration-150"
               onClick={onToggleSize}
             >
               <PanelLeftClose className="h-4 w-4" />
               <span className="text-xs">Collapse</span>
-            </Button>
+            </button>
           )}
         </div>
       )}

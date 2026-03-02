@@ -7,11 +7,11 @@
 
 import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Button } from '@/components/ui/button';
 import { Send, Square } from 'lucide-react';
 import { useTRPC } from '@/bridge/react';
 import type { AgentConfig, AgentPermissionMode, ThinkingLevel } from '@/services/types';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
+import { useSdkStore } from '@/ui/stores/useSdkStore';
 import AgentConfigToolbar from './AgentConfigToolbar';
 import {
   AGENT_CONFIG_LAST_KEY,
@@ -71,6 +71,9 @@ export default function MessageInput({
 }: MessageInputProps) {
   const trpc = useTRPC();
   const currentTool = useMessagesStore((s) => s.currentTool);
+  const messageCount = useMessagesStore((s) => s.messages.length);
+  const cumulativeUsage = useSdkStore((s) => s.cumulativeUsage);
+  const currentQueryStats = useSdkStore((s) => s.currentQueryStats);
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -228,10 +231,12 @@ export default function MessageInput({
     onCancel?.();
   }, [onCancel]);
 
+  const hasStats = cumulativeUsage.inputTokens > 0 || messageCount > 0;
+
   return (
-    <div className="flex-shrink-0 px-6 py-3 border-t bg-background/80 backdrop-blur-sm">
+    <div className="flex-shrink-0 px-6 pb-3 pt-2">
       <div className="max-w-3xl mx-auto">
-        <div className="flex items-stretch gap-3 rounded-xl border bg-card px-4 py-2 shadow-sm focus-within:ring-1 focus-within:ring-ring transition-all">
+        <div className="flex items-stretch gap-3 rounded-2xl bg-white/80 backdrop-blur-md border border-black/[0.06] shadow-[0_1px_2px_oklch(0_0_0/3%),0_2px_6px_oklch(0_0_0/2%)] px-4 py-2 focus-within:border-black/[0.1] focus-within:shadow-[0_1px_3px_oklch(0_0_0/5%),0_4px_14px_oklch(0_0_0/4%)] transition-all dark:bg-white/[0.1] dark:border-white/[0.08] dark:shadow-[0_1px_2px_oklch(0_0_0/10%),0_2px_6px_oklch(0_0_0/8%)] dark:focus-within:border-white/[0.12]">
           <textarea
             ref={textareaRef}
             value={value}
@@ -240,44 +245,59 @@ export default function MessageInput({
             placeholder={placeholder ?? 'Ask Workforce anything...'}
             disabled={isStreaming}
             rows={1}
-            className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-sm min-h-[36px] max-h-[200px] disabled:opacity-50 py-2"
+            className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground/40 resize-none outline-none text-sm min-h-[36px] max-h-[200px] disabled:opacity-50 py-2"
           />
 
           <div className="flex items-end">
             {isStreaming ? (
-              <Button variant="outline" size="sm" onClick={handleCancel}>
-                <Square className="h-3.5 w-3.5 mr-1.5" />
+              <button
+                onClick={handleCancel}
+                className="h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5"
+              >
+                <Square className="h-3 w-3" />
                 Stop
-              </Button>
+              </button>
             ) : (
-              <Button
-                size="icon"
+              <button
                 onClick={handleSubmit}
                 disabled={!value.trim()}
-                className="h-9 w-9"
+                className="h-8 w-8 rounded-xl bg-foreground text-background flex items-center justify-center disabled:opacity-20 transition-opacity hover:opacity-80"
                 title="Send (Enter)"
               >
-                <Send className="h-4 w-4" />
-              </Button>
+                <Send className="h-3.5 w-3.5" />
+              </button>
             )}
           </div>
         </div>
 
-        <div className="mt-2 flex items-center justify-between">
-          <AgentConfigToolbar
-            model={model}
-            thinkingLevel={thinkingLevel}
-            permissionMode={permissionMode}
-            models={models}
-            onModelChange={setModel}
-            onThinkingChange={setThinkingLevel}
-            onPermissionChange={setPermissionMode}
-            disabled={isStreaming}
-          />
-          {isStreaming && (
-            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              {currentTool ? `Using ${currentTool}...` : 'Workforce is thinking...'}
+        <div className="mt-1 flex items-center justify-between px-1 min-h-[22px]">
+          <div className="flex items-center gap-1.5">
+            <AgentConfigToolbar
+              model={model}
+              thinkingLevel={thinkingLevel}
+              permissionMode={permissionMode}
+              models={models}
+              onModelChange={setModel}
+              onThinkingChange={setThinkingLevel}
+              onPermissionChange={setPermissionMode}
+              disabled={isStreaming}
+            />
+            {isStreaming && (
+              <span className="text-[11px] text-muted-foreground/40 flex items-center gap-1.5 ml-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-foreground/25 animate-pulse" />
+                {currentTool ? `Using ${currentTool}` : 'Thinking...'}
+              </span>
+            )}
+          </div>
+          {hasStats && (
+            <span className="text-[11px] text-muted-foreground/35 tabular-nums flex items-center gap-2">
+              {cumulativeUsage.totalCostUsd > 0 && (
+                <span>${cumulativeUsage.totalCostUsd.toFixed(4)}</span>
+              )}
+              {currentQueryStats && (
+                <span>{(currentQueryStats.durationMs / 1000).toFixed(1)}s</span>
+              )}
+              <span>{messageCount} msg</span>
             </span>
           )}
         </div>

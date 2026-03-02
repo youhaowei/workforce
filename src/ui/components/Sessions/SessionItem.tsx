@@ -9,8 +9,9 @@
  */
 
 import { useMemo, type MouseEvent } from 'react';
-import { MoreHorizontal, Circle, CheckCircle2, PlayCircle, PauseCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Trash2, Circle, CheckCircle2, PlayCircle, PauseCircle, XCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useDialogStore } from '@/ui/stores/useDialogStore';
 import type { LifecycleState, SessionLifecycle, SessionSummary, SessionType } from '@/services/types';
 import { stripMarkdown } from '@/ui/formatters';
 
@@ -66,9 +67,15 @@ export function SessionItem({
 
   const typeLabel = sessionType === 'workagent' ? 'Execute' : undefined;
 
-  const handleDelete = (e: MouseEvent) => {
+  const handleDelete = async (e: MouseEvent) => {
     e.stopPropagation();
-    onDelete?.(session.id);
+    const confirmed = await useDialogStore.getState().confirm({
+      title: 'Delete session?',
+      description: `"${title}" will be permanently deleted. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      variant: 'destructive',
+    });
+    if (confirmed) onDelete?.(session.id);
   };
 
   return (
@@ -120,16 +127,16 @@ export function SessionItem({
           {timeAgo}
         </span>
 
-        {/* More actions — hover reveal */}
+        {/* Delete — hover reveal */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-5 w-5 -mr-1 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+          className="h-5 w-5 -mr-1 shrink-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={handleDelete}
           onKeyDown={(e) => e.stopPropagation()}
-          aria-label="Session actions"
+          aria-label="Delete session"
         >
-          <MoreHorizontal className="h-3.5 w-3.5" />
+          <Trash2 className="h-3 w-3" />
         </Button>
       </div>
     </div>

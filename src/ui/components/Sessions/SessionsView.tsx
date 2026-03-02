@@ -3,7 +3,6 @@
  * Reuses MessageList and MessageInput from the Messages components.
  */
 
-import { MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -88,13 +87,9 @@ export function SessionsView({
   return (
     <div className="flex-1 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-3xl">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-            <MessageSquare className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <p className="text-lg font-semibold text-foreground mb-1">Start a conversation</p>
-          <p className="text-sm text-muted-foreground">
-            {sessionId ? 'Send a message to continue' : 'Ask Workforce anything to begin'}
+        <div className="text-center mb-6">
+          <p className="text-[13px] text-muted-foreground/50">
+            {sessionId ? 'Send a message to continue' : 'What would you like to work on?'}
           </p>
         </div>
         {!sessionId && (

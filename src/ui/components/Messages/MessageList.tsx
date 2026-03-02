@@ -114,7 +114,13 @@ export default function MessageList({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+    <div
+      className="flex-1 flex flex-col min-h-0 overflow-hidden relative"
+      style={{
+        maskImage: 'linear-gradient(to bottom, transparent 0%, black 56px, black calc(100% - 56px), transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 56px, black calc(100% - 56px), transparent 100%)',
+      }}
+    >
       <Virtuoso
         ref={virtuosoRef}
         data={messages}

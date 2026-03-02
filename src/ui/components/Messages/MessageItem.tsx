@@ -368,8 +368,8 @@ function TextSegment({ blocks, isStreaming }: {
   if (nonEmpty.length === 0) return null;
 
   return (
-    <div className="bg-background border border-border/50 rounded-lg shadow-sm px-5 py-3">
-      <div className="text-sm leading-relaxed">
+    <div className="px-1">
+      <div className="text-[13.5px] leading-[1.7]">
         <ContentBlockRenderer blocks={nonEmpty} isStreaming={isStreaming} />
       </div>
     </div>
@@ -422,8 +422,8 @@ function UserBubble({ content, timestamp, messageIndex, forks, isStreaming, onRe
   return (
     <div className="flex justify-end">
       <div className="max-w-[85%]">
-        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3">
-          <div className="text-sm leading-relaxed whitespace-pre-wrap">{content}</div>
+        <div className="bg-foreground/[0.06] rounded-2xl rounded-br-md px-4 py-3">
+          <div className="text-[13.5px] leading-[1.7] whitespace-pre-wrap text-foreground">{content}</div>
         </div>
         <div className="flex items-center justify-end gap-2 mt-1 pr-1">
           {forks && forks.length > 0 && (
@@ -481,8 +481,8 @@ function AssistantTurn({ message }: {
       {message.isStreaming && !hasSegments && !hasLegacyTools && (
         displayContent.trim()
           ? (
-            <div className="bg-background border border-border/50 rounded-lg shadow-sm px-5 py-3">
-              <div className="text-sm leading-relaxed">
+            <div className="px-1">
+              <div className="text-[13.5px] leading-[1.7]">
                 <Markdown content={displayContent} />
               </div>
             </div>

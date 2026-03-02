@@ -60,6 +60,7 @@ ApplicationMenu.setApplicationMenu([
 
 const _win = new BrowserWindow({
   title: 'Workforce',
+  titleBarStyle: 'hiddenInset',
   url: isDev ? 'http://localhost:5173' : 'http://localhost:4096',
   frame: { x: 0, y: 0, width: 1200, height: 800 },
 });
