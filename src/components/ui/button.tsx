@@ -4,45 +4,25 @@ import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/ui/lib/utils"
 
-/**
- * Two-axis button variants using CSS custom properties.
- *
- * The `color` axis sets three properties consumed by `variant` styles:
- * - `--btn-bg`  — base color (solid bg, soft/outline text, outline border)
- * - `--btn-fg`  — foreground on solid variant
- * - `--btn-color` — text color for ghost variant
- *
- * This indirection lets any variant × color combination work without
- * an N×M class matrix. Other components (e.g. AlertDialogAction) can
- * override these properties directly via className to reuse the system.
- */
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring focus-visible:ring-offset-2 ring-offset-neutral-bg disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        solid: "text-[var(--btn-fg)] bg-[var(--btn-bg)] hover:opacity-90",
-        soft: "text-[var(--btn-bg)] bg-[var(--btn-bg)]/10 hover:bg-[var(--btn-bg)]/15",
-        outline:
-          "text-[var(--btn-bg)] border border-[var(--btn-bg)]/30 hover:bg-[var(--btn-bg)]/5",
-        ghost: "text-[var(--btn-color)] hover:bg-neutral-bg-subtle hover:text-neutral-fg",
-        link: "text-palette-primary underline-offset-4 hover:underline",
+        solid: "",
+        soft: "",
+        outline: "border",
+        ghost: "",
+        link: "underline-offset-4 hover:underline",
       },
       color: {
-        default:
-          "[--btn-bg:var(--neutral-fg-subtle)] [--btn-fg:var(--neutral-bg)] [--btn-color:var(--neutral-fg-subtle)]",
-        primary:
-          "[--btn-bg:var(--palette-primary)] [--btn-fg:var(--palette-primary-fg)] [--btn-color:var(--neutral-fg)]",
-        secondary:
-          "[--btn-bg:var(--palette-secondary)] [--btn-fg:var(--palette-secondary-fg)] [--btn-color:var(--neutral-fg-subtle)]",
-        success:
-          "[--btn-bg:var(--palette-success)] [--btn-fg:var(--palette-success-fg)] [--btn-color:var(--palette-success)]",
-        danger:
-          "[--btn-bg:var(--palette-danger)] [--btn-fg:var(--palette-danger-fg)] [--btn-color:var(--palette-danger)]",
-        warning:
-          "[--btn-bg:var(--palette-warning)] [--btn-fg:var(--palette-warning-fg)] [--btn-color:var(--palette-warning)]",
-        info:
-          "[--btn-bg:var(--palette-info)] [--btn-fg:var(--palette-info-fg)] [--btn-color:var(--palette-info)]",
+        neutral: "",
+        primary: "",
+        secondary: "",
+        success: "",
+        danger: "",
+        warning: "",
+        info: "",
       },
       size: {
         xs: "h-5 rounded px-1.5 text-[11px] font-medium gap-1 [&_svg]:size-3",
@@ -52,6 +32,52 @@ const buttonVariants = cva(
         icon: "h-9 w-9 rounded-md",
       },
     },
+    compoundVariants: [
+      // ── solid ──────────────────────────────────────────────────────────────
+      { variant: "solid", color: "neutral", className: "bg-neutral-fg text-neutral-bg hover:bg-neutral-fg/90" },
+      { variant: "solid", color: "primary", className: "bg-palette-primary text-palette-primary-fg hover:bg-palette-primary/90" },
+      { variant: "solid", color: "secondary", className: "bg-palette-secondary text-palette-secondary-fg hover:bg-palette-secondary/90" },
+      { variant: "solid", color: "success", className: "bg-palette-success text-palette-success-fg hover:bg-palette-success/90" },
+      { variant: "solid", color: "danger", className: "bg-palette-danger text-palette-danger-fg hover:bg-palette-danger/90" },
+      { variant: "solid", color: "warning", className: "bg-palette-warning text-palette-warning-fg hover:bg-palette-warning/90" },
+      { variant: "solid", color: "info", className: "bg-palette-info text-palette-info-fg hover:bg-palette-info/90" },
+
+      // ── soft ───────────────────────────────────────────────────────────────
+      { variant: "soft", color: "neutral", className: "text-neutral-fg bg-neutral-fg/10 hover:bg-neutral-fg/15" },
+      { variant: "soft", color: "primary", className: "text-palette-primary bg-palette-primary/10 hover:bg-palette-primary/15" },
+      { variant: "soft", color: "secondary", className: "text-palette-secondary bg-palette-secondary/10 hover:bg-palette-secondary/15" },
+      { variant: "soft", color: "success", className: "text-palette-success bg-palette-success/10 hover:bg-palette-success/15" },
+      { variant: "soft", color: "danger", className: "text-palette-danger bg-palette-danger/10 hover:bg-palette-danger/15" },
+      { variant: "soft", color: "warning", className: "text-palette-warning bg-palette-warning/10 hover:bg-palette-warning/15" },
+      { variant: "soft", color: "info", className: "text-palette-info bg-palette-info/10 hover:bg-palette-info/15" },
+
+      // ── outline ────────────────────────────────────────────────────────────
+      { variant: "outline", color: "neutral", className: "text-neutral-fg border-neutral-border hover:bg-neutral-bg-subtle" },
+      { variant: "outline", color: "primary", className: "text-palette-primary border-palette-primary/30 hover:bg-palette-primary/5" },
+      { variant: "outline", color: "secondary", className: "text-palette-secondary border-palette-secondary/30 hover:bg-palette-secondary/5" },
+      { variant: "outline", color: "success", className: "text-palette-success border-palette-success/30 hover:bg-palette-success/5" },
+      { variant: "outline", color: "danger", className: "text-palette-danger border-palette-danger/30 hover:bg-palette-danger/5" },
+      { variant: "outline", color: "warning", className: "text-palette-warning border-palette-warning/30 hover:bg-palette-warning/5" },
+      { variant: "outline", color: "info", className: "text-palette-info border-palette-info/30 hover:bg-palette-info/5" },
+
+      // ── ghost ──────────────────────────────────────────────────────────────
+      { variant: "ghost", color: "neutral", className: "text-neutral-fg-subtle hover:bg-neutral-bg-subtle hover:text-neutral-fg" },
+      { variant: "ghost", color: "primary", className: "text-neutral-fg hover:bg-neutral-bg-subtle hover:text-neutral-fg" },
+      { variant: "ghost", color: "secondary", className: "text-neutral-fg-subtle hover:bg-neutral-bg-subtle hover:text-neutral-fg" },
+      { variant: "ghost", color: "success", className: "text-palette-success hover:bg-palette-success/10" },
+      { variant: "ghost", color: "danger", className: "text-palette-danger hover:bg-palette-danger/10" },
+      { variant: "ghost", color: "warning", className: "text-palette-warning hover:bg-palette-warning/10" },
+      { variant: "ghost", color: "info", className: "text-palette-info hover:bg-palette-info/10" },
+
+      // ── link ───────────────────────────────────────────────────────────────
+      { variant: "link", color: "neutral", className: "text-neutral-fg" },
+      { variant: "link", color: "primary", className: "text-palette-primary" },
+      { variant: "link", color: "secondary", className: "text-palette-secondary" },
+      { variant: "link", color: "success", className: "text-palette-success" },
+      { variant: "link", color: "danger", className: "text-palette-danger" },
+      { variant: "link", color: "warning", className: "text-palette-warning" },
+      { variant: "link", color: "info", className: "text-palette-info" },
+    ],
     defaultVariants: {
       variant: "solid",
       color: "primary",
