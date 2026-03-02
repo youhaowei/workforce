@@ -1,14 +1,14 @@
 /**
- * Maps lifecycle state to shadcn Badge variant.
- * Shared utility to avoid duplication across Board, Sessions, and AgentDetail components.
+ * Maps lifecycle state to Badge variant + color props.
+ * Spread into Badge: `<Badge {...stateVariant(state)}>`.
  */
-export function stateVariant(state: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+export function stateVariant(state: string): { variant?: 'solid' | 'soft' | 'outline'; color?: 'primary' | 'success' | 'danger' | 'warning' } {
   switch (state) {
-    case 'active': return 'default';
-    case 'paused': return 'secondary';
-    case 'failed': return 'destructive';
-    case 'completed': return 'outline';
-    case 'cancelled': return 'outline';
-    default: return 'outline';
+    case 'active': return { color: 'primary' };
+    case 'paused': return { variant: 'soft' };
+    case 'failed': return { color: 'danger' };
+    case 'completed': return { variant: 'outline' };
+    case 'cancelled': return { variant: 'outline' };
+    default: return { variant: 'outline' };
   }
 }
