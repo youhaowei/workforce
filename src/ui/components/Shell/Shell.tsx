@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-import { TaskPanel } from "../Task";
+import { ThemePanel } from "../Theme/ThemePanel";
 import { ChatInfoPanel } from "../ChatInfo";
 import { PlanPanel } from "../Plan";
 import { SessionsPanel } from "../Sessions";
@@ -59,7 +59,7 @@ export default function Shell() {
   const [currentView, setCurrentView] = useState<ViewType>(getInitialView);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [taskPanelOpen, setTaskPanelOpen] = useState(false);
+  const [themePanelOpen, setThemePanelOpen] = useState(false);
   const [sessionsPanelCollapsed, setSessionsPanelCollapsed] = useState(
     () => localStorage.getItem(SESSIONS_PANEL_STORAGE_KEY) === "true",
   );
@@ -233,7 +233,7 @@ export default function Shell() {
   });
 
   useHotkey("toggleHistory", toggleSessionsPanel);
-  useHotkey("toggleTasks", () => setTaskPanelOpen((prev) => !prev));
+  useHotkey("toggleTasks", () => setThemePanelOpen((prev) => !prev));
   useHotkey("cancelStream", handleCancel, isStreaming);
 
   useEffect(() => () => { cancelStreamRef.current?.(); }, []);
@@ -365,9 +365,9 @@ export default function Shell() {
             onToggleSessionsPanel={toggleSessionsPanel}
             projectsPanelCollapsed={projectsPanelCollapsed}
             onToggleProjectsPanel={toggleProjectsPanel}
-            taskPanelOpen={taskPanelOpen}
-            onToggleTask={() => setTaskPanelOpen((prev) => !prev)}
             onQuickCreate={handleCreateSession}
+            themePanelOpen={themePanelOpen}
+            onToggleThemePanel={() => setThemePanelOpen((prev) => !prev)}
             boardKeyword={boardKeyword}
             onBoardKeywordChange={setBoardKeyword}
             boardStatusFilter={boardStatusFilter}
@@ -455,10 +455,10 @@ export default function Shell() {
             />
           </Surface>
 
-            <TaskPanel
-              isOpen={taskPanelOpen}
-              onClose={() => setTaskPanelOpen(false)}
-            />
+          <ThemePanel
+            isOpen={themePanelOpen}
+            onClose={() => setThemePanelOpen(false)}
+          />
           </div>
         </div>
       </div>

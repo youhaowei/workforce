@@ -1,7 +1,7 @@
-import { ArrowLeft, FolderGit2, MessageSquare, ListTodo, Plus, Sun, Moon, Monitor } from 'lucide-react';
+import { ArrowLeft, FolderGit2, MessageSquare, Plus, Palette } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { useThemeStore, type ThemeMode } from '@/ui/stores/useThemeStore';
+
 import {
   Tooltip,
   TooltipContent,
@@ -31,9 +31,9 @@ interface TopBarProps {
   onToggleSessionsPanel: () => void;
   projectsPanelCollapsed: boolean;
   onToggleProjectsPanel: () => void;
-  taskPanelOpen: boolean;
-  onToggleTask: () => void;
   onQuickCreate: () => void;
+  themePanelOpen: boolean;
+  onToggleThemePanel: () => void;
   boardKeyword: string;
   onBoardKeywordChange: (value: string) => void;
   boardStatusFilter: string;
@@ -48,9 +48,9 @@ export default function TopBar({
   onToggleSessionsPanel,
   projectsPanelCollapsed,
   onToggleProjectsPanel,
-  taskPanelOpen,
-  onToggleTask,
   onQuickCreate,
+  themePanelOpen,
+  onToggleThemePanel,
   boardKeyword,
   onBoardKeywordChange,
   boardStatusFilter,
@@ -59,16 +59,6 @@ export default function TopBar({
   const title = currentView === 'sessions' && sessionTitle
     ? sessionTitle
     : (VIEW_TITLES[currentView] ?? currentView);
-
-  const themeMode = useThemeStore((s) => s.mode);
-  const setThemeMode = useThemeStore((s) => s.setMode);
-  const cycleTheme = () => {
-    const order: ThemeMode[] = ['system', 'light', 'dark'];
-    const next = order[(order.indexOf(themeMode) + 1) % order.length];
-    setThemeMode(next);
-  };
-  const THEME_ICONS = { dark: Moon, light: Sun, system: Monitor } as const;
-  const ThemeIcon = THEME_ICONS[themeMode];
 
   return (
     <header className="shell-topbar electrobun-webkit-app-region-drag">
@@ -139,28 +129,18 @@ export default function TopBar({
           <span>New</span>
         </Button>
 
-        <Button
-          variant="ghost" size="xs"
-          data-active={taskPanelOpen || undefined}
-          className={taskPanelOpen ? 'bg-neutral-bg-subtle' : ''}
-          onClick={onToggleTask}
-          aria-label="Toggle tasks panel"
-        >
-          <ListTodo className="h-3 w-3" />
-          <span>Tasks</span>
-        </Button>
-
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost" size="xs"
-              onClick={cycleTheme}
-              aria-label={`Theme: ${themeMode}`}
+              onClick={onToggleThemePanel}
+              className={themePanelOpen ? 'bg-neutral-bg-subtle' : ''}
+              aria-label="Toggle appearance panel"
             >
-              <ThemeIcon className="h-3 w-3" />
+              <Palette className="h-3 w-3" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Theme: {themeMode}</TooltipContent>
+          <TooltipContent>Appearance</TooltipContent>
         </Tooltip>
       </div>
     </header>

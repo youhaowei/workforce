@@ -76,7 +76,7 @@ function SubmittedView({ questions, answers }: {
             )}
             <p className="text-sm text-neutral-fg-subtle">{q.question}</p>
             <div className="flex items-center gap-1.5 text-sm">
-              <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+              <Check className="h-3.5 w-3.5 text-palette-success shrink-0" />
               <span className="font-medium">{ans.join(', ') || '(no answer)'}</span>
             </div>
           </div>
@@ -139,7 +139,7 @@ function AnsweredCard({ block, questions }: {
             </div>
           ))}
           <div className="flex items-start gap-1.5 text-sm pt-1">
-            <Check className="h-3.5 w-3.5 text-green-500 shrink-0 mt-0.5" />
+            <Check className="h-3.5 w-3.5 text-palette-success shrink-0 mt-0.5" />
             <span className="font-medium">{answer}</span>
           </div>
         </div>

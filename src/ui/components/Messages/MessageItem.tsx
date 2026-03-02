@@ -193,8 +193,8 @@ function TaskStatusIcon({ status }: { status: 'running' | 'complete' | 'error' }
     );
   }
   return (
-    <span className="shrink-0 w-4 h-4 rounded-full bg-emerald-500/15 inline-flex items-center justify-center">
-      <Check className="h-2.5 w-2.5 text-emerald-500" />
+    <span className="shrink-0 w-4 h-4 rounded-full bg-palette-success/15 inline-flex items-center justify-center">
+      <Check className="h-2.5 w-2.5 text-palette-success" />
     </span>
   );
 }
@@ -320,8 +320,8 @@ function ActivitySegment({ blocks, isStreaming }: {
         {isStreaming && anyRunning ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />
         ) : (
-          <span className="shrink-0 w-4 h-4 rounded-full bg-emerald-500/15 inline-flex items-center justify-center">
-            <Check className="h-2.5 w-2.5 text-emerald-500" />
+          <span className="shrink-0 w-4 h-4 rounded-full bg-palette-success/15 inline-flex items-center justify-center">
+            <Check className="h-2.5 w-2.5 text-palette-success" />
           </span>
         )}
         <span className="truncate flex-1 min-w-0 text-left">{headerText}</span>

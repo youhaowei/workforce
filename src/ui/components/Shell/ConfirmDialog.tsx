@@ -37,7 +37,7 @@ export function ConfirmDialog() {
             onClick={() => respond(true)}
             className={
               variant === 'destructive'
-                ? '[--btn-bg:var(--palette-danger)] [--btn-fg:var(--palette-danger-fg)]'
+                ? 'bg-palette-danger text-palette-danger-fg hover:bg-palette-danger/90'
                 : undefined
             }
           >
