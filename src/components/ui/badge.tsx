@@ -4,7 +4,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/ui/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-neutral-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
@@ -12,23 +12,23 @@ const badgeVariants = cva(
           "border-transparent text-[var(--badge-fg)] bg-[var(--badge-bg)] hover:opacity-90",
         soft:
           "border-transparent text-[var(--badge-bg)] bg-[var(--badge-bg)]/10",
-        outline: "border text-foreground",
+        outline: "border text-neutral-fg",
       },
       color: {
         default:
-          "[--badge-bg:var(--ds-default)] [--badge-fg:var(--ds-default-foreground)]",
+          "[--badge-bg:var(--neutral-fg-subtle)] [--badge-fg:var(--neutral-bg)]",
         primary:
-          "[--badge-bg:var(--ds-primary)] [--badge-fg:var(--ds-primary-foreground)]",
+          "[--badge-bg:var(--palette-primary)] [--badge-fg:var(--palette-primary-fg)]",
         secondary:
-          "[--badge-bg:var(--ds-secondary)] [--badge-fg:var(--ds-secondary-foreground)]",
+          "[--badge-bg:var(--palette-secondary)] [--badge-fg:var(--palette-secondary-fg)]",
         success:
-          "[--badge-bg:var(--success)] [--badge-fg:var(--success-foreground)]",
+          "[--badge-bg:var(--palette-success)] [--badge-fg:var(--palette-success-fg)]",
         danger:
-          "[--badge-bg:var(--danger)] [--badge-fg:var(--danger-foreground)]",
+          "[--badge-bg:var(--palette-danger)] [--badge-fg:var(--palette-danger-fg)]",
         warning:
-          "[--badge-bg:var(--warning)] [--badge-fg:var(--warning-foreground)]",
+          "[--badge-bg:var(--palette-warning)] [--badge-fg:var(--palette-warning-fg)]",
         info:
-          "[--badge-bg:var(--info)] [--badge-fg:var(--info-foreground)]",
+          "[--badge-bg:var(--palette-info)] [--badge-fg:var(--palette-info-fg)]",
       },
     },
     defaultVariants: {

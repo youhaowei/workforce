@@ -17,7 +17,7 @@ import { cn } from "@/ui/lib/utils"
  * override these properties directly via className to reuse the system.
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring focus-visible:ring-offset-2 ring-offset-neutral-bg disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -25,24 +25,24 @@ const buttonVariants = cva(
         soft: "text-[var(--btn-bg)] bg-[var(--btn-bg)]/10 hover:bg-[var(--btn-bg)]/15",
         outline:
           "text-[var(--btn-bg)] border border-[var(--btn-bg)]/30 hover:bg-[var(--btn-bg)]/5",
-        ghost: "text-[var(--btn-color)] hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+        ghost: "text-[var(--btn-color)] hover:bg-neutral-bg-subtle hover:text-neutral-fg",
+        link: "text-palette-primary underline-offset-4 hover:underline",
       },
       color: {
         default:
-          "[--btn-bg:var(--ds-default)] [--btn-fg:var(--ds-default-foreground)] [--btn-color:var(--muted-foreground)]",
+          "[--btn-bg:var(--neutral-fg-subtle)] [--btn-fg:var(--neutral-bg)] [--btn-color:var(--neutral-fg-subtle)]",
         primary:
-          "[--btn-bg:var(--ds-primary)] [--btn-fg:var(--ds-primary-foreground)] [--btn-color:var(--foreground)]",
+          "[--btn-bg:var(--palette-primary)] [--btn-fg:var(--palette-primary-fg)] [--btn-color:var(--neutral-fg)]",
         secondary:
-          "[--btn-bg:var(--ds-secondary)] [--btn-fg:var(--ds-secondary-foreground)] [--btn-color:var(--muted-foreground)]",
+          "[--btn-bg:var(--palette-secondary)] [--btn-fg:var(--palette-secondary-fg)] [--btn-color:var(--neutral-fg-subtle)]",
         success:
-          "[--btn-bg:var(--success)] [--btn-fg:var(--success-foreground)] [--btn-color:var(--success)]",
+          "[--btn-bg:var(--palette-success)] [--btn-fg:var(--palette-success-fg)] [--btn-color:var(--palette-success)]",
         danger:
-          "[--btn-bg:var(--danger)] [--btn-fg:var(--danger-foreground)] [--btn-color:var(--danger)]",
+          "[--btn-bg:var(--palette-danger)] [--btn-fg:var(--palette-danger-fg)] [--btn-color:var(--palette-danger)]",
         warning:
-          "[--btn-bg:var(--warning)] [--btn-fg:var(--warning-foreground)] [--btn-color:var(--warning)]",
+          "[--btn-bg:var(--palette-warning)] [--btn-fg:var(--palette-warning-fg)] [--btn-color:var(--palette-warning)]",
         info:
-          "[--btn-bg:var(--info)] [--btn-fg:var(--info-foreground)] [--btn-color:var(--info)]",
+          "[--btn-bg:var(--palette-info)] [--btn-fg:var(--palette-info-fg)] [--btn-color:var(--palette-info)]",
       },
       size: {
         xs: "h-5 rounded px-1.5 text-[11px] font-medium gap-1 [&_svg]:size-3",

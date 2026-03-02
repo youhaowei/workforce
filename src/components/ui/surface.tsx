@@ -6,9 +6,9 @@ import { cn } from "@/ui/lib/utils"
 const surfaceVariants = cva("overflow-hidden", {
   variants: {
     variant: {
-      main: "bg-surface-main backdrop-blur-[40px] saturate-[1.6]",
-      stage: "bg-surface-stage",
-      panel: "bg-surface-panel backdrop-blur-[24px] saturate-[1.4]",
+      main: "bg-neutral-bg/45 backdrop-blur-[40px] saturate-[1.6]",
+      stage: "bg-neutral-bg/95",
+      panel: "bg-neutral-bg/90 backdrop-blur-[24px] saturate-[1.4]",
     },
   },
 })
