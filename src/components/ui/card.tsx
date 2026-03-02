@@ -7,7 +7,7 @@ const cardVariants = cva("rounded-lg text-neutral-fg", {
   variants: {
     variant: {
       outlined: "bg-neutral-bg border",
-      elevated: "bg-neutral-bg shadow-sm",
+      elevated: "bg-neutral-bg shadow-sm border border-neutral-border-subtle",
     },
   },
   defaultVariants: { variant: "outlined" },

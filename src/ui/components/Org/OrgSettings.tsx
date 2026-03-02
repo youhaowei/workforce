@@ -34,6 +34,7 @@ import {
   VERBOSE_OPTIONS,
   DEFAULT_AGENT_DEFAULTS,
 } from '../Messages/agentConfig';
+import { AppearanceSection } from '../Theme/AppearanceSection';
 
 interface OrgSettingsProps {
   org: Org;
@@ -115,6 +116,11 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
               className="resize-none"
             />
           </div>
+
+          <Separator />
+
+          {/* Appearance */}
+          <AppearanceSection />
 
           <Separator />
 
