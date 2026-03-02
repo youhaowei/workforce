@@ -35,6 +35,37 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --radius: var(--radius);
+
+  /* Design system — semantic colors */
+  --color-ds-default: var(--ds-default);
+  --color-ds-default-foreground: var(--ds-default-foreground);
+  --color-ds-primary: var(--ds-primary);
+  --color-ds-primary-foreground: var(--ds-primary-foreground);
+  --color-ds-secondary: var(--ds-secondary);
+  --color-ds-secondary-foreground: var(--ds-secondary-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-ds-muted: var(--ds-muted);
+  --color-ds-muted-foreground: var(--ds-muted-foreground);
+
+  /* Design system — surfaces */
+  --color-surface-base: var(--surface-base);
+  --color-surface-main: var(--surface-main);
+  --color-surface-stage: var(--surface-stage);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-glass: var(--surface-glass);
+
+  /* Design system — utility */
+  --color-scrollbar: var(--scrollbar);
+  --color-code-bg: var(--code-bg);
+  --color-focus-ring: var(--focus-ring);
+  --color-focus-border: var(--focus-border);
 }
 
 :root {
@@ -60,6 +91,39 @@
                   0 1px 3px oklch(0 0 0 / 8%),
                   0 4px 8px oklch(0 0 0 / 5%);
   --topbar-height: 28px;
+
+  /* ── Design system: semantic colors ──────────────────────────── */
+  --ds-default: oklch(0.556 0 0);
+  --ds-default-foreground: oklch(0.985 0 0);
+  --ds-primary: oklch(0.205 0 0);
+  --ds-primary-foreground: oklch(0.985 0 0);
+  --ds-secondary: oklch(0.45 0 0);
+  --ds-secondary-foreground: oklch(0.985 0 0);
+  --success: oklch(0.59 0.19 149);
+  --success-foreground: oklch(0.985 0 0);
+  --danger: oklch(0.577 0.245 27.325);
+  --danger-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.75 0.08 55);
+  --warning-foreground: oklch(0.205 0 0);
+  --info: oklch(0.55 0.15 250);
+  --info-foreground: oklch(0.985 0 0);
+  --ds-muted: oklch(0.87 0 0);
+  --ds-muted-foreground: oklch(0.45 0 0);
+
+  /* ── Design system: surfaces ─────────────────────────────────── */
+  --surface-base: oklch(0.95 0.006 70);
+  --surface-main: oklch(1 0 0 / 45%);
+  --surface-stage: var(--background);
+  --surface-panel: oklch(1 0 0 / 90%);
+  --surface-glass: oklch(1 0 0 / 65%);
+
+  /* ── Design system: utility ──────────────────────────────────── */
+  --scrollbar: oklch(0.5 0 0);
+  --code-bg: oklch(0.16 0 0);
+  --focus-ring: oklch(0.708 0 0 / 30%);
+  --focus-border: oklch(0.708 0 0);
+
+  /* ── shadcn base palette ─────────────────────────────────────── */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -108,6 +172,39 @@
   --inner-shadow: 0 0 0 1px oklch(1 0 0 / 5%),
                   0 1px 2px oklch(0 0 0 / 12%),
                   0 2px 4px oklch(0 0 0 / 8%);
+
+  /* ── Design system: semantic colors (dark) ───────────────────── */
+  --ds-default: oklch(0.6 0 0);
+  --ds-default-foreground: oklch(0.145 0 0);
+  --ds-primary: oklch(0.922 0 0);
+  --ds-primary-foreground: oklch(0.205 0 0);
+  --ds-secondary: oklch(0.65 0 0);
+  --ds-secondary-foreground: oklch(0.145 0 0);
+  --success: oklch(0.65 0.19 149);
+  --success-foreground: oklch(0.145 0 0);
+  --danger: oklch(0.704 0.191 22.216);
+  --danger-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.75 0.1 70);
+  --warning-foreground: oklch(0.205 0 0);
+  --info: oklch(0.65 0.15 250);
+  --info-foreground: oklch(0.145 0 0);
+  --ds-muted: oklch(0.3 0 0);
+  --ds-muted-foreground: oklch(0.6 0 0);
+
+  /* ── Design system: surfaces (dark) ──────────────────────────── */
+  --surface-base: oklch(0.2 0.005 250);
+  --surface-main: oklch(0.16 0 0 / 55%);
+  --surface-stage: var(--background);
+  --surface-panel: oklch(0.16 0 0 / 90%);
+  --surface-glass: oklch(0.16 0 0 / 65%);
+
+  /* ── Design system: utility (dark) ───────────────────────────── */
+  --scrollbar: oklch(0.5 0 0);
+  --code-bg: oklch(0.1 0 0);
+  --focus-ring: oklch(0.556 0 0 / 20%);
+  --focus-border: oklch(0.556 0 0);
+
+  /* ── shadcn base palette (dark) ──────────────────────────────── */
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -197,41 +294,6 @@
   }
 }
 
-/* Top bar controls — minimal, native-feeling toolbar items */
-@layer components {
-  .topbar-glass-btn {
-    @apply inline-flex items-center justify-center shrink-0 rounded;
-    height: 20px;
-    padding: 0 5px;
-    font-size: 11px;
-    font-weight: 500;
-    color: oklch(0.45 0 0);
-    background: transparent;
-    border: none;
-    transition: color 100ms ease, background 100ms ease;
-    cursor: pointer;
-  }
-  .topbar-glass-btn:hover {
-    color: oklch(0.2 0 0);
-    background: oklch(0 0 0 / 5%);
-  }
-  .topbar-glass-btn-active {
-    color: oklch(0.15 0 0);
-    background: oklch(0 0 0 / 6%);
-  }
-  .dark .topbar-glass-btn {
-    color: oklch(0.55 0 0);
-  }
-  .dark .topbar-glass-btn:hover {
-    color: oklch(0.8 0 0);
-    background: oklch(1 0 0 / 6%);
-  }
-  .dark .topbar-glass-btn-active {
-    color: oklch(0.85 0 0);
-    background: oklch(1 0 0 / 8%);
-  }
-}
-
 /* Shell — the window ground behind everything */
 @layer components {
   .shell-ground {
@@ -250,77 +312,51 @@
   }
 }
 
-/* Main surface — the big white panel holding content + inner panels */
+/* Message list fade overlays — don't cover the scrollbar */
 @layer components {
-  .main-surface {
-    @apply overflow-hidden flex-1;
-    background: oklch(1 0 0 / 45%);
-    backdrop-filter: blur(40px) saturate(1.6);
-    -webkit-backdrop-filter: blur(40px) saturate(1.6);
-    margin: 0 var(--surface-inset) var(--surface-inset) 0;
-    border-radius: var(--surface-radius);
-    contain: paint;
+  .message-list-fade-top,
+  .message-list-fade-bottom {
+    position: absolute;
+    left: 0;
+    right: 8px; /* leave room for scrollbar */
+    height: 56px;
+    pointer-events: none;
+    z-index: 5;
   }
-  .dark .main-surface {
-    background: oklch(0.16 0 0 / 55%);
+  .message-list-fade-top {
+    top: 0;
+    background: linear-gradient(to bottom, var(--surface-stage), transparent);
+  }
+  .message-list-fade-bottom {
+    bottom: 0;
+    background: linear-gradient(to top, var(--surface-stage), transparent);
   }
 }
 
-/* Center stage — elevated chat area, the focal point of the layout */
+/* Chat input bottom fade — hard curve: opaque quickly, gentle tail */
 @layer components {
-  .center-stage {
-    @apply overflow-hidden flex-1 flex flex-col min-w-0;
-    background: oklch(1 0 0 / 50%);
-    border-radius: 10px;
-    margin: 0;
-    box-shadow: 0 0 0 1px oklch(0 0 0 / 1.2%),
-                0 1px 3px oklch(0 0 0 / 1.8%),
-                0 4px 12px oklch(0 0 0 / 1.5%),
-                0 8px 24px oklch(0 0 0 / 1.2%);
-    position: relative;
-    z-index: 2;
+  .chat-input-fade {
+    height: 200px;
+    right: 8px; /* leave room for scrollbar — matches .message-list-fade-top */
+    background: linear-gradient(
+      to top,
+      white 0%,
+      white 20%,
+      rgb(255 255 255 / 85%) 40%,
+      rgb(255 255 255 / 40%) 70%,
+      transparent 100%
+    );
   }
-  .dark .center-stage {
-    background: oklch(0.16 0 0 / 50%);
-    box-shadow: 0 0 0 1px oklch(1 0 0 / 3%),
-                0 1px 3px oklch(0 0 0 / 6%),
-                0 4px 12px oklch(0 0 0 / 5%),
-                0 8px 24px oklch(0 0 0 / 4%);
-  }
-}
 
-/* Inner panel — elevated card inside the main surface (sessions, info, plan) */
-@layer components {
-  .inner-panel {
-    @apply overflow-hidden;
-    background: oklch(1 0 0 / 90%);
-    backdrop-filter: blur(24px) saturate(1.4);
-    -webkit-backdrop-filter: blur(24px) saturate(1.4);
-    border-radius: var(--inner-radius);
-    box-shadow: var(--inner-shadow);
-    user-select: none;
-    -webkit-user-select: none;
-    contain: paint;
-  }
-  .inner-panel[data-collapsed="true"] {
-    border-radius: 0;
-    box-shadow: none;
-  }
-}
-
-/* Outer panel — on the shell level (task panel) */
-@layer components {
-  .outer-panel {
-    @apply overflow-hidden;
-    background: oklch(1 0 0 / 82%);
-    backdrop-filter: blur(40px) saturate(1.6);
-    -webkit-backdrop-filter: blur(40px) saturate(1.6);
-    border-radius: var(--surface-radius);
-    box-shadow: var(--surface-shadow);
-    margin: var(--surface-inset);
-    margin-left: 0;
-    user-select: none;
-    -webkit-user-select: none;
+  :is(.dark) .chat-input-fade {
+    background: linear-gradient(
+      to top,
+      oklch(0.145 0 0) 0%,
+      oklch(0.145 0 0) 20%,
+      oklch(0.145 0 0 / 85%) 40%,
+      oklch(0.145 0 0 / 40%) 70%,
+      transparent 100%
+    );
   }
 }
 
@@ -340,8 +376,8 @@
   }
 
   .status-active {
-    @apply bg-green-500;
-    box-shadow: 0 0 8px oklch(0.723 0.219 149.579 / 40%);
+    @apply bg-success;
+    box-shadow: 0 0 8px oklch(0.59 0.19 149 / 40%);
     animation: status-pulse 2s ease-in-out infinite;
   }
 
@@ -350,28 +386,28 @@
     50% { box-shadow: 0 0 16px oklch(0.723 0.219 149.579 / 60%); }
   }
 
-  /* Markdown content */
-  .markdown-content { line-height: inherit; color: oklch(0.25 0 0); }
+  /* Markdown content — uses semantic vars so light/dark mode works automatically */
+  .markdown-content { line-height: inherit; color: var(--foreground); opacity: 0.85; }
   .markdown-content p { margin-bottom: 0.6em; }
   .markdown-content p:last-child { margin-bottom: 0; }
-  .markdown-content strong { font-weight: 600; color: oklch(0.15 0 0); }
+  .markdown-content strong { font-weight: 600; color: var(--foreground); opacity: 1; }
   .markdown-content em { font-style: italic; }
   .markdown-content code {
     font-size: 0.85em;
-    @apply bg-foreground/[0.04] px-1.5 py-0.5 rounded font-mono;
-    color: oklch(0.4 0 0);
+    @apply bg-foreground/[0.06] px-1.5 py-0.5 rounded-[var(--radius)] font-mono;
+    color: var(--foreground);
   }
   .markdown-content pre {
     font-size: 0.8em;
-    @apply p-4 rounded-lg overflow-x-auto my-3 font-mono;
-    background: oklch(0.16 0 0);
+    @apply p-4 rounded-[var(--radius)] overflow-x-auto my-3 font-mono;
+    background: var(--code-bg);
     color: oklch(0.88 0 0);
   }
   .markdown-content pre code { background: transparent; padding: 0; font-size: inherit; color: inherit; }
   .markdown-content h1, .markdown-content h2, .markdown-content h3,
   .markdown-content h4, .markdown-content h5, .markdown-content h6 {
     font-weight: 600;
-    color: oklch(0.12 0 0);
+    color: var(--foreground);
     margin-top: 1.2em;
     margin-bottom: 0.4em;
   }
@@ -383,26 +419,16 @@
   .markdown-content ul li { list-style-type: disc; }
   .markdown-content ol li { list-style-type: decimal; }
   .markdown-content blockquote {
-    border-left: 2px solid oklch(0.7 0 0);
+    border-left: 2px solid var(--border);
     @apply pl-4 my-3 italic;
-    color: oklch(0.5 0 0);
+    color: var(--muted-foreground);
   }
-  .markdown-content a { color: oklch(0.35 0.08 250); text-decoration: underline; text-underline-offset: 2px; }
-  .markdown-content a:hover { color: oklch(0.45 0.1 250); }
+  .markdown-content a { color: var(--info); text-decoration: underline; text-underline-offset: 2px; }
+  .markdown-content a:hover { opacity: 0.8; }
   .markdown-content hr { @apply border-t border-border my-4; }
-  .markdown-content table { @apply w-full border-collapse my-3; font-size: 0.9em; }
-  .markdown-content th, .markdown-content td { @apply border border-border/50 px-3 py-2 text-left; }
-  .markdown-content th { background: oklch(0.97 0 0); font-weight: 600; color: oklch(0.3 0 0); }
+  .markdown-content table { @apply w-full my-3 rounded-[var(--radius)] overflow-hidden; font-size: 0.9em; border-spacing: 0; }
+  .markdown-content th, .markdown-content td { @apply px-3 py-2 text-left border-b border-border/40; }
+  .markdown-content th { @apply bg-muted/50; font-weight: 500; font-size: 0.85em; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted-foreground); }
+  .markdown-content tr:last-child td { border-bottom: none; }
   .markdown-content input[type="checkbox"] { margin-right: 0.5em; }
-
-  .dark .markdown-content { color: oklch(0.78 0 0); }
-  .dark .markdown-content strong { color: oklch(0.92 0 0); }
-  .dark .markdown-content code { @apply bg-white/[0.06]; color: oklch(0.7 0 0); }
-  .dark .markdown-content pre { background: oklch(0.1 0 0); color: oklch(0.8 0 0); }
-  .dark .markdown-content h1, .dark .markdown-content h2, .dark .markdown-content h3,
-  .dark .markdown-content h4, .dark .markdown-content h5, .dark .markdown-content h6 { color: oklch(0.95 0 0); }
-  .dark .markdown-content blockquote { border-color: oklch(0.4 0 0); color: oklch(0.6 0 0); }
-  .dark .markdown-content a { color: oklch(0.7 0.1 250); }
-  .dark .markdown-content a:hover { color: oklch(0.8 0.1 250); }
-  .dark .markdown-content th { background: oklch(0.2 0 0); color: oklch(0.75 0 0); }
 }
