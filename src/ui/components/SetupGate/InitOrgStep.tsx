@@ -76,7 +76,7 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
         <h1 className="text-2xl font-semibold mb-2">
           Set up "{org.name}"
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-neutral-fg-subtle">
           Configure your workspace defaults. You can change these later in settings.
         </p>
       </div>
@@ -101,7 +101,7 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
 
           {/* Model selector — button group */}
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Model</Label>
+            <Label className="text-xs text-neutral-fg-subtle">Model</Label>
             <div className="flex flex-wrap gap-2">
               {SEED_MODELS.map((m) => (
                 <button
@@ -110,8 +110,8 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
                   onClick={() => setModel(m.id)}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
                     model === m.id
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-card text-foreground border-border hover:border-primary/50'
+                      ? 'bg-palette-primary text-palette-primary-foreground border-palette-primary'
+                      : 'bg-neutral-bg-subtle text-neutral-fg border-neutral-border hover:border-palette-primary/50'
                   }`}
                 >
                   {m.displayName}
@@ -123,7 +123,7 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
           {/* Thinking + Tone row */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Thinking</Label>
+              <Label className="text-xs text-neutral-fg-subtle">Thinking</Label>
               <Select value={thinkingLevel} onValueChange={(v) => setThinkingLevel(v as ThinkingLevel)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -139,7 +139,7 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Tone</Label>
+              <Label className="text-xs text-neutral-fg-subtle">Tone</Label>
               <Select value={tone} onValueChange={(v) => setTone(v as AgentTone)}>
                 <SelectTrigger>
                   <SelectValue />
@@ -157,7 +157,7 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
 
           {/* Detail Level */}
           <div className="space-y-2">
-            <Label className="text-xs text-muted-foreground">Detail Level</Label>
+            <Label className="text-xs text-neutral-fg-subtle">Detail Level</Label>
             <Select value={verboseLevel} onValueChange={(v) => setVerboseLevel(v as VerboseLevel)}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -174,7 +174,7 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
         </div>
 
         {updateMutation.isError && (
-          <p className="text-sm text-danger">
+          <p className="text-sm text-palette-danger">
             {updateMutation.error?.message ?? 'Something went wrong. Please try again.'}
           </p>
         )}

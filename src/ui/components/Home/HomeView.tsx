@@ -72,7 +72,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
         <h1 className="text-2xl font-bold">
           {user?.displayName ? `Welcome back, ${user.displayName}` : 'Welcome to Workforce'}
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-neutral-fg-subtle mt-1">
           Your agent orchestration dashboard
         </p>
       </div>
@@ -81,7 +81,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className="text-sm font-medium text-neutral-fg-subtle flex items-center gap-2">
               <Bot className="h-4 w-4" />
               Active Agents
             </CardTitle>
@@ -93,7 +93,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className="text-sm font-medium text-neutral-fg-subtle flex items-center gap-2">
               <AlertCircle className="h-4 w-4" />
               Pending Reviews
             </CardTitle>
@@ -105,7 +105,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CardTitle className="text-sm font-medium text-neutral-fg-subtle flex items-center gap-2">
               <MessageSquare className="h-4 w-4" />
               Total Sessions
             </CardTitle>
@@ -148,17 +148,17 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
               <button
                 key={session.id}
                 onClick={() => onSelectSession?.(session.id)}
-                className="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 transition-colors flex items-center justify-between group"
+                className="w-full text-left px-3 py-2 rounded-md hover:bg-neutral-bg-dim/50 transition-colors flex items-center justify-between group"
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">
                     {session.title || (session.metadata?.goal as string) || 'Untitled Session'}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
+                  <p className="text-xs text-neutral-fg-subtle truncate">
                     {session.messageCount} messages
                   </p>
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2" />
+                <ArrowRight className="h-3.5 w-3.5 text-neutral-fg-subtle opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2" />
               </button>
             ))}
           </div>

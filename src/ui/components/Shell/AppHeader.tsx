@@ -109,10 +109,10 @@ export default function TopBar({
             <Button variant="ghost" size="xs" onClick={onBack} aria-label="Go back">
               <ArrowLeft className="h-3 w-3" />
             </Button>
-            <span className="text-[11px] text-foreground/50 truncate">{title}</span>
+            <span className="text-[11px] text-neutral-fg/50 truncate">{title}</span>
           </div>
         ) : (
-          <span className="text-[11px] text-foreground/50 truncate">{title}</span>
+          <span className="text-[11px] text-neutral-fg/50 truncate">{title}</span>
         )}
       </div>
 
@@ -142,7 +142,7 @@ export default function TopBar({
         <Button
           variant="ghost" size="xs"
           data-active={taskPanelOpen || undefined}
-          className={taskPanelOpen ? 'bg-accent' : ''}
+          className={taskPanelOpen ? 'bg-neutral-bg-subtle' : ''}
           onClick={onToggleTask}
           aria-label="Toggle tasks panel"
         >

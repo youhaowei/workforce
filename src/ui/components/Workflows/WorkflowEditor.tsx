@@ -183,7 +183,7 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
                   />
                 ))}
                 {steps.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-4">
+                  <p className="text-xs text-neutral-fg-subtle text-center py-4">
                     No steps yet. Add steps to define your workflow.
                   </p>
                 )}

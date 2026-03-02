@@ -70,13 +70,13 @@ export function WorkflowListView() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Workflow Templates</h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-neutral-fg-subtle">
             {filtered.length} workflow{filtered.length !== 1 ? 's' : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative w-56">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-neutral-fg-subtle" />
             <Input
               placeholder="Search workflows..."
               value={keyword}
@@ -93,7 +93,7 @@ export function WorkflowListView() {
 
       <ScrollArea className="flex-1">
         {isLoading && (
-          <p className="text-sm text-muted-foreground text-center py-12">Loading...</p>
+          <p className="text-sm text-neutral-fg-subtle text-center py-12">Loading...</p>
         )}
         {!isLoading && filtered.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
@@ -110,11 +110,11 @@ export function WorkflowListView() {
         )}
         {!isLoading && filtered.length === 0 && (
           <div className="text-center py-12">
-            <Workflow className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+            <Workflow className="h-8 w-8 mx-auto mb-3 text-neutral-fg-subtle" />
             <p className="text-sm font-medium">
               {keyword ? 'No matching workflows' : 'No workflows yet'}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-neutral-fg-subtle mt-1">
               {keyword ? 'Try a different search' : 'Define multi-step agent workflows'}
             </p>
             {!keyword && (

@@ -63,7 +63,7 @@ export function UserStep({ onComplete }: UserStepProps) {
     <div className="w-full max-w-md px-6">
       <div className="text-center mb-8">
         <h1 className="text-2xl font-semibold mb-2">Welcome to Workforce</h1>
-        <p className="text-sm text-muted-foreground">What should we call you?</p>
+        <p className="text-sm text-neutral-fg-subtle">What should we call you?</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -89,7 +89,7 @@ export function UserStep({ onComplete }: UserStepProps) {
         </div>
 
         {createMutation.isError && createMutation.error?.data?.code !== 'CONFLICT' && (
-          <p className="text-sm text-danger">
+          <p className="text-sm text-palette-danger">
             {createMutation.error?.message ?? 'Something went wrong. Please try again.'}
           </p>
         )}

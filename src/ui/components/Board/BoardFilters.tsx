@@ -54,7 +54,7 @@ export function BoardFilters({
   return (
     <div className="flex items-center gap-3">
       <div className="relative w-64">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-neutral-fg-subtle" />
         <Input
           placeholder="Filter agents..."
           value={localKeyword}

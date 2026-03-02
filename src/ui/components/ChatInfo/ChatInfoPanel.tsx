@@ -165,7 +165,7 @@ export function ChatInfoPanel({ isOpen, sessionId, planArtifact, onOpenPlan }: C
       inert={!isOpen ? true : undefined}
     >
       <div className="flex items-center h-10 px-3 gap-2">
-        <h2 className="text-sm font-semibold text-foreground flex-1 select-none">Info</h2>
+        <h2 className="text-sm font-semibold text-neutral-fg flex-1 select-none">Info</h2>
       </div>
 
       <div className="p-3 space-y-4 overflow-y-auto flex-1 text-sm">
@@ -181,16 +181,16 @@ export function ChatInfoPanel({ isOpen, sessionId, planArtifact, onOpenPlan }: C
                 if (e.key === 'Enter') handleTitleBlur();
                 if (e.key === 'Escape') setEditingTitle(false);
               }}
-              className="w-full bg-muted/50 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+              className="w-full bg-neutral-bg-dim/50 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-neutral-ring"
               autoFocus
             />
           ) : (
             <button
-              className="w-full text-left text-foreground hover:bg-muted/50 rounded px-2 py-1 flex items-center gap-1 group"
+              className="w-full text-left text-neutral-fg hover:bg-neutral-bg-dim/50 rounded px-2 py-1 flex items-center gap-1 group"
               onClick={() => setEditingTitle(true)}
             >
               <span className="truncate flex-1">{session?.title || 'Untitled'}</span>
-              <Pencil className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 flex-shrink-0" />
+              <Pencil className="h-3 w-3 text-neutral-fg-subtle opacity-0 group-hover:opacity-100 flex-shrink-0" />
             </button>
           )}
         </Section>
@@ -201,7 +201,7 @@ export function ChatInfoPanel({ isOpen, sessionId, planArtifact, onOpenPlan }: C
             value={notesValue}
             onChange={(e) => handleNotesChange(e.currentTarget.value)}
             placeholder="Add notes..."
-            className="w-full bg-muted/50 rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-ring resize-none min-h-[60px] placeholder:text-muted-foreground/50"
+            className="w-full bg-neutral-bg-dim/50 rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-neutral-ring resize-none min-h-[60px] placeholder:text-neutral-fg-subtle/50"
             rows={3}
           />
         </Section>
@@ -209,7 +209,7 @@ export function ChatInfoPanel({ isOpen, sessionId, planArtifact, onOpenPlan }: C
         {/* Model */}
         {model && (
           <Section label="Model" icon={<Cpu className="h-3 w-3" />}>
-            <p className="font-mono text-xs text-foreground">{model}</p>
+            <p className="font-mono text-xs text-neutral-fg">{model}</p>
           </Section>
         )}
 
@@ -243,7 +243,7 @@ export function ChatInfoPanel({ isOpen, sessionId, planArtifact, onOpenPlan }: C
           <Section label={`Files (${filePaths.length})`} icon={<FileText className="h-3 w-3" />}>
             <div className="space-y-0.5">
               {filePaths.map((path) => (
-                <div key={path} className="text-xs font-mono text-muted-foreground truncate" title={path}>
+                <div key={path} className="text-xs font-mono text-neutral-fg-subtle truncate" title={path}>
                   {shortenPath(path)}
                 </div>
               ))}
@@ -255,7 +255,7 @@ export function ChatInfoPanel({ isOpen, sessionId, planArtifact, onOpenPlan }: C
         {planArtifact && (
           <Section label="Artifacts">
             <button
-              className="w-full text-left text-xs bg-muted/50 rounded px-2 py-1.5 hover:bg-muted flex items-center gap-1.5"
+              className="w-full text-left text-xs bg-neutral-bg-dim/50 rounded px-2 py-1.5 hover:bg-neutral-bg-dim flex items-center gap-1.5"
               onClick={onOpenPlan}
             >
               <span className="text-blue-500 flex-shrink-0">&#128203;</span>
@@ -276,7 +276,7 @@ export function ChatInfoPanel({ isOpen, sessionId, planArtifact, onOpenPlan }: C
 function Section({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
   return (
     <div>
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+      <label className="text-xs font-medium text-neutral-fg-subtle flex items-center gap-1">
         {icon}
         {label}
       </label>
@@ -288,7 +288,7 @@ function Section({ label, icon, children }: { label: string; icon?: React.ReactN
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-muted-foreground">{label}</span>
+      <span className="text-neutral-fg-subtle">{label}</span>
       <span className="font-mono">{value}</span>
     </div>
   );

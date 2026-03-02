@@ -16,6 +16,7 @@ import ToolOutput from '../Tools/ToolOutput';
 import ContentBlockRenderer from './ContentBlockRenderer';
 import QuestionCard from './QuestionCard';
 import Markdown from './Markdown';
+import { Chip } from '@/ui/components/Chip';
 import { segmentBlocks } from './segmentBlocks';
 
 export interface ForkInfo {
@@ -65,7 +66,7 @@ function MessageActions({ messageIndex, isStreaming, onRewind, onFork }: {
           <TooltipTrigger asChild>
             <Button
               variant="outline" size="sm"
-              className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground border-border/60"
+              className="h-6 px-2 text-[11px] gap-1 text-neutral-fg-subtle hover:text-neutral-fg border-neutral-border/60"
               disabled={disabled} onClick={handleRewind} aria-label="Rewind to here"
             >
               <History className="h-3 w-3" />
@@ -80,7 +81,7 @@ function MessageActions({ messageIndex, isStreaming, onRewind, onFork }: {
           <TooltipTrigger asChild>
             <Button
               variant="outline" size="sm"
-              className="h-6 px-2 text-[11px] gap-1 text-muted-foreground hover:text-foreground border-border/60"
+              className="h-6 px-2 text-[11px] gap-1 text-neutral-fg-subtle hover:text-neutral-fg border-neutral-border/60"
               disabled={disabled} onClick={handleFork} aria-label="Fork from here"
             >
               <GitBranch className="h-3 w-3" />
@@ -104,7 +105,7 @@ function ForkIndicator({ forks, onSelectSession }: {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors" onClick={handleClick}>
+        <button type="button" className="inline-flex items-center gap-1 text-xs text-neutral-fg-subtle hover:text-neutral-fg transition-colors" onClick={handleClick}>
           <GitBranch className="h-3 w-3" />
           {forks.length > 1 && <span>{forks.length}</span>}
         </button>
@@ -183,11 +184,11 @@ function useMessageSegments(message: MessageItemProps['message']) {
 // ─── Status Icons ────────────────────────────────────────────────────────────
 
 function TaskStatusIcon({ status }: { status: 'running' | 'complete' | 'error' }) {
-  if (status === 'running') return <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />;
+  if (status === 'running') return <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />;
   if (status === 'error') {
     return (
-      <span className="shrink-0 w-4 h-4 rounded-full bg-danger/15 inline-flex items-center justify-center">
-        <X className="h-2.5 w-2.5 text-danger" />
+      <span className="shrink-0 w-4 h-4 rounded-full bg-palette-danger/15 inline-flex items-center justify-center">
+        <X className="h-2.5 w-2.5 text-palette-danger" />
       </span>
     );
   }
@@ -217,19 +218,13 @@ function TaskGroupRow({ block, children, isStreaming }: {
         tabIndex={0}
         onClick={() => setExpanded((p) => !p)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded((p) => !p); } }}
-        className="group/row flex items-center gap-2 py-0.5 text-[13px] cursor-pointer hover:text-foreground transition-colors"
+        className="group/row flex items-center gap-2 py-0.5 text-[13px] cursor-pointer hover:text-neutral-fg transition-colors"
       >
-        <ChevronRight className={`h-3 w-3 text-muted-foreground/60 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
+        <ChevronRight className={`h-3 w-3 text-neutral-fg-subtle/60 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
         <TaskStatusIcon status={block.status} />
-        {subagentType && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-muted-foreground">
-            {subagentType}
-          </span>
-        )}
-        <span className="truncate flex-1 min-w-0 text-muted-foreground font-medium">{description}</span>
-        {block.status === 'error' && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-danger/10 text-[10px] font-medium text-danger">Error</span>
-        )}
+        {subagentType && <Chip>{subagentType}</Chip>}
+        <span className="truncate flex-1 min-w-0 text-neutral-fg-subtle font-medium">{description}</span>
+        {block.status === 'error' && <Chip color="danger">Error</Chip>}
       </div>
       {expanded && children.length > 0 && (
         <div className="pl-5 ml-[7px] border-l-2 border-muted space-y-0">
@@ -319,22 +314,18 @@ function ActivitySegment({ blocks, isStreaming }: {
       <button
         type="button"
         onClick={() => setExpanded((p) => !p)}
-        className="flex items-center gap-2 w-full py-1 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+        className="flex items-center gap-2 w-full py-1 text-[13px] text-neutral-fg-subtle hover:text-neutral-fg transition-colors"
       >
-        <ChevronRight className={`h-3 w-3 shrink-0 transition-transform text-muted-foreground/40 ${expanded ? 'rotate-90' : ''}`} />
+        <ChevronRight className={`h-3 w-3 shrink-0 transition-transform text-neutral-fg-subtle/40 ${expanded ? 'rotate-90' : ''}`} />
         {isStreaming && anyRunning ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />
         ) : (
           <span className="shrink-0 w-4 h-4 rounded-full bg-emerald-500/15 inline-flex items-center justify-center">
             <Check className="h-2.5 w-2.5 text-emerald-500" />
           </span>
         )}
         <span className="truncate flex-1 min-w-0 text-left">{headerText}</span>
-        {errorCount > 0 && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-danger/10 text-[10px] font-medium text-danger">
-            {errorCount} failed
-          </span>
-        )}
+        {errorCount > 0 && <Chip color="danger">{errorCount} failed</Chip>}
       </button>
 
       {expanded && (
@@ -422,8 +413,8 @@ function UserBubble({ content, timestamp, messageIndex, forks, isStreaming, onRe
   return (
     <div className="flex justify-end">
       <div className="max-w-[85%]">
-        <div className="bg-foreground/[0.06] rounded-2xl rounded-br-md px-4 py-3">
-          <div className="text-[13.5px] leading-[1.7] whitespace-pre-wrap text-foreground">{content}</div>
+        <div className="bg-neutral-fg/[0.06] rounded-2xl rounded-br-md px-4 py-3">
+          <div className="text-[13.5px] leading-[1.7] whitespace-pre-wrap text-neutral-fg">{content}</div>
         </div>
         <div className="flex items-center justify-end gap-2 mt-1 pr-1">
           {forks && forks.length > 0 && (
@@ -437,7 +428,7 @@ function UserBubble({ content, timestamp, messageIndex, forks, isStreaming, onRe
               onFork={onFork}
             />
           )}
-          <span className="text-[10px] text-muted-foreground/50">
+          <span className="text-[10px] text-neutral-fg-subtle/50">
             {formatTime(timestamp)}
           </span>
         </div>
@@ -488,8 +479,8 @@ function AssistantTurn({ message }: {
             </div>
           )
           : (
-            <div className="flex items-center gap-2 py-1 text-[13px] text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+            <div className="flex items-center gap-2 py-1 text-[13px] text-neutral-fg-subtle">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary" />
               <span>Thinking...</span>
             </div>
           )

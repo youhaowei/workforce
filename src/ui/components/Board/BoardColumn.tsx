@@ -19,7 +19,7 @@ export interface BoardColumnProps {
 export function BoardColumn({ title, sessions, state, onCardClick, onCardAction }: BoardColumnProps) {
   return (
     <div className="flex-1 min-w-[240px] flex flex-col">
-      <div className="flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-muted">
+      <div className="flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-neutral-bg-dim">
         <h3 className="text-sm font-medium">{title}</h3>
         <Badge {...stateVariant(state)} className="text-[10px] h-5">
           {sessions.length}
@@ -37,7 +37,7 @@ export function BoardColumn({ title, sessions, state, onCardClick, onCardAction 
               />
             ))
           ) : (
-            <p className="text-xs text-muted-foreground text-center py-4">No agents</p>
+            <p className="text-xs text-neutral-fg-subtle text-center py-4">No agents</p>
           )}
         </div>
       </ScrollArea>

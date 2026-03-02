@@ -71,11 +71,11 @@ export default function AppSidebar({
 
       {/* Logo */}
       <div className={`flex items-center overflow-hidden h-8 electrobun-webkit-app-region-no-drag ${isCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3'}`}>
-        <div className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-foreground/90 text-background font-bold text-[11px] tracking-tight">
+        <div className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-fg/90 text-neutral-bg font-bold text-[11px] tracking-tight">
           W
         </div>
         {!isCollapsed && (
-          <span className="text-[13px] font-semibold text-foreground/80 truncate tracking-tight">
+          <span className="text-[13px] font-semibold text-neutral-fg/80 truncate tracking-tight">
             Workforce
           </span>
         )}
@@ -94,8 +94,8 @@ export default function AppSidebar({
               className={`nav-glass-item relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 ${
                 isCollapsed ? 'px-0 py-2 justify-center' : 'px-2.5 py-[7px]'
               } ${isActive
-                ? 'nav-glass-active text-foreground font-medium'
-                : 'text-foreground/50 hover:text-foreground/80 hover:bg-white/30 dark:hover:bg-white/5'
+                ? 'nav-glass-active text-neutral-fg font-medium'
+                : 'text-neutral-fg/50 hover:text-neutral-fg/80 hover:bg-white/30 dark:hover:bg-white/5'
               }`}
             >
               <Icon className={`h-[18px] w-[18px] flex-shrink-0 ${isActive ? '' : ''}`} />
@@ -126,7 +126,7 @@ export default function AppSidebar({
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
-                  className="flex items-center justify-center w-full rounded-lg py-2 text-foreground/40 hover:text-foreground/70 hover:bg-white/30 dark:hover:bg-white/5 transition-all duration-150"
+                  className="flex items-center justify-center w-full rounded-lg py-2 text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-white/30 dark:hover:bg-white/5 transition-all duration-150"
                   onClick={onToggleSize}
                   aria-label="Expand sidebar"
                 >
@@ -137,7 +137,7 @@ export default function AppSidebar({
             </Tooltip>
           ) : (
             <button
-              className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-[7px] text-foreground/40 hover:text-foreground/70 hover:bg-white/30 dark:hover:bg-white/5 transition-all duration-150"
+              className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-[7px] text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-white/30 dark:hover:bg-white/5 transition-all duration-150"
               onClick={onToggleSize}
             >
               <PanelLeftClose className="h-4 w-4" />

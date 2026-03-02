@@ -58,8 +58,8 @@ export function ProjectView({
     return (
       <div className="flex-1 flex items-center justify-center pt-14">
         <div className="text-center space-y-3">
-          <FolderOpen className="h-10 w-10 mx-auto text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">
+          <FolderOpen className="h-10 w-10 mx-auto text-neutral-fg-subtle/50" />
+          <p className="text-sm text-neutral-fg-subtle">
             Select a project from the sidebar
           </p>
         </div>
@@ -80,10 +80,10 @@ export function ProjectView({
           </div>
           <div>
             <h2 className="text-lg font-semibold">{project.name}</h2>
-            <p className="text-xs text-muted-foreground font-mono">{project.rootPath}</p>
+            <p className="text-xs text-neutral-fg-subtle font-mono">{project.rootPath}</p>
           </div>
         </div>
-        <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+        <div className="flex items-center gap-4 text-xs text-neutral-fg-subtle mt-2">
           <span>Created {formatDate(project.createdAt)}</span>
           <span>{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
         </div>
@@ -102,7 +102,7 @@ export function ProjectView({
         <h3 className="text-sm font-medium mb-2">Recent Sessions</h3>
         {sessions.length === 0 ? (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-sm text-muted-foreground">No sessions in this project yet</p>
+            <p className="text-sm text-neutral-fg-subtle">No sessions in this project yet</p>
           </div>
         ) : (
           <ScrollArea className="flex-1">
@@ -111,12 +111,12 @@ export function ProjectView({
                 <button
                   key={session.id}
                   onClick={() => onSelectSession?.(session.id)}
-                  className="w-full text-left px-3 py-2 rounded-md hover:bg-muted/50 transition-colors"
+                  className="w-full text-left px-3 py-2 rounded-md hover:bg-neutral-bg-dim/50 transition-colors"
                 >
                   <p className="text-sm font-medium truncate">
                     {session.title || 'Untitled'}
                   </p>
-                  <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                  <div className="flex items-center gap-2 text-[11px] text-neutral-fg-subtle mt-0.5">
                     <span>{formatDate(session.updatedAt)}</span>
                     <span>{session.messageCount} message{session.messageCount !== 1 ? 's' : ''}</span>
                   </div>

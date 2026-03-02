@@ -105,7 +105,7 @@ export function ProjectForm({
             </Button>
           )}
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-neutral-fg-subtle">
           Absolute path to the project directory
         </p>
       </div>

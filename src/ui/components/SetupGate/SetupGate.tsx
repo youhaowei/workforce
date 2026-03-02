@@ -162,10 +162,10 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
 
   if (step === 'loading') {
     return (
-      <div className="h-screen flex items-center justify-center bg-background">
+      <div className="h-screen flex items-center justify-center bg-neutral-bg">
         <div className="text-center space-y-3">
-          <Loader2 className="h-8 w-8 mx-auto animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
+          <Loader2 className="h-8 w-8 mx-auto animate-spin text-neutral-fg-subtle" />
+          <p className="text-sm text-neutral-fg-subtle">
             {!serverConnected ? 'Connecting to server...' : 'Loading...'}
           </p>
         </div>
@@ -174,7 +174,7 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="h-screen flex items-center justify-center bg-background">
+    <div className="h-screen flex items-center justify-center bg-neutral-bg">
       <StepRenderer
         step={step}
         user={user}

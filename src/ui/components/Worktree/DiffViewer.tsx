@@ -10,7 +10,7 @@ interface DiffViewerProps {
 
 export function DiffViewer({ diff }: DiffViewerProps) {
   if (!diff.trim()) {
-    return <p className="text-xs text-muted-foreground py-4 text-center">No changes</p>;
+    return <p className="text-xs text-neutral-fg-subtle py-4 text-center">No changes</p>;
   }
 
   return (
@@ -21,7 +21,7 @@ export function DiffViewer({ diff }: DiffViewerProps) {
           if (line.startsWith('+') && !line.startsWith('+++')) className = 'text-green-600 bg-green-500/10';
           else if (line.startsWith('-') && !line.startsWith('---')) className = 'text-red-600 bg-red-500/10';
           else if (line.startsWith('@@')) className = 'text-blue-600';
-          else if (line.startsWith('diff')) className = 'text-muted-foreground font-bold';
+          else if (line.startsWith('diff')) className = 'text-neutral-fg-subtle font-bold';
 
           return (
             <div key={i} className={className}>

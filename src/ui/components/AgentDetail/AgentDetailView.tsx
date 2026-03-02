@@ -89,7 +89,7 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
   if (!session) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">Loading session...</p>
+        <p className="text-sm text-neutral-fg-subtle">Loading session...</p>
       </div>
     );
   }
@@ -103,12 +103,12 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h2 className="text-lg font-semibold flex-1 truncate">{goal}</h2>
-          <Badge {...stateVariant(state)} className="text-[10px] uppercase">
+          <Badge {...stateVariant(state)} className="text-[10px]">
             {state}
           </Badge>
         </div>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground ml-10">
-          <code className="bg-muted px-1.5 py-0.5 rounded text-[10px]">{session.id}</code>
+        <div className="flex items-center gap-3 text-xs text-neutral-fg-subtle ml-10">
+          <code className="bg-neutral-bg-dim px-1.5 py-0.5 rounded text-[10px]">{session.id}</code>
           {templateId && <span>Template: {templateId}</span>}
         </div>
       </div>
@@ -175,7 +175,7 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
           {orgId ? (
             <AgentActions sessionId={session.id} orgId={orgId} />
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">No org context</p>
+            <p className="text-sm text-neutral-fg-subtle text-center py-8">No org context</p>
           )}
         </TabsContent>
 
@@ -183,7 +183,7 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
           {orgId ? (
             <AgentAudit sessionId={session.id} orgId={orgId} />
           ) : (
-            <p className="text-sm text-muted-foreground text-center py-8">No org context</p>
+            <p className="text-sm text-neutral-fg-subtle text-center py-8">No org context</p>
           )}
         </TabsContent>
       </Tabs>

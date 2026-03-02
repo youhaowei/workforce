@@ -63,8 +63,8 @@ export function TaskList({ tasks, onStatusChange, onDelete }: TaskListProps) {
             key={tab.key}
             className={`px-3 py-2 text-sm font-medium ${
               activeTab === tab.key
-                ? 'border-b-2 border-primary text-foreground'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'border-b-2 border-palette-primary text-neutral-fg'
+                : 'text-neutral-fg-subtle hover:text-neutral-fg'
             }`}
             onClick={() => setActiveTab(tab.key)}
           >
@@ -88,7 +88,7 @@ export function TaskList({ tasks, onStatusChange, onDelete }: TaskListProps) {
             ))}
           </div>
         ) : (
-          <div className="p-4 text-center text-muted-foreground">
+          <div className="p-4 text-center text-neutral-fg-subtle">
             {getEmptyMessage()}
           </div>
         )}

@@ -31,12 +31,12 @@ export function PlanHeader({ title, filePath, status, onClose }: PlanHeaderProps
   const filename = filePath.split('/').pop() ?? filePath;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 border-b bg-card">
+    <div className="flex items-center gap-3 px-4 py-3 border-b bg-neutral-bg-subtle">
       <FileText className="h-5 w-5 text-blue-500 flex-shrink-0" />
 
       <div className="flex-1 min-w-0">
-        <h2 className="text-sm font-semibold text-foreground truncate">{title}</h2>
-        <span className="text-xs font-mono text-muted-foreground truncate block" title={filePath}>
+        <h2 className="text-sm font-semibold text-neutral-fg truncate">{title}</h2>
+        <span className="text-xs font-mono text-neutral-fg-subtle truncate block" title={filePath}>
           {filename}
         </span>
       </div>

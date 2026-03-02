@@ -17,12 +17,12 @@ import { SessionList } from './SessionList';
 function PanelHeader({ onCollapse }: { onCollapse?: () => void }) {
   return (
     <div className="flex items-center h-10 px-3 gap-1">
-      <h2 className="text-sm font-semibold text-foreground flex-1 select-none">Sessions</h2>
+      <h2 className="text-sm font-semibold text-neutral-fg flex-1 select-none">Sessions</h2>
       {onCollapse && (
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+          className="h-6 w-6 shrink-0 text-neutral-fg-subtle hover:text-neutral-fg"
           onClick={onCollapse}
           aria-label="Hide sessions panel"
         >
@@ -113,7 +113,7 @@ export function SessionsPanel({
 
       {/* Content */}
       {isLoading ? (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+        <div className="flex-1 flex items-center justify-center text-neutral-fg-subtle text-sm">
           Loading...
         </div>
       ) : (
@@ -134,7 +134,7 @@ export function SessionsPanel({
       {!collapsed && (
         <div
           onMouseDown={onResizeStart}
-          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-10"
+          className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-palette-primary/20 active:bg-palette-primary/30 transition-colors z-10"
           aria-hidden="true"
         />
       )}

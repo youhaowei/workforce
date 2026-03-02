@@ -49,7 +49,7 @@ export function AuditView() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Audit Log</h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-neutral-fg-subtle">
             {entries.length} entries
           </p>
         </div>
@@ -66,7 +66,7 @@ export function AuditView() {
       </div>
 
       {isLoading && (
-        <p className="text-sm text-muted-foreground text-center py-12">Loading...</p>
+        <p className="text-sm text-neutral-fg-subtle text-center py-12">Loading...</p>
       )}
       {!isLoading && entries.length > 0 && (
         <ScrollArea className="flex-1">
@@ -79,9 +79,9 @@ export function AuditView() {
       )}
       {!isLoading && entries.length === 0 && (
         <div className="text-center py-12">
-          <History className="h-8 w-8 mx-auto mb-3 text-muted-foreground" />
+          <History className="h-8 w-8 mx-auto mb-3 text-neutral-fg-subtle" />
           <p className="text-sm font-medium">No audit entries</p>
-          <p className="text-xs text-muted-foreground mt-1">
+          <p className="text-xs text-neutral-fg-subtle mt-1">
             Agent activity will appear here
           </p>
         </div>

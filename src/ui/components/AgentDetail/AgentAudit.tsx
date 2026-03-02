@@ -22,7 +22,7 @@ export function AgentAudit({ sessionId, orgId }: AgentAuditProps) {
   );
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>;
+    return <p className="text-sm text-neutral-fg-subtle text-center py-8">Loading...</p>;
   }
 
   return <AuditTimeline entries={entries as AuditEntry[]} />;

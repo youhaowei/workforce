@@ -32,20 +32,20 @@ function ThinkingRow({ text, isActive }: { text: string; isActive: boolean }) {
         tabIndex={hasContent ? 0 : undefined}
         onClick={() => hasContent && setExpanded((p) => !p)}
         onKeyDown={(e) => { if (hasContent && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setExpanded((p) => !p); } }}
-        className={`flex items-center gap-2 py-0.5 text-[13px] text-muted-foreground ${hasContent ? 'cursor-pointer hover:text-foreground' : ''}`}
+        className={`flex items-center gap-2 py-0.5 text-[13px] text-neutral-fg-subtle ${hasContent ? 'cursor-pointer hover:text-neutral-fg' : ''}`}
       >
         {isActive
-          ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />
+          ? <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />
           : <span className="shrink-0 w-4 h-4 rounded-full bg-emerald-500/15 inline-flex items-center justify-center">
               <Check className="h-2.5 w-2.5 text-emerald-500" />
             </span>}
         <span>{isActive ? 'Thinking...' : 'Thought'}</span>
         {hasContent && (
-          <ChevronRight className={`h-3 w-3 text-muted-foreground/40 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`} />
+          <ChevronRight className={`h-3 w-3 text-neutral-fg-subtle/40 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`} />
         )}
       </div>
       {expanded && hasContent && (
-        <div className="ml-6 pl-2 border-l-2 border-muted py-1.5 text-[11px] font-mono text-muted-foreground/50 whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed">
+        <div className="ml-6 pl-2 border-l-2 border-neutral-border py-1.5 text-[12px] font-mono text-neutral-fg-subtle/80 whitespace-pre-wrap max-h-40 overflow-y-auto leading-relaxed">
           {text}
         </div>
       )}
@@ -66,10 +66,10 @@ export default function ContentBlockRenderer({ blocks, inline }: ContentBlockRen
             // Inline mode: flat line with icon (used in activity section)
             if (inline) {
               return (
-                <div key={key} className="flex items-start gap-2 py-0.5 text-[13px] text-foreground/75">
+                <div key={key} className="flex items-start gap-2 py-0.5 text-[13px] text-neutral-fg/75">
                   {isActive
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0 mt-0.5" />
-                    : <MessageCircleDashed className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0 mt-0.5" />}
+                    ? <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0 mt-0.5" />
+                    : <MessageCircleDashed className="h-3.5 w-3.5 text-neutral-fg-subtle/50 shrink-0 mt-0.5" />}
                   <span className="line-clamp-2">{stripMarkdown(block.text)}</span>
                 </div>
               );

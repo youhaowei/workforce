@@ -16,16 +16,16 @@ import type { LifecycleState, SessionLifecycle, SessionSummary, SessionType } fr
 import { stripMarkdown } from '@/ui/formatters';
 
 const STATE_ICON: Record<LifecycleState, { icon: typeof Circle; className: string }> = {
-  created: { icon: Circle, className: 'text-muted-foreground/40' },
+  created: { icon: Circle, className: 'text-neutral-fg-subtle/40' },
   active: { icon: PlayCircle, className: 'text-emerald-500' },
   paused: { icon: PauseCircle, className: 'text-amber-500' },
   completed: { icon: CheckCircle2, className: 'text-blue-500' },
   failed: { icon: AlertCircle, className: 'text-red-500' },
-  cancelled: { icon: XCircle, className: 'text-muted-foreground/50' },
+  cancelled: { icon: XCircle, className: 'text-neutral-fg-subtle/50' },
 };
 
 const TYPE_BADGE_STYLE: Record<string, string> = {
-  chat: 'bg-muted text-muted-foreground',
+  chat: 'bg-neutral-bg-dim text-neutral-fg-subtle',
   workagent: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
 };
 
@@ -84,8 +84,8 @@ export function SessionItem({
       tabIndex={0}
       className={`session-item group px-3 py-2.5 cursor-pointer transition-colors ${
         isActive
-          ? 'bg-accent'
-          : 'hover:bg-muted/50'
+          ? 'bg-neutral-bg-subtle'
+          : 'hover:bg-neutral-bg-dim/50'
       }`}
       onClick={() => onSelect?.(session.id)}
       onKeyDown={(e) => {
@@ -114,16 +114,16 @@ export function SessionItem({
           </span>
         )}
         {projectName && (
-          <span className="inline-flex items-center h-5 px-1.5 rounded text-[11px] font-medium bg-muted text-muted-foreground">
+          <span className="inline-flex items-center h-5 px-1.5 rounded text-[11px] font-medium bg-neutral-bg-dim text-neutral-fg-subtle">
             {projectName}
           </span>
         )}
         {session.parentId && (
-          <span className="inline-flex items-center h-5 px-1.5 rounded text-[11px] font-medium bg-muted text-muted-foreground">
+          <span className="inline-flex items-center h-5 px-1.5 rounded text-[11px] font-medium bg-neutral-bg-dim text-neutral-fg-subtle">
             fork
           </span>
         )}
-        <span className="ml-auto text-[11px] text-muted-foreground/60 tabular-nums shrink-0">
+        <span className="ml-auto text-[11px] text-neutral-fg-subtle/60 tabular-nums shrink-0">
           {timeAgo}
         </span>
 
@@ -131,7 +131,7 @@ export function SessionItem({
         <Button
           variant="ghost"
           size="icon"
-          className="h-5 w-5 -mr-1 shrink-0 text-muted-foreground hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity"
+          className="h-5 w-5 -mr-1 shrink-0 text-neutral-fg-subtle hover:text-palette-danger opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={handleDelete}
           onKeyDown={(e) => e.stopPropagation()}
           aria-label="Delete session"

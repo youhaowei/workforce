@@ -47,7 +47,7 @@ export function MergeDialog({ sessionId, branch, open, onOpenChange }: MergeDial
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label className="text-xs text-muted-foreground">Branch</Label>
+            <Label className="text-xs text-neutral-fg-subtle">Branch</Label>
             <p className="text-sm font-mono">{branch}</p>
           </div>
           <div className="space-y-2">
@@ -70,7 +70,7 @@ export function MergeDialog({ sessionId, branch, open, onOpenChange }: MergeDial
             </div>
           </div>
           {mergeMutation.error && (
-            <p className="text-xs text-danger">
+            <p className="text-xs text-palette-danger">
               {mergeMutation.error.message}
             </p>
           )}

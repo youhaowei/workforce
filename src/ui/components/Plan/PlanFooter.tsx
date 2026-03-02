@@ -34,7 +34,7 @@ export function PlanFooter({ status, onApprove, onReject }: PlanFooterProps) {
   const selectedOption = PERMISSION_OPTIONS.find((o) => o.value === selectedPermission) ?? PERMISSION_OPTIONS[1];
 
   return (
-    <div className="flex items-center gap-2 px-4 py-3 border-t bg-card">
+    <div className="flex items-center gap-2 px-4 py-3 border-t bg-neutral-bg-subtle">
       {/* Approve split button */}
       <div className="flex items-center rounded-md overflow-hidden">
         <Button
@@ -48,7 +48,7 @@ export function PlanFooter({ status, onApprove, onReject }: PlanFooterProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" className="rounded-l-none border-l border-primary-foreground/20 px-1.5">
+            <Button size="sm" className="rounded-l-none border-l border-palette-primary-foreground/20 px-1.5">
               <ChevronDown className="h-3.5 w-3.5" />
             </Button>
           </DropdownMenuTrigger>
@@ -60,7 +60,7 @@ export function PlanFooter({ status, onApprove, onReject }: PlanFooterProps) {
                 className="flex flex-col items-start"
               >
                 <span className="font-medium">{option.label}</span>
-                <span className="text-xs text-muted-foreground">{option.description}</span>
+                <span className="text-xs text-neutral-fg-subtle">{option.description}</span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

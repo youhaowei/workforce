@@ -60,7 +60,7 @@ export function WorktreePanel({ sessionId }: WorktreePanelProps) {
         <CardContent className="p-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <GitBranch className="h-4 w-4 text-muted-foreground" />
+              <GitBranch className="h-4 w-4 text-neutral-fg-subtle" />
               <span className="text-sm font-mono">{worktree.branch}</span>
               <Badge variant="outline" className="text-[10px]">{worktree.status}</Badge>
             </div>
@@ -94,10 +94,10 @@ export function WorktreePanel({ sessionId }: WorktreePanelProps) {
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground font-mono truncate">{worktree.path}</p>
+          <p className="text-xs text-neutral-fg-subtle font-mono truncate">{worktree.path}</p>
 
           <Collapsible open={diffExpanded} onOpenChange={setDiffExpanded}>
-            <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+            <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-neutral-fg-subtle hover:text-neutral-fg transition-colors">
               {diffExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
               View Diff
             </CollapsibleTrigger>
@@ -105,7 +105,7 @@ export function WorktreePanel({ sessionId }: WorktreePanelProps) {
               {diff !== undefined ? (
                 <DiffViewer diff={diff} />
               ) : (
-                <p className="text-xs text-muted-foreground">Loading diff...</p>
+                <p className="text-xs text-neutral-fg-subtle">Loading diff...</p>
               )}
             </CollapsibleContent>
           </Collapsible>

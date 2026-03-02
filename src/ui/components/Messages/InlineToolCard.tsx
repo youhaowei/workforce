@@ -11,6 +11,7 @@ import { useState, useMemo, useCallback, type KeyboardEvent } from 'react';
 import { Check, X, ChevronRight, Loader2, Circle } from 'lucide-react';
 import type { ContentBlock } from '@/services/types';
 import { formatToolResult } from '@/ui/formatters';
+import { Chip } from '@/ui/components/Chip';
 
 type ToolBlock = ContentBlock & { type: 'tool_use' };
 
@@ -129,12 +130,12 @@ function getResultBadge(name: string, result: unknown, error?: string): string |
 
 function StatusIcon({ status }: { status: ToolBlock['status'] }) {
   if (status === 'running') {
-    return <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />;
+    return <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />;
   }
   if (status === 'error') {
     return (
-      <span className="shrink-0 w-4 h-4 rounded-full bg-danger/15 inline-flex items-center justify-center">
-        <X className="h-2.5 w-2.5 text-danger" />
+      <span className="shrink-0 w-4 h-4 rounded-full bg-palette-danger/15 inline-flex items-center justify-center">
+        <X className="h-2.5 w-2.5 text-palette-danger" />
       </span>
     );
   }
@@ -145,18 +146,18 @@ function StatusIcon({ status }: { status: ToolBlock['status'] }) {
       </span>
     );
   }
-  return <Circle className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />;
+  return <Circle className="h-3.5 w-3.5 text-neutral-fg-subtle/40 shrink-0" />;
 }
 
 // ─── Detail content ──────────────────────────────────────────────────────────
 
 function DetailContent({ error, detail }: { error?: string; detail: string }) {
   if (error) {
-    return <pre className="text-[11px] font-mono text-danger whitespace-pre-wrap">{error}</pre>;
+    return <pre className="text-[11px] font-mono text-palette-danger whitespace-pre-wrap">{error}</pre>;
   }
   if (detail) {
     return (
-      <pre className="text-[11px] font-mono text-muted-foreground/60 whitespace-pre-wrap overflow-x-auto max-h-60 overflow-y-auto leading-relaxed">
+      <pre className="text-[11px] font-mono text-neutral-fg-subtle/60 whitespace-pre-wrap overflow-x-auto max-h-60 overflow-y-auto leading-relaxed">
         {truncLines(detail, 30)}
       </pre>
     );
@@ -201,7 +202,7 @@ export default function InlineToolCard({ block }: { block: ToolBlock }) {
         tabIndex={0}
         aria-expanded={expanded}
         aria-label={`Toggle ${block.name} details`}
-        className="group/row flex items-center gap-2 py-0.5 cursor-pointer select-none text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+        className="group/row flex items-center gap-2 py-0.5 cursor-pointer select-none text-[13px] text-neutral-fg-subtle hover:text-neutral-fg transition-colors"
         onClick={toggle}
         onKeyDown={onKeyDown}
       >
@@ -212,29 +213,9 @@ export default function InlineToolCard({ block }: { block: ToolBlock }) {
           {info.displayName}
         </span>
 
-        {/* File badge */}
-        {info.fileBadge && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-muted-foreground">
-            {info.fileBadge}
-          </span>
-        )}
-
-        {/* Extra badges (subagent type, etc.) */}
-        {info.badges?.map((b) => (
-          <span
-            key={b}
-            className="shrink-0 px-1.5 py-0.5 rounded bg-muted text-[10px] font-medium text-muted-foreground"
-          >
-            {b}
-          </span>
-        ))}
-
-        {/* Error badge */}
-        {block.status === 'error' && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-danger/10 text-[10px] font-medium text-danger">
-            Error
-          </span>
-        )}
+        {info.fileBadge && <Chip>{info.fileBadge}</Chip>}
+        {info.badges?.map((b) => <Chip key={b}>{b}</Chip>)}
+        {block.status === 'error' && <Chip color="danger">Error</Chip>}
 
         {/* Intent + input summary (truncated, faded) */}
         <span className="truncate flex-1 min-w-0">
@@ -254,7 +235,7 @@ export default function InlineToolCard({ block }: { block: ToolBlock }) {
 
         {/* Result badge */}
         {badge && (
-          <span className="shrink-0 text-[10px] text-muted-foreground/50 font-mono tabular-nums">
+          <span className="shrink-0 text-[10px] text-neutral-fg-subtle/50 font-mono tabular-nums">
             {badge}
           </span>
         )}
@@ -262,7 +243,7 @@ export default function InlineToolCard({ block }: { block: ToolBlock }) {
         {/* Expand chevron */}
         {expandable && (
           <ChevronRight
-            className={`h-3 w-3 text-muted-foreground/40 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`}
+            className={`h-3 w-3 text-neutral-fg-subtle/40 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`}
           />
         )}
       </div>

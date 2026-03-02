@@ -29,11 +29,11 @@ export interface PlanPanelProps {
 function PlanWaiting({ onClose }: { onClose: () => void }) {
   return (
     <>
-      <div className="flex items-center gap-3 px-4 py-3 border-b bg-card">
+      <div className="flex items-center gap-3 px-4 py-3 border-b bg-neutral-bg-subtle">
         <FileText className="h-5 w-5 text-blue-500 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <h2 className="text-sm font-semibold text-foreground">Plan Mode</h2>
-          <span className="text-xs text-muted-foreground">Waiting for agent to produce a plan</span>
+          <h2 className="text-sm font-semibold text-neutral-fg">Plan Mode</h2>
+          <span className="text-xs text-neutral-fg-subtle">Waiting for agent to produce a plan</span>
         </div>
         <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 bg-blue-500/20 text-blue-600 dark:text-blue-400">
           Active
@@ -42,7 +42,7 @@ function PlanWaiting({ onClose }: { onClose: () => void }) {
           <X className="h-4 w-4" />
         </Button>
       </div>
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-neutral-fg-subtle">
         <Loader2 className="h-6 w-6 animate-spin text-blue-500/60" />
         <p className="text-sm">Agent is researching and drafting a plan...</p>
         <p className="text-xs max-w-[280px] text-center">The plan will appear here for your review when ready.</p>

@@ -14,9 +14,9 @@ export interface TaskItemProps {
 }
 
 function statusColor(status: TaskStatus): string {
-  if (status === 'in_progress' || status === 'completed') return 'text-primary';
-  if (status === 'cancelled') return 'text-danger';
-  return 'text-muted-foreground';
+  if (status === 'in_progress' || status === 'completed') return 'text-palette-primary';
+  if (status === 'cancelled') return 'text-palette-danger';
+  return 'text-neutral-fg-subtle';
 }
 
 const STATUS_ICON: Record<TaskStatus, typeof Circle> = {
@@ -47,7 +47,7 @@ export function TaskItem({ task, onStatusChange, onDelete }: TaskItemProps) {
 
   return (
     <div
-      className={`group flex items-start gap-2 p-2 rounded hover:bg-accent ${
+      className={`group flex items-start gap-2 p-2 rounded hover:bg-neutral-bg-subtle ${
         isDone ? 'opacity-60' : ''
       }`}
     >
@@ -62,9 +62,9 @@ export function TaskItem({ task, onStatusChange, onDelete }: TaskItemProps) {
           {task.title}
         </div>
         {task.description && (
-          <div className="text-xs text-muted-foreground truncate">{task.description}</div>
+          <div className="text-xs text-neutral-fg-subtle truncate">{task.description}</div>
         )}
-        <div className="text-xs text-muted-foreground mt-0.5">{timeAgo}</div>
+        <div className="text-xs text-neutral-fg-subtle mt-0.5">{timeAgo}</div>
       </div>
 
       {/* Actions - visible on hover */}

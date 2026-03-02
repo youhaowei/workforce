@@ -44,13 +44,13 @@ export function ReviewQueue() {
     <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">
       <div className="mb-4">
         <h2 className="text-lg font-semibold">Review Queue</h2>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-neutral-fg-subtle">
           Items awaiting your review ({items.length} pending)
         </p>
       </div>
       <div className="flex-1 overflow-y-auto">
         {isLoading && (
-          <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
+          <p className="text-sm text-neutral-fg-subtle text-center py-8">Loading...</p>
         )}
         {!isLoading && items.length > 0 && (
           <div className="space-y-3 max-w-2xl">
@@ -69,7 +69,7 @@ export function ReviewQueue() {
               <CheckCircle className="h-5 w-5 text-green-600" />
             </div>
             <p className="text-sm font-medium">All caught up!</p>
-            <p className="text-xs text-muted-foreground mt-1">No pending reviews</p>
+            <p className="text-xs text-neutral-fg-subtle mt-1">No pending reviews</p>
           </div>
         )}
       </div>

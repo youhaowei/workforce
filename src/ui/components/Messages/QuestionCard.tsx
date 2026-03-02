@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import type { AgentQuestion, ContentBlock } from '@/services/types';
 import { QuestionField } from './QuestionField';
+import { Chip } from '@/ui/components/Chip';
 import { buildAnswerMap } from './questionHelpers';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -69,11 +70,11 @@ function SubmittedView({ questions, answers }: {
         return (
           <div key={q.id} className="space-y-1">
             {q.header && (
-              <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5">
+              <Chip color="muted" className="font-semibold">
                 {q.header}
-              </span>
+              </Chip>
             )}
-            <p className="text-sm text-muted-foreground">{q.question}</p>
+            <p className="text-sm text-neutral-fg-subtle">{q.question}</p>
             <div className="flex items-center gap-1.5 text-sm">
               <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
               <span className="font-medium">{ans.join(', ') || '(no answer)'}</span>
@@ -93,10 +94,10 @@ function CardShell({ cardRef, headerLabel, children }: {
   children: React.ReactNode;
 }) {
   const Icon = headerLabel === 'Question Answered' ? Check : MessageCircleQuestion;
-  const headerBg = headerLabel === 'Question Answered' ? 'bg-muted/30' : 'bg-primary/5';
-  const headerBorder = headerLabel === 'Question Answered' ? 'border-border/30' : 'border-primary/10';
-  const iconColor = headerLabel === 'Question Answered' ? 'text-success' : 'text-primary';
-  const textColor = headerLabel === 'Question Answered' ? 'text-muted-foreground' : 'text-primary';
+  const headerBg = headerLabel === 'Question Answered' ? 'bg-neutral-bg-subtle' : 'bg-palette-primary/5';
+  const headerBorder = headerLabel === 'Question Answered' ? 'border-neutral-border/30' : 'border-palette-primary/10';
+  const iconColor = headerLabel === 'Question Answered' ? 'text-palette-success' : 'text-palette-primary';
+  const textColor = headerLabel === 'Question Answered' ? 'text-neutral-fg-subtle' : 'text-palette-primary';
 
   return (
     <Card ref={cardRef} variant="elevated" className="overflow-hidden">
@@ -130,11 +131,11 @@ function AnsweredCard({ block, questions }: {
           {questions.map((q) => (
             <div key={q.id} className="space-y-1">
               {q.header && (
-                <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5">
+                <Chip color="muted" className="font-semibold">
                   {q.header}
-                </span>
+                </Chip>
               )}
-              <p className="text-sm text-muted-foreground">{q.question}</p>
+              <p className="text-sm text-neutral-fg-subtle">{q.question}</p>
             </div>
           ))}
           <div className="flex items-start gap-1.5 text-sm pt-1">
@@ -257,7 +258,7 @@ function InteractiveCard({ block, questions, isLive, isColdReplay }: {
         )}
       </div>
       {!isSubmitted && (
-        <div className="flex justify-end gap-2 px-4 py-2 border-t border-border/50">
+        <div className="flex justify-end gap-2 px-4 py-2 border-t border-neutral-border/50">
           {isLive && (
             <Button variant="ghost" size="sm" onClick={handleCancel}>Cancel</Button>
           )}

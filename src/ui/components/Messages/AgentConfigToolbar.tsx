@@ -25,8 +25,8 @@ function Pill({ label, disabled, children }: PillProps) {
         disabled={disabled}
         className={cn(
           'inline-flex items-center gap-1 h-[22px] px-2 rounded-md text-[11px]',
-          'text-muted-foreground/70 hover:text-muted-foreground transition-colors outline-none',
-          'focus-visible:ring-1 focus-visible:ring-ring',
+          'text-neutral-fg-subtle/70 hover:text-neutral-fg-subtle transition-colors outline-none',
+          'focus-visible:ring-1 focus-visible:ring-neutral-ring',
           'disabled:opacity-30 disabled:cursor-not-allowed',
         )}
       >
@@ -74,7 +74,7 @@ export default function AgentConfigToolbar({
           {models.map((m) => (
             <DropdownMenuRadioItem key={m.id} value={m.id} className="text-xs flex-col items-start gap-0">
               <span>{m.displayName}</span>
-              {m.description && <span className="text-muted-foreground font-normal">{m.description}</span>}
+              {m.description && <span className="text-neutral-fg-subtle font-normal">{m.description}</span>}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

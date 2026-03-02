@@ -85,7 +85,7 @@ export function LaunchFromTemplateDialog({ template, open, onOpenChange }: Launc
               onCheckedChange={setIsolateWorktree}
             />
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-neutral-fg-subtle">
             Worktree isolation creates a separate git branch for this agent&apos;s changes.
           </p>
         </div>

@@ -15,7 +15,7 @@ export default function StatusBar({
 }: StatusBarProps) {
   return (
     <footer className="flex-shrink-0 px-6 py-1.5">
-      <div className="max-w-3xl mx-auto flex items-center justify-between text-[11px] text-muted-foreground/50 tabular-nums">
+      <div className="max-w-3xl mx-auto flex items-center justify-between text-[11px] text-neutral-fg-subtle/50 tabular-nums">
         <div className="flex items-center gap-3">
           {(cumulativeUsage.inputTokens > 0 || cumulativeUsage.outputTokens > 0) && (
             <span title="Input / Output tokens">

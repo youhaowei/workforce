@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
+import { Chip } from '@/ui/components/Chip';
 import type { AgentQuestion } from '@/services/types';
 
 export function QuestionField({
@@ -43,11 +44,7 @@ export function QuestionField({
 
   return (
     <div className="space-y-3">
-      {question.header && (
-        <span className="inline-block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/50 rounded px-1.5 py-0.5">
-          {question.header}
-        </span>
-      )}
+      {question.header && <Chip color="muted">{question.header}</Chip>}
       <p className="text-sm font-medium">{question.question}</p>
 
       {question.options && question.options.length > 0 && (
@@ -58,7 +55,7 @@ export function QuestionField({
               <label
                 key={opt.label}
                 className={`flex items-start gap-2.5 rounded-md border px-3 py-2 cursor-pointer transition-colors ${
-                  isSelected ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
+                  isSelected ? 'border-palette-primary bg-palette-primary/5' : 'border-neutral-border hover:bg-neutral-bg-dim/50'
                 } ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
               >
                 <input
@@ -72,7 +69,7 @@ export function QuestionField({
                 <div className="min-w-0">
                   <span className="text-sm font-medium">{opt.label}</span>
                   {opt.description && (
-                    <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
+                    <p className="text-xs text-neutral-fg-subtle mt-0.5">{opt.description}</p>
                   )}
                 </div>
               </label>
@@ -82,7 +79,7 @@ export function QuestionField({
           {question.freeform && (
             <label
               className={`flex items-start gap-2.5 rounded-md border px-3 py-2 cursor-pointer transition-colors ${
-                useOther ? 'border-primary bg-primary/5' : 'border-border hover:bg-muted/50'
+                useOther ? 'border-palette-primary bg-palette-primary/5' : 'border-neutral-border hover:bg-neutral-bg-dim/50'
               } ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
             >
               <input

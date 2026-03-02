@@ -59,7 +59,7 @@ export function CreateOrgStep({ userName, onComplete }: CreateOrgStepProps) {
         <h1 className="text-2xl font-semibold mb-2">
           Hi {userName}! Let's create your first workspace.
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-neutral-fg-subtle">
           A workspace keeps your agents, sessions, and settings organized.
         </p>
       </div>
@@ -77,7 +77,7 @@ export function CreateOrgStep({ userName, onComplete }: CreateOrgStepProps) {
         </div>
 
         {createMutation.isError && (
-          <p className="text-sm text-danger">
+          <p className="text-sm text-palette-danger">
             {createMutation.error?.message ?? 'Something went wrong. Please try again.'}
           </p>
         )}

@@ -73,14 +73,14 @@ export default function ToolOutput({ toolName, args, result, error, status, dura
   }, [toggle]);
 
   return (
-    <div className="border rounded-md overflow-hidden text-sm bg-card">
+    <div className="border rounded-md overflow-hidden text-sm bg-neutral-bg-subtle">
       {/* Header */}
       <div
         role="button"
         tabIndex={0}
         aria-expanded={isExpanded}
         aria-label={`Toggle ${toolName} details`}
-        className="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-accent/50"
+        className="flex items-center justify-between px-3 py-2 cursor-pointer select-none hover:bg-neutral-bg-subtle/50"
         onClick={toggle}
         onKeyDown={handleKeyDown}
       >
@@ -90,26 +90,26 @@ export default function ToolOutput({ toolName, args, result, error, status, dura
           <Badge {...statusVariant(status)} className="text-[10px]">{status}</Badge>
         </div>
         <div className="flex items-center gap-2">
-          {displayDuration && <span className="text-xs text-muted-foreground">{displayDuration}</span>}
-          {hasContent && (isExpanded ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />)}
+          {displayDuration && <span className="text-xs text-neutral-fg-subtle">{displayDuration}</span>}
+          {hasContent && (isExpanded ? <ChevronDown className="h-3 w-3 text-neutral-fg-subtle" /> : <ChevronRight className="h-3 w-3 text-neutral-fg-subtle" />)}
         </div>
       </div>
 
       {/* Expandable Content */}
       {isExpanded && hasContent && (
-        <div className="px-3 py-2 border-t bg-background">
+        <div className="px-3 py-2 border-t bg-neutral-bg">
           {formattedResult.summary && !error && (
-            <div className="text-xs text-muted-foreground mb-2">{formattedResult.summary}</div>
+            <div className="text-xs text-neutral-fg-subtle mb-2">{formattedResult.summary}</div>
           )}
 
           {formattedArgs && (
             <details className="mb-2">
-              <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">Arguments</summary>
-              <pre className="font-mono text-xs text-muted-foreground overflow-x-auto whitespace-pre-wrap mt-1">{formattedArgs}</pre>
+              <summary className="cursor-pointer text-xs text-neutral-fg-subtle hover:text-neutral-fg">Arguments</summary>
+              <pre className="font-mono text-xs text-neutral-fg-subtle overflow-x-auto whitespace-pre-wrap mt-1">{formattedArgs}</pre>
             </details>
           )}
 
-          {error && <div className="text-xs text-danger font-medium">{error}</div>}
+          {error && <div className="text-xs text-palette-danger font-medium">{error}</div>}
 
           {!error && formattedResult.detail && (
             <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">{formattedResult.detail}</pre>

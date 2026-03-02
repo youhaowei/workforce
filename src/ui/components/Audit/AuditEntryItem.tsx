@@ -34,20 +34,20 @@ export function AuditEntryItem({ entry }: AuditEntryItemProps) {
 
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded}>
-      <CollapsibleTrigger className="w-full flex items-center gap-3 text-xs p-2 hover:bg-muted rounded transition-colors text-left">
+      <CollapsibleTrigger className="w-full flex items-center gap-3 text-xs p-2 hover:bg-neutral-bg-dim rounded transition-colors text-left">
         <ExpandIcon hasData={hasData} expanded={expanded} />
-        <span className="font-mono text-muted-foreground w-20 shrink-0">
+        <span className="font-mono text-neutral-fg-subtle w-20 shrink-0">
           {new Date(entry.timestamp).toLocaleTimeString()}
         </span>
         <Badge {...typeVariant(entry.type)} className="text-[10px] shrink-0">
           {entry.type.replace('_', ' ')}
         </Badge>
-        <span className="text-muted-foreground truncate flex-1">{entry.description}</span>
-        <code className="text-[10px] text-muted-foreground shrink-0">{entry.sessionId.slice(0, 8)}</code>
+        <span className="text-neutral-fg-subtle truncate flex-1">{entry.description}</span>
+        <code className="text-[10px] text-neutral-fg-subtle shrink-0">{entry.sessionId.slice(0, 8)}</code>
       </CollapsibleTrigger>
       {hasData && (
         <CollapsibleContent className="ml-9 mt-1 mb-2">
-          <pre className="text-[11px] font-mono bg-muted p-2 rounded overflow-x-auto max-h-40">
+          <pre className="text-[11px] font-mono bg-neutral-bg-dim p-2 rounded overflow-x-auto max-h-40">
             {JSON.stringify(entry.data, null, 2)}
           </pre>
         </CollapsibleContent>

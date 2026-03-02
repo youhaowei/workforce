@@ -13,7 +13,7 @@ interface AuditTimelineProps {
 export function AuditTimeline({ entries }: AuditTimelineProps) {
   if (entries.length === 0) {
     return (
-      <p className="text-sm text-muted-foreground text-center py-8">No audit entries</p>
+      <p className="text-sm text-neutral-fg-subtle text-center py-8">No audit entries</p>
     );
   }
 

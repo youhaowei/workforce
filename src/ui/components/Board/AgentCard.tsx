@@ -40,7 +40,7 @@ export function AgentCard({ session, onClick, onAction }: AgentCardProps) {
         <div className="flex items-start justify-between gap-2 mb-2">
           <span className="text-sm font-medium line-clamp-2 flex-1">{goal}</span>
           <div className="flex items-center gap-1 shrink-0">
-            <Badge {...stateVariant(state)} className="text-[10px] uppercase">
+            <Badge {...stateVariant(state)} className="text-[10px]">
               {state}
             </Badge>
             {onAction && (state === 'active' || state === 'paused') && (
@@ -65,7 +65,7 @@ export function AgentCard({ session, onClick, onAction }: AgentCardProps) {
                   )}
                   <DropdownMenuItem
                     onClick={() => onAction(session.id, 'cancel')}
-                    className="text-danger"
+                    className="text-palette-danger"
                   >
                     <XCircle className="h-3 w-3 mr-2" />
                     Cancel
@@ -81,8 +81,8 @@ export function AgentCard({ session, onClick, onAction }: AgentCardProps) {
           <Progress value={progress} className="h-1 mb-2" />
         )}
 
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <code className="bg-muted px-1.5 py-0.5 rounded text-[10px]">
+        <div className="flex items-center gap-2 text-xs text-neutral-fg-subtle">
+          <code className="bg-neutral-bg-dim px-1.5 py-0.5 rounded text-[10px]">
             {session.id.slice(0, 12)}
           </code>
           {templateId && (

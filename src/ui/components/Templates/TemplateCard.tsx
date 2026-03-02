@@ -38,7 +38,7 @@ export function TemplateCard({ template, onLaunch, onEdit, onDuplicate, onArchiv
         <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-medium truncate">{template.name}</h3>
-            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{template.description}</p>
+            <p className="text-xs text-neutral-fg-subtle line-clamp-2 mt-0.5">{template.description}</p>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -55,7 +55,7 @@ export function TemplateCard({ template, onLaunch, onEdit, onDuplicate, onArchiv
                 <Copy className="h-3.5 w-3.5 mr-2" />
                 Duplicate
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onArchive?.(template)} className="text-danger">
+              <DropdownMenuItem onClick={() => onArchive?.(template)} className="text-palette-danger">
                 <Archive className="h-3.5 w-3.5 mr-2" />
                 Archive
               </DropdownMenuItem>

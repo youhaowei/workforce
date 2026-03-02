@@ -107,7 +107,7 @@ export function ProjectsPanel({
           <Button
             variant="ghost"
             size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground"
+            className="h-6 w-6 text-neutral-fg-subtle hover:text-neutral-fg"
             onClick={onCollapse}
             aria-label="Hide projects"
           >
@@ -120,7 +120,7 @@ export function ProjectsPanel({
       <div className="p-3 border-b space-y-2">
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+            <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-neutral-fg-subtle" />
             <Input
               placeholder="Search projects..."
               value={search}
@@ -133,22 +133,22 @@ export function ProjectsPanel({
             New
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-neutral-fg-subtle">
           {filtered.length} project{filtered.length !== 1 ? 's' : ''}
         </p>
       </div>
 
       {/* List */}
       {isLoading && (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+        <div className="flex-1 flex items-center justify-center text-neutral-fg-subtle text-sm">
           Loading...
         </div>
       )}
       {!isLoading && filtered.length === 0 && (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3 px-4">
-            <FolderOpen className="h-8 w-8 mx-auto text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">
+            <FolderOpen className="h-8 w-8 mx-auto text-neutral-fg-subtle/50" />
+            <p className="text-sm text-neutral-fg-subtle">
               {search ? 'No projects match your search' : 'No projects yet'}
             </p>
             {!search && (
@@ -177,10 +177,10 @@ export function ProjectsPanel({
                     handleSelect(project.id);
                   }
                 }}
-                className={`w-full text-left px-3 py-2.5 border-b transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                className={`w-full text-left px-3 py-2.5 border-b transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring ${
                   isActive
-                    ? 'bg-accent'
-                    : 'hover:bg-muted/50'
+                    ? 'bg-neutral-bg-subtle'
+                    : 'hover:bg-neutral-bg-dim/50'
                 }`}
               >
                 <div className="flex items-center gap-2.5">
@@ -193,14 +193,14 @@ export function ProjectsPanel({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{project.name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate font-mono">
+                    <p className="text-[11px] text-neutral-fg-subtle truncate font-mono">
                       {project.rootPath}
                     </p>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-danger"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-neutral-fg-subtle hover:text-palette-danger"
                     onClick={(e) => handleDelete(e, project)}
                     onKeyDown={(e) => e.stopPropagation()}
                     aria-label={`Delete ${project.name}`}

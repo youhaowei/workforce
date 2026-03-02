@@ -36,7 +36,7 @@ export function OrgListView() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Organizations</h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-neutral-fg-subtle">
             Manage your organizations
           </p>
         </div>
@@ -49,8 +49,8 @@ export function OrgListView() {
       {orgs.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
-            <Settings className="h-10 w-10 mx-auto text-muted-foreground/50" />
-            <p className="text-sm text-muted-foreground">No organizations yet</p>
+            <Settings className="h-10 w-10 mx-auto text-neutral-fg-subtle/50" />
+            <p className="text-sm text-neutral-fg-subtle">No organizations yet</p>
             <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)}>
               <Plus className="h-3.5 w-3.5 mr-1.5" />
               Create your first org
@@ -64,8 +64,8 @@ export function OrgListView() {
             return (
               <Card
                 key={org.id}
-                className={`cursor-pointer transition-colors hover:border-primary/50 ${
-                  isActive ? 'border-primary ring-1 ring-primary/20' : ''
+                className={`cursor-pointer transition-colors hover:border-palette-primary/50 ${
+                  isActive ? 'border-palette-primary ring-1 ring-primary/20' : ''
                 }`}
                 onClick={() => activateMutation.mutate({ id: org.id })}
               >
@@ -97,7 +97,7 @@ export function OrgListView() {
                   )}
                 </CardHeader>
                 <CardContent className="pt-0">
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-neutral-fg-subtle">
                     Created {new Date(org.createdAt).toLocaleDateString()}
                   </p>
                 </CardContent>

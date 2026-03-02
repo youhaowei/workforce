@@ -106,7 +106,7 @@ export function SelectOrgStep({ orgs, onComplete }: SelectOrgStepProps) {
     <div className="w-full max-w-2xl px-6">
       <div className="text-center mb-8">
         <h1 className="text-2xl font-semibold mb-2">Select a Workspace</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-neutral-fg-subtle">
           Choose a workspace to continue.
         </p>
       </div>
@@ -115,7 +115,7 @@ export function SelectOrgStep({ orgs, onComplete }: SelectOrgStepProps) {
         {orgs.map((org) => (
           <Card
             key={org.id}
-            className={`cursor-pointer transition-colors hover:border-primary/50 ${activateMutation.isPending ? 'pointer-events-none opacity-60' : ''}`}
+            className={`cursor-pointer transition-colors hover:border-palette-primary/50 ${activateMutation.isPending ? 'pointer-events-none opacity-60' : ''}`}
             onClick={() => activateMutation.mutate({ id: org.id })}
           >
             <CardHeader className="pb-2">
@@ -127,7 +127,7 @@ export function SelectOrgStep({ orgs, onComplete }: SelectOrgStepProps) {
               </div>
             </CardHeader>
             <CardContent className="pt-0">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-neutral-fg-subtle">
                 Created {new Date(org.createdAt).toLocaleDateString()}
               </p>
             </CardContent>

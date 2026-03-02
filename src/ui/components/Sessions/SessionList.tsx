@@ -31,11 +31,11 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
-      <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center mb-3">
+      <div className="h-10 w-10 rounded-full bg-neutral-bg-dim flex items-center justify-center mb-3">
         {icon}
       </div>
       <p className="text-sm font-medium mb-1">{heading}</p>
-      <p className="text-xs text-muted-foreground mb-4">{subtext}</p>
+      <p className="text-xs text-neutral-fg-subtle mb-4">{subtext}</p>
       {action}
     </div>
   );
@@ -53,7 +53,7 @@ function renderEmptyState(
   if (query) {
     return (
       <EmptyState
-        icon={<Search className="h-5 w-5 text-muted-foreground" />}
+        icon={<Search className="h-5 w-5 text-neutral-fg-subtle" />}
         heading="No results"
         subtext={`No sessions match \u201c${query}\u201d`}
       />
@@ -63,7 +63,7 @@ function renderEmptyState(
   if (totalCount > 0) {
     return (
       <EmptyState
-        icon={<SlidersHorizontal className="h-5 w-5 text-muted-foreground" />}
+        icon={<SlidersHorizontal className="h-5 w-5 text-neutral-fg-subtle" />}
         heading="No matching sessions"
         subtext="Try adjusting your filters"
       />
@@ -72,7 +72,7 @@ function renderEmptyState(
 
   return (
     <EmptyState
-      icon={<MessageSquare className="h-5 w-5 text-muted-foreground" />}
+      icon={<MessageSquare className="h-5 w-5 text-neutral-fg-subtle" />}
       heading="No sessions yet"
       subtext="Start a conversation to begin"
       action={
@@ -85,10 +85,10 @@ function renderEmptyState(
   );
 }
 
-/** Date group header — uppercase, small, muted (e.g., "FEB 25"). */
+/** Date group header — small, muted (e.g., "Feb 25"). */
 function DateGroupHeader({ label }: { label: string }) {
   return (
-    <div className="px-3 py-2 text-[11px] font-medium text-muted-foreground/60 tracking-wider select-none">
+    <div className="px-3 py-2 text-[11px] font-medium text-neutral-fg-subtle/60 tracking-wider select-none">
       {label}
     </div>
   );
@@ -131,7 +131,7 @@ function GroupedSessions({
         <button
           onClick={() => onToggleGroup(group.key)}
           aria-expanded={!isCollapsed}
-          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors"
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-neutral-fg-subtle hover:bg-neutral-bg-dim/50 transition-colors"
         >
           {isCollapsed ? (
             <ChevronRight className="h-3 w-3" />
@@ -229,10 +229,10 @@ export function SessionList({
   return (
     <div className="flex flex-col h-full">
       {/* Search bar — compact, always visible */}
-      <div className="px-3 py-2 border-b border-border/50">
+      <div className="px-3 py-2 border-b border-neutral-border/50">
         <div className="flex gap-1.5">
           <div className="relative flex-1">
-            <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+            <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-neutral-fg-subtle pointer-events-none" />
             <Input
               ref={searchInputRef}
               placeholder="Search..."
@@ -245,7 +245,7 @@ export function SessionList({
               <button
                 onClick={clearSearch}
                 aria-label="Clear search"
-                className="absolute right-1.5 top-1.5 h-4 w-4 flex items-center justify-center text-muted-foreground hover:text-foreground rounded-sm"
+                className="absolute right-1.5 top-1.5 h-4 w-4 flex items-center justify-center text-neutral-fg-subtle hover:text-neutral-fg rounded-sm"
               >
                 <X className="h-3 w-3" aria-hidden="true" />
               </button>

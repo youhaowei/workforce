@@ -237,7 +237,7 @@ export default function MessageInput({
   return (
     <div className="flex-shrink-0 px-6 pb-5 pt-2">
       <div className="max-w-3xl mx-auto">
-        <Card className="bg-surface-glass backdrop-blur-[12px] rounded-[var(--surface-radius)] shadow-[var(--surface-shadow)] border-0 transition-shadow focus-within:shadow-[var(--surface-shadow),0_0_0_1px_var(--ring),0_0_12px_var(--focus-ring)]">
+        <Card className="bg-neutral-bg/80 backdrop-blur-[24px] saturate-[1.4] rounded-[var(--surface-radius)] shadow-[var(--shadow-lg),0_0_12px_var(--neutral-ring-glow)] border-0 transition-shadow focus-within:shadow-[var(--shadow-lg),0_0_0_1px_var(--neutral-ring),0_0_20px_var(--neutral-ring-glow)]">
           {/* Textarea area */}
           <div className="px-6 pt-[18px] pb-2">
             <textarea
@@ -248,7 +248,7 @@ export default function MessageInput({
               placeholder={placeholder ?? 'Ask Workforce anything...'}
               disabled={isStreaming}
               rows={3}
-              className="w-full bg-transparent text-foreground placeholder:text-muted-foreground/30 resize-none outline-none text-[15px] min-h-[72px] max-h-[200px] disabled:opacity-50"
+              className="w-full bg-transparent text-neutral-fg placeholder:text-neutral-fg-subtle/30 resize-none outline-none text-[15px] min-h-[72px] max-h-[200px] disabled:opacity-50"
             />
           </div>
 
@@ -266,8 +266,8 @@ export default function MessageInput({
                 disabled={isStreaming}
               />
               {isStreaming && (
-                <span className="text-[11px] text-muted-foreground/40 flex items-center gap-1.5 ml-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-foreground/25 animate-pulse" />
+                <span className="text-[11px] text-neutral-fg-subtle/40 flex items-center gap-1.5 ml-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-neutral-fg/25 animate-pulse" />
                   {currentTool ? `Using ${currentTool}` : 'Thinking...'}
                 </span>
               )}
@@ -275,7 +275,7 @@ export default function MessageInput({
 
             <div className="flex items-center gap-2">
               {hasStats && (
-                <span className="text-[11px] text-muted-foreground/35 tabular-nums flex items-center gap-2">
+                <span className="text-[11px] text-neutral-fg-subtle/35 tabular-nums flex items-center gap-2">
                   {cumulativeUsage.totalCostUsd > 0 && (
                     <span>${cumulativeUsage.totalCostUsd.toFixed(4)}</span>
                   )}
@@ -288,7 +288,7 @@ export default function MessageInput({
               {isStreaming ? (
                 <button
                   onClick={handleCancel}
-                  className="h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors flex items-center gap-1.5"
+                  className="h-8 px-3 rounded-lg text-xs font-medium text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-dim/50 transition-colors flex items-center gap-1.5"
                 >
                   <Square className="h-3 w-3" />
                   Stop
@@ -297,7 +297,7 @@ export default function MessageInput({
                 <button
                   onClick={handleSubmit}
                   disabled={!value.trim()}
-                  className="h-[34px] w-[34px] rounded-xl bg-foreground text-background flex items-center justify-center disabled:opacity-15 transition-all hover:scale-105 active:scale-95"
+                  className="h-[34px] w-[34px] rounded-xl bg-neutral-fg text-neutral-bg flex items-center justify-center disabled:opacity-15 transition-all hover:scale-105 active:scale-95"
                   title="Send (Enter)"
                 >
                   <Send className="h-3.5 w-3.5" />

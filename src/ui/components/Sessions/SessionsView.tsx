@@ -93,13 +93,13 @@ export function SessionsView({
     <div className="flex-1 flex flex-col items-center justify-center px-6">
       <div className="w-full max-w-3xl">
         <div className="text-center mb-6">
-          <p className="text-[13px] text-muted-foreground/50">
+          <p className="text-[13px] text-neutral-fg-subtle/50">
             {sessionId ? 'Send a message to continue' : 'What would you like to work on?'}
           </p>
         </div>
         {!sessionId && (
           <div className="mb-4 rounded-md border p-3">
-            <p className="text-xs text-muted-foreground mb-2">
+            <p className="text-xs text-neutral-fg-subtle mb-2">
               Optional: assign this session to a project.
             </p>
             <div className="flex flex-col sm:flex-row gap-2">

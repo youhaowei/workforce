@@ -66,7 +66,7 @@ export function SkillsToolsSelector({
               <button
                 type="button"
                 onClick={() => handleRemove(item)}
-                className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                className="ml-0.5 rounded-full hover:bg-neutral-fg-subtle/20 p-0.5"
               >
                 <X className="h-2.5 w-2.5" />
               </button>

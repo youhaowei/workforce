@@ -39,24 +39,24 @@ export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
         {/* Session Info */}
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
-            <span className="text-muted-foreground text-xs">Session ID</span>
+            <span className="text-neutral-fg-subtle text-xs">Session ID</span>
             <p className="font-mono text-xs mt-0.5">{session.id}</p>
           </div>
           {templateId && (
             <div>
-              <span className="text-muted-foreground text-xs">Template</span>
+              <span className="text-neutral-fg-subtle text-xs">Template</span>
               <p className="text-xs mt-0.5">{templateId}</p>
             </div>
           )}
           {orgId && (
             <div>
-              <span className="text-muted-foreground text-xs">Organization</span>
+              <span className="text-neutral-fg-subtle text-xs">Organization</span>
               <p className="text-xs mt-0.5">{orgId}</p>
             </div>
           )}
           {workflowId && (
             <div>
-              <span className="text-muted-foreground text-xs">Workflow</span>
+              <span className="text-neutral-fg-subtle text-xs">Workflow</span>
               <p className="text-xs mt-0.5">{workflowId}</p>
             </div>
           )}
@@ -68,21 +68,21 @@ export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
           <div className="space-y-1">
             {(lifecycle?.stateHistory ?? []).map((transition, i) => (
               <div key={i} className="flex items-center gap-3 text-xs">
-                <span className="font-mono text-muted-foreground w-20 shrink-0">
+                <span className="font-mono text-neutral-fg-subtle w-20 shrink-0">
                   {new Date(transition.timestamp).toLocaleTimeString()}
                 </span>
                 <Badge {...stateVariant(transition.from)} className="text-[10px] h-5">
                   {transition.from}
                 </Badge>
-                <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
+                <ArrowRight className="h-3 w-3 text-neutral-fg-subtle shrink-0" />
                 <Badge {...stateVariant(transition.to)} className="text-[10px] h-5">
                   {transition.to}
                 </Badge>
-                <span className="text-muted-foreground truncate">{transition.reason}</span>
+                <span className="text-neutral-fg-subtle truncate">{transition.reason}</span>
               </div>
             ))}
             {(lifecycle?.stateHistory ?? []).length === 0 && (
-              <p className="text-xs text-muted-foreground">No state transitions</p>
+              <p className="text-xs text-neutral-fg-subtle">No state transitions</p>
             )}
           </div>
         </div>
@@ -118,7 +118,7 @@ export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
                         {childState}
                       </Badge>
                       <span className="text-sm flex-1 truncate">{childGoal}</span>
-                      <code className="text-[10px] text-muted-foreground">{child.id.slice(0, 8)}</code>
+                      <code className="text-[10px] text-neutral-fg-subtle">{child.id.slice(0, 8)}</code>
                     </CardContent>
                   </Card>
                 );

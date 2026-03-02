@@ -123,7 +123,7 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
             <Label className="text-sm font-semibold">Default Agent Settings</Label>
 
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Model</Label>
+              <Label className="text-xs text-neutral-fg-subtle">Model</Label>
               <div className="flex flex-wrap gap-2">
                 {SEED_MODELS.map((m) => (
                   <button
@@ -132,8 +132,8 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
                     onClick={() => setModel(m.id)}
                     className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
                       model === m.id
-                        ? 'bg-primary text-primary-foreground border-primary'
-                        : 'bg-card text-foreground border-border hover:border-primary/50'
+                        ? 'bg-palette-primary text-palette-primary-foreground border-palette-primary'
+                        : 'bg-neutral-bg-subtle text-neutral-fg border-neutral-border hover:border-palette-primary/50'
                     }`}
                   >
                     {m.displayName}
@@ -144,7 +144,7 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Thinking</Label>
+                <Label className="text-xs text-neutral-fg-subtle">Thinking</Label>
                 <Select value={thinkingLevel} onValueChange={(v) => setThinkingLevel(v as ThinkingLevel)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -157,7 +157,7 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label className="text-xs text-muted-foreground">Tone</Label>
+                <Label className="text-xs text-neutral-fg-subtle">Tone</Label>
                 <Select value={tone} onValueChange={(v) => setTone(v as AgentTone)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -172,7 +172,7 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Detail Level</Label>
+              <Label className="text-xs text-neutral-fg-subtle">Detail Level</Label>
               <Select value={verboseLevel} onValueChange={(v) => setVerboseLevel(v as VerboseLevel)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />

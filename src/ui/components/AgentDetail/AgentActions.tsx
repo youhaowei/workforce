@@ -40,19 +40,19 @@ export function AgentActions({ sessionId, orgId }: AgentActionsProps) {
           {toolUseEntries.length > 0 ? (
             <div className="space-y-1">
               {toolUseEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center gap-3 text-xs p-2 hover:bg-muted rounded">
-                  <span className="font-mono text-muted-foreground w-20 shrink-0">
+                <div key={entry.id} className="flex items-center gap-3 text-xs p-2 hover:bg-neutral-bg-dim rounded">
+                  <span className="font-mono text-neutral-fg-subtle w-20 shrink-0">
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </span>
                   <Badge variant="soft" className="text-[10px] font-mono shrink-0">
                     {(entry.data?.toolName as string) ?? 'unknown'}
                   </Badge>
-                  <span className="text-muted-foreground truncate">{entry.description}</span>
+                  <span className="text-neutral-fg-subtle truncate">{entry.description}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground">No tool calls recorded</p>
+            <p className="text-xs text-neutral-fg-subtle">No tool calls recorded</p>
           )}
         </div>
 
@@ -65,8 +65,8 @@ export function AgentActions({ sessionId, orgId }: AgentActionsProps) {
             </h3>
             <div className="space-y-1">
               {fileEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center gap-3 text-xs p-2 bg-muted rounded">
-                  <span className="font-mono text-muted-foreground w-20 shrink-0">
+                <div key={entry.id} className="flex items-center gap-3 text-xs p-2 bg-neutral-bg-dim rounded">
+                  <span className="font-mono text-neutral-fg-subtle w-20 shrink-0">
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </span>
                   <code className="text-[10px] truncate">

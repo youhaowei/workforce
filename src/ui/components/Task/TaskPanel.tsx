@@ -78,7 +78,7 @@ export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
   return (
     <Surface
       data-collapsed={!isOpen}
-      className={`flex-shrink-0 flex flex-col bg-surface-panel backdrop-blur-[40px] saturate-[1.6] rounded-[var(--surface-radius)] shadow-[var(--surface-shadow)] transition-[width,margin] duration-200 ease-in-out m-[var(--surface-inset)] ml-0 select-none ${
+      className={`flex-shrink-0 flex flex-col bg-neutral-bg/90 backdrop-blur-[40px] saturate-[1.6] rounded-[var(--surface-radius)] shadow-[var(--surface-shadow)] transition-[width,margin] duration-200 ease-in-out m-[var(--surface-inset)] ml-0 select-none ${
         isOpen ? 'w-80' : 'w-0 !m-0 !shadow-none !rounded-none'
       }`}
       aria-hidden={!isOpen}
@@ -86,7 +86,7 @@ export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
     >
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b">
-        <h2 className="font-semibold text-foreground flex items-center gap-2">
+        <h2 className="font-semibold text-neutral-fg flex items-center gap-2">
           Tasks
           {pendingCount > 0 && (
             <Badge variant="soft" className="text-xs">{pendingCount}</Badge>

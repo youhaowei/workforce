@@ -44,10 +44,10 @@ export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelet
   };
 
   return (
-    <div className="flex flex-col gap-1.5 p-2 border rounded-lg bg-card group">
+    <div className="flex flex-col gap-1.5 p-2 border rounded-lg bg-neutral-bg-subtle group">
       <div className="flex items-center gap-2">
-        <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab" />
-        <span className="text-xs text-muted-foreground w-6 shrink-0">{index + 1}</span>
+        <GripVertical className="h-4 w-4 text-neutral-fg-subtle shrink-0 cursor-grab" />
+        <span className="text-xs text-neutral-fg-subtle w-6 shrink-0">{index + 1}</span>
         <Badge {...typeVariant(step.type)} className="text-[10px] shrink-0">
           {step.type.replace('_', ' ')}
         </Badge>
@@ -79,19 +79,19 @@ export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelet
           className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
           onClick={onDelete}
         >
-          <Trash2 className="h-3.5 w-3.5 text-danger" />
+          <Trash2 className="h-3.5 w-3.5 text-palette-danger" />
         </Button>
       </div>
 
       {step.type === 'parallel_group' && (
         <div className="ml-12 flex flex-wrap gap-1.5 items-center">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Children:</span>
+          <span className="text-[10px] font-medium text-neutral-fg-subtle">Children:</span>
           {selectedChildren.map((childId) => {
             const child = allSteps.find((s) => s.id === childId);
             return (
               <Badge key={childId} variant="soft" className="text-[10px] gap-1 pr-1">
                 {child?.name ?? childId}
-                <button onClick={() => toggleChild(childId)} className="hover:text-danger">
+                <button onClick={() => toggleChild(childId)} className="hover:text-palette-danger">
                   <X className="h-2.5 w-2.5" />
                 </button>
               </Badge>
@@ -99,7 +99,7 @@ export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelet
           })}
           {eligibleChildren.filter((s) => !selectedChildren.includes(s.id)).length > 0 && (
             <select
-              className="h-6 text-[10px] bg-muted border rounded px-1"
+              className="h-6 text-[10px] bg-neutral-bg-dim border rounded px-1"
               value=""
               onChange={(e) => { if (e.target.value) toggleChild(e.target.value); }}
             >
