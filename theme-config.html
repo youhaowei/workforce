@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workforce Theme Config</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ui-bg: #1a1a1a;
+    --ui-surface: #242424;
+    --ui-border: #333;
+    --ui-text: #e0e0e0;
+    --ui-text-dim: #888;
+    --ui-accent: #6b9fff;
+    --ui-radius: 6px;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--ui-bg);
+    color: var(--ui-text);
+    font-size: 13px;
+    line-height: 1.4;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+  }
+
+  /* Layout */
+  .sidebar {
+    width: 320px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--ui-border);
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .preview-area {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .preview-container {
+    flex: 1;
+    padding: 32px;
+    overflow-y: auto;
+  }
+
+  .output-area {
+    border-top: 1px solid var(--ui-border);
+    padding: 12px 16px;
+    max-height: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .output-header label { font-size: 11px; color: var(--ui-text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .output-pre {
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    line-height: 1.5;
+    background: #111;
+    border-radius: var(--ui-radius);
+    padding: 12px;
+    overflow: auto;
+    flex: 1;
+    color: #aaa;
+    white-space: pre;
+    tab-size: 2;
+  }
+
+  .copy-btn {
+    background: var(--ui-accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--ui-radius);
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .copy-btn:hover { opacity: 0.85; }
+
+  /* Controls */
+  .section-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ui-text-dim);
+    padding: 12px 0 6px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+  }
+  .section-header:first-child { padding-top: 0; }
+  .section-header::after { content: '▾'; font-size: 10px; }
+  .section-header.collapsed::after { content: '▸'; }
+
+  .section-body { display: flex; flex-direction: column; gap: 6px; }
+  .section-body.hidden { display: none; }
+
+  .control-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .control-label {
+    font-size: 11px;
+    color: var(--ui-text-dim);
+    width: 100px;
+    flex-shrink: 0;
+  }
+
+  .control-input { flex: 1; display: flex; align-items: center; gap: 6px; }
+
+  input[type="range"] {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--ui-border);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--ui-accent);
+    cursor: pointer;
+  }
+
+  input[type="color"] {
+    width: 28px; height: 22px;
+    border: 1px solid var(--ui-border);
+    border-radius: 4px;
+    padding: 1px;
+    cursor: pointer;
+    background: transparent;
+  }
+
+  .value-display {
+    font-family: 'SF Mono', monospace;
+    font-size: 10px;
+    color: var(--ui-text-dim);
+    min-width: 45px;
+    text-align: right;
+  }
+
+  select {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    color: var(--ui-text);
+    border-radius: var(--ui-radius);
+    padding: 4px 8px;
+    font-size: 12px;
+    flex: 1;
+  }
+
+  /* Preset bar */
+  .preset-bar {
+    display: flex;
+    gap: 6px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--ui-border);
+    flex-wrap: wrap;
+  }
+  .preset-btn {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    color: var(--ui-text);
+    border-radius: var(--ui-radius);
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .preset-btn:hover { border-color: var(--ui-accent); }
+  .preset-btn.active { border-color: var(--ui-accent); background: rgba(107, 159, 255, 0.1); }
+
+  /* Theme mode toggle */
+  .mode-toggle {
+    display: flex;
+    gap: 4px;
+    padding-bottom: 12px;
+  }
+  .mode-btn {
+    flex: 1;
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    color: var(--ui-text-dim);
+    border-radius: var(--ui-radius);
+    padding: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .mode-btn.active { border-color: var(--ui-accent); color: var(--ui-text); background: rgba(107, 159, 255, 0.08); }
+
+  /* Preview */
+  .theme-frame {
+    border-radius: 12px;
+    padding: 32px;
+    transition: all 0.3s;
+  }
+  .specimen-section { margin-bottom: 32px; }
+  .specimen-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; opacity: 0.5; }
+  .specimen-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+</style>
+</head>
+<body>
+
+<!-- Sidebar Controls -->
+<div class="sidebar">
+  <div style="font-weight: 700; font-size: 15px; margin-bottom: 4px;">Theme Config</div>
+  <div style="font-size: 11px; color: var(--ui-text-dim); margin-bottom: 12px;">Tweak tokens, preview live, copy CSS.</div>
+
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="mode-light">Light</button>
+    <button class="mode-btn" id="mode-dark">Dark</button>
+  </div>
+
+  <div class="preset-bar">
+    <button class="preset-btn active" id="preset-default">Default</button>
+    <button class="preset-btn" id="preset-warm">Warm</button>
+    <button class="preset-btn" id="preset-cool">Cool</button>
+    <button class="preset-btn" id="preset-highContrast">Hi-Contrast</button>
+  </div>
+
+  <div class="section-header" data-section="palette">Palette</div>
+  <div class="section-body" id="palette-controls"></div>
+
+  <div class="section-header" data-section="neutral">Neutrals</div>
+  <div class="section-body" id="neutral-controls"></div>
+
+  <div class="section-header" data-section="typography">Typography</div>
+  <div class="section-body" id="typography-controls"></div>
+
+  <div class="section-header" data-section="spacing">Spacing</div>
+  <div class="section-body" id="spacing-controls"></div>
+
+  <div class="section-header" data-section="shadow">Shadows</div>
+  <div class="section-body" id="shadow-controls"></div>
+
+  <div class="section-header" data-section="shape">Shape</div>
+  <div class="section-body" id="shape-controls"></div>
+
+  <div class="section-header" data-section="surface">Surfaces</div>
+  <div class="section-body" id="surface-controls"></div>
+</div>
+
+<!-- Preview + Output -->
+<div class="preview-area">
+  <div class="preview-container" id="preview-container">
+    <div class="theme-frame" id="theme-frame"></div>
+  </div>
+
+  <div class="output-area">
+    <div class="output-header">
+      <label>CSS Output</label>
+      <button class="copy-btn" id="copy-btn">Copy CSS</button>
+    </div>
+    <pre class="output-pre" id="css-output"></pre>
+  </div>
+</div>
+
+<script>
+// Note: This is a self-contained design tool — all DOM content is constructed
+// from controlled state (not user input), so direct DOM manipulation is safe.
+
+// ═══ State ═══
+
+let currentMode = 'light';
+
+const DEFAULTS = {
+  light: {
+    'palette-default': 'oklch(0.556 0 0)', 'palette-default-fg': 'oklch(0.985 0 0)',
+    'palette-primary': 'oklch(0.205 0 0)', 'palette-primary-fg': 'oklch(0.985 0 0)',
+    'palette-secondary': 'oklch(0.45 0 0)', 'palette-secondary-fg': 'oklch(0.985 0 0)',
+    'palette-success': 'oklch(0.59 0.19 149)', 'palette-success-fg': 'oklch(0.985 0 0)',
+    'palette-danger': 'oklch(0.577 0.245 27.325)', 'palette-danger-fg': 'oklch(0.985 0 0)',
+    'palette-warning': 'oklch(0.75 0.08 55)', 'palette-warning-fg': 'oklch(0.205 0 0)',
+    'palette-info': 'oklch(0.55 0.15 250)', 'palette-info-fg': 'oklch(0.985 0 0)',
+    'palette-muted': 'oklch(0.87 0 0)', 'palette-muted-fg': 'oklch(0.45 0 0)',
+    'neutral-bg': 'oklch(1 0 0)', 'neutral-fg': 'oklch(0.145 0 0)',
+    'neutral-bg-subtle': 'oklch(1 0 0)', 'neutral-fg-subtle': 'oklch(0.556 0 0)',
+    'neutral-border': 'oklch(0.922 0 0)', 'neutral-border-subtle': 'oklch(0.95 0 0)',
+    'neutral-ring': 'oklch(0.708 0 0)', 'neutral-ring-glow': 'oklch(0.708 0 0 / 30%)',
+    'surface-base': 'oklch(0.95 0.006 70)', 'surface-main': 'oklch(1 0 0 / 45%)',
+    'surface-stage': 'oklch(1 0 0)', 'surface-panel': 'oklch(1 0 0 / 90%)', 'surface-glass': 'oklch(1 0 0 / 65%)',
+    'text-display-size': '24', 'text-heading-size': '16', 'text-body-size': '14',
+    'text-sm-size': '13', 'text-caption-size': '11', 'text-code-size': '13',
+    'space-1': '4',
+    'radius': '10', 'surface-radius': '10', 'inner-radius': '8',
+    'shadow-intensity': '50',
+  },
+  dark: {
+    'palette-default': 'oklch(0.6 0 0)', 'palette-default-fg': 'oklch(0.145 0 0)',
+    'palette-primary': 'oklch(0.922 0 0)', 'palette-primary-fg': 'oklch(0.205 0 0)',
+    'palette-secondary': 'oklch(0.65 0 0)', 'palette-secondary-fg': 'oklch(0.145 0 0)',
+    'palette-success': 'oklch(0.65 0.19 149)', 'palette-success-fg': 'oklch(0.145 0 0)',
+    'palette-danger': 'oklch(0.704 0.191 22.216)', 'palette-danger-fg': 'oklch(0.985 0 0)',
+    'palette-warning': 'oklch(0.75 0.1 70)', 'palette-warning-fg': 'oklch(0.205 0 0)',
+    'palette-info': 'oklch(0.65 0.15 250)', 'palette-info-fg': 'oklch(0.145 0 0)',
+    'palette-muted': 'oklch(0.3 0 0)', 'palette-muted-fg': 'oklch(0.6 0 0)',
+    'neutral-bg': 'oklch(0.145 0 0)', 'neutral-fg': 'oklch(0.985 0 0)',
+    'neutral-bg-subtle': 'oklch(0.205 0 0)', 'neutral-fg-subtle': 'oklch(0.708 0 0)',
+    'neutral-border': 'oklch(1 0 0 / 10%)', 'neutral-border-subtle': 'oklch(1 0 0 / 6%)',
+    'neutral-ring': 'oklch(0.556 0 0)', 'neutral-ring-glow': 'oklch(0.556 0 0 / 20%)',
+    'surface-base': 'oklch(0.2 0.005 250)', 'surface-main': 'oklch(0.16 0 0 / 55%)',
+    'surface-stage': 'oklch(0.145 0 0)', 'surface-panel': 'oklch(0.16 0 0 / 90%)', 'surface-glass': 'oklch(0.16 0 0 / 65%)',
+    'text-display-size': '24', 'text-heading-size': '16', 'text-body-size': '14',
+    'text-sm-size': '13', 'text-caption-size': '11', 'text-code-size': '13',
+    'space-1': '4',
+    'radius': '10', 'surface-radius': '10', 'inner-radius': '8',
+    'shadow-intensity': '50',
+  }
+};
+
+const state = { light: { ...DEFAULTS.light }, dark: { ...DEFAULTS.dark } };
+
+const PALETTE_COLORS = ['primary', 'secondary', 'default', 'success', 'danger', 'warning', 'info', 'muted'];
+const NEUTRAL_KEYS = ['bg', 'fg', 'bg-subtle', 'fg-subtle', 'border', 'border-subtle', 'ring'];
+
+// ═══ Presets ═══
+
+const PRESETS = {
+  default: { light: { ...DEFAULTS.light }, dark: { ...DEFAULTS.dark } },
+  warm: {
+    light: { ...DEFAULTS.light, 'palette-primary': 'oklch(0.35 0.06 50)', 'neutral-bg': 'oklch(0.99 0.005 70)', 'neutral-border': 'oklch(0.91 0.01 60)', 'surface-base': 'oklch(0.95 0.01 60)' },
+    dark: { ...DEFAULTS.dark, 'palette-primary': 'oklch(0.85 0.06 50)', 'neutral-bg': 'oklch(0.16 0.005 40)', 'surface-base': 'oklch(0.2 0.008 40)' }
+  },
+  cool: {
+    light: { ...DEFAULTS.light, 'palette-primary': 'oklch(0.35 0.1 250)', 'neutral-bg': 'oklch(0.99 0.003 250)', 'neutral-border': 'oklch(0.91 0.008 240)', 'surface-base': 'oklch(0.95 0.008 250)' },
+    dark: { ...DEFAULTS.dark, 'palette-primary': 'oklch(0.75 0.1 250)', 'neutral-bg': 'oklch(0.14 0.008 250)', 'surface-base': 'oklch(0.18 0.01 260)' }
+  },
+  highContrast: {
+    light: { ...DEFAULTS.light, 'palette-primary': 'oklch(0.15 0 0)', 'neutral-fg': 'oklch(0.05 0 0)', 'neutral-fg-subtle': 'oklch(0.35 0 0)', 'neutral-border': 'oklch(0.8 0 0)' },
+    dark: { ...DEFAULTS.dark, 'palette-primary': 'oklch(0.98 0 0)', 'neutral-fg': 'oklch(0.98 0 0)', 'neutral-fg-subtle': 'oklch(0.8 0 0)', 'neutral-border': 'oklch(1 0 0 / 20%)' }
+  }
+};
+
+// ═══ Helpers ═══
+
+function oklchToHex(oklch) {
+  const el = document.createElement('div');
+  el.style.color = oklch;
+  document.body.appendChild(el);
+  const computed = getComputedStyle(el).color;
+  document.body.removeChild(el);
+  const rgb = computed.match(/(\d+)/g);
+  if (!rgb) return '#808080';
+  return '#' + rgb.slice(0, 3).map(function(v) { return parseInt(v).toString(16).padStart(2, '0'); }).join('');
+}
+
+function hexToOklch(hex) {
+  const el = document.createElement('div');
+  el.style.color = hex;
+  document.body.appendChild(el);
+  const computed = getComputedStyle(el).color;
+  document.body.removeChild(el);
+  const rgb = computed.match(/(\d+)/g);
+  if (!rgb) return 'oklch(0.5 0 0)';
+  const r = parseInt(rgb[0]) / 255, g = parseInt(rgb[1]) / 255, b = parseInt(rgb[2]) / 255;
+  const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const L = Math.pow(lum, 0.43).toFixed(3);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const C = ((max - min) * 0.3).toFixed(3);
+  let H = 0;
+  if (max - min > 0.001) {
+    if (max === r) H = 60 * ((g - b) / (max - min));
+    else if (max === g) H = 60 * (2 + (b - r) / (max - min));
+    else H = 60 * (4 + (r - g) / (max - min));
+    if (H < 0) H += 360;
+  }
+  return 'oklch(' + L + ' ' + C + ' ' + H.toFixed(0) + ')';
+}
+
+function get(key) {
+  return state[currentMode][key] || DEFAULTS[currentMode][key] || '';
+}
+
+function set(key, value) {
+  state[currentMode][key] = value;
+  updateAll();
+}
+
+// ═══ Controls ═══
+
+function buildControls() {
+  buildColorSection('palette-controls', PALETTE_COLORS.map(function(c) { return { label: c, key: 'palette-' + c }; }));
+  buildColorSection('neutral-controls', NEUTRAL_KEYS.map(function(k) { return { label: k, key: 'neutral-' + k }; }));
+  buildSliderSection('typography-controls', [
+    { label: 'Display', key: 'text-display-size', min: 16, max: 40 },
+    { label: 'Heading', key: 'text-heading-size', min: 12, max: 28 },
+    { label: 'Body', key: 'text-body-size', min: 12, max: 20 },
+    { label: 'Small', key: 'text-sm-size', min: 10, max: 16 },
+    { label: 'Caption', key: 'text-caption-size', min: 8, max: 14 },
+    { label: 'Code', key: 'text-code-size', min: 10, max: 16 },
+  ]);
+  buildSliderSection('spacing-controls', [{ label: 'Base unit', key: 'space-1', min: 2, max: 8 }]);
+  buildSliderSection('shadow-controls', [{ label: 'Intensity', key: 'shadow-intensity', min: 0, max: 100, step: 5 }]);
+  buildSliderSection('shape-controls', [
+    { label: 'Radius', key: 'radius', min: 0, max: 24 },
+    { label: 'Surface', key: 'surface-radius', min: 0, max: 24 },
+    { label: 'Inner', key: 'inner-radius', min: 0, max: 16 },
+  ]);
+  buildColorSection('surface-controls', ['base', 'main', 'stage', 'panel', 'glass'].map(function(k) { return { label: k, key: 'surface-' + k }; }));
+}
+
+function buildColorSection(containerId, items) {
+  const container = document.getElementById(containerId);
+  while (container.firstChild) container.removeChild(container.firstChild);
+  items.forEach(function(item) {
+    const row = document.createElement('div');
+    row.className = 'control-row';
+    const label = document.createElement('span');
+    label.className = 'control-label';
+    label.textContent = item.label;
+    const input = document.createElement('div');
+    input.className = 'control-input';
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    picker.value = oklchToHex(get(item.key));
+    picker.addEventListener('input', function() {
+      set(item.key, hexToOklch(this.value));
+      val.textContent = get(item.key).replace('oklch(', '').replace(')', '').substring(0, 18);
+    });
+    const val = document.createElement('span');
+    val.className = 'value-display';
+    val.textContent = get(item.key).replace('oklch(', '').replace(')', '').substring(0, 18);
+    input.appendChild(picker);
+    input.appendChild(val);
+    row.appendChild(label);
+    row.appendChild(input);
+    container.appendChild(row);
+  });
+}
+
+function buildSliderSection(containerId, items) {
+  const container = document.getElementById(containerId);
+  while (container.firstChild) container.removeChild(container.firstChild);
+  items.forEach(function(item) {
+    const row = document.createElement('div');
+    row.className = 'control-row';
+    const label = document.createElement('span');
+    label.className = 'control-label';
+    label.textContent = item.label;
+    const input = document.createElement('div');
+    input.className = 'control-input';
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = item.min;
+    slider.max = item.max;
+    slider.step = item.step || 1;
+    slider.value = parseFloat(get(item.key)) || 0;
+    const val = document.createElement('span');
+    val.className = 'value-display';
+    val.textContent = slider.value + 'px';
+    slider.addEventListener('input', function() {
+      set(item.key, this.value);
+      val.textContent = this.value + 'px';
+    });
+    input.appendChild(slider);
+    input.appendChild(val);
+    row.appendChild(label);
+    row.appendChild(input);
+    container.appendChild(row);
+  });
+}
+
+// ═══ Preview Rendering ═══
+
+function computeShadows() {
+  const intensity = parseInt(get('shadow-intensity') || '50') / 100;
+  const isDark = currentMode === 'dark';
+  const b = 'oklch(0 0 0';
+  const r = isDark ? 'oklch(1 0 0' : 'oklch(0 0 0';
+  return {
+    xs: '0 1px 2px ' + b + ' / ' + Math.round((isDark ? 15 : 4) * intensity) + '%)',
+    sm: '0 1px 3px ' + b + ' / ' + Math.round((isDark ? 20 : 6) * intensity) + '%), 0 1px 2px ' + b + ' / ' + Math.round((isDark ? 15 : 4) * intensity) + '%)',
+    md: '0 0 0 1px ' + r + ' / ' + Math.round((isDark ? 5 : 3) * intensity) + '%), 0 1px 2px ' + b + ' / ' + Math.round((isDark ? 15 : 4) * intensity) + '%), 0 4px 8px ' + b + ' / ' + Math.round((isDark ? 10 : 3) * intensity) + '%), 0 8px 16px ' + b + ' / ' + Math.round((isDark ? 8 : 2) * intensity) + '%)',
+    lg: '0 0 0 1px ' + r + ' / ' + Math.round((isDark ? 5 : 3) * intensity) + '%), 0 4px 12px ' + b + ' / ' + Math.round((isDark ? 20 : 6) * intensity) + '%), 0 12px 24px ' + b + ' / ' + Math.round((isDark ? 15 : 4) * intensity) + '%)'
+  };
+}
+
+function renderPreview() {
+  const fg = get('neutral-fg');
+  const fgSub = get('neutral-fg-subtle');
+  const border = get('neutral-border');
+  const bgSub = get('neutral-bg-subtle');
+  const radius = get('radius') + 'px';
+  const surfRadius = get('surface-radius') + 'px';
+  const innerRadius = get('inner-radius') + 'px';
+  const shadows = computeShadows();
+
+  const frame = document.getElementById('theme-frame');
+  frame.style.background = get('neutral-bg');
+  frame.style.color = fg;
+
+  // Build preview using safe DOM methods
+  while (frame.firstChild) frame.removeChild(frame.firstChild);
+
+  // Helper to create elements
+  function el(tag, styles, text) {
+    const node = document.createElement(tag);
+    if (styles) Object.assign(node.style, styles);
+    if (text) node.textContent = text;
+    return node;
+  }
+
+  function section(title) {
+    const s = el('div', { marginBottom: '32px' });
+    s.appendChild(el('div', { fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px', opacity: '0.5', color: fgSub }, title));
+    return s;
+  }
+
+  // Typography
+  const typo = section('Typography Scale');
+  typo.appendChild(el('div', { fontSize: get('text-display-size') + 'px', fontWeight: '700', lineHeight: '1.2', marginBottom: '8px' }, 'Display Text'));
+  typo.appendChild(el('div', { fontSize: get('text-heading-size') + 'px', fontWeight: '600', lineHeight: '1.3', marginBottom: '8px' }, 'Heading Text'));
+  typo.appendChild(el('div', { fontSize: get('text-body-size') + 'px', fontWeight: '400', lineHeight: '1.5', marginBottom: '8px' }, 'Body text \u2014 the quick brown fox jumps over the lazy dog.'));
+  typo.appendChild(el('div', { fontSize: get('text-sm-size') + 'px', fontWeight: '400', lineHeight: '1.4', color: fgSub, marginBottom: '8px' }, 'Small text \u2014 secondary content and descriptions.'));
+  typo.appendChild(el('div', { fontSize: get('text-caption-size') + 'px', fontWeight: '500', lineHeight: '1.3', textTransform: 'uppercase', letterSpacing: '0.04em', color: fgSub }, 'Caption \u00B7 Label \u00B7 Metadata'));
+  frame.appendChild(typo);
+
+  // Buttons (solid)
+  const btns = section('Buttons');
+  var btnColors = ['primary', 'success', 'danger', 'warning', 'info', 'default'];
+
+  // Solid row
+  var solidRow = el('div', { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' });
+  btnColors.forEach(function(c) {
+    solidRow.appendChild(el('button', {
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      height: '36px', padding: '0 16px', borderRadius: radius,
+      background: get('palette-' + c), color: get('palette-' + c + '-fg'),
+      border: 'none', fontSize: '13px', fontWeight: '500', cursor: 'pointer'
+    }, c));
+  });
+  btns.appendChild(solidRow);
+
+  // Outline row
+  var outlineRow = el('div', { display: 'flex', gap: '8px', flexWrap: 'wrap' });
+  btnColors.forEach(function(c) {
+    var clr = get('palette-' + c);
+    outlineRow.appendChild(el('button', {
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      height: '36px', padding: '0 16px', borderRadius: radius,
+      background: 'transparent', color: clr, border: '1px solid ' + clr,
+      opacity: '0.7', fontSize: '13px', fontWeight: '500', cursor: 'pointer'
+    }, c));
+  });
+  btns.appendChild(outlineRow);
+  frame.appendChild(btns);
+
+  // Badges
+  var badges = section('Badges');
+  var badgeRow = el('div', { display: 'flex', gap: '8px', flexWrap: 'wrap' });
+  btnColors.forEach(function(c) {
+    badgeRow.appendChild(el('span', {
+      display: 'inline-flex', alignItems: 'center', borderRadius: '100px',
+      padding: '2px 10px', fontSize: '11px', fontWeight: '600',
+      background: get('palette-' + c), color: get('palette-' + c + '-fg')
+    }, c));
+  });
+  badges.appendChild(badgeRow);
+  frame.appendChild(badges);
+
+  // Cards
+  var cards = section('Cards');
+  var cardRow = el('div', { display: 'flex', gap: '16px' });
+  var card1 = el('div', { flex: '1', background: bgSub, border: '1px solid ' + border, borderRadius: radius, padding: '20px' });
+  card1.appendChild(el('div', { fontWeight: '600', marginBottom: '4px' }, 'Outlined Card'));
+  card1.appendChild(el('div', { fontSize: '13px', color: fgSub }, 'Secondary description text.'));
+  var card2 = el('div', { flex: '1', background: bgSub, boxShadow: shadows.sm, borderRadius: radius, padding: '20px' });
+  card2.appendChild(el('div', { fontWeight: '600', marginBottom: '4px' }, 'Elevated Card'));
+  card2.appendChild(el('div', { fontSize: '13px', color: fgSub }, 'With shadow elevation.'));
+  cardRow.appendChild(card1);
+  cardRow.appendChild(card2);
+  cards.appendChild(cardRow);
+  frame.appendChild(cards);
+
+  // Surface stack
+  var surfs = section('Surface Stack');
+  var sBase = el('div', { background: get('surface-base'), borderRadius: surfRadius, padding: '20px', boxShadow: shadows.md });
+  sBase.appendChild(el('div', { fontSize: '11px', color: fgSub, marginBottom: '8px' }, 'surface-base'));
+  var sMain = el('div', { background: get('surface-main'), backdropFilter: 'blur(40px) saturate(1.6)', borderRadius: innerRadius, padding: '16px', boxShadow: shadows.sm });
+  sMain.appendChild(el('div', { fontSize: '11px', color: fgSub, marginBottom: '8px' }, 'surface-main (glass)'));
+  var sPanel = el('div', { background: get('surface-panel'), backdropFilter: 'blur(24px) saturate(1.4)', borderRadius: innerRadius, padding: '12px' });
+  sPanel.appendChild(el('div', { fontSize: '11px', color: fgSub }, 'surface-panel'));
+  sMain.appendChild(sPanel);
+  sBase.appendChild(sMain);
+  surfs.appendChild(sBase);
+  frame.appendChild(surfs);
+
+  // Glass chat input
+  var chatSection = section('Glass Chat Input');
+  var chatCard = el('div', { background: get('surface-glass'), backdropFilter: 'blur(12px)', borderRadius: surfRadius, boxShadow: shadows.md, padding: '18px 24px 12px' });
+  chatCard.appendChild(el('div', { fontSize: get('text-body-size') + 'px', color: fgSub, opacity: '0.3', marginBottom: '12px' }, 'Ask Workforce anything...'));
+  var chatToolbar = el('div', { display: 'flex', justifyContent: 'space-between', alignItems: 'center' });
+  var toolbarLeft = el('div', { display: 'flex', gap: '6px' });
+  toolbarLeft.appendChild(el('span', { fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: border, color: fgSub }, 'Claude 4'));
+  toolbarLeft.appendChild(el('span', { fontSize: '11px', padding: '3px 8px', borderRadius: '6px', background: border, color: fgSub }, 'High'));
+  var sendBtn = el('div', { width: '34px', height: '34px', borderRadius: innerRadius, background: fg, display: 'flex', alignItems: 'center', justifyContent: 'center' });
+  sendBtn.textContent = '\u2191';
+  sendBtn.style.color = get('neutral-bg');
+  sendBtn.style.fontWeight = '700';
+  chatToolbar.appendChild(toolbarLeft);
+  chatToolbar.appendChild(sendBtn);
+  chatCard.appendChild(chatToolbar);
+  chatSection.appendChild(chatCard);
+  frame.appendChild(chatSection);
+
+  // Spacing rhythm
+  var spaceBase = parseInt(get('space-1')) || 4;
+  var spacingSection = section('Spacing (' + spaceBase + 'px grid)');
+  var spacingRow = el('div', { display: 'flex', gap: '4px', alignItems: 'flex-end' });
+  [1, 2, 3, 4, 5, 6, 8, 10, 12].forEach(function(mult) {
+    var px = spaceBase * mult;
+    var col = el('div', { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' });
+    col.appendChild(el('div', { width: Math.min(px, 60) + 'px', height: px + 'px', background: get('palette-primary'), opacity: '0.15', borderRadius: '3px' }));
+    col.appendChild(el('span', { fontSize: '9px', color: fgSub }, '' + px));
+    spacingRow.appendChild(col);
+  });
+  spacingSection.appendChild(spacingRow);
+  frame.appendChild(spacingSection);
+
+  // Shadow levels
+  var shadowSection = section('Shadow Levels');
+  var shadowRow = el('div', { display: 'flex', gap: '16px' });
+  ['xs', 'sm', 'md', 'lg'].forEach(function(level) {
+    var box = el('div', { flex: '1', background: bgSub, boxShadow: shadows[level], borderRadius: radius, padding: '16px', textAlign: 'center' });
+    box.appendChild(el('div', { fontSize: '12px', fontWeight: '500' }, level));
+    shadowRow.appendChild(box);
+  });
+  shadowSection.appendChild(shadowRow);
+  frame.appendChild(shadowSection);
+}
+
+// ═══ CSS Output ═══
+
+function generateCSS() {
+  function shadowBlock(mode) {
+    var intensity = parseInt(state[mode]['shadow-intensity'] || '50') / 100;
+    var isDark = mode === 'dark';
+    var b = 'oklch(0 0 0';
+    var r = isDark ? 'oklch(1 0 0' : 'oklch(0 0 0';
+    return {
+      xs: '0 1px 2px ' + b + ' / ' + Math.round((isDark ? 15 : 4) * intensity) + '%)',
+      sm: '0 1px 3px ' + b + ' / ' + Math.round((isDark ? 20 : 6) * intensity) + '%), 0 1px 2px ' + b + ' / ' + Math.round((isDark ? 15 : 4) * intensity) + '%)',
+      md: '0 0 0 1px ' + r + ' / ' + Math.round((isDark ? 5 : 3) * intensity) + '%),\n                0 1px 2px ' + b + ' / ' + Math.round((isDark ? 15 : 4) * intensity) + '%),\n                0 ' + (isDark ? '3' : '4') + 'px ' + (isDark ? '6' : '8') + 'px ' + b + ' / ' + Math.round((isDark ? 10 : 3) * intensity) + '%),\n                0 ' + (isDark ? '6' : '8') + 'px ' + (isDark ? '12' : '16') + 'px ' + b + ' / ' + Math.round((isDark ? 8 : 2) * intensity) + '%)',
+      lg: '0 0 0 1px ' + r + ' / ' + Math.round((isDark ? 5 : 3) * intensity) + '%),\n                0 4px 12px ' + b + ' / ' + Math.round((isDark ? 20 : 6) * intensity) + '%),\n                0 12px 24px ' + b + ' / ' + Math.round((isDark ? 15 : 4) * intensity) + '%)'
+    };
+  }
+
+  function block(mode) {
+    var s = state[mode];
+    var sh = shadowBlock(mode);
+    var sp = parseInt(s['space-1']) || 4;
+    var lines = [];
+    lines.push('  /* ── Palette ── */');
+    PALETTE_COLORS.forEach(function(c) {
+      lines.push('  --palette-' + c + ': ' + s['palette-' + c] + ';');
+      lines.push('  --palette-' + c + '-fg: ' + s['palette-' + c + '-fg'] + ';');
+    });
+    lines.push('');
+    lines.push('  /* ── Neutrals ── */');
+    NEUTRAL_KEYS.concat(['ring-glow']).forEach(function(k) {
+      lines.push('  --neutral-' + k + ': ' + (s['neutral-' + k] || DEFAULTS[mode]['neutral-' + k]) + ';');
+    });
+    lines.push('');
+    lines.push('  /* ── Surfaces ── */');
+    ['base', 'main', 'stage', 'panel', 'glass'].forEach(function(k) {
+      lines.push('  --surface-' + k + ': ' + s['surface-' + k] + ';');
+    });
+    lines.push('');
+    if (mode === 'light') {
+      lines.push('  /* ── Typography ── */');
+      lines.push('  --text-display-size: ' + s['text-display-size'] + 'px;  --text-display-weight: 700;  --text-display-leading: 1.2;');
+      lines.push('  --text-heading-size: ' + s['text-heading-size'] + 'px;  --text-heading-weight: 600;  --text-heading-leading: 1.3;');
+      lines.push('  --text-body-size: ' + s['text-body-size'] + 'px;     --text-body-weight: 400;     --text-body-leading: 1.5;');
+      lines.push('  --text-sm-size: ' + s['text-sm-size'] + 'px;       --text-sm-weight: 400;       --text-sm-leading: 1.4;');
+      lines.push('  --text-caption-size: ' + s['text-caption-size'] + 'px;  --text-caption-weight: 500;  --text-caption-leading: 1.3;');
+      lines.push('  --text-code-size: ' + s['text-code-size'] + 'px;     --text-code-family: \'SF Mono\', \'Fira Code\', ui-monospace, monospace;');
+      lines.push('');
+      lines.push('  /* ── Spacing (' + sp + 'px grid) ── */');
+      [[0,'0'],[0.5,'0.5'],[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5'],[6,'6'],[8,'8'],[10,'10'],[12,'12']].forEach(function(pair) {
+        lines.push('  --space-' + pair[1] + ': ' + (sp * pair[0]) + 'px;');
+      });
+      lines.push('  --space-px: 1px;');
+      lines.push('');
+      lines.push('  /* ── Shape ── */');
+      lines.push('  --radius: ' + s['radius'] + 'px;');
+      lines.push('  --surface-radius: ' + s['surface-radius'] + 'px;');
+      lines.push('  --inner-radius: ' + s['inner-radius'] + 'px;');
+      lines.push('');
+    }
+    lines.push('  /* ── Shadows ── */');
+    lines.push('  --shadow-xs: ' + sh.xs + ';');
+    lines.push('  --shadow-sm: ' + sh.sm + ';');
+    lines.push('  --shadow-md: ' + sh.md + ';');
+    lines.push('  --shadow-lg: ' + sh.lg + ';');
+    lines.push('  --surface-shadow: var(--shadow-md);');
+    return lines.join('\n');
+  }
+
+  return ':root {\n' + block('light') + '\n}\n\n.dark {\n' + block('dark') + '\n}';
+}
+
+function updateOutput() {
+  document.getElementById('css-output').textContent = generateCSS();
+}
+
+// ═══ Event Wiring ═══
+
+document.getElementById('mode-light').addEventListener('click', function() { setMode('light'); });
+document.getElementById('mode-dark').addEventListener('click', function() { setMode('dark'); });
+document.getElementById('preset-default').addEventListener('click', function() { applyPreset('default'); });
+document.getElementById('preset-warm').addEventListener('click', function() { applyPreset('warm'); });
+document.getElementById('preset-cool').addEventListener('click', function() { applyPreset('cool'); });
+document.getElementById('preset-highContrast').addEventListener('click', function() { applyPreset('highContrast'); });
+document.getElementById('copy-btn').addEventListener('click', function() {
+  navigator.clipboard.writeText(generateCSS()).then(function() {
+    var btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy CSS'; }, 1500);
+  });
+});
+
+document.querySelectorAll('.section-header').forEach(function(header) {
+  header.addEventListener('click', function() {
+    this.classList.toggle('collapsed');
+    this.nextElementSibling.classList.toggle('hidden');
+  });
+});
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('mode-' + mode).classList.add('active');
+  buildControls();
+  updateAll();
+}
+
+function applyPreset(name) {
+  state.light = Object.assign({}, PRESETS[name].light);
+  state.dark = Object.assign({}, PRESETS[name].dark);
+  document.querySelectorAll('.preset-btn').forEach(function(b) { b.classList.remove('active'); });
+  document.getElementById('preset-' + name).classList.add('active');
+  buildControls();
+  updateAll();
+}
+
+function updateAll() {
+  renderPreview();
+  updateOutput();
+}
+
+// ═══ Init ═══
+buildControls();
+updateAll();
+</script>
+</body>
+</html>
