@@ -214,18 +214,18 @@
   --surface-base:   oklch(0.2 0.005 250);
 
   /* ── Shadows (dark) ──────────────────────────────────────────────────── */
-  --shadow-xs:  0 1px 2px oklch(0 0 0 / 15%);
-  --shadow-sm:  0 1px 3px oklch(0 0 0 / 20%), 0 1px 2px oklch(0 0 0 / 15%);
-  --shadow-md:  0 0 0 1px oklch(1 0 0 / 5%),
-                0 1px 2px oklch(0 0 0 / 15%),
-                0 3px 6px oklch(0 0 0 / 10%),
-                0 6px 12px oklch(0 0 0 / 8%);
-  --shadow-lg:  0 0 0 1px oklch(1 0 0 / 5%),
-                0 4px 12px oklch(0 0 0 / 20%),
-                0 12px 24px oklch(0 0 0 / 15%);
-  --inner-shadow: 0 0 0 1px oklch(1 0 0 / 5%),
-                  0 1px 2px oklch(0 0 0 / 12%),
-                  0 2px 4px oklch(0 0 0 / 8%);
+  --shadow-xs:  0 1px 2px oklch(0 0 0 / 30%);
+  --shadow-sm:  0 1px 3px oklch(0 0 0 / 35%), 0 1px 2px oklch(0 0 0 / 25%);
+  --shadow-md:  0 0 0 1px oklch(1 0 0 / 8%),
+                0 1px 2px oklch(0 0 0 / 30%),
+                0 3px 6px oklch(0 0 0 / 25%),
+                0 6px 12px oklch(0 0 0 / 20%);
+  --shadow-lg:  0 0 0 1px oklch(1 0 0 / 8%),
+                0 4px 12px oklch(0 0 0 / 35%),
+                0 12px 24px oklch(0 0 0 / 25%);
+  --inner-shadow: 0 0 0 1px oklch(1 0 0 / 8%),
+                  0 1px 2px oklch(0 0 0 / 25%),
+                  0 2px 4px oklch(0 0 0 / 18%);
 
   /* ── Layout (dark) ───────────────────────────────────────────────────── */
   --shell-bg: linear-gradient(
@@ -411,8 +411,8 @@
   .markdown-content code {
     font-size: 0.875em;
     @apply px-1.5 py-0.5 rounded-[var(--radius)] font-mono;
-    background: oklch(0.92 0 0);
-    border: 1px solid oklch(0.82 0 0);
+    background: var(--neutral-bg-emphasis);
+    border: 1px solid var(--neutral-border);
     color: var(--neutral-fg);
   }
   .markdown-content pre {
