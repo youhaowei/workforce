@@ -39,6 +39,27 @@
 
 :root {
   --radius: 0.625rem;
+  /* macOS hiddenInset titlebar — space for traffic lights */
+  --titlebar-height: env(titlebar-area-height, 0px);
+  /* Layout system */
+  --shell-bg: linear-gradient(
+    160deg,
+    oklch(0.95 0.006 70) 0%,
+    oklch(0.935 0.01 240) 55%,
+    oklch(0.93 0.014 280) 100%
+  );  /* liquid glass — warm highlight to cool shadow */
+  --surface-inset: 8px;
+  --surface-radius: 10px;
+  --surface-shadow: 0 0 0 1px oklch(0 0 0 / 3%),
+                    0 1px 2px oklch(0 0 0 / 4%),
+                    0 4px 8px oklch(0 0 0 / 3%),
+                    0 8px 16px oklch(0 0 0 / 2%);
+  --inner-gap: 4px;
+  --inner-radius: 8px;
+  --inner-shadow: 0 0 0 1px oklch(0 0 0 / 5%),
+                  0 1px 3px oklch(0 0 0 / 8%),
+                  0 4px 8px oklch(0 0 0 / 5%);
+  --topbar-height: 28px;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -74,6 +95,19 @@
 }
 
 .dark {
+  --shell-bg: linear-gradient(
+    160deg,
+    oklch(0.2 0.005 250) 0%,
+    oklch(0.17 0.008 270) 55%,
+    oklch(0.15 0.01 290) 100%
+  );
+  --surface-shadow: 0 0 0 1px oklch(1 0 0 / 5%),
+                    0 1px 2px oklch(0 0 0 / 15%),
+                    0 3px 6px oklch(0 0 0 / 10%),
+                    0 6px 12px oklch(0 0 0 / 8%);
+  --inner-shadow: 0 0 0 1px oklch(1 0 0 / 5%),
+                  0 1px 2px oklch(0 0 0 / 12%),
+                  0 2px 4px oklch(0 0 0 / 8%);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -124,17 +158,169 @@
     width: 100%;
     height: 100%;
   }
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-muted-foreground/20 rounded-sm; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/30; }
+  /* Refined scrollbar — thin, rounded, fades in on hover */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; margin: 10px 0; }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.5 0 0 / 15%);
+    border-radius: 100px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background 0.2s ease;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.5 0 0 / 30%);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: oklch(0.5 0 0 / 40%);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner { background: transparent; }
 }
 
-/* Glass pill - floating top bar groups */
+/* Nav glass pill — active state for sidebar items */
 @layer components {
-  .glass-pill {
-    @apply px-3 py-1.5 rounded-full bg-background/80 backdrop-blur-md
-           border border-border/50 shadow-sm;
+  .nav-glass-active {
+    background: oklch(1 0 0 / 45%);
+    box-shadow: 0 0 0 1px oklch(1 0 0 / 40%),
+                0 1px 2px oklch(0 0 0 / 4%);
+    backdrop-filter: blur(12px) saturate(1.3);
+    -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  }
+  .dark .nav-glass-active {
+    background: oklch(1 0 0 / 8%);
+    box-shadow: 0 0 0 1px oklch(1 0 0 / 10%),
+                0 1px 2px oklch(0 0 0 / 15%);
+  }
+}
+
+/* Top bar controls — minimal, native-feeling toolbar items */
+@layer components {
+  .topbar-glass-btn {
+    @apply inline-flex items-center justify-center shrink-0 rounded;
+    height: 20px;
+    padding: 0 5px;
+    font-size: 11px;
+    font-weight: 500;
+    color: oklch(0.45 0 0);
+    background: transparent;
+    border: none;
+    transition: color 100ms ease, background 100ms ease;
+    cursor: pointer;
+  }
+  .topbar-glass-btn:hover {
+    color: oklch(0.2 0 0);
+    background: oklch(0 0 0 / 5%);
+  }
+  .topbar-glass-btn-active {
+    color: oklch(0.15 0 0);
+    background: oklch(0 0 0 / 6%);
+  }
+  .dark .topbar-glass-btn {
+    color: oklch(0.55 0 0);
+  }
+  .dark .topbar-glass-btn:hover {
+    color: oklch(0.8 0 0);
+    background: oklch(1 0 0 / 6%);
+  }
+  .dark .topbar-glass-btn-active {
+    color: oklch(0.85 0 0);
+    background: oklch(1 0 0 / 8%);
+  }
+}
+
+/* Shell — the window ground behind everything */
+@layer components {
+  .shell-ground {
+    background: var(--shell-bg);
+  }
+}
+
+/* Window top bar — on the shell, handles drag */
+@layer components {
+  .shell-topbar {
+    height: var(--topbar-height);
+    padding: 0 var(--surface-inset) 0 8px;
+    user-select: none;
+    -webkit-user-select: none;
+    @apply flex items-center shrink-0 gap-3;
+  }
+}
+
+/* Main surface — the big white panel holding content + inner panels */
+@layer components {
+  .main-surface {
+    @apply overflow-hidden flex-1;
+    background: oklch(1 0 0 / 45%);
+    backdrop-filter: blur(40px) saturate(1.6);
+    -webkit-backdrop-filter: blur(40px) saturate(1.6);
+    margin: 0 var(--surface-inset) var(--surface-inset) 0;
+    border-radius: var(--surface-radius);
+    contain: paint;
+  }
+  .dark .main-surface {
+    background: oklch(0.16 0 0 / 55%);
+  }
+}
+
+/* Center stage — elevated chat area, the focal point of the layout */
+@layer components {
+  .center-stage {
+    @apply overflow-hidden flex-1 flex flex-col min-w-0;
+    background: oklch(1 0 0 / 50%);
+    border-radius: 10px;
+    margin: 0;
+    box-shadow: 0 0 0 1px oklch(0 0 0 / 1.2%),
+                0 1px 3px oklch(0 0 0 / 1.8%),
+                0 4px 12px oklch(0 0 0 / 1.5%),
+                0 8px 24px oklch(0 0 0 / 1.2%);
+    position: relative;
+    z-index: 2;
+  }
+  .dark .center-stage {
+    background: oklch(0.16 0 0 / 50%);
+    box-shadow: 0 0 0 1px oklch(1 0 0 / 3%),
+                0 1px 3px oklch(0 0 0 / 6%),
+                0 4px 12px oklch(0 0 0 / 5%),
+                0 8px 24px oklch(0 0 0 / 4%);
+  }
+}
+
+/* Inner panel — elevated card inside the main surface (sessions, info, plan) */
+@layer components {
+  .inner-panel {
+    @apply overflow-hidden;
+    background: oklch(1 0 0 / 90%);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border-radius: var(--inner-radius);
+    box-shadow: var(--inner-shadow);
+    user-select: none;
+    -webkit-user-select: none;
+    contain: paint;
+  }
+  .inner-panel[data-collapsed="true"] {
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
+/* Outer panel — on the shell level (task panel) */
+@layer components {
+  .outer-panel {
+    @apply overflow-hidden;
+    background: oklch(1 0 0 / 82%);
+    backdrop-filter: blur(40px) saturate(1.6);
+    -webkit-backdrop-filter: blur(40px) saturate(1.6);
+    border-radius: var(--surface-radius);
+    box-shadow: var(--surface-shadow);
+    margin: var(--surface-inset);
+    margin-left: 0;
+    user-select: none;
+    -webkit-user-select: none;
   }
 }
 
@@ -165,41 +351,58 @@
   }
 
   /* Markdown content */
-  .markdown-content { line-height: 1.6; }
-  .markdown-content p { margin-bottom: 0.75em; }
+  .markdown-content { line-height: inherit; color: oklch(0.25 0 0); }
+  .markdown-content p { margin-bottom: 0.6em; }
   .markdown-content p:last-child { margin-bottom: 0; }
-  .markdown-content strong { font-weight: 600; }
+  .markdown-content strong { font-weight: 600; color: oklch(0.15 0 0); }
   .markdown-content em { font-style: italic; }
   .markdown-content code {
-    font-size: 0.875em;
-    @apply bg-muted px-1.5 py-0.5 rounded font-mono;
+    font-size: 0.85em;
+    @apply bg-foreground/[0.04] px-1.5 py-0.5 rounded font-mono;
+    color: oklch(0.4 0 0);
   }
   .markdown-content pre {
-    font-size: 0.8125em;
-    @apply bg-foreground text-background p-4 rounded-lg overflow-x-auto my-3 font-mono;
+    font-size: 0.8em;
+    @apply p-4 rounded-lg overflow-x-auto my-3 font-mono;
+    background: oklch(0.16 0 0);
+    color: oklch(0.88 0 0);
   }
-  .markdown-content pre code { background: transparent; padding: 0; font-size: inherit; }
+  .markdown-content pre code { background: transparent; padding: 0; font-size: inherit; color: inherit; }
   .markdown-content h1, .markdown-content h2, .markdown-content h3,
   .markdown-content h4, .markdown-content h5, .markdown-content h6 {
-    @apply font-semibold text-foreground;
-    margin-top: 1em;
-    margin-bottom: 0.5em;
+    font-weight: 600;
+    color: oklch(0.12 0 0);
+    margin-top: 1.2em;
+    margin-bottom: 0.4em;
   }
-  .markdown-content h1 { font-size: 1.5em; }
-  .markdown-content h2 { font-size: 1.25em; }
-  .markdown-content h3 { font-size: 1.125em; }
+  .markdown-content h1 { font-size: 1.35em; }
+  .markdown-content h2 { font-size: 1.15em; }
+  .markdown-content h3 { font-size: 1.05em; }
   .markdown-content ul, .markdown-content ol { margin: 0.5em 0; padding-left: 1.5em; }
-  .markdown-content li { margin: 0.25em 0; }
+  .markdown-content li { margin: 0.2em 0; }
   .markdown-content ul li { list-style-type: disc; }
   .markdown-content ol li { list-style-type: decimal; }
   .markdown-content blockquote {
-    @apply border-l-2 border-primary pl-4 my-3 text-muted-foreground italic;
+    border-left: 2px solid oklch(0.7 0 0);
+    @apply pl-4 my-3 italic;
+    color: oklch(0.5 0 0);
   }
-  .markdown-content a { @apply text-primary underline underline-offset-2; }
-  .markdown-content a:hover { @apply text-primary/80; }
+  .markdown-content a { color: oklch(0.35 0.08 250); text-decoration: underline; text-underline-offset: 2px; }
+  .markdown-content a:hover { color: oklch(0.45 0.1 250); }
   .markdown-content hr { @apply border-t border-border my-4; }
-  .markdown-content table { @apply w-full border-collapse my-3 text-sm; }
-  .markdown-content th, .markdown-content td { @apply border border-border px-3 py-2 text-left; }
-  .markdown-content th { @apply bg-muted font-semibold; }
+  .markdown-content table { @apply w-full border-collapse my-3; font-size: 0.9em; }
+  .markdown-content th, .markdown-content td { @apply border border-border/50 px-3 py-2 text-left; }
+  .markdown-content th { background: oklch(0.97 0 0); font-weight: 600; color: oklch(0.3 0 0); }
   .markdown-content input[type="checkbox"] { margin-right: 0.5em; }
+
+  .dark .markdown-content { color: oklch(0.78 0 0); }
+  .dark .markdown-content strong { color: oklch(0.92 0 0); }
+  .dark .markdown-content code { @apply bg-white/[0.06]; color: oklch(0.7 0 0); }
+  .dark .markdown-content pre { background: oklch(0.1 0 0); color: oklch(0.8 0 0); }
+  .dark .markdown-content h1, .dark .markdown-content h2, .dark .markdown-content h3,
+  .dark .markdown-content h4, .dark .markdown-content h5, .dark .markdown-content h6 { color: oklch(0.95 0 0); }
+  .dark .markdown-content blockquote { border-color: oklch(0.4 0 0); color: oklch(0.6 0 0); }
+  .dark .markdown-content a { color: oklch(0.7 0.1 250); }
+  .dark .markdown-content a:hover { color: oklch(0.8 0.1 250); }
+  .dark .markdown-content th { background: oklch(0.2 0 0); color: oklch(0.75 0 0); }
 }

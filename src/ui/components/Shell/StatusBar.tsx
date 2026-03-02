@@ -1,5 +1,4 @@
 interface StatusBarProps {
-  isStreaming: boolean;
   cumulativeUsage: {
     inputTokens: number;
     outputTokens: number;
@@ -10,39 +9,32 @@ interface StatusBarProps {
 }
 
 export default function StatusBar({
-  isStreaming,
   cumulativeUsage,
   currentQueryStats,
   messageCount,
 }: StatusBarProps) {
   return (
-    <footer className="flex-shrink-0 px-4 py-1.5 border-t bg-background">
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <span
-            className={`w-1.5 h-1.5 rounded-full ${
-              isStreaming ? 'bg-primary status-active' : 'bg-muted-foreground/40'
-            }`}
-          />
-          <span>{isStreaming ? 'Thinking...' : 'Ready'}</span>
-        </div>
+    <footer className="flex-shrink-0 px-6 py-1.5">
+      <div className="max-w-3xl mx-auto flex items-center justify-between text-[11px] text-muted-foreground/50 tabular-nums">
         <div className="flex items-center gap-3">
           {(cumulativeUsage.inputTokens > 0 || cumulativeUsage.outputTokens > 0) && (
             <span title="Input / Output tokens">
-              {cumulativeUsage.inputTokens.toLocaleString()} / {cumulativeUsage.outputTokens.toLocaleString()} tokens
+              {cumulativeUsage.inputTokens.toLocaleString()} in · {cumulativeUsage.outputTokens.toLocaleString()} out
             </span>
           )}
           {cumulativeUsage.totalCostUsd > 0 && (
-            <span className="text-foreground" title="Estimated cost">
+            <span title="Estimated cost">
               ${cumulativeUsage.totalCostUsd.toFixed(4)}
             </span>
           )}
+        </div>
+        <div className="flex items-center gap-3">
           {currentQueryStats && (
             <span title="Last query duration">
               {(currentQueryStats.durationMs / 1000).toFixed(1)}s
             </span>
           )}
-          <span>{messageCount} messages</span>
+          <span>{messageCount} msg</span>
         </div>
       </div>
     </footer>

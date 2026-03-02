@@ -1,7 +1,7 @@
 /**
  * SessionList - Scrollable list of sessions with search, filtering, and grouping.
  *
- * Applies type and state filters from SessionsPanel.
+ * Default: date-grouped (FEB 25, FEB 18, etc.) matching craft-agents-oss style.
  * Supports grouping by project or status with collapsible headers.
  */
 
@@ -85,6 +85,15 @@ function renderEmptyState(
   );
 }
 
+/** Date group header — uppercase, small, muted (e.g., "FEB 25"). */
+function DateGroupHeader({ label }: { label: string }) {
+  return (
+    <div className="px-3 py-2 text-[11px] font-medium text-muted-foreground/60 tracking-wider select-none">
+      {label}
+    </div>
+  );
+}
+
 /** Renders grouped session list with collapsible headers. */
 function GroupedSessions({
   groups,
@@ -99,6 +108,16 @@ function GroupedSessions({
   onToggleGroup: (key: string) => void;
   renderItems: (items: SessionSummary[]) => React.ReactNode;
 }) {
+  // Date groups use non-collapsible headers
+  if (groupBy === 'date') {
+    return groups.map((group) => (
+      <div key={group.key}>
+        <DateGroupHeader label={group.label} />
+        {renderItems(group.sessions)}
+      </div>
+    ));
+  }
+
   return groups.map((group) => {
     const isCollapsed = collapsedGroups.has(group.key);
     let groupIcon: React.ReactNode = null;
@@ -112,7 +131,7 @@ function GroupedSessions({
         <button
           onClick={() => onToggleGroup(group.key)}
           aria-expanded={!isCollapsed}
-          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors border-b"
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors"
         >
           {isCollapsed ? (
             <ChevronRight className="h-3 w-3" />
@@ -150,7 +169,7 @@ export function SessionList({
   activeSessionId,
   typeFilter = 'all',
   stateFilter = 'all',
-  groupBy = 'none',
+  groupBy = 'date',
   projectMap,
   onSelect,
   onDelete,
@@ -210,7 +229,7 @@ export function SessionList({
   return (
     <div className="flex flex-col h-full">
       {/* Search bar — compact, always visible */}
-      <div className="px-3 py-2 border-b">
+      <div className="px-3 py-2 border-b border-border/50">
         <div className="flex gap-1.5">
           <div className="relative flex-1">
             <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -237,13 +256,6 @@ export function SessionList({
             New
           </Button>
         </div>
-        {/* Inline count — only show when there are sessions or active search */}
-        {(sessions.length > 0 || debouncedQuery) && (
-          <p className="text-[11px] text-muted-foreground mt-1.5" aria-live="polite">
-            {filteredSessions.length} session{filteredSessions.length !== 1 ? 's' : ''}
-            {debouncedQuery && <span> matching &ldquo;{debouncedQuery}&rdquo;</span>}
-          </p>
-        )}
       </div>
 
       {/* Session list */}

@@ -11,7 +11,7 @@ import { useTRPC } from '@/bridge/react';
 import { useSdkStore } from '@/ui/stores/useSdkStore';
 import { useMessagesStore, type MessageState } from '@/ui/stores/useMessagesStore';
 import type { PlanArtifact } from '@/services/types';
-import { FileText, Clock, Cpu, DollarSign, Pencil, ScrollText } from 'lucide-react';
+import { FileText, Clock, Cpu, DollarSign, Pencil } from 'lucide-react';
 
 // =============================================================================
 // Helpers
@@ -158,15 +158,14 @@ export function ChatInfoPanel({ isOpen, sessionId, planArtifact, onOpenPlan }: C
 
   return (
     <div
-      className={`flex-shrink-0 flex flex-col bg-card border-l transition-[width] duration-200 ease-in-out overflow-hidden ${
-        isOpen ? 'w-60' : 'w-0 border-l-0'
+      className={`flex-shrink-0 flex flex-col transition-[width] duration-200 ease-in-out select-none ${
+        isOpen ? 'w-60' : 'w-0'
       }`}
       aria-hidden={!isOpen}
       inert={!isOpen ? true : undefined}
     >
-      <div className="flex items-center gap-2 p-3 border-b">
-        <ScrollText className="h-4 w-4 text-muted-foreground" />
-        <h2 className="text-sm font-semibold text-foreground">Info</h2>
+      <div className="flex items-center h-10 px-3 gap-2">
+        <h2 className="text-sm font-semibold text-foreground flex-1 select-none">Info</h2>
       </div>
 
       <div className="p-3 space-y-4 overflow-y-auto flex-1 text-sm">

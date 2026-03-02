@@ -36,8 +36,8 @@ export function getInitialView(): ViewType {
 
 export function getInitialSidebarMode(): SidebarMode {
   const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-  if (stored === 'true') return 'collapsed';
-  if (stored === 'collapsed' || stored === 'hidden') return stored;
+  // Backward compat: old key stored 'true'/'false' or 'hidden' — all map to collapsed
+  if (stored === 'true' || stored === 'collapsed' || stored === 'hidden') return 'collapsed';
   return 'expanded';
 }
 

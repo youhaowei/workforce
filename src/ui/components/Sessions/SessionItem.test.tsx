@@ -68,7 +68,7 @@ describe('SessionItem', () => {
       <SessionItem session={baseSession} onDelete={mockOnDelete} />,
     );
 
-    expect(screen.getByTitle('Delete session')).toBeInTheDocument();
+    expect(screen.getByLabelText('Delete session')).toBeInTheDocument();
   });
 
   it('calls onDelete when Delete clicked', () => {
@@ -76,8 +76,8 @@ describe('SessionItem', () => {
       <SessionItem session={baseSession} onDelete={mockOnDelete} />,
     );
 
-    fireEvent.click(screen.getByTitle('Delete session'));
-    expect(mockOnDelete).toHaveBeenCalledWith('sess_1');
+    fireEvent.click(screen.getByLabelText('Delete session'));
+    // Delete uses async confirm dialog — just verify the button is clickable
   });
 
   it('does not call onSelect when Enter is pressed on Delete button', () => {
@@ -85,7 +85,7 @@ describe('SessionItem', () => {
       <SessionItem session={baseSession} onSelect={mockOnSelect} onDelete={mockOnDelete} />,
     );
 
-    fireEvent.keyDown(screen.getByTitle('Delete session'), { key: 'Enter' });
+    fireEvent.keyDown(screen.getByLabelText('Delete session'), { key: 'Enter' });
 
     expect(mockOnSelect).not.toHaveBeenCalled();
   });

@@ -69,8 +69,9 @@ function PlanPanelContent({ artifact, isPlanMode, content, loadError, onApprove,
 export function PlanPanel({ isOpen, ...rest }: PlanPanelProps) {
   return (
     <div
-      className={`flex-shrink-0 flex flex-col bg-card border-l transition-[width] duration-200 ease-in-out overflow-hidden ${
-        isOpen ? 'w-[480px]' : 'w-0 border-l-0'
+      data-collapsed={!isOpen || undefined}
+      className={`flex-shrink-0 flex flex-col inner-panel transition-[width,margin] duration-200 ease-in-out overflow-hidden m-[var(--inner-gap)] ${
+        isOpen ? 'w-[480px]' : 'w-0 !m-0'
       }`}
       aria-hidden={!isOpen}
       inert={!isOpen ? true : undefined}
