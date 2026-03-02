@@ -5,6 +5,7 @@
 import { useState, useMemo, useCallback, type FormEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
+import { Surface } from '@/components/ui/surface';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { X, Plus } from 'lucide-react';
@@ -75,10 +76,10 @@ export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
   );
 
   return (
-    <div
+    <Surface
       data-collapsed={!isOpen}
-      className={`flex-shrink-0 flex flex-col outer-panel transition-[width,margin] duration-200 ease-in-out ${
-        isOpen ? 'w-80' : 'w-0 !m-0'
+      className={`flex-shrink-0 flex flex-col bg-surface-panel backdrop-blur-[40px] saturate-[1.6] rounded-[var(--surface-radius)] shadow-[var(--surface-shadow)] transition-[width,margin] duration-200 ease-in-out m-[var(--surface-inset)] ml-0 select-none ${
+        isOpen ? 'w-80' : 'w-0 !m-0 !shadow-none !rounded-none'
       }`}
       aria-hidden={!isOpen}
       inert={!isOpen ? true : undefined}
@@ -88,7 +89,7 @@ export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
         <h2 className="font-semibold text-foreground flex items-center gap-2">
           Tasks
           {pendingCount > 0 && (
-            <Badge variant="secondary" className="text-xs">{pendingCount}</Badge>
+            <Badge variant="soft" className="text-xs">{pendingCount}</Badge>
           )}
         </h2>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} title="Close">
@@ -119,6 +120,6 @@ export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
         onStatusChange={handleStatusChange}
         onDelete={handleDelete}
       />
-    </div>
+    </Surface>
   );
 }

@@ -71,11 +71,11 @@ export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
                 <span className="font-mono text-muted-foreground w-20 shrink-0">
                   {new Date(transition.timestamp).toLocaleTimeString()}
                 </span>
-                <Badge variant={stateVariant(transition.from)} className="text-[10px] h-5">
+                <Badge {...stateVariant(transition.from)} className="text-[10px] h-5">
                   {transition.from}
                 </Badge>
                 <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                <Badge variant={stateVariant(transition.to)} className="text-[10px] h-5">
+                <Badge {...stateVariant(transition.to)} className="text-[10px] h-5">
                   {transition.to}
                 </Badge>
                 <span className="text-muted-foreground truncate">{transition.reason}</span>
@@ -114,7 +114,7 @@ export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
                     onClick={() => onChildClick?.(child.id)}
                   >
                     <CardContent className="p-3 flex items-center gap-3">
-                      <Badge variant={stateVariant(childState)} className="text-[10px] shrink-0">
+                      <Badge {...stateVariant(childState)} className="text-[10px] shrink-0">
                         {childState}
                       </Badge>
                       <span className="text-sm flex-1 truncate">{childGoal}</span>

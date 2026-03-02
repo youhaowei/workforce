@@ -54,14 +54,14 @@ export function MergeDialog({ sessionId, branch, open, onOpenChange }: MergeDial
             <Label>Strategy</Label>
             <div className="flex gap-2">
               <Badge
-                variant={strategy === 'merge' ? 'default' : 'outline'}
+                {...(strategy === 'merge' ? { color: 'primary' as const } : { variant: 'outline' as const })}
                 className="cursor-pointer"
                 onClick={() => setStrategy('merge')}
               >
                 Merge
               </Badge>
               <Badge
-                variant={strategy === 'rebase' ? 'default' : 'outline'}
+                {...(strategy === 'rebase' ? { color: 'primary' as const } : { variant: 'outline' as const })}
                 className="cursor-pointer"
                 onClick={() => setStrategy('rebase')}
               >
@@ -70,7 +70,7 @@ export function MergeDialog({ sessionId, branch, open, onOpenChange }: MergeDial
             </div>
           </div>
           {mergeMutation.error && (
-            <p className="text-xs text-destructive">
+            <p className="text-xs text-danger">
               {mergeMutation.error.message}
             </p>
           )}

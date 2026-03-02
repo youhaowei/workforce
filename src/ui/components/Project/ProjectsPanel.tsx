@@ -10,6 +10,7 @@ import { useTRPC } from '@/bridge/react';
 import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { useDialogStore } from '@/ui/stores/useDialogStore';
 import { Button } from '@/components/ui/button';
+import { Surface } from '@/components/ui/surface';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Project } from '@/services/types';
@@ -90,10 +91,11 @@ export function ProjectsPanel({
   }, [projects, search]);
 
   return (
-    <div
+    <Surface
+      variant="panel"
       data-collapsed={collapsed}
-      className={`shrink-0 flex flex-col inner-panel transition-[width,margin] duration-200 ease-in-out m-[var(--inner-gap)] ${
-        collapsed ? 'w-0 !m-0' : 'w-72'
+      className={`shrink-0 flex flex-col rounded-[var(--inner-radius)] shadow-[var(--inner-shadow)] transition-[width,margin] duration-200 ease-in-out m-[var(--inner-gap)] select-none ${
+        collapsed ? 'w-0 !m-0 !shadow-none !rounded-none' : 'w-72'
       }`}
       aria-hidden={collapsed}
       inert={collapsed ? true : undefined}
@@ -198,7 +200,7 @@ export function ProjectsPanel({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-danger"
                     onClick={(e) => handleDelete(e, project)}
                     onKeyDown={(e) => e.stopPropagation()}
                     aria-label={`Delete ${project.name}`}
@@ -211,6 +213,6 @@ export function ProjectsPanel({
           })}
         </ScrollArea>
       )}
-    </div>
+    </Surface>
   );
 }

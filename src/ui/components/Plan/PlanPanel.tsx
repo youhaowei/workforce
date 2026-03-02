@@ -9,6 +9,7 @@
 
 import { FileText, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Surface } from '@/components/ui/surface';
 import type { AgentPermissionMode, PlanArtifact } from '@/services/types';
 import { PlanHeader } from './PlanHeader';
 import { PlanContent } from './PlanContent';
@@ -68,15 +69,16 @@ function PlanPanelContent({ artifact, isPlanMode, content, loadError, onApprove,
 
 export function PlanPanel({ isOpen, ...rest }: PlanPanelProps) {
   return (
-    <div
+    <Surface
+      variant="panel"
       data-collapsed={!isOpen || undefined}
-      className={`flex-shrink-0 flex flex-col inner-panel transition-[width,margin] duration-200 ease-in-out overflow-hidden m-[var(--inner-gap)] ${
-        isOpen ? 'w-[480px]' : 'w-0 !m-0'
+      className={`flex-shrink-0 flex flex-col rounded-[var(--inner-radius)] shadow-[var(--inner-shadow)] transition-[width,margin] duration-200 ease-in-out m-[var(--inner-gap)] select-none ${
+        isOpen ? 'w-[480px]' : 'w-0 !m-0 !shadow-none !rounded-none'
       }`}
       aria-hidden={!isOpen}
       inert={!isOpen ? true : undefined}
     >
       <PlanPanelContent {...rest} />
-    </div>
+    </Surface>
   );
 }

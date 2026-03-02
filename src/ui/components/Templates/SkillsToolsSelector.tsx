@@ -61,7 +61,7 @@ export function SkillsToolsSelector({
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selected.map((item) => (
-            <Badge key={item} variant="secondary" className="text-xs gap-1 pr-1">
+            <Badge key={item} variant="soft" className="text-xs gap-1 pr-1">
               {item}
               <button
                 type="button"

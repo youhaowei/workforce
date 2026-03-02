@@ -24,11 +24,11 @@ export function ReviewActions({ onResolve }: ReviewActionsProps) {
   return (
     <div className="space-y-2">
       <div className="flex gap-2">
-        <Button variant="default" size="sm" onClick={() => resolve('approve')}>
+        <Button size="sm" onClick={() => resolve('approve')}>
           <Check className="h-3 w-3 mr-1" />
           Approve
         </Button>
-        <Button variant="destructive" size="sm" onClick={() => resolve('reject')}>
+        <Button variant="solid" color="danger" size="sm" onClick={() => resolve('reject')}>
           <X className="h-3 w-3 mr-1" />
           Reject
         </Button>
@@ -47,7 +47,7 @@ export function ReviewActions({ onResolve }: ReviewActionsProps) {
             onChange={(e) => setComment(e.target.value)}
           />
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => resolve('edit')}>
+            <Button variant="soft" size="sm" onClick={() => resolve('edit')}>
               <Pencil className="h-3 w-3 mr-1" />
               Edit & Resume
             </Button>

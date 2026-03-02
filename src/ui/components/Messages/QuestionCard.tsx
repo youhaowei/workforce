@@ -17,6 +17,7 @@ import { trpc as trpcClient } from '@/bridge/trpc';
 import { useAgentQuestionStore } from '@/ui/stores/useAgentQuestionStore';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import type { AgentQuestion, ContentBlock } from '@/services/types';
 import { QuestionField } from './QuestionField';
 import { buildAnswerMap } from './questionHelpers';
@@ -94,18 +95,17 @@ function CardShell({ cardRef, headerLabel, children }: {
   const Icon = headerLabel === 'Question Answered' ? Check : MessageCircleQuestion;
   const headerBg = headerLabel === 'Question Answered' ? 'bg-muted/30' : 'bg-primary/5';
   const headerBorder = headerLabel === 'Question Answered' ? 'border-border/30' : 'border-primary/10';
-  const borderColor = headerLabel === 'Question Answered' ? 'border-border/50' : 'border-primary/20';
-  const iconColor = headerLabel === 'Question Answered' ? 'text-green-500' : 'text-primary';
+  const iconColor = headerLabel === 'Question Answered' ? 'text-success' : 'text-primary';
   const textColor = headerLabel === 'Question Answered' ? 'text-muted-foreground' : 'text-primary';
 
   return (
-    <div ref={cardRef} className={`bg-background border ${borderColor} rounded-lg shadow-sm overflow-hidden`}>
+    <Card ref={cardRef} variant="elevated" className="overflow-hidden">
       <div className={`flex items-center gap-2 px-4 py-2 ${headerBg} border-b ${headerBorder}`}>
         <Icon className={`h-4 w-4 ${iconColor} shrink-0`} />
         <span className={`text-xs font-medium ${textColor}`}>{headerLabel}</span>
       </div>
       {children}
-    </div>
+    </Card>
   );
 }
 

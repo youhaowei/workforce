@@ -15,7 +15,7 @@ export interface TaskItemProps {
 
 function statusColor(status: TaskStatus): string {
   if (status === 'in_progress' || status === 'completed') return 'text-primary';
-  if (status === 'cancelled') return 'text-destructive';
+  if (status === 'cancelled') return 'text-danger';
   return 'text-muted-foreground';
 }
 

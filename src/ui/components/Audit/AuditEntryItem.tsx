@@ -12,13 +12,13 @@ interface AuditEntryItemProps {
   entry: AuditEntry;
 }
 
-function typeVariant(type: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+function typeVariant(type: string): { variant?: 'soft' | 'outline'; color?: 'primary' | 'danger' } {
   switch (type) {
-    case 'state_change': return 'default';
-    case 'tool_use': return 'secondary';
-    case 'review_decision': return 'destructive';
-    case 'agent_spawn': return 'outline';
-    default: return 'outline';
+    case 'state_change': return { color: 'primary' };
+    case 'tool_use': return { variant: 'soft' };
+    case 'review_decision': return { color: 'danger' };
+    case 'agent_spawn': return { variant: 'outline' };
+    default: return { variant: 'outline' };
   }
 }
 
@@ -39,7 +39,7 @@ export function AuditEntryItem({ entry }: AuditEntryItemProps) {
         <span className="font-mono text-muted-foreground w-20 shrink-0">
           {new Date(entry.timestamp).toLocaleTimeString()}
         </span>
-        <Badge variant={typeVariant(entry.type)} className="text-[10px] shrink-0">
+        <Badge {...typeVariant(entry.type)} className="text-[10px] shrink-0">
           {entry.type.replace('_', ' ')}
         </Badge>
         <span className="text-muted-foreground truncate flex-1">{entry.description}</span>

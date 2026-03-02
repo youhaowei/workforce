@@ -108,28 +108,32 @@ export default function MessageList({
     [forksMap, onRewind, onFork, onSelectSession],
   );
 
+  const scrollerRef = useRef<HTMLElement | null>(null);
+
   // Empty state is handled by the parent (SessionsView)
   if (messages.length === 0 && !isStreaming) {
     return null;
   }
 
   return (
-    <div
-      className="flex-1 flex flex-col min-h-0 overflow-hidden relative"
-      style={{
-        maskImage: 'linear-gradient(to bottom, transparent 0%, black 56px, black calc(100% - 56px), transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 56px, black calc(100% - 56px), transparent 100%)',
-      }}
-    >
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+      {/* Top fade — always visible */}
+      <div className="message-list-fade-top" />
+      {/* Bottom fade removed — floating glass input provides the visual boundary */}
+
       <Virtuoso
         ref={virtuosoRef}
+        scrollerRef={(ref) => { scrollerRef.current = ref as HTMLElement; }}
         data={messages}
         initialTopMostItemIndex={Math.max(0, messages.length - 1)}
         atBottomThreshold={100}
         atBottomStateChange={handleAtBottomStateChange}
         followOutput="smooth"
         overscan={200}
-        components={{ Header: () => <div className="h-14" /> }}
+        components={{
+          Header: () => <div className="h-14" />,
+          Footer: () => <div className="h-52" />,
+        }}
         itemContent={renderItem}
         className="flex-1"
       />

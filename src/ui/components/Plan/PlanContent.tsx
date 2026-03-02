@@ -12,7 +12,7 @@ interface PlanContentProps {
 export function PlanContent({ content, error }: PlanContentProps) {
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-destructive text-sm px-6">
+      <div className="flex-1 flex items-center justify-center text-danger text-sm px-6">
         Failed to load plan: {error}
       </div>
     );

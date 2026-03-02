@@ -186,8 +186,8 @@ function TaskStatusIcon({ status }: { status: 'running' | 'complete' | 'error' }
   if (status === 'running') return <Loader2 className="h-3.5 w-3.5 animate-spin text-primary shrink-0" />;
   if (status === 'error') {
     return (
-      <span className="shrink-0 w-4 h-4 rounded-full bg-destructive/15 inline-flex items-center justify-center">
-        <X className="h-2.5 w-2.5 text-destructive" />
+      <span className="shrink-0 w-4 h-4 rounded-full bg-danger/15 inline-flex items-center justify-center">
+        <X className="h-2.5 w-2.5 text-danger" />
       </span>
     );
   }
@@ -228,7 +228,7 @@ function TaskGroupRow({ block, children, isStreaming }: {
         )}
         <span className="truncate flex-1 min-w-0 text-muted-foreground font-medium">{description}</span>
         {block.status === 'error' && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-destructive/10 text-[10px] font-medium text-destructive">Error</span>
+          <span className="shrink-0 px-1.5 py-0.5 rounded bg-danger/10 text-[10px] font-medium text-danger">Error</span>
         )}
       </div>
       {expanded && children.length > 0 && (
@@ -331,7 +331,7 @@ function ActivitySegment({ blocks, isStreaming }: {
         )}
         <span className="truncate flex-1 min-w-0 text-left">{headerText}</span>
         {errorCount > 0 && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-destructive/10 text-[10px] font-medium text-destructive">
+          <span className="shrink-0 px-1.5 py-0.5 rounded bg-danger/10 text-[10px] font-medium text-danger">
             {errorCount} failed
           </span>
         )}

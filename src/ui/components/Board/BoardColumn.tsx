@@ -21,7 +21,7 @@ export function BoardColumn({ title, sessions, state, onCardClick, onCardAction 
     <div className="flex-1 min-w-[240px] flex flex-col">
       <div className="flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-muted">
         <h3 className="text-sm font-medium">{title}</h3>
-        <Badge variant={stateVariant(state)} className="text-[10px] h-5">
+        <Badge {...stateVariant(state)} className="text-[10px] h-5">
           {sessions.length}
         </Badge>
       </div>

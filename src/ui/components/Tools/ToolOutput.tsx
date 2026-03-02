@@ -18,13 +18,13 @@ interface ToolOutputProps {
   startTime?: number;
 }
 
-function statusVariant(status: ToolOutputProps['status']): 'default' | 'secondary' | 'destructive' | 'outline' {
+function statusVariant(status: ToolOutputProps['status']): { variant?: 'outline'; color?: 'primary' | 'success' | 'danger' } {
   switch (status) {
-    case 'running': return 'default';
-    case 'success': return 'secondary';
+    case 'running': return { color: 'primary' };
+    case 'success': return { color: 'success' };
     case 'failed':
-    case 'cancelled': return 'destructive';
-    default: return 'outline';
+    case 'cancelled': return { color: 'danger' };
+    default: return { variant: 'outline' };
   }
 }
 
@@ -87,7 +87,7 @@ export default function ToolOutput({ toolName, args, result, error, status, dura
         <div className="flex items-center gap-2 flex-1 min-w-0">
           {status === 'running' && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
           <span className="font-mono font-medium truncate" title={toolName}>{toolName}</span>
-          <Badge variant={statusVariant(status)} className="text-[10px]">{status}</Badge>
+          <Badge {...statusVariant(status)} className="text-[10px]">{status}</Badge>
         </div>
         <div className="flex items-center gap-2">
           {displayDuration && <span className="text-xs text-muted-foreground">{displayDuration}</span>}
@@ -109,7 +109,7 @@ export default function ToolOutput({ toolName, args, result, error, status, dura
             </details>
           )}
 
-          {error && <div className="text-xs text-destructive font-medium">{error}</div>}
+          {error && <div className="text-xs text-danger font-medium">{error}</div>}
 
           {!error && formattedResult.detail && (
             <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">{formattedResult.detail}</pre>

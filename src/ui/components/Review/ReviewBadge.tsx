@@ -19,7 +19,7 @@ export function ReviewBadge() {
   if (!count || count <= 0) return null;
 
   return (
-    <Badge variant="destructive" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[9px] font-bold">
+    <Badge color="danger" className="absolute -top-1 -right-1 h-4 min-w-4 px-1 text-[9px] font-bold">
       {count > 9 ? '9+' : count}
     </Badge>
   );

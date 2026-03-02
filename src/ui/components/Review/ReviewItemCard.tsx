@@ -12,12 +12,12 @@ export interface ReviewItemCardProps {
   onResolve: (action: string, comment?: string) => void;
 }
 
-function typeVariant(type: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+function typeVariant(type: string): { variant?: 'soft' | 'outline'; color?: 'primary' } {
   switch (type) {
-    case 'approval': return 'default';
-    case 'clarification': return 'secondary';
-    case 'review': return 'outline';
-    default: return 'outline';
+    case 'approval': return { color: 'primary' };
+    case 'clarification': return { variant: 'soft' };
+    case 'review': return { variant: 'outline' };
+    default: return { variant: 'outline' };
   }
 }
 
@@ -27,7 +27,7 @@ export function ReviewItemCard({ item, onResolve }: ReviewItemCardProps) {
       <CardContent className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <h4 className="text-sm font-medium">{item.title}</h4>
-          <Badge variant={typeVariant(item.type)} className="text-[10px] uppercase shrink-0">
+          <Badge {...typeVariant(item.type)} className="text-[10px] uppercase shrink-0">
             {item.type}
           </Badge>
         </div>

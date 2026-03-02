@@ -65,7 +65,7 @@ export function LaunchFromTemplateDialog({ template, open, onOpenChange }: Launc
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Badge variant="outline">{template.name}</Badge>
-            <Badge variant="secondary" className="text-[10px]">{template.reasoningIntensity}</Badge>
+            <Badge variant="soft" className="text-[10px]">{template.reasoningIntensity}</Badge>
           </div>
           <div className="space-y-2">
             <Label htmlFor="launch-goal">Goal</Label>

@@ -51,7 +51,7 @@ export function WorkflowCard({ workflow, onExecute, onEdit, onArchive }: Workflo
                 <Pencil className="h-3.5 w-3.5 mr-2" />
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onArchive?.(workflow)} className="text-destructive">
+              <DropdownMenuItem onClick={() => onArchive?.(workflow)} className="text-danger">
                 <Archive className="h-3.5 w-3.5 mr-2" />
                 Archive
               </DropdownMenuItem>
@@ -64,10 +64,10 @@ export function WorkflowCard({ workflow, onExecute, onEdit, onArchive }: Workflo
             {workflow.steps.length} steps
           </Badge>
           {counts.agent && (
-            <Badge variant="default" className="text-[10px]">{counts.agent} agents</Badge>
+            <Badge color="primary" className="text-[10px]">{counts.agent} agents</Badge>
           )}
           {counts.review_gate && (
-            <Badge variant="secondary" className="text-[10px]">{counts.review_gate} gates</Badge>
+            <Badge variant="soft" className="text-[10px]">{counts.review_gate} gates</Badge>
           )}
           {counts.parallel_group && (
             <Badge variant="outline" className="text-[10px]">{counts.parallel_group} parallel</Badge>

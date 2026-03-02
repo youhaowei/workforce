@@ -67,13 +67,13 @@ export function WorktreePanel({ sessionId }: WorktreePanelProps) {
             <div className="flex gap-1.5">
               {worktree.status === 'active' && (
                 <>
-                  <Button size="sm" variant="default" onClick={() => setMergeOpen(true)}>
+                  <Button size="sm" onClick={() => setMergeOpen(true)}>
                     <GitMerge className="h-3 w-3 mr-1" />
                     Merge
                   </Button>
                   <Button
                     size="sm"
-                    variant="secondary"
+                    variant="soft"
                     onClick={() => keepMutation.mutate({ sessionId })}
                     disabled={keepMutation.isPending}
                   >

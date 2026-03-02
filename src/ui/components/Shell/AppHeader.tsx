@@ -1,5 +1,7 @@
-import { ArrowLeft, FolderGit2, MessageSquare, ListTodo, Plus } from 'lucide-react';
+import { ArrowLeft, FolderGit2, MessageSquare, ListTodo, Plus, Sun, Moon, Monitor } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { useThemeStore, type ThemeMode } from '@/ui/stores/useThemeStore';
 import {
   Tooltip,
   TooltipContent,
@@ -58,6 +60,16 @@ export default function TopBar({
     ? sessionTitle
     : (VIEW_TITLES[currentView] ?? currentView);
 
+  const themeMode = useThemeStore((s) => s.mode);
+  const setThemeMode = useThemeStore((s) => s.setMode);
+  const cycleTheme = () => {
+    const order: ThemeMode[] = ['system', 'light', 'dark'];
+    const next = order[(order.indexOf(themeMode) + 1) % order.length];
+    setThemeMode(next);
+  };
+  const THEME_ICONS = { dark: Moon, light: Sun, system: Monitor } as const;
+  const ThemeIcon = THEME_ICONS[themeMode];
+
   return (
     <header className="shell-topbar electrobun-webkit-app-region-drag">
       {/* Left — reopen toggles + title */}
@@ -65,13 +77,13 @@ export default function TopBar({
         {sessionsPanelCollapsed && currentView === 'sessions' && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                className="topbar-glass-btn"
+              <Button
+                variant="ghost" size="xs"
                 onClick={onToggleSessionsPanel}
                 aria-label="Show sessions"
               >
                 <MessageSquare className="h-3 w-3" />
-              </button>
+              </Button>
             </TooltipTrigger>
             <TooltipContent>Show sessions (Cmd+Shift+H)</TooltipContent>
           </Tooltip>
@@ -80,13 +92,13 @@ export default function TopBar({
         {currentView === 'projects' && projectsPanelCollapsed && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                className="topbar-glass-btn"
+              <Button
+                variant="ghost" size="xs"
                 onClick={onToggleProjectsPanel}
                 aria-label="Show projects"
               >
                 <FolderGit2 className="h-3 w-3" />
-              </button>
+              </Button>
             </TooltipTrigger>
             <TooltipContent>Show projects</TooltipContent>
           </Tooltip>
@@ -94,9 +106,9 @@ export default function TopBar({
 
         {currentView === 'detail' && onBack ? (
           <div className="flex items-center gap-1.5 min-w-0">
-            <button className="topbar-glass-btn" onClick={onBack} aria-label="Go back">
+            <Button variant="ghost" size="xs" onClick={onBack} aria-label="Go back">
               <ArrowLeft className="h-3 w-3" />
-            </button>
+            </Button>
             <span className="text-[11px] text-foreground/50 truncate">{title}</span>
           </div>
         ) : (
@@ -118,23 +130,38 @@ export default function TopBar({
 
       {/* Right — global actions */}
       <div className="flex items-center gap-0.5 shrink-0 electrobun-webkit-app-region-no-drag">
-        <button
-          className="topbar-glass-btn gap-1"
+        <Button
+          variant="ghost" size="xs"
           onClick={onQuickCreate}
           aria-label="New session"
         >
           <Plus className="h-3 w-3" />
           <span>New</span>
-        </button>
+        </Button>
 
-        <button
-          className={`topbar-glass-btn gap-1 ${taskPanelOpen ? 'topbar-glass-btn-active' : ''}`}
+        <Button
+          variant="ghost" size="xs"
+          data-active={taskPanelOpen || undefined}
+          className={taskPanelOpen ? 'bg-accent' : ''}
           onClick={onToggleTask}
           aria-label="Toggle tasks panel"
         >
           <ListTodo className="h-3 w-3" />
           <span>Tasks</span>
-        </button>
+        </Button>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost" size="xs"
+              onClick={cycleTheme}
+              aria-label={`Theme: ${themeMode}`}
+            >
+              <ThemeIcon className="h-3 w-3" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Theme: {themeMode}</TooltipContent>
+        </Tooltip>
       </div>
     </header>
   );

@@ -15,7 +15,6 @@ import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
 import { useHotkey } from "@/ui/hotkeys";
 import { usePlatform } from "@/ui/context/PlatformProvider";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
-import { useSdkStore } from "@/ui/stores/useSdkStore";
 import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
 import { useTRPC } from "@/bridge/react";
 import { trpc as trpcClient } from "@/bridge/trpc";
@@ -26,6 +25,7 @@ import AppSidebar from "./AppSidebar";
 import TopBar from "./AppHeader";
 import { MainViewContent } from "./MainViewContent";
 import { MainContentColumn } from "./MainContentColumn";
+import { Surface } from "@/components/ui/surface";
 import { useActiveSessionTitle } from "./useActiveSessionTitle";
 import { useForkActions } from "./useForkActions";
 import { useAgentStream } from "./useAgentStream";
@@ -93,8 +93,6 @@ export default function Shell() {
   const clearMessages = useMessagesStore((s) => s.clearMessages);
   const loadMessages = useMessagesStore((s) => s.loadMessages);
   const setCurrentTool = useMessagesStore((s) => s.setCurrentTool);
-  const cumulativeUsage = useSdkStore((s) => s.cumulativeUsage);
-  const currentQueryStats = useSdkStore((s) => s.currentQueryStats);
 
   const { data: projects = [] } = useQuery(
     trpc.project.list.queryOptions({ orgId }),
@@ -377,7 +375,7 @@ export default function Shell() {
           />
 
           <div className="flex-1 flex min-h-0 overflow-hidden">
-            <div className="main-surface flex min-w-0">
+            <Surface variant="main" className="flex min-w-0 flex-1 m-[0_var(--surface-inset)_var(--surface-inset)_0] rounded-[var(--surface-radius)] [contain:paint]">
             {currentView === "sessions" && (
               <SessionsPanel
                 collapsed={sessionsPanelCollapsed}
@@ -455,7 +453,7 @@ export default function Shell() {
               planArtifact={planArtifact}
               onOpenPlan={handleOpenPlan}
             />
-          </div>
+          </Surface>
 
             <TaskPanel
               isOpen={taskPanelOpen}

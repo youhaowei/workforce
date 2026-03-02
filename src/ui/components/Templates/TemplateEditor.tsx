@@ -154,7 +154,7 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
                 {INTENSITIES.map((level) => (
                   <Badge
                     key={level}
-                    variant={reasoning === level ? 'default' : 'outline'}
+                    {...(reasoning === level ? { color: 'primary' as const } : { variant: 'outline' as const })}
                     className="cursor-pointer"
                     onClick={() => setReasoning(level)}
                   >

@@ -131,7 +131,7 @@ export function SessionItem({
         <Button
           variant="ghost"
           size="icon"
-          className="h-5 w-5 -mr-1 shrink-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+          className="h-5 w-5 -mr-1 shrink-0 text-muted-foreground hover:text-danger opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={handleDelete}
           onKeyDown={(e) => e.stopPropagation()}
           aria-label="Delete session"

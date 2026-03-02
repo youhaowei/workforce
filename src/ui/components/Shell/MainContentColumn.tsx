@@ -1,6 +1,7 @@
 import { AlertCircle, WifiOff } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
+import { Surface } from '@/components/ui/surface';
 
 interface MainContentColumnProps {
   serverConnected: boolean;
@@ -16,7 +17,7 @@ export function MainContentColumn({
   children,
 }: MainContentColumnProps) {
   return (
-    <div className="center-stage">
+    <Surface variant="stage" className="flex-1 flex flex-col min-w-0 rounded-[10px] shadow-[var(--surface-shadow)] relative z-2">
       {!serverConnected && (
         <div className="px-4 py-3 bg-muted/50 border-b flex items-center gap-3">
           <WifiOff className="h-4 w-4 text-muted-foreground" />
@@ -30,12 +31,12 @@ export function MainContentColumn({
       )}
 
       {error && (
-        <div className="mx-4 my-2 px-4 py-2 bg-destructive/10 border border-destructive/20 rounded-lg flex items-center justify-between">
+        <div className="mx-4 my-2 px-4 py-2 bg-danger/10 border border-danger/20 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-destructive" />
-            <span className="text-sm text-destructive">{error}</span>
+            <AlertCircle className="h-4 w-4 text-danger" />
+            <span className="text-sm text-danger">{error}</span>
           </div>
-          <Button variant="ghost" size="sm" onClick={onDismissError} className="text-destructive h-7">
+          <Button variant="ghost" size="sm" onClick={onDismissError} className="text-danger h-7">
             Dismiss
           </Button>
         </div>
@@ -44,6 +45,6 @@ export function MainContentColumn({
       <main className="flex-1 flex flex-col overflow-hidden">
         {children}
       </main>
-    </div>
+    </Surface>
   );
 }

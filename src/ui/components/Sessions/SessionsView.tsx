@@ -63,7 +63,7 @@ export function SessionsView({
   // Messages exist: standard chat layout (message list + input at bottom)
   if (hasMessages) {
     return (
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
         <MessageList
           messages={messages}
           isStreaming={isStreaming}
@@ -72,13 +72,18 @@ export function SessionsView({
           onFork={onFork}
           onSelectSession={onSelectSession}
         />
-        <MessageInput
-          onSubmit={onSubmit}
-          onCancel={onCancel}
-          isStreaming={isStreaming}
-          sessionId={sessionId}
-          messages={messages}
-        />
+        <div className="absolute bottom-0 left-0 z-10 pointer-events-none chat-input-fade" />
+        <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none">
+          <div className="pointer-events-auto">
+            <MessageInput
+              onSubmit={onSubmit}
+              onCancel={onCancel}
+              isStreaming={isStreaming}
+              sessionId={sessionId}
+              messages={messages}
+            />
+          </div>
+        </div>
       </div>
     );
   }

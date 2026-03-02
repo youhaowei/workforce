@@ -22,12 +22,12 @@ interface TemplateCardProps {
   onArchive?: (template: AgentTemplate) => void;
 }
 
-function reasoningColor(intensity: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+function reasoningColor(intensity: string): { variant?: 'soft' | 'outline'; color?: 'primary' | 'danger' } {
   switch (intensity) {
-    case 'max': return 'destructive';
-    case 'high': return 'default';
-    case 'medium': return 'secondary';
-    default: return 'outline';
+    case 'max': return { color: 'danger' };
+    case 'high': return { color: 'primary' };
+    case 'medium': return { variant: 'soft' };
+    default: return { variant: 'outline' };
   }
 }
 
@@ -55,7 +55,7 @@ export function TemplateCard({ template, onLaunch, onEdit, onDuplicate, onArchiv
                 <Copy className="h-3.5 w-3.5 mr-2" />
                 Duplicate
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onArchive?.(template)} className="text-destructive">
+              <DropdownMenuItem onClick={() => onArchive?.(template)} className="text-danger">
                 <Archive className="h-3.5 w-3.5 mr-2" />
                 Archive
               </DropdownMenuItem>
@@ -64,7 +64,7 @@ export function TemplateCard({ template, onLaunch, onEdit, onDuplicate, onArchiv
         </div>
 
         <div className="flex items-center gap-1.5 flex-wrap mb-3">
-          <Badge variant={reasoningColor(template.reasoningIntensity)} className="text-[10px]">
+          <Badge {...reasoningColor(template.reasoningIntensity)} className="text-[10px]">
             {template.reasoningIntensity}
           </Badge>
           {template.skills.length > 0 && (

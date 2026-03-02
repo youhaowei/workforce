@@ -103,7 +103,7 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h2 className="text-lg font-semibold flex-1 truncate">{goal}</h2>
-          <Badge variant={stateVariant(state)} className="text-[10px] uppercase">
+          <Badge {...stateVariant(state)} className="text-[10px] uppercase">
             {state}
           </Badge>
         </div>
@@ -122,7 +122,7 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
                 <Pause className="h-3 w-3 mr-1.5" />
                 Pause
               </Button>
-              <Button variant="destructive" size="sm" onClick={() => handleAction('cancel')}>
+              <Button variant="solid" color="danger" size="sm" onClick={() => handleAction('cancel')}>
                 <XCircle className="h-3 w-3 mr-1.5" />
                 Cancel
               </Button>
@@ -130,11 +130,11 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
           )}
           {state === 'paused' && (
             <>
-              <Button variant="default" size="sm" onClick={() => handleAction('resume')}>
+              <Button size="sm" onClick={() => handleAction('resume')}>
                 <Play className="h-3 w-3 mr-1.5" />
                 Resume
               </Button>
-              <Button variant="destructive" size="sm" onClick={() => handleAction('cancel')}>
+              <Button variant="solid" color="danger" size="sm" onClick={() => handleAction('cancel')}>
                 <XCircle className="h-3 w-3 mr-1.5" />
                 Cancel
               </Button>

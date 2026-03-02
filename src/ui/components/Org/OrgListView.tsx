@@ -74,7 +74,7 @@ export function OrgListView() {
                     <CardTitle className="text-sm">{org.name}</CardTitle>
                     <div className="flex items-center gap-1">
                       {isActive && (
-                        <Badge variant="secondary" className="text-[10px] h-5 gap-1">
+                        <Badge variant="soft" className="text-[10px] h-5 gap-1">
                           <Check className="h-2.5 w-2.5" />
                           Active
                         </Badge>

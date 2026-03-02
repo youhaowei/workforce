@@ -44,7 +44,7 @@ export function AgentActions({ sessionId, orgId }: AgentActionsProps) {
                   <span className="font-mono text-muted-foreground w-20 shrink-0">
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </span>
-                  <Badge variant="secondary" className="text-[10px] font-mono shrink-0">
+                  <Badge variant="soft" className="text-[10px] font-mono shrink-0">
                     {(entry.data?.toolName as string) ?? 'unknown'}
                   </Badge>
                   <span className="text-muted-foreground truncate">{entry.description}</span>

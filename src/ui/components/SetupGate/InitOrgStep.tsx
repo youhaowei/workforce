@@ -174,7 +174,7 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
         </div>
 
         {updateMutation.isError && (
-          <p className="text-sm text-destructive">
+          <p className="text-sm text-danger">
             {updateMutation.error?.message ?? 'Something went wrong. Please try again.'}
           </p>
         )}

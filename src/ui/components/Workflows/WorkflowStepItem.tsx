@@ -17,12 +17,12 @@ interface WorkflowStepItemProps {
   onDelete: () => void;
 }
 
-function typeVariant(type: string): 'default' | 'secondary' | 'destructive' | 'outline' {
+function typeVariant(type: string): { variant?: 'soft' | 'outline'; color?: 'primary' } {
   switch (type) {
-    case 'agent': return 'default';
-    case 'review_gate': return 'secondary';
-    case 'parallel_group': return 'outline';
-    default: return 'outline';
+    case 'agent': return { color: 'primary' };
+    case 'review_gate': return { variant: 'soft' };
+    case 'parallel_group': return { variant: 'outline' };
+    default: return { variant: 'outline' };
   }
 }
 
@@ -48,7 +48,7 @@ export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelet
       <div className="flex items-center gap-2">
         <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 cursor-grab" />
         <span className="text-xs text-muted-foreground w-6 shrink-0">{index + 1}</span>
-        <Badge variant={typeVariant(step.type)} className="text-[10px] shrink-0">
+        <Badge {...typeVariant(step.type)} className="text-[10px] shrink-0">
           {step.type.replace('_', ' ')}
         </Badge>
         <Input
@@ -79,7 +79,7 @@ export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelet
           className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
           onClick={onDelete}
         >
-          <Trash2 className="h-3.5 w-3.5 text-destructive" />
+          <Trash2 className="h-3.5 w-3.5 text-danger" />
         </Button>
       </div>
 
@@ -89,9 +89,9 @@ export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelet
           {selectedChildren.map((childId) => {
             const child = allSteps.find((s) => s.id === childId);
             return (
-              <Badge key={childId} variant="secondary" className="text-[10px] gap-1 pr-1">
+              <Badge key={childId} variant="soft" className="text-[10px] gap-1 pr-1">
                 {child?.name ?? childId}
-                <button onClick={() => toggleChild(childId)} className="hover:text-destructive">
+                <button onClick={() => toggleChild(childId)} className="hover:text-danger">
                   <X className="h-2.5 w-2.5" />
                 </button>
               </Badge>

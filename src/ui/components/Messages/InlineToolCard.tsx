@@ -133,8 +133,8 @@ function StatusIcon({ status }: { status: ToolBlock['status'] }) {
   }
   if (status === 'error') {
     return (
-      <span className="shrink-0 w-4 h-4 rounded-full bg-destructive/15 inline-flex items-center justify-center">
-        <X className="h-2.5 w-2.5 text-destructive" />
+      <span className="shrink-0 w-4 h-4 rounded-full bg-danger/15 inline-flex items-center justify-center">
+        <X className="h-2.5 w-2.5 text-danger" />
       </span>
     );
   }
@@ -152,7 +152,7 @@ function StatusIcon({ status }: { status: ToolBlock['status'] }) {
 
 function DetailContent({ error, detail }: { error?: string; detail: string }) {
   if (error) {
-    return <pre className="text-[11px] font-mono text-destructive whitespace-pre-wrap">{error}</pre>;
+    return <pre className="text-[11px] font-mono text-danger whitespace-pre-wrap">{error}</pre>;
   }
   if (detail) {
     return (
@@ -231,7 +231,7 @@ export default function InlineToolCard({ block }: { block: ToolBlock }) {
 
         {/* Error badge */}
         {block.status === 'error' && (
-          <span className="shrink-0 px-1.5 py-0.5 rounded bg-destructive/10 text-[10px] font-medium text-destructive">
+          <span className="shrink-0 px-1.5 py-0.5 rounded bg-danger/10 text-[10px] font-medium text-danger">
             Error
           </span>
         )}
