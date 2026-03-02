@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Focus Ring – Design Playground</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: oklch(1 0 0);
+    --fg: oklch(0.145 0 0);
+    --muted: oklch(0.556 0 0);
+    --border: oklch(0.922 0 0);
+    --card: white;
+    --surface-glass: oklch(1 0 0 / 65%);
+    --surface-shadow: 0 0 0 1px oklch(0 0 0 / 3%), 0 1px 2px oklch(0 0 0 / 4%), 0 4px 8px oklch(0 0 0 / 3%), 0 8px 16px oklch(0 0 0 / 2%);
+    --surface-radius: 10px;
+
+    /* Focus — these are what we're designing */
+    --ring-color: oklch(0.708 0 0);
+    --ring-width: 2px;
+    --ring-offset: 2px;
+    --ring-style: solid;  /* solid or glow */
+    --ring-opacity: 1;
+
+    --ctrl-bg: #1a1a1a;
+    --ctrl-fg: #e0e0e0;
+    --ctrl-muted: #888;
+    --ctrl-border: #333;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--ctrl-bg);
+    color: var(--ctrl-fg);
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── Preview ────────────────────────────────── */
+  #preview {
+    flex: 1;
+    background: var(--bg);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 40px 60px;
+    gap: 48px;
+  }
+
+  .section {
+    width: 100%;
+    max-width: 640px;
+  }
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  /* Component previews */
+  .chat-input-card {
+    background: var(--surface-glass);
+    backdrop-filter: blur(12px);
+    border-radius: var(--surface-radius);
+    box-shadow: var(--surface-shadow);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    transition: all 0.2s;
+  }
+  .chat-input-card:focus-within {
+    border-color: var(--ring-color);
+  }
+  .chat-input-card textarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    font-size: 15px;
+    font-family: inherit;
+    color: var(--fg);
+    padding: 18px 24px 8px;
+    min-height: 72px;
+  }
+  .chat-input-card textarea::placeholder { color: oklch(0.556 0 0 / 30%); }
+  .chat-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px 12px;
+  }
+  .pill {
+    font-size: 11px;
+    color: var(--muted);
+    background: oklch(0.95 0 0 / 60%);
+    padding: 4px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    margin-right: 6px;
+  }
+  .send-btn {
+    width: 34px; height: 34px;
+    border-radius: 12px;
+    background: var(--fg);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.15;
+  }
+  .send-btn svg { width: 14px; height: 14px; fill: none; stroke: var(--bg); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Standard input */
+  .text-input {
+    width: 100%;
+    height: 40px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    padding: 0 12px;
+    font-size: 14px;
+    color: var(--fg);
+    outline: none;
+    transition: all 0.2s;
+  }
+  .text-input::placeholder { color: oklch(0.556 0 0 / 40%); }
+
+  /* Button */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    padding: 0 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.15s;
+    border: none;
+  }
+  .btn-primary { background: var(--fg); color: var(--bg); }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-secondary { background: transparent; color: var(--fg); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: oklch(0.97 0 0); }
+
+  /* Checkbox */
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .checkbox {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1px solid var(--fg);
+    background: transparent;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    transition: all 0.15s;
+  }
+  .checkbox:checked { background: var(--fg); }
+  .checkbox-label { font-size: 14px; color: var(--fg); }
+
+  /* Toolbar group of elements */
+  .inline-group {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  /* ── Controls ───────────────────────────────── */
+  #controls {
+    width: 340px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    padding: 20px;
+    border-left: 1px solid var(--ctrl-border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #controls h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ctrl-muted);
+    margin: 14px 0 6px;
+    font-weight: 500;
+  }
+  #controls h2:first-child { margin-top: 0; }
+
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .ctrl-row label {
+    font-size: 12px;
+    color: var(--ctrl-fg);
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 80px;
+  }
+  .ctrl-row .val {
+    font-size: 11px;
+    color: var(--ctrl-muted);
+    font-family: 'SF Mono', monospace;
+    min-width: 50px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  input[type="range"] {
+    flex: 1;
+    min-width: 80px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--ctrl-border);
+    border-radius: 2px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: #ccc;
+    cursor: pointer;
+  }
+
+  .btn-group { display: flex; gap: 2px; flex: 1; }
+  .btn-group button {
+    flex: 1;
+    font-size: 11px;
+    padding: 5px 8px;
+    border: 1px solid var(--ctrl-border);
+    background: transparent;
+    color: var(--ctrl-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-group button:first-child { border-radius: 4px 0 0 4px; }
+  .btn-group button:last-child { border-radius: 0 4px 4px 0; }
+  .btn-group button.active {
+    background: #333;
+    color: var(--ctrl-fg);
+    border-color: #555;
+  }
+
+  #presets { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+  #presets button {
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--ctrl-border);
+    background: transparent;
+    color: var(--ctrl-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  #presets button:hover { border-color: #555; color: var(--ctrl-fg); }
+  #presets button.active { background: #333; color: var(--ctrl-fg); border-color: #555; }
+
+  .color-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .color-swatch {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 1px solid var(--ctrl-border);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .color-swatch input[type="color"] {
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+  }
+
+  #prompt-section {
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid var(--ctrl-border);
+  }
+  #prompt-output {
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--ctrl-fg);
+    background: #111;
+    padding: 12px;
+    border-radius: 6px;
+    min-height: 60px;
+    margin-top: 8px;
+    white-space: pre-wrap;
+    font-family: 'SF Mono', monospace;
+  }
+  #copy-btn {
+    margin-top: 8px;
+    width: 100%;
+    padding: 8px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1px solid var(--ctrl-border);
+    background: transparent;
+    color: var(--ctrl-fg);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  #copy-btn:hover { background: #333; }
+
+  /* Focus hint label */
+  .focus-hint {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div id="preview">
+  <p class="focus-hint">Click/tab into elements to see the focus ring</p>
+
+  <div class="section">
+    <div class="section-label">Chat Input (focus-within)</div>
+    <div class="chat-input-card" id="chat-card">
+      <textarea placeholder="Ask Workforce anything..." rows="3"></textarea>
+      <div class="chat-toolbar">
+        <div>
+          <span class="pill">Default</span>
+          <span class="pill">Auto</span>
+          <span class="pill">Ask</span>
+        </div>
+        <button class="send-btn" tabindex="-1">
+          <svg viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Text Input</div>
+    <input type="text" class="text-input" id="text-input" placeholder="Search sessions...">
+  </div>
+
+  <div class="section">
+    <div class="section-label">Buttons</div>
+    <div class="inline-group">
+      <button class="btn btn-primary" id="btn-primary">Send Message</button>
+      <button class="btn btn-secondary" id="btn-secondary">Cancel</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Checkbox</div>
+    <div class="checkbox-row">
+      <input type="checkbox" class="checkbox" id="chk">
+      <label class="checkbox-label" for="chk">Auto-approve tool calls</label>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Mixed Row</div>
+    <div class="inline-group">
+      <input type="text" class="text-input" style="max-width:200px" placeholder="Filter...">
+      <button class="btn btn-secondary">Apply</button>
+      <button class="btn btn-primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="controls">
+  <h2>Presets</h2>
+  <div id="presets">
+    <button data-preset="shadcn" class="active">shadcn Default</button>
+    <button data-preset="border-shift">Border Shift</button>
+    <button data-preset="soft-glow">Soft Glow</button>
+    <button data-preset="thin-ring">Thin Ring</button>
+    <button data-preset="warm-accent">Warm Accent</button>
+    <button data-preset="inset">Inset</button>
+  </div>
+
+  <h2>Ring Style</h2>
+  <div class="ctrl-row">
+    <label>Type</label>
+    <div class="btn-group">
+      <button data-type="ring" class="active">Ring</button>
+      <button data-type="border">Border</button>
+      <button data-type="glow">Glow</button>
+      <button data-type="inset">Inset</button>
+    </div>
+  </div>
+
+  <h2>Ring Color</h2>
+  <div class="ctrl-row">
+    <label>Hue</label>
+    <input type="range" id="hue" min="0" max="360" value="0">
+    <span class="val" id="hue-val"></span>
+  </div>
+  <div class="ctrl-row">
+    <label>Chroma</label>
+    <input type="range" id="chroma" min="0" max="30" value="0">
+    <span class="val" id="chroma-val"></span>
+  </div>
+  <div class="ctrl-row">
+    <label>Lightness</label>
+    <input type="range" id="lightness" min="20" max="95" value="71">
+    <span class="val" id="lightness-val"></span>
+  </div>
+  <div class="ctrl-row">
+    <label>Opacity</label>
+    <input type="range" id="opacity" min="10" max="100" value="100">
+    <span class="val" id="opacity-val"></span>
+  </div>
+
+  <h2>Dimensions</h2>
+  <div class="ctrl-row">
+    <label>Width</label>
+    <input type="range" id="width" min="1" max="4" value="2" step="0.5">
+    <span class="val" id="width-val"></span>
+  </div>
+  <div class="ctrl-row">
+    <label>Offset</label>
+    <input type="range" id="offset" min="0" max="4" value="2" step="1">
+    <span class="val" id="offset-val"></span>
+  </div>
+  <div class="ctrl-row">
+    <label>Glow spread</label>
+    <input type="range" id="glowSpread" min="4" max="40" value="12">
+    <span class="val" id="glowSpread-val"></span>
+  </div>
+  <div class="ctrl-row">
+    <label>Glow opacity</label>
+    <input type="range" id="glowOpacity" min="5" max="50" value="15">
+    <span class="val" id="glowOpacity-val"></span>
+  </div>
+
+  <div id="prompt-section">
+    <h2>Prompt Output</h2>
+    <div id="prompt-output"></div>
+    <button id="copy-btn">Copy Prompt</button>
+  </div>
+</div>
+
+<script>
+var DEFAULTS = {
+  type: 'ring',
+  hue: 0, chroma: 0, lightness: 71, opacity: 100,
+  width: 2, offset: 2,
+  glowSpread: 12, glowOpacity: 15,
+};
+
+var PRESETS = {
+  'shadcn':       { type: 'ring', hue: 0, chroma: 0, lightness: 71, opacity: 100, width: 2, offset: 2, glowSpread: 12, glowOpacity: 15 },
+  'border-shift': { type: 'border', hue: 0, chroma: 0, lightness: 40, opacity: 100, width: 1.5, offset: 0, glowSpread: 12, glowOpacity: 15 },
+  'soft-glow':    { type: 'glow', hue: 0, chroma: 0, lightness: 50, opacity: 60, width: 1, offset: 0, glowSpread: 20, glowOpacity: 20 },
+  'thin-ring':    { type: 'ring', hue: 0, chroma: 0, lightness: 50, opacity: 80, width: 1.5, offset: 1, glowSpread: 12, glowOpacity: 15 },
+  'warm-accent':  { type: 'glow', hue: 55, chroma: 6, lightness: 72, opacity: 50, width: 1, offset: 0, glowSpread: 24, glowOpacity: 25 },
+  'inset':        { type: 'inset', hue: 0, chroma: 0, lightness: 50, opacity: 80, width: 2, offset: 0, glowSpread: 12, glowOpacity: 15 },
+};
+
+var state = Object.assign({}, DEFAULTS);
+
+function getColor(alpha) {
+  var a = alpha !== undefined ? alpha : state.opacity / 100;
+  return 'oklch(' + (state.lightness / 100).toFixed(2) + ' ' + (state.chroma / 100).toFixed(2) + ' ' + state.hue + ' / ' + (a * 100).toFixed(0) + '%)';
+}
+
+function applyFocusStyles() {
+  // Remove old style
+  var old = document.getElementById('focus-styles');
+  if (old) old.remove();
+
+  var color = getColor();
+  var glowColor = getColor(state.glowOpacity / 100);
+  var w = state.width;
+  var off = state.offset;
+  var gs = state.glowSpread;
+
+  var css = '';
+
+  if (state.type === 'ring') {
+    // Classic ring via box-shadow (offset simulated by transparent inner ring)
+    var ringShadow = off > 0
+      ? '0 0 0 ' + off + 'px var(--bg), 0 0 0 ' + (off + w) + 'px ' + color
+      : '0 0 0 ' + w + 'px ' + color;
+
+    css += '.text-input:focus { border-color: ' + color + '; box-shadow: ' + ringShadow + '; }\n';
+    css += '.btn:focus-visible { box-shadow: ' + ringShadow + '; }\n';
+    css += '.checkbox:focus-visible { box-shadow: ' + ringShadow + '; }\n';
+    css += '.chat-input-card:focus-within { border-color: ' + color + '; box-shadow: var(--surface-shadow), ' + ringShadow + '; }\n';
+
+  } else if (state.type === 'border') {
+    // Border color change only — clean, minimal
+    css += '.text-input:focus { border-color: ' + color + '; box-shadow: none; }\n';
+    css += '.btn:focus-visible { box-shadow: 0 0 0 ' + w + 'px ' + color + '; }\n';
+    css += '.checkbox:focus-visible { border-color: ' + color + '; box-shadow: 0 0 0 ' + w + 'px ' + color + '; }\n';
+    css += '.chat-input-card:focus-within { border-color: ' + color + '; }\n';
+
+  } else if (state.type === 'glow') {
+    // Soft glow via blurred box-shadow — no hard ring
+    var glowShadow = '0 0 ' + gs + 'px ' + glowColor;
+    var innerRing = '0 0 0 1px ' + color;
+
+    css += '.text-input:focus { border-color: ' + color + '; box-shadow: ' + innerRing + ', ' + glowShadow + '; }\n';
+    css += '.btn:focus-visible { box-shadow: ' + innerRing + ', ' + glowShadow + '; }\n';
+    css += '.checkbox:focus-visible { box-shadow: ' + innerRing + ', ' + glowShadow + '; }\n';
+    css += '.chat-input-card:focus-within { border-color: ' + color + '; box-shadow: var(--surface-shadow), ' + innerRing + ', ' + glowShadow + '; }\n';
+
+  } else if (state.type === 'inset') {
+    // Inset shadow — focus goes inside
+    var insetShadow = 'inset 0 0 0 ' + w + 'px ' + color;
+
+    css += '.text-input:focus { border-color: ' + color + '; box-shadow: ' + insetShadow + '; }\n';
+    css += '.btn:focus-visible { box-shadow: ' + insetShadow + '; }\n';
+    css += '.checkbox:focus-visible { box-shadow: ' + insetShadow + '; }\n';
+    css += '.chat-input-card:focus-within { border-color: ' + color + '; box-shadow: var(--surface-shadow), ' + insetShadow + '; }\n';
+  }
+
+  // Common: remove default outlines
+  css += '.text-input:focus, .btn:focus-visible, .checkbox:focus-visible { outline: none; }\n';
+
+  var style = document.createElement('style');
+  style.id = 'focus-styles';
+  style.textContent = css;
+  document.head.appendChild(style);
+}
+
+function updateDisplay() {
+  document.getElementById('hue-val').textContent = state.hue + '\u00b0';
+  document.getElementById('chroma-val').textContent = (state.chroma / 100).toFixed(2);
+  document.getElementById('lightness-val').textContent = (state.lightness / 100).toFixed(2);
+  document.getElementById('opacity-val').textContent = state.opacity + '%';
+  document.getElementById('width-val').textContent = state.width + 'px';
+  document.getElementById('offset-val').textContent = state.offset + 'px';
+  document.getElementById('glowSpread-val').textContent = state.glowSpread + 'px';
+  document.getElementById('glowOpacity-val').textContent = state.glowOpacity + '%';
+}
+
+function updatePrompt() {
+  var parts = [];
+  var ringOklch = 'oklch(' + (state.lightness / 100).toFixed(2) + ' ' + (state.chroma / 100).toFixed(2) + ' ' + state.hue + ')';
+
+  parts.push('Focus ring type: ' + state.type);
+  parts.push('--ring color: ' + ringOklch + (state.opacity < 100 ? ' at ' + state.opacity + '% opacity' : ''));
+
+  if (state.type === 'ring' || state.type === 'inset') {
+    parts.push('Width: ' + state.width + 'px');
+    if (state.type === 'ring') parts.push('Offset: ' + state.offset + 'px');
+  } else if (state.type === 'glow') {
+    parts.push('Glow spread: ' + state.glowSpread + 'px at ' + state.glowOpacity + '% opacity');
+  }
+
+  document.getElementById('prompt-output').textContent = 'Update the focus ring system:\n' + parts.map(function(p) { return '\u2022 ' + p; }).join('\n');
+}
+
+function render() {
+  applyFocusStyles();
+  updateDisplay();
+  updatePrompt();
+}
+
+// Wire sliders
+['hue', 'chroma', 'lightness', 'opacity', 'width', 'offset', 'glowSpread', 'glowOpacity'].forEach(function(id) {
+  document.getElementById(id).addEventListener('input', function() {
+    state[id] = parseFloat(document.getElementById(id).value);
+    clearActivePreset();
+    render();
+  });
+});
+
+// Wire type buttons
+document.querySelectorAll('[data-type]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('[data-type]').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    state.type = btn.dataset.type;
+    clearActivePreset();
+    render();
+  });
+});
+
+// Presets
+function applyPreset(name) {
+  var p = PRESETS[name];
+  if (!p) return;
+  Object.assign(state, p);
+  // Sync controls
+  ['hue', 'chroma', 'lightness', 'opacity', 'width', 'offset', 'glowSpread', 'glowOpacity'].forEach(function(id) {
+    document.getElementById(id).value = state[id];
+  });
+  document.querySelectorAll('[data-type]').forEach(function(b) { b.classList.toggle('active', b.dataset.type === state.type); });
+  document.querySelectorAll('#presets button').forEach(function(b) { b.classList.toggle('active', b.dataset.preset === name); });
+  render();
+}
+
+function clearActivePreset() {
+  document.querySelectorAll('#presets button').forEach(function(b) { b.classList.remove('active'); });
+}
+
+document.querySelectorAll('#presets button').forEach(function(btn) {
+  btn.addEventListener('click', function() { applyPreset(btn.dataset.preset); });
+});
+
+// Copy
+document.getElementById('copy-btn').addEventListener('click', function() {
+  var text = document.getElementById('prompt-output').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.getElementById('copy-btn');
+    btn.textContent = 'Copied!';
+    setTimeout(function() { btn.textContent = 'Copy Prompt'; }, 1500);
+  });
+});
+
+// Init
+render();
+</script>
+</body>
+</html>
