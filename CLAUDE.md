@@ -34,6 +34,10 @@ bun run build # Electrobun release build
 
 ## Conventions
 
+### Infrastructure Values
+- **Never hardcode ports, URLs, or paths** — Use discovery patterns (e.g., `.dev-port`, `.vite-port` files). Hardcoded values silently break when ports shift, servers restart on different ports, or environments differ.
+- **Port-file pattern** — Server writes `.dev-port`, Vite writes `.vite-port` on startup. Consumers read the file to discover the actual port.
+
 ### Error Handling
 - **`Result<T, E>`** at service boundaries (from `src/services/types.ts`) — not `null`, not thrown exceptions
 - **Tagged error classes** with `readonly _tag` discriminant — callers `switch` on `_tag`
@@ -60,10 +64,14 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **Theme overrides are inline styles** — `useThemeStore` sets overrides on `document.documentElement.style`. These take precedence over `:root` definitions in CSS.
 - **Panel consistency** — Panels (ChatInfo, Sessions, Theme) share: header `h-10 px-3 gap-2`, title `text-sm font-semibold text-neutral-fg`, content `p-3 space-y-4 text-sm`, section labels `text-xs font-medium text-neutral-fg-subtle`.
 
+## Reference Implementation
+
+**craft-agents-oss** (`/Users/youhaowei/Projects/external/craft-agents-oss/`) — Same stack (Electron + Tailwind v4 + Vite + React). Strong reference for Electron window chrome, drag regions, native integrations, panel layouts, and desktop UX patterns. Check it FIRST before implementing Electron-specific features or debugging platform issues.
+
 ## Gotchas
 
 ### Architecture
-- **`electrobun/bun` imports only in `src/bun/`** — Keep `src/ui/` browser-safe. Native dialogs via tRPC (`dialog.openDirectory` mutation).
+- **`electron` imports only in `src/electron/`** — Keep `src/ui/` browser-safe. Native dialogs via IPC (`window.electronAPI.openDirectory()`).
 - **`isDesktop` detection** — `window.location.port === '4096'` in `App.tsx`. Dev web `:5173`, desktop `:4096`.
 - **Singleflight for lazy init** — `this.initPromise ??= this.doInit()` prevents concurrent callers racing.
 - **SetupGate** — Wraps `Shell`, guarantees user identity + initialized org. `useRequiredOrgId()` throws if called outside.
