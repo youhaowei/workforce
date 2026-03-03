@@ -48,7 +48,7 @@ export function PlanFooter({ status, onApprove, onReject }: PlanFooterProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" className="rounded-l-none border-l border-palette-primary-foreground/20 px-1.5">
+            <Button size="sm" className="rounded-l-none border-l border-palette-primary-fg/20 px-1.5">
               <ChevronDown className="h-3.5 w-3.5" />
             </Button>
           </DropdownMenuTrigger>

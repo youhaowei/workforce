@@ -1,386 +1,240 @@
 # Workforce - Desktop Agentic Orchestrator
 
-## 📋 Project State & Documentation
-
-**Repo docs (`docs/`) are high-level. Detailed feature specs and architecture reference live in [Notion (Workforce project)](https://www.notion.so/2ffd48ccaf5481d7bb33d67599423042).**
-
-```
-docs/
-├── product/
-│   ├── PRD-MVP.md                          # High-level PRD overview (links to Notion feature specs)
-│   ├── vision.md                           # Product vision & philosophy
-│   └── research-synthesis.md               # ARCHIVED — historical research reference
-├── architecture/
-│   ├── decisions.md                        # Architectural decision log
-│   └── learnings.md                        # Performance metrics and patterns
-└── operations/
-    ├── issues.md                           # Known issues and risks
-    ├── open-decisions.md                   # Unresolved product decisions
-    └── decisions/
-        └── session-list-performance.md     # One-off decision: lightweight session list
-```
-
-**Notion (detailed docs):**
-- PRD — MVP Overview
-- Feature Spec: Sessions & Fork (FR4 + FR5)
-- Feature Spec: Agent & Workflow Templates (FR2 + FR3)
-- Feature Spec: Supervision & Review (FR6 + FR7 + FR8)
-- Feature Spec: Skills & Tools (FR10)
-- Feature Spec: Parallel Work Isolation (FR9)
-- Feature Spec: Organization & Projects (FR1)
-- Feature Spec: History & Auditability (FR11)
-- Architecture: Agent Model
-- Architecture: Distributed Architecture (Hive Mind)
-- Architecture: Department-Specific Orchestration
-- Architecture: Design Principles
-
-**Current Status**: All 18 tasks complete (100%) - Foundation, Orchestration, Parity Features, and Polish phases done.
-
-### Project Completion Summary
-
-**All Phases Complete** ✅
-- Phase 1: Foundation (6/6 tasks) - EventBus, services, Agent SDK, UI shell, tools
-- Phase 2: Orchestration (5/5 tasks) - Agent profiles, skills, hooks, background tasks, sessions
-- Phase 3: Parity Features (4/4 tasks) - Todos, Git workflows, LSP, sessions UI
-- Phase 4: Polish (3/3 tasks) - Remaining tools, performance optimization, tests
-
-**Key Features Implemented**:
-- ✅ Agent orchestration (Sisyphus/Prometheus/Oracle-style profiles)
-- ✅ Skills system with dynamic loading
-- ✅ Pre/post tool hooks
-- ✅ Background task manager
-- ✅ Todo tracking with UI
-- ✅ Git/PR workflows
-- ✅ LSP integration (TypeScript)
-- ✅ Session management with persistence
-- ✅ Full tool suite (via Anthropic Agent SDK)
-- ✅ Virtual scrolling UI with streaming support
-
-**Metrics**: ESLint clean (0 warnings), TypeScript strict mode, 6 MB idle memory.
-
-## ⚠️ IMPORTANT: Do NOT Auto-Run Dev Server
-
-**NEVER run `bun run dev` or `bun run build` automatically.**
-Always ask the user before starting the dev server or building the app.
+Docs: `docs/` (high-level) + [Notion](https://www.notion.so/2ffd48ccaf5481d7bb33d67599423042) (feature specs, architecture). Known issues: `docs/operations/issues.md`.
 
 ## Commands
 
 ```bash
-bun install        # Install dependencies
-bun run test       # Run unit tests
-bun run test:e2e   # Run Playwright E2E tests
-bun run lint       # Lint code
-bun run type-check # TypeScript check
-bun run server     # Start backend server (port 4096) - RUN THIS FIRST
-bun run server:watch # Server with hot-reload (used by dev/dev:web automatically)
-bun run dev:web    # Start server + vite for web testing
-bun run clean      # Remove build artifacts (dist, .electrobun)
+bun install          # Install dependencies
+bun run test         # All unit tests (Vitest)
+bun run test -- src/services/session.test.ts  # Single test file
+bun run test:e2e     # Playwright E2E tests
+bun run lint         # Lint code
+bun run type-check   # TypeScript check
+bun run server       # Start backend server (port 4096)
+bun run server:watch # Server with hot-reload
+bun run dev:web      # Start server + vite for web testing (port 5173)
+bun run clean        # Remove build artifacts (dist, .electrobun)
 ```
 
-**User-initiated only (ASK FIRST):**
+**ASK FIRST — never auto-run:**
 
 ```bash
-bun run dev   # Start server + Electrobun desktop app
-bun run build # Build Electrobun release
+bun run dev   # Server + Electrobun desktop app (dev loads from Vite :5173)
+bun run build # Electrobun release build
 ```
 
-### Running the Desktop App
-
-**Dev mode**: `bun run dev` starts the server externally (`server:watch &`), then launches Electrobun. The BrowserWindow loads from Vite at `:5173`.
-
-```bash
-bun run dev  # Starts server in background, then Electrobun
-```
-
-If you need to run them separately:
-```bash
-bun run server     # Terminal 1
-electrobun dev     # Terminal 2
-```
-
-**Production mode**: The Electrobun main process (`src/bun/index.ts`) calls `startServer()` directly — no sidecar, no health polling. Hono serves both the API and Vite build output on `:4096`.
+**Desktop**: Dev mode starts server externally (`server:watch &`) then Electrobun. Production: `src/bun/index.ts` calls `startServer()` directly — Hono serves API + Vite output on `:4096`.
 
 ## Architecture
 
-### Architecture (Electrobun + Bun HTTP Server)
-
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Electrobun Main Process (src/bun/index.ts)                 │
-│  - Bun-native: startServer() is a direct function call      │
-│  - ApplicationMenu for native Edit/Window menus             │
-│  - BrowserWindow → http://localhost:4096 (prod)             │
-└─────────────────────────────────────────────────────────────┘
-         ↓ direct function call (no IPC)
-┌─────────────────────────────────────────────────────────────┐
-│  Bun HTTP Server (Hono + tRPC v11)                          │
-│  - Type-safe API with Zod validation                        │
-│  - SSE subscriptions for streaming + events                 │
-│  - Mounted at /api/trpc/*                                   │
-│  - Serves Vite build output (dist/) in production           │
-└─────────────────────────────────────────────────────────────┘
-         ↓ http://localhost:4096
-┌─────────────────────────────────────────────────────────────┐
-│  UI Layer (React 19 WebView)                                │
-│  - Zustand/Jotai stores, React hooks                        │
-│  - Virtual scrolling (react-virtuoso)                       │
-│  - tRPC client (splitLink: HTTP + SSE)                      │
-└─────────────────────────────────────────────────────────────┘
-                    ↓ direct function calls
-┌─────────────────────────────────────────────────────────────┐
-│  Service Layer (lazy-initialized singletons)                │
-│  AgentService │ SessionService │ ToolService │ etc.        │
-└─────────────────────────────────────────────────────────────┘
+Electrobun (src/bun/index.ts)  →  startServer() direct call
+         ↓
+Hono + tRPC v11 (:4096)       →  /api/trpc/*, SSE subscriptions, Vite static
+         ↓ http
+React 19 WebView               →  Zustand/Jotai stores, tRPC client (splitLink)
+         ↓
+Service Layer                  →  Lazy singletons, unifai agent SDK, JSONL persistence
 ```
 
-**Key Design Decision**: tRPC v11 for type-safe client-server communication
-- **Frontend** (WebView): React 19 with Zustand + Jotai + TanStack Query via tRPC
-- **Backend**: Hono HTTP server (port 4096) with tRPC routers wrapping service layer
-- **Desktop**: Electrobun main process IS Bun — `startServer()` is a direct call, no sidecar
-- **Performance**: First-class concern - streaming via SSE subscriptions, rAF-batched token accumulation
+- **tRPC splitLink**: queries/mutations via `httpBatchLink`, subscriptions via `httpSubscriptionLink` (SSE)
+- **Streaming**: SSE with rAF-batched token accumulation, `content_block_delta` events only
+- **Path alias**: `@/*` → `src/*` (synced in tsconfig.json + vite.config.ts)
 
 ### Directory Structure
 
 ```
 src/
-├── ui/           # React 19 components (browser-safe only)
-│   ├── components/
-│   ├── stores/   # Zustand stores
-│   ├── hooks/    # React hooks (useEventBus, etc.)
-│   ├── context/  # PlatformProvider, HotkeyProvider
-│   └── lib/      # Utilities (cn helper)
-├── server/       # Hono HTTP server + tRPC routers
-│   ├── index.ts  # CORS, tRPC mount, diagnostic routes (/health, /debug-log, /auth-check)
-│   ├── trpc.ts   # initTRPC with superjson
-│   └── routers/  # Domain routers (session, org, agent, etc.)
-├── services/     # Backend services (Bun runtime only)
-│   ├── agent.ts  # Claude SDK wrapper
-│   ├── session.ts
-│   ├── todo.ts
-│   └── git.ts
-├── bridge/       # tRPC client
-│   ├── trpc.ts      # Vanilla tRPC client (splitLink)
-│   ├── react.ts     # React Query tRPC proxy
-│   └── query-client.ts  # TanStack QueryClient
-└── shared/       # Shared code (no Node APIs)
-    ├── event-bus.ts
-    └── palette.ts    # Color palette + colorFromName (used by service & UI)
+├── ui/              # React 19 (browser-safe only)
+│   ├── components/  # ← FEATURE components (Shell, Sessions, Theme, ChatInfo, etc.)
+│   ├── stores/      # Zustand stores (messages, theme, dialog, etc.)
+│   ├── hooks/       # React hooks (usePlanMode, useEventBus, etc.)
+│   ├── context/     # PlatformProvider, HotkeyProvider
+│   ├── hotkeys/     # Hotkey definitions and handler
+│   ├── formatters/  # Text formatting (markdown, stripMarkdown)
+│   └── lib/         # Utilities (cn helper, oklch color math)
+├── components/ui/   # ← PRIMITIVE components (button, surface, card, dialog, etc.)
+├── theme/           # Design token definitions (tokens.ts)
+├── server/          # Hono HTTP server + tRPC routers
+│   ├── index.ts     # CORS, tRPC mount, diagnostic routes
+│   ├── trpc.ts      # initTRPC with superjson
+│   └── routers/     # Domain routers + _services.ts (lazy service barrel)
+├── services/        # Backend services (Bun runtime only)
+│   ├── agent.ts, agent-instance.ts, agent-models.ts
+│   ├── session.ts, session-journal.ts, session-streaming.ts, session-rehydration.ts
+│   ├── orchestration.ts, todo.ts, git.ts, org.ts, user.ts, project.ts
+│   └── types.ts     # Domain types, error classes, Result<T,E>
+├── bridge/          # tRPC client (trpc.ts, react.ts, query-client.ts)
+├── cli/             # CLI commands framework
+├── shared/          # Shared code (no Node/Bun APIs) — event-bus.ts, palette.ts
+├── utils/           # Bun-side utilities (execFileNoThrow)
+└── hooks/           # Non-React hooks (typescript-lsp integration)
 
-src/bun/          # Electrobun main process (Bun-native, no browser APIs)
-└── index.ts      # startServer() + BrowserWindow + ApplicationMenu
-
-e2e/              # Playwright E2E tests
+src/bun/index.ts     # Electrobun main process (Bun-native, no browser APIs)
+e2e/                 # Playwright E2E tests
 ```
 
-### Key Pattern: tRPC + React Query
+**Two component directories** — Don't confuse them:
+- `src/components/ui/` — Radix-based **primitives** (Button, Surface, Card, Dialog, etc.). Styled with CVA + token classes.
+- `src/ui/components/` — **Feature** components (Shell, Sessions, Theme, Messages, etc.). Compose primitives into app-specific UI.
 
-UI components use tRPC queries/mutations via TanStack React Query:
+### Data Flow
 
-```typescript
-// ✅ Correct - use tRPC for data fetching
-import { trpc } from '@/bridge/react';
-const { data: sessions } = trpc.session.list.useQuery();
-
-// ✅ Mutations with cache invalidation
-const deleteMutation = trpc.session.delete.useMutation({
-  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
-});
-
-// ✅ Zustand for client-only state
-import { useMessagesStore } from '@/ui/stores/useMessagesStore';
-const messages = useMessagesStore((s) => s.messages);
-```
-
-**Note**: Services are lazy-initialized singletons. All services implement `dispose()` for cleanup. The service barrel (`src/services/index.ts`) re-exports all getters, reset functions, and factory functions. `server/index.ts` exports `startServer()` with CORS, tRPC mount, static file serving, and diagnostic routes — all domain logic lives in tRPC routers.
+- **Server data**: `trpc.session.list.useQuery()` via `@/bridge/react` (TanStack Query)
+- **Mutations**: `trpc.session.delete.useMutation()` with `queryClient.invalidateQueries()` on success
+- **Client state**: Zustand stores (e.g., `useMessagesStore((s) => s.messages)`)
+- **Services**: Lazy singletons with `dispose()`. Barrel: `src/services/index.ts`. All domain logic in tRPC routers.
 
 ### Error Handling
 
-Use typed domain errors and `Result<T, E>` at service boundaries. Do **not** use `null` to mean "something went wrong" — only for genuine absence (e.g. optional fields). Do **not** add silent `catch {}` blocks.
+- **`Result<T, E>`** at service boundaries (from `src/services/types.ts`) — not `null`, not thrown exceptions
+- **Tagged error classes** with `readonly _tag` discriminant — callers `switch` on `_tag`
+- **`null`** only for genuine absence, never for "something went wrong"
+- **Throw** only for programming errors / invariant violations
+- **Never** silently swallow errors — at minimum log with context
+- See `docs/architecture/decisions.md` #14-15 for rationale
 
-**Error classes** — Define tagged error classes with a `readonly _tag` discriminant and contextual fields:
+## Testing
 
-```typescript
-// ✅ Typed, tagged, carries context
-export class SessionNotFound {
-  readonly _tag = 'SessionNotFound';
-  constructor(readonly sessionId: string) {}
-}
-
-export class SessionCorrupted {
-  readonly _tag = 'SessionCorrupted';
-  constructor(readonly sessionId: string, readonly path: string, readonly cause: SyntaxError) {}
-}
-```
-
-**Result type** — Use `Result<T, E>` from `src/services/types.ts` for operations that can fail in expected ways:
-
-```typescript
-// ✅ Caller sees exactly what can fail
-async function loadSession(
-  dir: string, id: string
-): Promise<Result<Session, SessionNotFound | SessionCorrupted | DiskIOError>>
-
-// ❌ null conflates "not found" with "corrupted"
-async function loadSession(dir: string, id: string): Promise<Session | null>
-
-// ❌ Throws hide the error contract
-async function loadSession(dir: string, id: string): Promise<Session>  // throws on error
-```
-
-**When to throw vs return Result:**
-- **Return `Result`** for expected failures at service boundaries (not found, validation, I/O)
-- **Throw** only for programming errors / invariant violations that should never happen
-- **Never** silently swallow errors — at minimum log a warning with context
-
-**Pattern matching** — Callers discriminate on `_tag`:
-
-```typescript
-const result = await loadSession(dir, id);
-if (!result.ok) {
-  switch (result.error._tag) {
-    case 'SessionNotFound': return null;
-    case 'SessionCorrupted': await backupAndRecover(result.error); break;
-    case 'DiskIOError': throw result.error;
-  }
-}
-```
-
-See `docs/architecture/decisions.md` #14-15 for rationale (Effect was evaluated and deferred).
-
-### Path Aliases
-
-| Alias | Path   |
-| ----- | ------ |
-| `@/*` | `src/*` |
-
-## Testing & Debugging Strategy
-
-```bash
-bun run test       # Unit tests (Vitest)
-bun run test:e2e   # Playwright E2E tests
-bun run test:e2e:headed   # Watch tests run
-bun run test:e2e:debug    # Step through
-```
-
-### Test at Every Layer
-
-Every non-trivial change should have tests. The layer where the bug or feature lives determines the test type:
-
-- **Server** — Service logic, persistence, validation, error paths. `router.test.ts` (via `createCaller`), or service-level tests with factory functions + temp dirs.
-- **UI** — Component rendering, user interactions, store behavior. React Testing Library + jsdom.
-- **E2E** — Full user workflows (create session → send message → fork → navigate). Playwright tests the real stack.
-
-Don't just test the layer you changed — if a fix touches service + UI, write tests at both levels.
-
-### Session Reconstruction for Bug Reproduction
-
-Session JSONL journals are the source of truth. To reproduce a state bug, construct the specific journal records that trigger it and replay via `replaySession()`. This is more reliable than mocking UI state.
-
-### Logging Philosophy
-
-Inspired by [loggingsucks.com](https://loggingsucks.com/) — logs should be structured, queryable, and context-rich.
-
-**Wide events over breadcrumbs** — Instead of scattering `debugLog('thing happened')` across code, build context throughout an operation and emit one rich event at the end. An agent run should produce one entry with session ID, tools invoked, duration, outcome — not 20 separate lines.
-
-**Structured, not strings** — Logs should be JSON-queryable. When a bug is reported, you want to filter by `sessionId` or `toolName`, not grep for substrings.
-
-**Always log errors and slow operations in full** — Normal operations can be summarized.
-
-Currently `debugLog()` writes to `debug.log` (viewable via `/debug-log` endpoint or `tail -f`). This is a known area for improvement — see task backlog.
+Test at the layer the change lives in (test both if a fix crosses layers):
+- **Service/router** — `router.test.ts` via `createCaller()`, or service-level with factory functions + temp dirs
+- **UI** — React Testing Library + jsdom (`src/ui/**/*.test.tsx`)
+- **E2E** — Playwright (`bun run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
 
 ### Conventions
 
+- **Bug reproduction** — Construct JSONL journal records and replay via `replaySession()`. More reliable than mocking UI state.
+- **Logging** — Wide events over breadcrumbs. One structured JSON entry per operation (session ID, tools, duration, outcome), not 20 `debugLog()` calls. `debug.log` viewable via `/debug-log` endpoint or `tail -f`.
 - **Co-located tests** — `Foo.test.ts` next to `Foo.ts`, not in `__tests__/` directories
 - **Environments** — Node (default) for services/routers; `jsdom` for `src/ui/**/*.test.tsx` (auto-matched in vitest.config.ts)
 - **Shared mocks** — `src/services/__test__/orchestration-helpers.ts`: `mockSession()`, `createMockSessionService()`, etc.
 - **Temp data** — `WORKFORCE_DATA_DIR` points to tmpdir in tests, never `~/.workforce/`
-- **Fake timers + `waitFor()`** — deadlocks. Use `vi.useRealTimers()` before async assertions
-- **Router tests** share global singletons — `resetXxxService()` in `afterEach` is mandatory
 
 ## Tech Stack
 
--   **Runtime**: Bun (not Node)
--   **Desktop**: Electrobun (Bun-native)
--   **UI**: React 19 + Zustand + Jotai + TanStack Query
--   **API**: tRPC v11 (type-safe, superjson, SSE subscriptions)
--   **Server**: Hono + @hono/trpc-server
--   **Types**: TypeScript strict mode
--   **Styling**: Tailwind CSS v4 (@tailwindcss/vite)
--   **E2E**: Playwright
--   **Agent SDK**: `@anthropic-ai/claude-agent-sdk` (spawns Claude Code processes, uses Claude CLI auth)
+Bun (not Node) · Electrobun · React 19 · Zustand + Jotai + TanStack Query · tRPC v11 (superjson, SSE) · Hono · TypeScript strict · Tailwind CSS v4 · Playwright · `unifai` wrapping `@anthropic-ai/claude-agent-sdk`
 
-## Performance Metrics
+## Design Token System
 
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Idle memory | < 100 MB | 6.06 MB | ✅ PASS |
-| First token latency | < 300 ms | ~0 ms | ✅ PASS |
-| Stream throughput | - | 14.55 ms/1000 tokens | ✅ PASS |
-| Cold start (dev) | < 2s | ~5s | ⚠️ Dev mode only |
+The UI uses a custom OKLCH-based design token system bridged to Tailwind CSS v4 via CSS custom properties.
 
-**Note**: See `docs/architecture/learnings.md` for detailed performance analysis.
+### Token Architecture
+
+```
+src/index.css         # @theme inline block + :root/:root.dark token definitions
+src/theme/tokens.ts   # TypeScript token interfaces
+src/ui/lib/oklch.ts   # OKLCH ↔ hex conversion utilities
+src/ui/stores/useThemeStore.ts  # Runtime theme overrides (mode + color customization)
+```
+
+### Token Namespaces
+
+| Namespace | CSS variable | Tailwind class | Purpose |
+|-----------|-------------|----------------|---------|
+| Palette | `--palette-primary` | `bg-palette-primary` | Accent colors (primary, secondary, success, danger, warning, info) |
+| Palette FG | `--palette-primary-fg` | `text-palette-primary-fg` | Foreground on palette backgrounds |
+| Neutral | `--neutral-fg`, `--neutral-bg` | `text-neutral-fg`, `bg-neutral-bg` | Text, backgrounds, borders (13 tokens) |
+| Surface | `--surface-base`, `--surface-radius` | via CSS vars | Shell ground, panel backgrounds |
+
+### How It Works
+
+1. `:root` in `index.css` defines all tokens in OKLCH (e.g., `--palette-primary: oklch(0.205 0 0)`)
+2. `@theme inline` block maps CSS vars to Tailwind's `--color-*` namespace
+3. Components use Tailwind classes: `bg-palette-primary`, `text-neutral-fg-subtle`, `border-neutral-border`
+4. `useThemeStore` applies runtime overrides by setting inline styles on `documentElement`
+
+### Component Patterns
+
+**Button** — Two-axis compound variant system (`variant × color`):
+- Variants: `solid`, `soft`, `outline`, `ghost`, `link`
+- Colors: `neutral`, `primary`, `secondary`, `success`, `danger`, `warning`, `info`
+- Each combo maps to specific token classes (e.g., `solid + primary → bg-palette-primary text-palette-primary-fg`)
+
+**Surface** — Panel backgrounds with CVA variants: `main` (bg/45 + blur), `stage` (/95), `panel` (/90)
+
+### Neutral Tones
+
+All 13 neutral tokens share a single hue + chroma — only lightness varies. Users can customize the hue/chroma pair (e.g., warm/cool/slate), and all neutrals update coherently. Light and dark modes have separate lightness scales.
+
+## Performance
+
+See `docs/architecture/learnings.md` for metrics. Key targets: < 100 MB idle memory, < 300 ms first token latency, streaming via SSE with rAF-batched token accumulation.
 
 ## Gotchas
 
+### Visual/CSS Changes
+- **Always verify visually** — After ANY CSS or layout change, use chrome-tester (model: sonnet) to inspect the rendered result before declaring done. Don't guess — inspect computed styles on the actual elements.
+- **Investigate before fixing** — For visual bugs or inconsistency reports, inspect all candidate elements FIRST to identify the exact source. Don't remove/modify properties speculatively.
+- **Fix systematically** — When user reports "X is inconsistent with Y", read BOTH components, make a checklist of all differences, and fix all at once. Don't iterate piecemeal.
+- **Ask before restructuring** — When moving components between layout containers (e.g., inside/outside a Surface), ask about the intended visual hierarchy rather than guessing.
+
+### Design Tokens & Styling
+- **Always use token classes** — Use `bg-palette-primary`, `text-neutral-fg`, etc. Never use raw colors (`bg-gray-500`, `text-black`) in components.
+- **Button color axis** — Button uses `color="neutral"` (not `"default"`). Active/selected states that should respect the user's accent color use `color="primary"`.
+- **Surface variant determines bg** — `<Surface variant="main">` provides the frosted glass bg. Don't add manual `bg-*` classes on top.
+- **OKLCH in CSS vars** — Token values are OKLCH strings. Use `src/ui/lib/oklch.ts` for conversion. The `/` opacity syntax works with OKLCH (e.g., `bg-palette-primary/90`).
+- **Theme overrides are inline styles** — `useThemeStore` sets overrides on `document.documentElement.style`. These take precedence over `:root` definitions in CSS.
+- **Panel consistency** — Panels (ChatInfo, Sessions, Theme) share: header `h-10 px-3 gap-2`, title `text-sm font-semibold text-neutral-fg`, content `p-3 space-y-4 text-sm`, section labels `text-xs font-medium text-neutral-fg-subtle`.
+
 ### Architecture
-- **Server lifecycle** — Bun HTTP server on port 4096. Dev: started externally by `bun run dev`. Production: Electrobun main process (`src/bun/index.ts`) calls `startServer()` directly — no sidecar, no health polling.
-- **`electrobun/bun` imports only in `src/bun/`** — Keep `src/ui/` browser-safe. Native dialogs are exposed via tRPC (`dialog.openDirectory` mutation) with dynamic `import('electrobun/bun')` fallback.
-- **`isDesktop` detection** — `window.location.port === '4096'` in `src/ui/App.tsx`. Dev web uses `:5173`, desktop always loads from `:4096`.
-- **Services use Bun APIs** — Not browser-safe. Lazy-init singletons with `dispose()`. Barrel: `src/services/index.ts` (`getXxxService()`/`resetXxxService()`/`disposeAllServices()`).
-- **Singleflight for lazy init** — `ensureInitialized()` must cache the in-flight promise (`this.initPromise ??= this.doInit()`) to prevent concurrent callers from racing.
-- **Error classes in types.ts** — Domain errors (e.g. `ProjectNotFound`) live in `src/services/types.ts` alongside the interface. Services return `Result<T, E>`, routers map to `TRPCError`.
-- **tRPC splitLink** — Queries/mutations use `httpBatchLink`, subscriptions use `httpSubscriptionLink` (SSE). Config in `src/bridge/trpc.ts`.
-- **Path aliases** — `@/*` → `src/*` in both tsconfig.json and vite.config.ts (must sync).
+- **`electrobun/bun` imports only in `src/bun/`** — Keep `src/ui/` browser-safe. Native dialogs via tRPC (`dialog.openDirectory` mutation).
+- **`isDesktop` detection** — `window.location.port === '4096'` in `App.tsx`. Dev web `:5173`, desktop `:4096`.
+- **Singleflight for lazy init** — `this.initPromise ??= this.doInit()` prevents concurrent callers racing.
+- **Error classes** — Tagged domain errors in `src/services/types.ts`. Services return `Result<T, E>`, routers map to `TRPCError`.
 - **Debug logging** — `debug.log` in project root. View via `/debug-log` endpoint or `tail -f`.
-- **SetupGate boundary** — `SetupGate` wraps `Shell` and guarantees user identity + initialized org before Shell mounts. `useRequiredOrgId()` throws if called outside this boundary (before org is set in Zustand). Shell initializes `serverConnected = true` because SetupGate already verified the server. The `initialized` field on `Org` is migrated to `true` for pre-existing orgs in `OrgService.doInit()`.
+- **SetupGate** — Wraps `Shell`, guarantees user identity + initialized org. `useRequiredOrgId()` throws if called outside.
 
 ### SDK & Streaming
-- **Auth** — SDK uses Claude CLI auth from `~/.claude/.credentials.json`. SDK handles token refresh internally.
-- **Streaming** — Pass `includePartialMessages: true` to `sdkQuery()`. Only yield from `content_block_delta` events (not final message) to avoid duplication. Never `.trim()` SSE data — it strips inter-token spaces.
-- **Bun.serve timeout** — Default `idleTimeout` is 10s; SSE needs 120s for LLM responses.
-- **Cold-replay answers** — When a user answers an AskUserQuestion via cold replay, the answer is persisted in `block.result` via `updateBlockResult`. Historical sessions may have answers as follow-up user messages; `backfillQuestionResults` in `session-journal.ts` handles migration on load. `block.result` shape: `Record<string, string[]>` (live) or `{ _fromFollowUp, answer }` (backfill).
+- **Auth** — Claude CLI auth from `~/.claude/.credentials.json`. SDK handles token refresh.
+- **Streaming** — `content_block_delta` events only (not final message). Never `.trim()` SSE data — strips inter-token spaces.
+- **Bun.serve timeout** — Default `idleTimeout` 10s; SSE needs 120s.
+- **Cold-replay answers** — Answers persisted in `block.result` via `updateBlockResult`. Historical answers as follow-up messages: `backfillQuestionResults` in `session-journal.ts` handles migration.
 
-### Electrobun & UI
-- **Radix UI** — Uses unified `radix-ui` package (not individual `@radix-ui/*`). Import from `"radix-ui"` directly.
-- **Native clipboard** — Use Electrobun's Edit menu (configured in `src/bun/index.ts`).
-- **Native dialogs** — Exposed via tRPC `dialog.openDirectory` mutation, not direct Electrobun imports in UI code.
-- **Radix ContextMenu** — No controlled `open` prop. Gate opening via capture-phase `stopPropagation` on the `contextmenu` event.
+### UI
+- **Radix UI** — Unified `radix-ui` package, not individual `@radix-ui/*`. ContextMenu has no controlled `open` prop — gate via capture-phase `stopPropagation` on `contextmenu`.
 - **React 19 `useRef`** — Requires initial value: `useRef<T | undefined>(undefined)`, not `useRef<T>()`.
-- **Virtualization** — `react-virtuoso` for virtual scrolling.
-- **Markdown** — `marked` + `dompurify` for rendering. `stripMarkdown()` in `src/ui/formatters/markdown.ts` for plain-text previews. Emphasis-stripping regexes must require word boundaries to avoid corrupting identifiers like `foo_bar_baz`.
-- **`useState` initializer + async queries** — `useState(() => fn(queryData))` captures `queryData` at first render, which is always `undefined`/`null` for async queries. Use a separate `useEffect` to apply async data once it resolves, guarded by a ref to avoid re-application.
+- **`useState` + async queries** — `useState(() => fn(queryData))` captures `undefined` at first render. Use `useEffect` + ref guard instead.
+- **Markdown** — `marked` + `dompurify`. `stripMarkdown()` regexes must use word boundaries to avoid corrupting `foo_bar_baz` identifiers.
 
 ### Testing & Build
-- **NEVER kill user processes** — Do NOT kill processes on ports 4096, 5173, or any port the user's dev server may be running on. E2E tests must use their own isolated server instances. If a port is occupied, fail with a clear error — never kill the process.
-- **E2E isolation** — E2E tests use a temp data dir (`mkdtempSync` in `playwright.config.ts`) and start their own server with `WORKFORCE_DATA_DIR` pointing to that temp dir. Tests NEVER write to `~/.workforce/`. The backend server uses `reuseExistingServer: false` to guarantee isolation.
-- **E2E needs server** — Playwright auto-starts both `bun run server` and `bun run vite`.
-- **E2E fixtures with server state** — Tests creating data via tRPC API (`POST /api/trpc/<proc>` with body `{ json: input }`) must clean up in `afterEach`. Use `page.waitForResponse()` to sync on API calls rather than text selectors.
-- **Agent tests skipped** — `src/services/agent.test.ts` needs rewrite for new SDK.
-- **vitest.config.ts** — Separate from vite.config.ts; both must use `@vitejs/plugin-react` or React hooks break.
+- **NEVER kill user processes** — Do NOT kill processes on ports 4096, 5173. If occupied, fail clearly.
+- **E2E isolation** — Tests use temp data dir (`WORKFORCE_DATA_DIR`), own server on ports 4199 (API) / 5174 (Vite), `reuseExistingServer: false`. Never writes to `~/.workforce/`.
+- **E2E fixtures** — Clean up tRPC API data in `afterEach`. Sync via `page.waitForResponse()`, not text selectors.
+- **vitest.config.ts** — Separate from vite.config.ts; both need `@vitejs/plugin-react`.
 - **Fake timers + `waitFor()`** — Deadlocks. Use `vi.useRealTimers()` before async assertions.
-- **Build minifier** — `esbuild` (not terser) in vite.config.ts.
-- **ESLint complexity limit** — Max 15 per function. Extract sub-components to stay under.
-- **Optimistic updates** — `onMutate` must return rollback context for `onError` when side effects (selection clearing, cache changes) happen.
-- **Router tests share global singletons** — Services like `UserService` persist to `~/.workforce/` on disk. `resetXxxService()` clears memory but not disk. Use factory functions (`createXxxService(tempPath)`) for isolated unit tests. Router integration tests sharing `createCaller({})` must account for cross-test disk persistence.
+- **Router tests** — Share global singletons. `resetXxxService()` in `afterEach` is mandatory. For isolated tests, use factory functions with temp dirs.
+- **Build** — `esbuild` minifier (not terser). ESLint complexity max 15 per function.
+- **Optimistic updates** — `onMutate` must return rollback context for `onError`.
 
-### Cross-Project Dependencies
-- **unifai** — Unified agent abstraction library (`github:youhaowei/unifai`). Used for multi-provider LLM sessions. The package.json uses a GitHub dependency for portability (clones, worktrees, CI). For local development, `bun link` overrides with the local copy at `~/Projects/unifai`.
-- **Local dev setup** (one-time):
-  ```bash
-  cd ~/Projects/unifai && bun link          # register globally
-  cd ~/Projects/workforce && bun link unifai # symlink into workforce
-  ```
-- **After `bun install`** — `bun install` may overwrite the link with the GitHub version. Re-run `bun link unifai` to restore the local override.
-- **In worktrees** — Run `bun link unifai` after creating a worktree to use the local copy. Without it, the GitHub version is used (which is fine for most feature work).
-- **Updating unifai for all consumers** — Push changes to `youhaowei/unifai` on GitHub. Then `bun install` in workforce/knowledgebase pulls the latest.
-- **Why not `file:` or `workspace:`** — `file:../unifai` breaks in git worktrees (relative path resolves to wrong location). Bun workspaces with symlinked members don't work (bun resolves symlinks, breaking relative node_modules paths). `github:` + `bun link` is the only approach that works in all contexts.
+### unifai Dependency
+- **What**: Multi-provider agent abstraction (`github:youhaowei/unifai`). GitHub dep for portability; `bun link` for local dev.
+- **Local setup**: `cd ~/Projects/unifai && bun link` then `cd ~/Projects/workforce && bun link unifai`
+- **After `bun install`**: Re-run `bun link unifai` (install overwrites the link)
+- **In worktrees**: Run `bun link unifai` after creation (or just use the GitHub version)
 
-**Known Issues**: See `docs/operations/issues.md` for detailed issues and resolutions.
+## Recipes
 
-## Communication Style
+**Add a new tRPC router:**
+1. Create `src/server/routers/{name}.ts` — export a `{name}Router` using `router()` + `publicProcedure`
+2. Add to `src/server/routers/index.ts` `appRouter` merge
+3. Access service via `getXxxService()` from `src/server/routers/_services.ts`
 
-Be honest and push back when you think my approach has issues. Don't just comply — give me your genuine technical opinion, especially on architecture and scope decisions.
+**Add a new service:**
+1. Create `src/services/{name}.ts` — class with `ensureInitialized()`, `dispose()`, lazy singleton getter
+2. Export `get{Name}Service()` and `reset{Name}Service()` from `src/services/index.ts`
+3. Add to `src/server/routers/_services.ts` for router access
 
-## Design Philosophy
+**Add a new UI primitive:**
+1. Create `src/components/ui/{name}.tsx` — CVA variants, token classes, `forwardRef`
+2. Follow Button/Surface pattern: variant × color compound variants, token classes (not raw colors)
 
-This is a **greenfield application** — no external consumers or legacy integrations. Prioritize clean architecture and correct abstractions over backward compatibility. Replace dead types entirely rather than keeping them around.
+**Add a new feature component:**
+1. Create `src/ui/components/{Name}/` directory with `index.ts` barrel
+2. Use primitives from `@/components/ui/*`, stores from `@/ui/stores/*`
+3. Data via `trpc.{domain}.{method}.useQuery()` from `@/bridge/react`
+
+## Principles
+
+- **Push back** — Give genuine technical opinions, especially on architecture and scope. Don't just comply.
+- **Greenfield** — No external consumers. Prioritize clean abstractions over backward compatibility. Delete dead types entirely.

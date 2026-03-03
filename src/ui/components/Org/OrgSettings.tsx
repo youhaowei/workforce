@@ -138,7 +138,7 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
                     onClick={() => setModel(m.id)}
                     className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
                       model === m.id
-                        ? 'bg-palette-primary text-palette-primary-foreground border-palette-primary'
+                        ? 'bg-palette-primary text-palette-primary-fg border-palette-primary'
                         : 'bg-neutral-bg-subtle text-neutral-fg border-neutral-border hover:border-palette-primary/50'
                     }`}
                   >

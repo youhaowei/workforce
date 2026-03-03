@@ -250,7 +250,7 @@ export default function InlineToolCard({ block }: { block: ToolBlock }) {
 
       {/* Expandable detail */}
       {expanded && expandable && (
-        <div className="ml-6 pl-2 border-l-2 border-muted py-1.5">
+        <div className="ml-6 pl-2 border-l-2 border-neutral-border-subtle py-1.5">
           <DetailContent error={block.error} detail={detail} />
         </div>
       )}
