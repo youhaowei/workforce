@@ -93,6 +93,6 @@ describe('SessionItem', () => {
   it('applies active styling when isActive', () => {
     render(<SessionItem session={baseSession} isActive={true} />);
     const container = screen.getByText('Test Session').closest('div[class*="cursor-pointer"]')!;
-    expect(container.className).toContain('bg-neutral-bg-subtle');
+    expect(container.className).toContain('bg-neutral-fg/[0.06]');
   });
 });

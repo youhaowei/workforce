@@ -42,8 +42,8 @@ describe('SessionsPanel', () => {
 
   it('renders collapsed when collapsed prop is true', () => {
     render(<SessionsPanel collapsed={true} onSelectSession={mockOnSelectSession} />);
-    // Panel is rendered but with w-0 (collapsed)
-    expect(screen.queryByText('Sessions')).toBeInTheDocument();
+    // Content is not rendered when collapsed
+    expect(screen.queryByText('Sessions')).not.toBeInTheDocument();
   });
 
   it('renders panel with title when expanded', () => {
