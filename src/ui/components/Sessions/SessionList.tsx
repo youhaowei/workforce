@@ -22,6 +22,21 @@ const GROUP_BY_OPTIONS: { value: GroupByMode; label: string; icon: typeof Calend
   { value: 'status', label: 'Status', icon: Activity },
 ];
 
+const VALID_GROUP_BY_MODES: ReadonlySet<GroupByMode> = new Set(
+  GROUP_BY_OPTIONS.map((option) => option.value),
+);
+
+function getInitialGroupBy(groupByProp: GroupByMode): GroupByMode {
+  const stored = localStorage.getItem(GROUP_BY_STORAGE_KEY);
+  if (stored && VALID_GROUP_BY_MODES.has(stored as GroupByMode)) {
+    return stored as GroupByMode;
+  }
+  if (VALID_GROUP_BY_MODES.has(groupByProp)) {
+    return groupByProp;
+  }
+  return 'date';
+}
+
 export type { GroupByMode } from './sessionListHelpers';
 
 /** Presentational empty state with icon, heading, and optional subtext / action. */
@@ -187,7 +202,7 @@ export function SessionList({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [groupBy, setGroupBy] = useState<GroupByMode>(
-    () => (localStorage.getItem(GROUP_BY_STORAGE_KEY) as GroupByMode) || groupByProp,
+    () => getInitialGroupBy(groupByProp),
   );
 
   const handleGroupByChange = useCallback((mode: GroupByMode) => {

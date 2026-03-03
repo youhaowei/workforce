@@ -34,6 +34,7 @@ export function StageFloatingPill({
         active={sessionsPanelOpen}
         onClick={onToggleSessions}
         className="absolute top-2 left-2 z-10 h-7 w-7 rounded-full backdrop-blur-xl shadow-sm border border-neutral-border/30"
+        aria-pressed={sessionsPanelOpen}
         aria-label={sessionsPanelOpen ? 'Hide sessions panel' : 'Show sessions panel'}
       >
         <PanelLeft className="h-3.5 w-3.5" />
@@ -56,6 +57,7 @@ export function StageFloatingPill({
         active={infoPanelOpen}
         onClick={onToggleInfo}
         className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full backdrop-blur-xl shadow-sm border border-neutral-border/30"
+        aria-pressed={infoPanelOpen}
         aria-label={infoPanelOpen ? 'Hide info panel' : 'Show info panel'}
       >
         <PanelRight className="h-3.5 w-3.5" />

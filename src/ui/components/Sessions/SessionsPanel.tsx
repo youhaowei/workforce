@@ -73,10 +73,12 @@ export function SessionsPanel({
           { queryKey: listQueryKey },
           (old) => old?.filter((s) => s.id !== sessionId) ?? old,
         );
-        if (sessionId === activeSessionId) {
+        return { previous, wasActiveSession: sessionId === activeSessionId };
+      },
+      onSuccess: (_result, { sessionId }, context) => {
+        if (context?.wasActiveSession) {
           onDeleteSession?.(sessionId);
         }
-        return { previous };
       },
       onError: (_err, _vars, context) => {
         if (context?.previous) {
@@ -84,6 +86,8 @@ export function SessionsPanel({
             queryClient.setQueryData(key, data);
           }
         }
+      },
+      onSettled: () => {
         void queryClient.invalidateQueries({ queryKey: listQueryKey });
       },
     }),
