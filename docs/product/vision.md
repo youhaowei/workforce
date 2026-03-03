@@ -156,7 +156,7 @@ Total human involvement: one sentence of intent, one review gate approval, one r
 
 ## Technical Foundation
 
-**Desktop runtime**: Electrobun (Bun-native, WebView frontend)
+**Desktop runtime**: Electron (Node main process, Bun server subprocess)
 **Frontend**: React 19.2 + Compiler, shadcn/ui, Streamdown, react-virtuoso
 **State**: Zustand (global) + Jotai (per-entity streaming) + TanStack Query (server/API)
 **Server**: Hono on Bun (external process, inherits shell env for Claude CLI auth)

@@ -1,8 +1,8 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
-import { readFileSync } from 'fs';
+import { readFileSync, writeFileSync, unlinkSync } from 'fs';
 
 /** Read the server's actual port from .dev-port (written by server on startup). */
 function discoverApiPort(): string | undefined {
@@ -13,8 +13,28 @@ function discoverApiPort(): string | undefined {
   }
 }
 
+const VITE_PORT_FILE = resolve(__dirname, '.vite-port');
+
+/** Write .vite-port so Electron knows which port to connect to. */
+function vitePortFile(): Plugin {
+  return {
+    name: 'vite-port-file',
+    configureServer(server) {
+      server.httpServer?.once('listening', () => {
+        const addr = server.httpServer!.address();
+        if (addr && typeof addr === 'object') {
+          writeFileSync(VITE_PORT_FILE, String(addr.port));
+        }
+      });
+    },
+    buildEnd() {
+      try { unlinkSync(VITE_PORT_FILE); } catch { /* not found */ }
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), vitePortFile()],
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

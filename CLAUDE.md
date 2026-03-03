@@ -14,14 +14,14 @@ bun run type-check   # TypeScript check
 bun run server       # Start backend server (port 4096)
 bun run server:watch # Server with hot-reload
 bun run dev:web      # Start server + vite for web testing (port 5173)
-bun run clean        # Remove build artifacts (dist, .electrobun)
+bun run clean        # Remove build artifacts (dist, out)
 ```
 
 **ASK FIRST — never auto-run:**
 
 ```bash
-bun run dev   # Server + Electrobun desktop app (dev loads from Vite :5173)
-bun run build # Electrobun release build
+bun run dev   # Server + Electron desktop app (dev loads from Vite :5173)
+bun run build # Electron Forge release build
 ```
 
 ## Key Disambiguation

@@ -13,7 +13,7 @@ import { appRouter } from './routers'
 // Eagerly create the AgentService singleton at module-load time so the Claude
 // SDK subprocess and model cache begin loading as early as possible — well
 // before the HTTP server is bound or the first UI request arrives.
-// In production (Electrobun), this runs as soon as the dynamic import resolves;
+// In production (Electron), this runs as soon as the Bun subprocess starts;
 // in dev, as soon as `bun run server:watch` evaluates the entry point.
 getAgentService();
 
@@ -57,6 +57,7 @@ app.use('*', cors({
 // tRPC endpoint — all routers available at /api/trpc/*
 app.use('/api/trpc/*', trpcServer({ router: appRouter }))
 
+// Health check — also polled by Electron main process at startup (see src/shared/constants.ts)
 app.get('/health', (c) => c.json({ ok: true }))
 
 app.get('/debug-log', async (c) => {
@@ -139,7 +140,7 @@ app.get('/auth-check', async (c) => {
 })
 
 // Serve Vite build output in production (same-origin, no CORS needed).
-// In Electrobun production bundle: import.meta.dir = Resources/app/bun/ → ../dist
+// In Electron production bundle: import.meta.dir = Resources/app/src/server/ → ../../dist
 // In dev standalone: import.meta.dir = <project>/src/server/ → ../../dist
 const distCandidates = [join(import.meta.dir, '../dist'), join(import.meta.dir, '../../dist')];
 const distPath = distCandidates.find((p) => existsSync(p));

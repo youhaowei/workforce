@@ -56,7 +56,6 @@ export type SidebarMode = "expanded" | "collapsed";
 
 export default function Shell() {
   const { isDesktop } = usePlatform();
-  const isElectrobun = typeof window !== 'undefined' && '__electrobunWindowId' in window;
   const [currentView, setCurrentView] = useState<ViewType>(getInitialView);
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -359,8 +358,14 @@ export default function Shell() {
     <TooltipProvider>
       <div
         className="h-screen flex overflow-hidden shell-ground"
-        data-desktop={isElectrobun || isDesktop || undefined}
+        data-desktop={isDesktop || undefined}
       >
+        {/* Drag region overlay — fixed strip at z-40 enables window dragging.
+            All interactive content (sidebar, topbar, panels) sits at z-50+ above it.
+            titlebar-drag-region class is defined in index.html <style> to bypass
+            Lightning CSS which strips -webkit-app-region from Tailwind-processed CSS. */}
+        <div className="titlebar-drag-region fixed top-0 left-0 right-0 h-[var(--topbar-height)] z-40" />
+
         <AppSidebar
           currentView={currentView}
           onViewChange={setCurrentView}

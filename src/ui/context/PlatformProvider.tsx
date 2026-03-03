@@ -16,6 +16,7 @@ export interface PlatformActions {
   onMinimize?: () => void;
   onMaximize?: () => void;
   onClose?: () => void;
+  openDirectory?: (startingFolder?: string) => Promise<string | null>;
   isDesktop?: boolean;
 }
 

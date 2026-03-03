@@ -10,16 +10,16 @@ import {
   History,
   PanelLeftClose,
   PanelLeftOpen,
-} from 'lucide-react';
+} from "lucide-react";
 
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from '@/components/ui/tooltip';
+} from "@/components/ui/tooltip";
 
-import { ReviewBadge } from '../Review';
-import type { ViewType, SidebarMode } from './Shell';
+import { ReviewBadge } from "../Review";
+import type { ViewType, SidebarMode } from "./Shell";
 
 interface NavItem {
   id: ViewType;
@@ -29,20 +29,20 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: 'home', label: 'Home', icon: Home },
-  { id: 'board', label: 'Board', icon: LayoutDashboard },
-  { id: 'queue', label: 'Queue', icon: ClipboardList, badge: <ReviewBadge /> },
-  { id: 'sessions', label: 'Sessions', icon: MessageSquare },
-  { id: 'projects', label: 'Projects', icon: FolderGit2 },
-  { id: 'templates', label: 'Templates', icon: Blocks },
-  { id: 'workflows', label: 'Workflows', icon: Workflow },
-  { id: 'orgs', label: 'Orgs', icon: FolderKanban },
-  { id: 'audit', label: 'Audit', icon: History },
+  { id: "home", label: "Home", icon: Home },
+  { id: "board", label: "Board", icon: LayoutDashboard },
+  { id: "queue", label: "Queue", icon: ClipboardList, badge: <ReviewBadge /> },
+  { id: "sessions", label: "Sessions", icon: MessageSquare },
+  { id: "projects", label: "Projects", icon: FolderGit2 },
+  { id: "templates", label: "Templates", icon: Blocks },
+  { id: "workflows", label: "Workflows", icon: Workflow },
+  { id: "orgs", label: "Orgs", icon: FolderKanban },
+  { id: "audit", label: "Audit", icon: History },
 ];
 
 const SIDEBAR_WIDTH_CLASSES: Record<SidebarMode, string> = {
-  expanded: 'w-[200px]',
-  collapsed: 'w-[68px]',
+  expanded: "w-[200px]",
+  collapsed: "w-[68px]",
 };
 
 interface AppSidebarProps {
@@ -58,20 +58,22 @@ export default function AppSidebar({
   mode,
   onToggleSize,
 }: AppSidebarProps) {
-  const activeView = currentView === 'detail' ? 'board' : currentView;
-  const isCollapsed = mode === 'collapsed';
+  const activeView = currentView === "detail" ? "board" : currentView;
+  const isCollapsed = mode === "collapsed";
 
   return (
     <nav
       aria-label="Main navigation"
-      className={`flex-shrink-0 flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden electrobun-webkit-app-region-drag ${SIDEBAR_WIDTH_CLASSES[mode]}`}
+      className={`shrink-0 flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden relative z-50 pointer-events-none ${SIDEBAR_WIDTH_CLASSES[mode]}`}
     >
-      {/* Traffic light zone — extra height so macOS controls feel vertically centered */}
+      {/* Traffic light zone — inherits pointer-events-none so drag overlay beneath is reachable */}
       <div className="h-10 shrink-0" />
 
       {/* Logo */}
-      <div className={`flex items-center overflow-hidden h-8 electrobun-webkit-app-region-no-drag ${isCollapsed ? 'justify-center px-0' : 'gap-2.5 px-3'}`}>
-        <div className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-fg/90 text-neutral-bg font-bold text-[11px] tracking-tight">
+      <div
+        className={`flex items-center overflow-hidden h-8 pointer-events-auto ${isCollapsed ? "justify-center px-0" : "gap-2.5 px-3"}`}
+      >
+        <div className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-fg/90 text-neutral-bg font-bold text-[11px] tracking-tight">
           W
         </div>
         {!isCollapsed && (
@@ -82,7 +84,9 @@ export default function AppSidebar({
       </div>
 
       {/* Nav items */}
-      <div className={`flex-1 flex flex-col gap-0.5 overflow-y-auto electrobun-webkit-app-region-no-drag ${isCollapsed ? 'px-2 py-2' : 'px-2 py-2'}`}>
+      <div
+        className={`flex-1 flex flex-col gap-0.5 overflow-y-auto pointer-events-auto ${isCollapsed ? "px-2 py-2" : "px-2 py-2"}`}
+      >
         {NAV_ITEMS.map((item) => {
           const isActive = activeView === item.id;
           const Icon = item.icon;
@@ -92,13 +96,16 @@ export default function AppSidebar({
               key={item.id}
               onClick={() => onViewChange(item.id)}
               className={`nav-glass-item relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 ${
-                isCollapsed ? 'px-0 py-2 justify-center' : 'px-2.5 py-[7px]'
-              } ${isActive
-                ? 'nav-glass-active text-neutral-fg font-medium'
-                : 'text-neutral-fg/50 hover:text-neutral-fg/80 hover:bg-white/30 dark:hover:bg-white/5'
+                isCollapsed ? "px-0 py-2 justify-center" : "px-2.5 py-[7px]"
+              } ${
+                isActive
+                  ? "nav-glass-active text-neutral-fg font-medium"
+                  : "text-neutral-fg/50 hover:text-neutral-fg/80 hover:bg-white/30 dark:hover:bg-white/5"
               }`}
             >
-              <Icon className={`h-[18px] w-[18px] flex-shrink-0 ${isActive ? '' : ''}`} />
+              <Icon
+                className={`h-[18px] w-[18px] shrink-0 ${isActive ? "" : ""}`}
+              />
               {!isCollapsed && <span className="truncate">{item.label}</span>}
               {!isActive && item.badge}
             </button>
@@ -121,7 +128,9 @@ export default function AppSidebar({
 
       {/* Collapse / Expand toggle */}
       {onToggleSize && (
-        <div className={`electrobun-webkit-app-region-no-drag ${isCollapsed ? 'px-2 py-2' : 'px-2 py-2'}`}>
+        <div
+          className={`pointer-events-auto ${isCollapsed ? "px-2 py-2" : "px-2 py-2"}`}
+        >
           {isCollapsed ? (
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
@@ -133,7 +142,9 @@ export default function AppSidebar({
                   <PanelLeftOpen className="h-4 w-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8}>Expand</TooltipContent>
+              <TooltipContent side="right" sideOffset={8}>
+                Expand
+              </TooltipContent>
             </Tooltip>
           ) : (
             <button

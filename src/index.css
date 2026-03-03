@@ -154,7 +154,7 @@
 
   /* ── Layout ──────────────────────────────────────────────────────────── */
   --titlebar-height: env(titlebar-area-height, 0px);
-  --topbar-height: 28px;
+  --topbar-height: 40px;
   --shell-bg: linear-gradient(
     160deg,
     oklch(0.95 0.006 70) 0%,
@@ -309,6 +309,10 @@
                 0 1px 2px oklch(0 0 0 / 15%);
   }
 }
+
+/* Drag regions — defined in index.html <style> tag to bypass Lightning CSS
+ * which strips -webkit-app-region as an unknown property.
+ * Classes: .titlebar-drag-region, .titlebar-no-drag */
 
 /* Shell — the window ground behind everything */
 @layer components {

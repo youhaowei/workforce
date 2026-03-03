@@ -20,11 +20,17 @@ import { SetupGate } from './components/SetupGate';
 import Shell from './components/Shell/Shell';
 import { API_PORT } from '@/bridge/config';
 
-// Detect desktop mode: Electrobun loads the UI from the API port, dev web uses Vite's port
+// Detect desktop mode: Electron loads the UI from the API port, dev web uses Vite's port
 const isDesktop = typeof window !== 'undefined' && window.location.port === API_PORT;
+
+// Electron preload exposes this on the window object via contextBridge
+const electronAPI = typeof window !== 'undefined'
+  ? (window as unknown as Record<string, unknown>).electronAPI as { openDirectory?: (s?: string) => Promise<string | null> } | undefined
+  : undefined;
 
 const platformActions: PlatformActions = {
   isDesktop,
+  openDirectory: electronAPI?.openDirectory,
 };
 
 function AppInner() {
