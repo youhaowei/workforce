@@ -9,19 +9,20 @@
  */
 
 import { useMemo, type MouseEvent } from 'react';
-import { Trash2, Circle, CheckCircle2, PlayCircle, PauseCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useDialogStore } from '@/ui/stores/useDialogStore';
 import type { LifecycleState, SessionLifecycle, SessionSummary, SessionType } from '@/services/types';
 import { stripMarkdown } from '@/ui/formatters';
+import { smartTruncateTitle } from './sessionListHelpers';
 
-const STATE_ICON: Record<LifecycleState, { icon: typeof Circle; className: string }> = {
-  created: { icon: Circle, className: 'text-neutral-fg-subtle/40' },
-  active: { icon: PlayCircle, className: 'text-emerald-500' },
-  paused: { icon: PauseCircle, className: 'text-amber-500' },
-  completed: { icon: CheckCircle2, className: 'text-blue-500' },
-  failed: { icon: AlertCircle, className: 'text-red-500' },
-  cancelled: { icon: XCircle, className: 'text-neutral-fg-subtle/50' },
+const STATE_DOT_COLOR: Record<LifecycleState, string> = {
+  created: 'bg-neutral-fg-subtle/30',
+  active: 'bg-emerald-500',
+  paused: 'bg-amber-500',
+  completed: 'bg-blue-500',
+  failed: 'bg-red-500',
+  cancelled: 'bg-neutral-fg-subtle/40',
 };
 
 const TYPE_BADGE_STYLE: Record<string, string> = {
@@ -56,14 +57,13 @@ export function SessionItem({
   const sessionType = (session.metadata?.type as SessionType) ?? 'chat';
   const lifecycle = session.metadata?.lifecycle as SessionLifecycle | undefined;
   const lifecycleState = lifecycle?.state ?? 'created';
-  const stateConfig = STATE_ICON[lifecycleState];
-  const StateIcon = stateConfig.icon;
+  const dotColor = STATE_DOT_COLOR[lifecycleState];
 
   const projectName = session.metadata?.projectName as string | undefined;
 
   const rawTitle = session.title
     || (sessionType === 'workagent' ? (session.metadata?.goal as string) ?? 'Agent' : 'Untitled');
-  const title = stripMarkdown(rawTitle);
+  const title = smartTruncateTitle(stripMarkdown(rawTitle));
 
   const typeLabel = sessionType === 'workagent' ? 'Execute' : undefined;
 
@@ -82,9 +82,9 @@ export function SessionItem({
     <div
       role="button"
       tabIndex={0}
-      className={`session-item group px-3 py-2.5 cursor-pointer transition-colors ${
+      className={`session-item group mx-1.5 px-2 py-2 cursor-pointer rounded-lg transition-colors overflow-hidden ${
         isActive
-          ? 'bg-neutral-bg-subtle'
+          ? 'bg-neutral-fg/[0.06]'
           : 'hover:bg-neutral-bg-dim/50'
       }`}
       onClick={() => onSelect?.(session.id)}
@@ -96,49 +96,54 @@ export function SessionItem({
         }
       }}
     >
-      {/* Row 1: status icon + title */}
-      <div className="flex items-start gap-2.5">
-        <StateIcon className={`h-4 w-4 mt-0.5 shrink-0 ${stateConfig.className}`} />
-        <span className={`text-sm leading-snug line-clamp-2 flex-1 min-w-0 ${
-          isActive ? 'font-medium' : ''
-        }`}>
-          {title}
-        </span>
+      {/* Row 1: status dot + time */}
+      <div className="flex items-start gap-2">
+        <span className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${dotColor}`} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className={`text-sm leading-snug line-clamp-2 ${
+              isActive ? 'font-medium' : ''
+            }`} title={stripMarkdown(rawTitle)}>
+              {title}
+            </span>
+            <span className="text-[11px] text-neutral-fg-subtle/60 tabular-nums shrink-0">
+              {timeAgo}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Row 2: badges + time-ago */}
-      <div className="flex items-center gap-1.5 mt-1.5 pl-[26px]">
-        {typeLabel && (
-          <span className={`inline-flex items-center h-5 px-1.5 rounded text-[11px] font-medium ${TYPE_BADGE_STYLE[sessionType]}`}>
-            {typeLabel}
-          </span>
-        )}
-        {projectName && (
-          <span className="inline-flex items-center h-5 px-1.5 rounded text-[11px] font-medium bg-neutral-bg-dim text-neutral-fg-subtle">
-            {projectName}
-          </span>
-        )}
-        {session.parentId && (
-          <span className="inline-flex items-center h-5 px-1.5 rounded text-[11px] font-medium bg-neutral-bg-dim text-neutral-fg-subtle">
-            fork
-          </span>
-        )}
-        <span className="ml-auto text-[11px] text-neutral-fg-subtle/60 tabular-nums shrink-0">
-          {timeAgo}
-        </span>
-
-        {/* Delete — hover reveal */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-5 w-5 -mr-1 shrink-0 text-neutral-fg-subtle hover:text-palette-danger opacity-0 group-hover:opacity-100 transition-opacity"
-          onClick={handleDelete}
-          onKeyDown={(e) => e.stopPropagation()}
-          aria-label="Delete session"
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
-      </div>
+      {/* Row 2: badges + delete */}
+      {(typeLabel || projectName || session.parentId) && (
+        <div className="flex items-center gap-1 mt-1 pl-4">
+          {typeLabel && (
+            <span className={`inline-flex items-center h-[18px] px-1.5 rounded text-[10px] font-medium ${TYPE_BADGE_STYLE[sessionType]}`}>
+              {typeLabel}
+            </span>
+          )}
+          {projectName && (
+            <span className="inline-flex items-center h-[18px] px-1.5 rounded text-[10px] font-medium bg-neutral-bg-dim text-neutral-fg-subtle">
+              {projectName}
+            </span>
+          )}
+          {session.parentId && (
+            <span className="inline-flex items-center h-[18px] px-1.5 rounded text-[10px] font-medium bg-neutral-bg-dim text-neutral-fg-subtle">
+              fork
+            </span>
+          )}
+          <span className="flex-1" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 -mr-1 shrink-0 text-neutral-fg-subtle hover:text-palette-danger opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+            onClick={handleDelete}
+            onKeyDown={(e) => e.stopPropagation()}
+            aria-label="Delete session"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,6 +16,17 @@ export interface SessionGroup {
   sessions: SessionSummary[];
 }
 
+/**
+ * Smart-truncate titles that look like file paths.
+ * Shows the last 2 path segments for scannability.
+ */
+export function smartTruncateTitle(title: string): string {
+  if (!title.includes('/')) return title;
+  const segments = title.split('/').filter(Boolean);
+  if (segments.length <= 2) return title;
+  return segments.slice(-2).join('/');
+}
+
 export function filterSessions(
   sessions: SessionSummary[],
   typeFilter: string,

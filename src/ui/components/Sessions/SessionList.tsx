@@ -8,12 +8,19 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Search, Plus, X, ChevronDown, ChevronRight, FolderGit2, MessageSquare, SlidersHorizontal } from 'lucide-react';
+import { Search, Plus, X, ChevronDown, ChevronRight, FolderGit2, MessageSquare, SlidersHorizontal, Calendar, Folder, Activity } from 'lucide-react';
 import type { Project, SessionSummary } from '@/services/types';
 import { SessionItem } from './SessionItem';
 import { filterSessions, groupSessions } from './sessionListHelpers';
 import type { GroupByMode, SessionGroup } from './sessionListHelpers';
+
+const GROUP_BY_STORAGE_KEY = 'workforce:sessions-group-by';
+
+const GROUP_BY_OPTIONS: { value: GroupByMode; label: string; icon: typeof Calendar }[] = [
+  { value: 'date', label: 'Date', icon: Calendar },
+  { value: 'project', label: 'Project', icon: Folder },
+  { value: 'status', label: 'Status', icon: Activity },
+];
 
 export type { GroupByMode } from './sessionListHelpers';
 
@@ -169,7 +176,7 @@ export function SessionList({
   activeSessionId,
   typeFilter = 'all',
   stateFilter = 'all',
-  groupBy = 'date',
+  groupBy: groupByProp = 'date',
   projectMap,
   onSelect,
   onDelete,
@@ -179,6 +186,15 @@ export function SessionList({
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [groupBy, setGroupBy] = useState<GroupByMode>(
+    () => (localStorage.getItem(GROUP_BY_STORAGE_KEY) as GroupByMode) || groupByProp,
+  );
+
+  const handleGroupByChange = useCallback((mode: GroupByMode) => {
+    setGroupBy(mode);
+    localStorage.setItem(GROUP_BY_STORAGE_KEY, mode);
+    setCollapsedGroups(new Set());
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -227,7 +243,7 @@ export function SessionList({
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-w-0">
       {/* Search bar — compact, always visible */}
       <div className="px-3 py-2 border-b border-neutral-border/50">
         <div className="flex gap-1.5">
@@ -258,8 +274,26 @@ export function SessionList({
         </div>
       </div>
 
+      {/* Group-by segmented control */}
+      <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-neutral-border/50">
+        {GROUP_BY_OPTIONS.map(({ value, label, icon: Icon }) => (
+          <button
+            key={value}
+            onClick={() => handleGroupByChange(value)}
+            className={`flex items-center gap-1 h-6 px-2 rounded text-[11px] transition-colors ${
+              groupBy === value
+                ? 'bg-neutral-bg-subtle text-neutral-fg font-medium'
+                : 'text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-dim/50'
+            }`}
+          >
+            <Icon className="h-3 w-3" />
+            {label}
+          </button>
+        ))}
+      </div>
+
       {/* Session list */}
-      <ScrollArea className="flex-1">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
         {renderEmptyState(filteredSessions.length, sessions.length, debouncedQuery, onCreate)}
 
         {filteredSessions.length > 0 && groups && (
@@ -275,7 +309,7 @@ export function SessionList({
           /* Flat rendering */
           renderSessionItems(filteredSessions)
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }
