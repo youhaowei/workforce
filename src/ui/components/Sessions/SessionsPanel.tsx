@@ -4,13 +4,13 @@
  * Uses motion for smooth mount/unmount animation.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'motion/react';
 import { useTRPC } from '@/bridge/react';
 import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import { useResizablePanel } from '@/ui/hooks/useResizablePanel';
-import type { SessionSummary } from '@/services/types';
+import type { Project, SessionSummary } from '@/services/types';
 import { SessionList } from './SessionList';
 
 function PanelHeader() {
@@ -50,6 +50,15 @@ export function SessionsPanel({
 
   const { data: sessions = [], isLoading } = useQuery(
     trpc.session.list.queryOptions(listInput),
+  );
+
+  const { data: projects = [] } = useQuery(
+    trpc.project.list.queryOptions({ orgId }),
+  );
+
+  const projectMap = useMemo(
+    () => new Map(projects.map((p: Project) => [p.id, p])),
+    [projects],
   );
 
   const resumeMutation = useMutation(
@@ -114,7 +123,7 @@ export function SessionsPanel({
               typeFilter="all"
               stateFilter="all"
               groupBy="date"
-              projectMap={new Map()}
+              projectMap={projectMap}
               onSelect={handleSelect}
               onDelete={handleDelete}
               onCreate={onCreateSession}

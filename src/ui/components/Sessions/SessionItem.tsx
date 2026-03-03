@@ -10,6 +10,7 @@
 
 import { useMemo, type MouseEvent } from 'react';
 import { Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDialogStore } from '@/ui/stores/useDialogStore';
 import type { LifecycleState, SessionLifecycle, SessionSummary, SessionType } from '@/services/types';
@@ -25,14 +26,15 @@ const STATE_DOT_COLOR: Record<LifecycleState, string> = {
   cancelled: 'bg-neutral-fg-subtle/40',
 };
 
-const TYPE_BADGE_STYLE: Record<string, string> = {
-  chat: 'bg-neutral-bg-dim text-neutral-fg-subtle',
-  workagent: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+const TYPE_BADGE_COLOR: Record<string, 'default' | 'warning'> = {
+  chat: 'default',
+  workagent: 'warning',
 };
 
 export interface SessionItemProps {
   session: SessionSummary;
   isActive?: boolean;
+  projectName?: string;
   onSelect?: (sessionId: string) => void;
   onDelete?: (sessionId: string) => void;
 }
@@ -40,6 +42,7 @@ export interface SessionItemProps {
 export function SessionItem({
   session,
   isActive,
+  projectName: projectNameProp,
   onSelect,
   onDelete,
 }: SessionItemProps) {
@@ -59,7 +62,7 @@ export function SessionItem({
   const lifecycleState = lifecycle?.state ?? 'created';
   const dotColor = STATE_DOT_COLOR[lifecycleState];
 
-  const projectName = session.metadata?.projectName as string | undefined;
+  const projectName = projectNameProp;
 
   const rawTitle = session.title
     || (sessionType === 'workagent' ? (session.metadata?.goal as string) ?? 'Agent' : 'Untitled');
@@ -114,36 +117,34 @@ export function SessionItem({
       </div>
 
       {/* Row 2: badges + delete */}
-      {(typeLabel || projectName || session.parentId) && (
-        <div className="flex items-center gap-1 mt-1 pl-4">
-          {typeLabel && (
-            <span className={`inline-flex items-center h-[18px] px-1.5 rounded text-[10px] font-medium ${TYPE_BADGE_STYLE[sessionType]}`}>
-              {typeLabel}
-            </span>
-          )}
-          {projectName && (
-            <span className="inline-flex items-center h-[18px] px-1.5 rounded text-[10px] font-medium bg-neutral-bg-dim text-neutral-fg-subtle">
-              {projectName}
-            </span>
-          )}
-          {session.parentId && (
-            <span className="inline-flex items-center h-[18px] px-1.5 rounded text-[10px] font-medium bg-neutral-bg-dim text-neutral-fg-subtle">
-              fork
-            </span>
-          )}
-          <span className="flex-1" />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 -mr-1 shrink-0 text-neutral-fg-subtle hover:text-palette-danger opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-            onClick={handleDelete}
-            onKeyDown={(e) => e.stopPropagation()}
-            aria-label="Delete session"
-          >
-            <Trash2 className="h-3 w-3" />
-          </Button>
-        </div>
-      )}
+      <div className="flex items-center gap-1 mt-1 pl-4">
+        {typeLabel && (
+          <Badge variant="soft" color={TYPE_BADGE_COLOR[sessionType]} className="h-[18px] px-1.5 py-0 text-[10px] rounded">
+            {typeLabel}
+          </Badge>
+        )}
+        {projectName && (
+          <Badge variant="outline" className="h-[18px] px-1.5 py-0 text-[10px] rounded truncate max-w-[120px]">
+            {projectName}
+          </Badge>
+        )}
+        {session.parentId && (
+          <Badge variant="outline" className="h-[18px] px-1.5 py-0 text-[10px] rounded">
+            fork
+          </Badge>
+        )}
+        <span className="flex-1" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5 -mr-1 shrink-0 text-neutral-fg-subtle hover:text-palette-danger opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+          onClick={handleDelete}
+          onKeyDown={(e) => e.stopPropagation()}
+          aria-label="Delete session"
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
     </div>
   );
 }

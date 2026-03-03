@@ -230,16 +230,21 @@ export function SessionList({
 
   const renderSessionItems = useCallback(
     (items: SessionSummary[]) =>
-      items.map((session) => (
-        <SessionItem
-          key={session.id}
-          session={session}
-          isActive={session.id === activeSessionId}
-          onSelect={onSelect}
-          onDelete={onDelete}
-        />
-      )),
-    [activeSessionId, onSelect, onDelete],
+      items.map((session) => {
+        const projectId = session.metadata?.projectId as string | undefined;
+        const project = projectId ? projectMap?.get(projectId) : undefined;
+        return (
+          <SessionItem
+            key={session.id}
+            session={session}
+            isActive={session.id === activeSessionId}
+            projectName={project?.name}
+            onSelect={onSelect}
+            onDelete={onDelete}
+          />
+        );
+      }),
+    [activeSessionId, projectMap, onSelect, onDelete],
   );
 
   return (
