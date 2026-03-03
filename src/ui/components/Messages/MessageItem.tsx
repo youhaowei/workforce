@@ -309,6 +309,16 @@ function ActivitySegment({ blocks, isStreaming }: {
   const headerText = useMemo(() => deriveHeaderText(blocks, isStreaming && anyRunning), [blocks, isStreaming, anyRunning]);
   const errorCount = useMemo(() => blocks.filter((b) => b.type === 'tool_use' && b.status === 'error').length, [blocks]);
 
+  // Single child → render flat without collapsible wrapper
+  if (grouped.length === 1) {
+    if (grouped[0].kind === 'block') {
+      return <ContentBlockRenderer blocks={[grouped[0].block]} isStreaming={isStreaming} inline />;
+    }
+    // Single task with children — render the task group directly (no outer summary)
+    const task = grouped[0];
+    return <TaskGroupRow block={task.block} children={task.children} isStreaming={isStreaming} />;
+  }
+
   return (
     <div>
       <button
