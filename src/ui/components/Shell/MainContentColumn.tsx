@@ -2,11 +2,18 @@ import { AlertCircle, WifiOff } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Surface } from '@/components/ui/surface';
+import { StageFloatingPill } from './StageFloatingPill';
 
 interface MainContentColumnProps {
   serverConnected: boolean;
   error: string | null;
   onDismissError: () => void;
+  showFloatingPill?: boolean;
+  sessionTitle?: string;
+  sessionsPanelOpen?: boolean;
+  infoPanelOpen?: boolean;
+  onToggleSessions?: () => void;
+  onToggleInfo?: () => void;
   children: ReactNode;
 }
 
@@ -14,6 +21,12 @@ export function MainContentColumn({
   serverConnected,
   error,
   onDismissError,
+  showFloatingPill,
+  sessionTitle,
+  sessionsPanelOpen = false,
+  infoPanelOpen = false,
+  onToggleSessions,
+  onToggleInfo,
   children,
 }: MainContentColumnProps) {
   return (
@@ -31,7 +44,7 @@ export function MainContentColumn({
       )}
 
       {error && (
-        <div className="mx-4 my-2 px-4 py-2 bg-palette-danger/10 border border-danger/20 rounded-lg flex items-center justify-between">
+        <div className="mx-4 my-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-palette-danger" />
             <span className="text-sm text-palette-danger">{error}</span>
@@ -40,6 +53,16 @@ export function MainContentColumn({
             Dismiss
           </Button>
         </div>
+      )}
+
+      {showFloatingPill && onToggleSessions && onToggleInfo && (
+        <StageFloatingPill
+          sessionTitle={sessionTitle}
+          sessionsPanelOpen={sessionsPanelOpen}
+          infoPanelOpen={infoPanelOpen}
+          onToggleSessions={onToggleSessions}
+          onToggleInfo={onToggleInfo}
+        />
       )}
 
       <main className="flex-1 flex flex-col overflow-hidden">

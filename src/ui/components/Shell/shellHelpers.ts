@@ -7,6 +7,7 @@ export const SIDEBAR_STORAGE_KEY = 'workforce-sidebar-mode';
 export const SESSIONS_PANEL_STORAGE_KEY = 'workforce-sessions-collapsed';
 export const VIEW_STORAGE_KEY = 'workforce-current-view';
 export const SELECTED_SESSION_STORAGE_KEY = 'workforce-selected-session';
+export const INFO_PANEL_STORAGE_KEY = 'workforce-info-panel-collapsed';
 export const SESSION_TITLE_MAX_LENGTH = 80;
 
 export const VALID_VIEWS = new Set<ViewType>([

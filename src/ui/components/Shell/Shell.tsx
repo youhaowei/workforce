@@ -33,6 +33,7 @@ import { usePlanMode } from "@/ui/hooks/usePlanMode";
 import {
   SIDEBAR_STORAGE_KEY,
   SESSIONS_PANEL_STORAGE_KEY,
+  INFO_PANEL_STORAGE_KEY,
   VIEW_STORAGE_KEY,
   SELECTED_SESSION_STORAGE_KEY,
   checkServerConnection,
@@ -62,6 +63,9 @@ export default function Shell() {
   const [themePanelOpen, setThemePanelOpen] = useState(false);
   const [sessionsPanelCollapsed, setSessionsPanelCollapsed] = useState(
     () => localStorage.getItem(SESSIONS_PANEL_STORAGE_KEY) === "true",
+  );
+  const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(
+    () => localStorage.getItem(INFO_PANEL_STORAGE_KEY) !== "false",
   );
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
     () => localStorage.getItem(SELECTED_SESSION_STORAGE_KEY),
@@ -152,6 +156,14 @@ export default function Shell() {
     setSessionsPanelCollapsed((prev) => {
       const next = !prev;
       localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, String(next));
+      return next;
+    });
+  }, []);
+
+  const toggleInfoPanel = useCallback(() => {
+    setInfoPanelCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem(INFO_PANEL_STORAGE_KEY, String(next));
       return next;
     });
   }, []);
@@ -341,7 +353,7 @@ export default function Shell() {
   );
 
   const dismissError = useCallback(() => setError(null), []);
-  const showChatInfo = currentView === "sessions" && !!selectedSessionId;
+  const showChatInfo = currentView === "sessions" && !!selectedSessionId && !infoPanelCollapsed;
 
   return (
     <TooltipProvider>
@@ -383,7 +395,6 @@ export default function Shell() {
                 onSelectSession={handleSelectSession}
                 onDeleteSession={handleDeleteSession}
                 onCreateSession={handleCreateSession}
-                onCollapse={toggleSessionsPanel}
               />
             )}
 
@@ -405,6 +416,12 @@ export default function Shell() {
               serverConnected={serverConnected}
               error={error}
               onDismissError={dismissError}
+              showFloatingPill={currentView === "sessions"}
+              sessionTitle={activeSessionTitle}
+              sessionsPanelOpen={!sessionsPanelCollapsed}
+              infoPanelOpen={showChatInfo}
+              onToggleSessions={toggleSessionsPanel}
+              onToggleInfo={toggleInfoPanel}
             >
               <MainViewContent
                 currentView={currentView}
