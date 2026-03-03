@@ -86,19 +86,38 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * Map from ghost color → active (pressed/toggled-on) styles.
+ * When `active` is true on a ghost button, it renders with soft-style bg + text.
+ */
+const ghostActiveStyles: Record<string, string> = {
+  neutral: "bg-neutral-fg/10 text-neutral-fg",
+  primary: "bg-palette-primary/15 text-palette-primary",
+  secondary: "bg-palette-secondary/15 text-palette-secondary",
+  success: "bg-palette-success/15 text-palette-success",
+  danger: "bg-palette-danger/15 text-palette-danger",
+  warning: "bg-palette-warning/15 text-palette-warning",
+  info: "bg-palette-info/15 text-palette-info",
+}
+
 export interface ButtonProps
   extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'color'>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
+  /** When true, renders the button in a toggled-on / pressed state. */
+  active?: boolean
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, color, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, color, size, asChild = false, active, ...props }, ref) => {
     const Comp = asChild ? SlotPrimitive.Slot : "button"
+    const resolvedColor = color ?? "primary"
+    const activeClass = active && variant === "ghost" ? ghostActiveStyles[resolvedColor] : undefined
     return (
       <Comp
-        className={cn(buttonVariants({ variant, color, size, className }))}
+        className={cn(buttonVariants({ variant, color, size, className }), activeClass)}
         ref={ref}
+        data-active={active || undefined}
         {...props}
       />
     )
