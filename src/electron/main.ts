@@ -108,6 +108,8 @@ function createWindow() {
     acceptFirstMouse: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
     },
   });
 
@@ -210,8 +212,18 @@ app.whenReady().then(async () => {
       return;
     }
 
-    spawnBunServer();
-    await waitForServer(`http://localhost:${SERVER_PORT}${HEALTH_PATH}`);
+    try {
+      spawnBunServer();
+      await waitForServer(`http://localhost:${SERVER_PORT}${HEALTH_PATH}`);
+    } catch (err) {
+      dialog.showErrorBox(
+        'Server failed to start',
+        `The Bun server did not become ready.\n\n${err instanceof Error ? err.message : String(err)}`,
+      );
+      killBunProcess();
+      app.quit();
+      return;
+    }
   }
 
   createWindow();
