@@ -17,6 +17,9 @@
     </filter>
   </defs>
 
+  <!-- Full-bleed background so PNG renderers don't show white corners -->
+  <rect width="1024" height="1024" fill="#0f172a"/>
+
   <g clip-path="url(#iconClip)">
     <!-- Background -->
     <rect width="1024" height="1024" fill="url(#bgGrad)"/>
