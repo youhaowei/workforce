@@ -33,6 +33,7 @@ await page.setContent(`
 
 // Screenshot the SVG element directly
 const svg = await page.$('svg');
+if (!svg) { console.error('No <svg> element found'); await browser.close(); process.exit(1); }
 await svg.screenshot({ path: resolve(outPath), omitBackground: true });
 await browser.close();
 console.log(`Rendered ${svgPath} → ${outPath} (${size}x${size})`);
