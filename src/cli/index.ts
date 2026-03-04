@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 /** Workforce CLI — typed tRPC client for the Workforce server. */
 
 import { Command } from 'commander';
@@ -40,7 +40,7 @@ program.parseAsync = async (...args: Parameters<typeof program.parseAsync>) => {
   } catch (err: any) {
     const msg = err?.message ?? String(err);
     if (msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
-      console.error('Error: Cannot connect to Workforce server. Is it running? (bun run server)');
+      console.error('Error: Cannot connect to Workforce server. Is it running? (pnpm run server)');
       process.exit(1);
     }
     console.error(`Error: ${msg}`);

@@ -1,5 +1,5 @@
 /**
- * useDirectoryPicker — Opens a native folder picker via tRPC, no-op on web.
+ * useDirectoryPicker — Opens a native folder picker via Electron IPC, no-op on web.
  *
  * Returns `pick()` which resolves to the selected directory path, or null
  * if the user cancelled. On web, `pick` is null (callers should hide the
@@ -8,7 +8,6 @@
 
 import { useCallback, useState } from 'react';
 import { usePlatform } from '@/ui/context/PlatformProvider';
-import { trpc } from '@/bridge/trpc';
 
 interface UseDirectoryPickerResult {
   /** Call to open the native folder picker. null when not available (web). */
@@ -18,21 +17,21 @@ interface UseDirectoryPickerResult {
 }
 
 export function useDirectoryPicker(): UseDirectoryPickerResult {
-  const { isDesktop } = usePlatform();
+  const { openDirectory } = usePlatform();
   const [isPicking, setIsPicking] = useState(false);
 
   const pick = useCallback(async (): Promise<string | null> => {
+    if (!openDirectory) return null;
     setIsPicking(true);
     try {
-      const result = await trpc.dialog.openDirectory.mutate();
-      return result.path;
+      return await openDirectory();
     } catch (err) {
       console.warn('Directory picker failed:', err);
       return null;
     } finally {
       setIsPicking(false);
     }
-  }, []);
+  }, [openDirectory]);
 
-  return { pick: isDesktop ? pick : null, isPicking };
+  return { pick: openDirectory ? pick : null, isPicking };
 }

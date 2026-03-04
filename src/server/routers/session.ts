@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { resolve, relative } from 'path';
-import { realpath } from 'fs/promises';
+import { readFile, realpath, stat } from 'fs/promises';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 import { getSessionService } from '@/services/session';
@@ -272,13 +272,13 @@ export const sessionRouter = router({
       if (rel.startsWith('..') || resolve(projectRoot, rel) !== real) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Path must be within project directory' });
       }
-      const file = Bun.file(real);
       const MAX_SIZE = 1024 * 1024; // 1 MB
-      if (file.size > MAX_SIZE) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: `File too large: ${file.size} bytes (max ${MAX_SIZE})` });
+      const fileStat = await stat(real);
+      if (fileStat.size > MAX_SIZE) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: `File too large: ${fileStat.size} bytes (max ${MAX_SIZE})` });
       }
       try {
-        return await file.text();
+        return await readFile(real, 'utf-8');
       } catch (err) {
         const code = (err as NodeJS.ErrnoException).code;
         if (code === 'ENOENT') {

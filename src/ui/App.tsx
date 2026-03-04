@@ -20,11 +20,21 @@ import { SetupGate } from './components/SetupGate';
 import Shell from './components/Shell/Shell';
 import { API_PORT } from '@/bridge/config';
 
-// Detect desktop mode: Electrobun loads the UI from the API port, dev web uses Vite's port
-const isDesktop = typeof window !== 'undefined' && window.location.port === API_PORT;
+// Electron preload exposes this on the window object via contextBridge
+const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
+
+// Detect desktop mode: Electron preload presence (works in both dev and prod),
+// or port-based fallback for production where preload loads from API port
+const isDesktop = !!electronAPI || (typeof window !== 'undefined' && window.location.port === API_PORT);
+
+// In desktop mode, mark <html> so CSS can make backgrounds transparent for vibrancy
+if (isDesktop && typeof document !== 'undefined') {
+  document.documentElement.dataset.desktop = '';
+}
 
 const platformActions: PlatformActions = {
   isDesktop,
+  openDirectory: electronAPI?.openDirectory,
 };
 
 function AppInner() {

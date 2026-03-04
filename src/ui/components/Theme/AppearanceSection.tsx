@@ -15,6 +15,7 @@ import {
 } from '@/ui/stores/useThemeStore';
 import { ColorPicker } from './ColorPicker';
 import { NeutralPicker } from './NeutralPicker';
+import { TintPicker } from './TintPicker';
 
 const DEFAULT_PALETTE_LIGHT: Record<PaletteColor, string> = {
   primary:   'oklch(0.205 0 0)',
@@ -256,10 +257,9 @@ function ModeColorControls({
       {/* Surface Tint */}
       <div className="space-y-1.5">
         <Label className="text-xs text-neutral-fg-subtle">Surface Tint</Label>
-        <ColorPicker
+        <TintPicker
           value={modeOverrides.surfaceBase ?? defaultSurface}
           onChange={(v) => updateModeOverride({ surfaceBase: v })}
-          usedColors={usedColors}
         />
       </div>
     </div>
