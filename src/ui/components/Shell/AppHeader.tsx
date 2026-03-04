@@ -108,7 +108,7 @@ export default function TopBar({
 
       {/* Center — view-specific controls */}
       {currentView === 'board' && (
-        <div className="titlebar-no-drag">
+        <div>
           <BoardFilters
             keyword={boardKeyword}
             onKeywordChange={onBoardKeywordChange}

@@ -364,7 +364,9 @@ export default function Shell() {
             All interactive content (sidebar, topbar, panels) sits at z-50+ above it.
             titlebar-drag-region class is defined in index.html <style> to bypass
             Lightning CSS which strips -webkit-app-region from Tailwind-processed CSS. */}
-        <div className="titlebar-drag-region fixed top-0 left-0 right-0 h-[var(--topbar-height)] z-40" />
+        {isDesktop && (
+          <div className="titlebar-drag-region fixed top-0 left-0 right-0 h-[var(--topbar-height)] z-40" />
+        )}
 
         <AppSidebar
           currentView={currentView}

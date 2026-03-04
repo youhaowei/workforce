@@ -85,7 +85,7 @@ export default function AppSidebar({
 
       {/* Nav items */}
       <div
-        className={`flex-1 flex flex-col gap-0.5 overflow-y-auto pointer-events-auto ${isCollapsed ? "px-2 py-2" : "px-2 py-2"}`}
+        className="flex-1 flex flex-col gap-0.5 overflow-y-auto pointer-events-auto px-2 py-2"
       >
         {NAV_ITEMS.map((item) => {
           const isActive = activeView === item.id;
@@ -104,7 +104,7 @@ export default function AppSidebar({
               }`}
             >
               <Icon
-                className={`h-[18px] w-[18px] shrink-0 ${isActive ? "" : ""}`}
+                className="h-[18px] w-[18px] shrink-0"
               />
               {!isCollapsed && <span className="truncate">{item.label}</span>}
               {!isActive && item.badge}
@@ -129,7 +129,7 @@ export default function AppSidebar({
       {/* Collapse / Expand toggle */}
       {onToggleSize && (
         <div
-          className={`pointer-events-auto ${isCollapsed ? "px-2 py-2" : "px-2 py-2"}`}
+          className="pointer-events-auto px-2 py-2"
         >
           {isCollapsed ? (
             <Tooltip delayDuration={0}>
