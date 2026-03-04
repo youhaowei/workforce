@@ -128,16 +128,10 @@ function contrastFg(oklchStr: string) {
   }
 }
 
-function applyOverrides(
-  overrides: ThemeOverrides,
-  mode: ThemeMode,
-  previewMode?: ResolvedMode | null,
+function applyPaletteOverrides(
+  style: CSSStyleDeclaration,
+  palette: ModeOverrides["palette"],
 ) {
-  const style = document.documentElement.style;
-  const isDark = resolveIsDark(mode, previewMode);
-  const modeKey: ResolvedMode = isDark ? "dark" : "light";
-  const modeOverrides = overrides[modeKey] ?? {};
-
   const paletteColors: PaletteColor[] = [
     "primary",
     "secondary",
@@ -147,7 +141,7 @@ function applyOverrides(
     "info",
   ];
   for (const name of paletteColors) {
-    const value = modeOverrides.palette?.[name];
+    const value = palette?.[name];
     if (value) {
       style.setProperty(`--palette-${name}`, value);
       style.setProperty(`--palette-${name}-fg`, contrastFg(value));
@@ -156,10 +150,18 @@ function applyOverrides(
       style.removeProperty(`--palette-${name}-fg`);
     }
   }
+}
 
-  if (modeOverrides.neutralHue != null || modeOverrides.neutralChroma != null) {
-    const hue = modeOverrides.neutralHue ?? 0;
-    const chroma = modeOverrides.neutralChroma ?? 0;
+function applyNeutralOverrides(
+  style: CSSStyleDeclaration,
+  modeKey: ResolvedMode,
+  isDark: boolean,
+  neutralHue: number | undefined,
+  neutralChroma: number | undefined,
+) {
+  if (neutralHue != null || neutralChroma != null) {
+    const hue = neutralHue ?? 0;
+    const chroma = neutralChroma ?? 0;
     for (const token of NEUTRAL_TOKEN_NAMES) {
       const def = NEUTRAL_TOKENS[token][modeKey];
       style.setProperty(
@@ -178,51 +180,71 @@ function applyOverrides(
     }
     style.removeProperty("--neutral-ring-glow");
   }
+}
 
-  if (modeOverrides.surfaceBase) {
-    style.setProperty("--surface-base", modeOverrides.surfaceBase);
-
-    // Detect "neutral" tints that match the mode's natural background:
-    // white/near-white in light mode, black/near-black in dark mode.
-    // These should be transparent (no override) to let vibrancy defaults through.
-    let isNeutralTint = false;
-    try {
-      const { l, c } = parseOklch(modeOverrides.surfaceBase);
-      isNeutralTint = c < 0.02 && (isDark ? l < 0.2 : l > 0.9);
-    } catch { /* keep false */ }
-
-    if (isNeutralTint) {
-      style.removeProperty("--shell-bg");
-      style.removeProperty("--shell-bg-vibrancy");
-    } else {
-
-    // In light mode, tint blends 30% into the light defaults (subtle wash).
-    // In dark mode, tint blends 30% into the dark defaults.
-    const tintWeight = isDark ? "30%" : "30%";
-    const defaultStart = isDark ? "oklch(0.2 0.005 250)" : "oklch(0.95 0.006 70)";
-    const startStop = `color-mix(in oklch, ${modeOverrides.surfaceBase} ${tintWeight}, ${defaultStart})`;
-    const midStop = `color-mix(in oklch, ${modeOverrides.surfaceBase} ${tintWeight}, oklch(${isDark ? "0.17 0.008 270" : "0.935 0.01 240"}))`;
-    const endStop = `color-mix(in oklch, ${modeOverrides.surfaceBase} ${tintWeight}, oklch(${isDark ? "0.15 0.01 290" : "0.93 0.014 280"}))`;
-    style.setProperty(
-      "--shell-bg",
-      `linear-gradient(160deg, ${startStop} 0%, ${midStop} 55%, ${endStop} 100%)`,
-    );
-    // Semi-transparent version for Electron vibrancy — wrap each stop in color-mix with transparent
-    // Dark mode needs near-opaque overlay (97%) to prevent vibrancy material from washing out dark colors
-    const vibrancyOpacity = "50%";
-    const vibrancyStart = `color-mix(in oklch, ${startStop} ${vibrancyOpacity}, transparent)`;
-    const vibrancyMid = `color-mix(in oklch, ${midStop} ${vibrancyOpacity}, transparent)`;
-    const vibrancyEnd = `color-mix(in oklch, ${endStop} ${vibrancyOpacity}, transparent)`;
-    style.setProperty(
-      "--shell-bg-vibrancy",
-      `linear-gradient(160deg, ${vibrancyStart} 0%, ${vibrancyMid} 55%, ${vibrancyEnd} 100%)`,
-    );
-    } // end !isNeutralTint
-  } else {
+function applySurfaceOverrides(
+  style: CSSStyleDeclaration,
+  isDark: boolean,
+  surfaceBase: string | undefined,
+) {
+  if (!surfaceBase) {
     style.removeProperty("--surface-base");
     style.removeProperty("--shell-bg");
     style.removeProperty("--shell-bg-vibrancy");
+    return;
   }
+
+  style.setProperty("--surface-base", surfaceBase);
+
+  // Detect "neutral" tints that match the mode's natural background:
+  // white/near-white in light mode, black/near-black in dark mode.
+  // These should be transparent (no override) to let vibrancy defaults through.
+  let isNeutralTint = false;
+  try {
+    const { l, c } = parseOklch(surfaceBase);
+    isNeutralTint = c < 0.02 && (isDark ? l < 0.2 : l > 0.9);
+  } catch { /* keep false */ }
+
+  if (isNeutralTint) {
+    style.removeProperty("--shell-bg");
+    style.removeProperty("--shell-bg-vibrancy");
+    return;
+  }
+
+  // Tint blends 30% into mode defaults (subtle wash).
+  const tintWeight = "30%";
+  const defaultStart = isDark ? "oklch(0.2 0.005 250)" : "oklch(0.95 0.006 70)";
+  const startStop = `color-mix(in oklch, ${surfaceBase} ${tintWeight}, ${defaultStart})`;
+  const midStop = `color-mix(in oklch, ${surfaceBase} ${tintWeight}, oklch(${isDark ? "0.17 0.008 270" : "0.935 0.01 240"}))`;
+  const endStop = `color-mix(in oklch, ${surfaceBase} ${tintWeight}, oklch(${isDark ? "0.15 0.01 290" : "0.93 0.014 280"}))`;
+  style.setProperty(
+    "--shell-bg",
+    `linear-gradient(160deg, ${startStop} 0%, ${midStop} 55%, ${endStop} 100%)`,
+  );
+  // Semi-transparent version for Electron vibrancy
+  const vibrancyOpacity = "50%";
+  const vibrancyStart = `color-mix(in oklch, ${startStop} ${vibrancyOpacity}, transparent)`;
+  const vibrancyMid = `color-mix(in oklch, ${midStop} ${vibrancyOpacity}, transparent)`;
+  const vibrancyEnd = `color-mix(in oklch, ${endStop} ${vibrancyOpacity}, transparent)`;
+  style.setProperty(
+    "--shell-bg-vibrancy",
+    `linear-gradient(160deg, ${vibrancyStart} 0%, ${vibrancyMid} 55%, ${vibrancyEnd} 100%)`,
+  );
+}
+
+function applyOverrides(
+  overrides: ThemeOverrides,
+  mode: ThemeMode,
+  previewMode?: ResolvedMode | null,
+) {
+  const style = document.documentElement.style;
+  const isDark = resolveIsDark(mode, previewMode);
+  const modeKey: ResolvedMode = isDark ? "dark" : "light";
+  const modeOverrides = overrides[modeKey] ?? {};
+
+  applyPaletteOverrides(style, modeOverrides.palette);
+  applyNeutralOverrides(style, modeKey, isDark, modeOverrides.neutralHue, modeOverrides.neutralChroma);
+  applySurfaceOverrides(style, isDark, modeOverrides.surfaceBase);
 }
 
 function clearAllOverrideStyles() {
