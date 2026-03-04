@@ -5,23 +5,23 @@ Docs: `docs/` (high-level) + [Notion](https://www.notion.so/2ffd48ccaf5481d7bb33
 ## Commands
 
 ```bash
-bun install          # Install dependencies
-bun run test         # All unit tests (Vitest)
-bun run test -- src/services/session.test.ts  # Single test file
-bun run test:e2e     # Playwright E2E tests
-bun run lint         # Lint code
-bun run type-check   # TypeScript check
-bun run server       # Start backend server (port 4096)
-bun run server:watch # Server with hot-reload
-bun run dev:web      # Start server + vite for web testing (port 5173)
-bun run clean        # Remove build artifacts (dist, out)
+pnpm install          # Install dependencies
+pnpm run test         # All unit tests (Vitest)
+pnpm run test -- src/services/session.test.ts  # Single test file
+pnpm run test:e2e     # Playwright E2E tests
+pnpm run lint         # Lint code
+pnpm run type-check   # TypeScript check
+pnpm run server       # Start backend server (port 4096)
+pnpm run server:watch # Server with hot-reload
+pnpm run dev:web      # Start server + vite for web testing (port 5173)
+pnpm run clean        # Remove build artifacts (dist, out)
 ```
 
 **ASK FIRST — never auto-run:**
 
 ```bash
-bun run dev   # Server + Electron desktop app (dev loads from Vite :5173)
-bun run build # Electron Forge release build
+pnpm run dev   # Server + Electron desktop app (dev loads from Vite :5173)
+pnpm run build # Electron Forge release build
 ```
 
 ## Key Disambiguation
@@ -49,7 +49,7 @@ bun run build # Electron Forge release build
 Test at the layer the change lives in (test both if a fix crosses layers):
 - **Service/router** — `router.test.ts` via `createCaller()`, or service-level with factory functions + temp dirs
 - **UI** — React Testing Library + jsdom (`src/ui/**/*.test.tsx`)
-- **E2E** — Playwright (`bun run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
+- **E2E** — Playwright (`pnpm run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
 - **Bug reproduction** — Construct JSONL journal records and replay via `replaySession()`. More reliable than mocking UI state.
 - **Co-located tests** — `Foo.test.ts` next to `Foo.ts`, not in `__tests__/` directories
 - **Environments** — Node (default) for services/routers; `jsdom` for `src/ui/**/*.test.tsx` (auto-matched in vitest.config.ts)
@@ -78,7 +78,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 ### SDK & Streaming
 - **Streaming** — `content_block_delta` events only (not final message). Never `.trim()` SSE data — strips inter-token spaces.
-- **Bun.serve timeout** — Default `idleTimeout` 10s; SSE needs 120s.
+- **@hono/node-server** — Server runs via `@hono/node-server`'s `serve()`. SSE connections need appropriate timeout handling.
 - **Cold-replay answers** — Answers persisted in `block.result` via `updateBlockResult`. Historical answers as follow-up messages: `backfillQuestionResults` in `session-journal.ts` handles migration.
 
 ### UI
@@ -97,10 +97,10 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **Optimistic updates** — `onMutate` must return rollback context for `onError`.
 
 ### unifai Dependency
-- **What**: Multi-provider agent abstraction (`github:youhaowei/unifai`). GitHub dep for portability; `bun link` for local dev.
-- **Local setup**: `cd ~/Projects/unifai && bun link` then `cd ~/Projects/workforce && bun link unifai`
-- **After `bun install`**: Re-run `bun link unifai` (install overwrites the link)
-- **In worktrees**: Run `bun link unifai` after creation (or just use the GitHub version)
+- **What**: Multi-provider agent abstraction (`github:youhaowei/unifai`). GitHub dep for portability; `pnpm link` for local dev.
+- **Local setup**: `cd ~/Projects/workforce && pnpm link ~/Projects/unifai`
+- **After `pnpm install`**: Re-run `pnpm link ~/Projects/unifai` (install overwrites the link)
+- **In worktrees**: Run `pnpm link ~/Projects/unifai` after creation (or just use the GitHub version)
 
 ## Recipes
 

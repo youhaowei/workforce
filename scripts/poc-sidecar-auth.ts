@@ -1,12 +1,12 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 /**
  * POC: Sidecar Auth Verification
  *
  * Tests whether the Claude Agent SDK can authenticate when running
  * as a child process (simulating Tauri sidecar spawning).
  *
- * Run directly:        bun scripts/poc-sidecar-auth.ts
- * Simulate sidecar:    bun scripts/poc-sidecar-auth.ts --spawn-child
+ * Run directly:        tsx scripts/poc-sidecar-auth.ts
+ * Simulate sidecar:    tsx scripts/poc-sidecar-auth.ts --spawn-child
  *
  * The --spawn-child flag spawns a copy of itself as a child process
  * with only HOME and PATH set — stricter than production, where
@@ -116,7 +116,7 @@ function spawnChild(): Promise<number> {
   return new Promise((resolve) => {
     console.log('\n[Parent] Spawning child with minimal env (HOME + PATH only)...');
 
-    const child = spawn('bun', ['scripts/poc-sidecar-auth.ts'], {
+    const child = spawn('tsx', ['scripts/poc-sidecar-auth.ts'], {
       env: {
         // Only pass what fix-path-env would provide
         HOME: process.env.HOME || homedir(),

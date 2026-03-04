@@ -6,7 +6,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 async function measureMemory() {
   return new Promise((resolve, reject) => {
-    const proc = spawn('bun', ['run', 'dev'], {
+    const proc = spawn('pnpm', ['run', 'dev'], {
       cwd: dirname(__dirname),
       stdio: 'pipe'
     });

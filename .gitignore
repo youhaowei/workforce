@@ -3,9 +3,9 @@ node_modules/
 .pnp
 .pnp.js
 
-# Bun
-.bun/
-bun.lockb
+# pnpm
+pnpm-debug.log*
+.pnpm-store/
 
 # Dev server port discovery
 .dev-port
@@ -84,3 +84,4 @@ Desktop.ini
 *.key
 *.cert
 .playwright-mcp/
+node_modules

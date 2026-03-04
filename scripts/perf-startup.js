@@ -9,7 +9,7 @@ async function measureStartup() {
   const startTime = performance.now();
   
   return new Promise((resolve, reject) => {
-    const proc = spawn('bun', ['run', 'dev'], {
+    const proc = spawn('pnpm', ['run', 'dev'], {
       cwd: dirname(__dirname),
       stdio: 'pipe'
     });
