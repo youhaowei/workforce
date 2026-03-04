@@ -282,8 +282,10 @@ export const useThemeStore = create<ThemeState>((set, get) => {
   const mq = window.matchMedia("(prefers-color-scheme: dark)");
   mq.addEventListener("change", () => {
     const { mode, overrides, previewMode } = useThemeStore.getState();
-    if (mode === "system" && previewMode == null) {
-      applyTheme("system");
+    if (previewMode != null) return;
+    // Always re-apply theme so vibrancy mismatch flag stays in sync
+    applyTheme(mode);
+    if (mode === "system") {
       applyOverrides(overrides, "system");
     }
   });

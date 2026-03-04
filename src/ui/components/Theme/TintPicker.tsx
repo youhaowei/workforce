@@ -83,13 +83,13 @@ export function TintPicker({ value, onChange }: TintPickerProps) {
           <HueWheel
             hue={lch.h}
             lightness={lch.l}
-            onChangeHue={(h) => emit(lch.l, lch.c, h)}
+            onChangeHue={(h) => emit(lch.l, TINT_CHROMA, h)}
           />
           <BrightnessSlider
             lightness={lch.l}
             hue={lch.h}
             chroma={lch.c}
-            onChangeLightness={(l) => emit(l, lch.c, lch.h)}
+            onChangeLightness={(l) => emit(l, TINT_CHROMA, lch.h)}
           />
           <div className="flex items-center gap-2">
             <div
@@ -146,7 +146,10 @@ function HueWheel({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, WHEEL_SIZE, WHEEL_SIZE);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = WHEEL_SIZE * dpr;
+    canvas.height = WHEEL_SIZE * dpr;
+    ctx.scale(dpr, dpr);
 
     // Draw hue ring using arc segments
     const segments = 360;
@@ -194,7 +197,7 @@ function HueWheel({
   const startDrag = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       handlePointer(e);
     },
     [handlePointer],
@@ -219,9 +222,8 @@ function HueWheel({
     >
       <canvas
         ref={canvasRef as React.RefObject<HTMLCanvasElement>}
-        width={WHEEL_SIZE}
-        height={WHEEL_SIZE}
         className="block"
+        style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}
       />
       {/* Center preview */}
       <div
@@ -273,7 +275,7 @@ function BrightnessSlider({
   const startDrag = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       handlePointer(e);
     },
     [handlePointer],
