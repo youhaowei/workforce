@@ -235,9 +235,9 @@ export default function MessageInput({
   const hasStats = cumulativeUsage.inputTokens > 0 || messageCount > 0;
 
   return (
-    <div className="flex-shrink-0 px-6 pb-5 pt-2">
+    <div className="shrink-0 px-6 pb-5 pt-2">
       <div className="max-w-3xl mx-auto">
-        <Card className="bg-neutral-bg/80 backdrop-blur-[24px] saturate-[1.4] rounded-[var(--surface-radius)] shadow-[var(--shadow-lg),0_0_12px_var(--neutral-ring-glow)] border-0 transition-shadow focus-within:shadow-[var(--shadow-lg),0_0_0_1px_var(--neutral-ring),0_0_20px_var(--neutral-ring-glow)]">
+        <Card className="bg-neutral-bg/80 backdrop-blur-xl saturate-[1.4] rounded-(--surface-radius) shadow-[var(--shadow-lg),0_0_12px_var(--neutral-ring-glow)] border-0 transition-shadow focus-within:shadow-[var(--shadow-lg),0_0_0_1px_var(--neutral-ring),0_0_20px_var(--neutral-ring-glow)]">
           {/* Textarea area */}
           <div className="px-6 pt-[18px] pb-2">
             <textarea
