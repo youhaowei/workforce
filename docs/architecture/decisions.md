@@ -27,9 +27,9 @@ Last updated: 2026-02-17
 16. **~~Sidecar server architecture~~ → ~~Electrobun direct-call~~ → Electron subprocess architecture** — Originally Tauri sidecar (~300 lines Rust). Migrated to Electrobun Feb 2026 (Bun-native, direct `startServer()` call). Migrated to Electron Mar 2026 — Electrobun couldn't reposition macOS traffic lights, was macOS-only, and lacked CDP support for AI agent tooling.
 
     **Current architecture (Electron)**:
-    - `src/electron/main.ts` — Electron main process (Node): repairs PATH, spawns Bun subprocess, opens `BrowserWindow` with `hiddenInset` title bar
+    - `src/electron/main.ts` — Electron main process (Node): repairs PATH, starts Hono server in-process, opens `BrowserWindow` with `hiddenInset` title bar
     - `src/electron/preload.ts` — Context bridge exposing `electronAPI.openDirectory()` via IPC
-    - `src/server/index.ts` — Bun HTTP server, unchanged. Runs as subprocess in production, externally in dev
+    - `src/server/index.ts` — Hono HTTP server on Node.js via @hono/node-server. Runs in-process in production, externally in dev
     - In production, Hono serves both the API and Vite build output on `:4096` (same origin, no CORS)
     - In dev, server runs externally via `server:watch`; Electron window points to Vite at `:5173`
     - Native dialogs via Electron IPC (`window.electronAPI.openDirectory()`)

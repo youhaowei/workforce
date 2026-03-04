@@ -210,7 +210,7 @@ Workforce must now provide:
 1. **External server started from terminal** (current approach — server runs in a terminal with proper shell env, WebView connects via HTTP)
 2. **In-process services** where Bun has inherited the shell environment
 
-The current Workforce already solved this: `bun run dev` starts the server from the terminal first, then launches Tauri. The server process inherits `PATH`, `HOME`, and the Claude credential files.
+The current Workforce already solved this: `pnpm run dev` starts the server from the terminal first, then launches Electron. The server process inherits `PATH`, `HOME`, and the Claude credential files.
 
 **What this means for state management:**
 - TanStack Query is still valuable — but for caching Agent SDK responses over the HTTP bridge, not for querying a sidecar
@@ -401,7 +401,7 @@ User Message
 │  ├── GET /session/* — session CRUD                   │
 │  └── GET /health — server health check               │
 ├─────────────────────────── AUTH BOUNDARY ───────────┤
-│  Hono Server (port 4096, Bun runtime)                │
+│  Hono Server (port 4096, Node.js runtime)             │
 │  ├── Inherits shell env (Claude CLI auth)            │
 │  ├── AgentService (Claude Agent SDK wrapper)         │
 │  ├── OrchestratorService (profile routing, skills)   │
