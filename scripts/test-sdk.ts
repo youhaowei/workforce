@@ -1,9 +1,9 @@
-#!/usr/bin/env bun
+#!/usr/bin/env tsx
 /**
  * Simple hello world script to test Claude Agent SDK auth.
  *
  * Usage:
- *   bun scripts/test-sdk.ts
+ *   tsx scripts/test-sdk.ts
  *
  * This script helps diagnose auth issues by:
  * 1. Printing environment diagnostics

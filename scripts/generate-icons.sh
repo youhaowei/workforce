@@ -35,7 +35,10 @@ sips -z  512  512 "$TMP_PNG" --out "$ICONSET/icon_256x256@2x.png" > /dev/null
 sips -z  512  512 "$TMP_PNG" --out "$ICONSET/icon_512x512.png"    > /dev/null
 sips -z 1024 1024 "$TMP_PNG" --out "$ICONSET/icon_512x512@2x.png" > /dev/null
 
+echo "Building icon.icns..."
+iconutil -c icns "$ICONSET" -o icon.icns
+
 rm -rf "$TMP_DIR"
 
-echo "Done: $(ls "$ICONSET" | wc -l | tr -d ' ') icons in $ICONSET/"
-echo "Restart 'bun run dev' to see the updated Dock icon."
+echo "Done: $(ls "$ICONSET" | wc -l | tr -d ' ') icons in $ICONSET/, icon.icns generated"
+echo "Restart 'pnpm run dev' to see the updated Dock icon."

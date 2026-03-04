@@ -156,10 +156,10 @@ Total human involvement: one sentence of intent, one review gate approval, one r
 
 ## Technical Foundation
 
-**Desktop runtime**: Electrobun (Bun-native, WebView frontend)
+**Desktop runtime**: Electron (Node main process, Node.js server in-process)
 **Frontend**: React 19.2 + Compiler, shadcn/ui, Streamdown, react-virtuoso
 **State**: Zustand (global) + Jotai (per-entity streaming) + TanStack Query (server/API)
-**Server**: Hono on Bun (external process, inherits shell env for Claude CLI auth)
+**Server**: Hono on Node.js via @hono/node-server (in-process in prod, external in dev)
 **Agent SDK**: Claude Agent SDK + Claude Code (spawned as processes)
 **Config**: Workspace-scoped folder structure (~/.workforce/workspaces/{id}/)
 **Sessions**: JSONL persistence with async batched writes

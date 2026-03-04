@@ -61,9 +61,9 @@ export default function TopBar({
     : (VIEW_TITLES[currentView] ?? currentView);
 
   return (
-    <header className="shell-topbar electrobun-webkit-app-region-drag">
-      {/* Left — reopen toggles + title */}
-      <div className="flex items-center gap-2 min-w-0 flex-1 electrobun-webkit-app-region-no-drag">
+    <header className="shell-topbar relative z-50 pointer-events-none [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_select]:pointer-events-auto">
+      {/* Left — pointer-events-none inherited; buttons get pointer-events-auto via header selector */}
+      <div className="flex items-center gap-2 min-w-0 flex-1">
         {sessionsPanelCollapsed && currentView === 'sessions' && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -108,7 +108,7 @@ export default function TopBar({
 
       {/* Center — view-specific controls */}
       {currentView === 'board' && (
-        <div className="electrobun-webkit-app-region-no-drag">
+        <div>
           <BoardFilters
             keyword={boardKeyword}
             onKeywordChange={onBoardKeywordChange}
@@ -119,7 +119,7 @@ export default function TopBar({
       )}
 
       {/* Right — global actions */}
-      <div className="flex items-center gap-0.5 shrink-0 electrobun-webkit-app-region-no-drag">
+      <div className="flex items-center gap-0.5 shrink-0">
         <Button
           variant="ghost" size="xs"
           onClick={onQuickCreate}
