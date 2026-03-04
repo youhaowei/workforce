@@ -18,7 +18,7 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "types": ["vitest/globals", "vite/client", "node", "bun"]
+    "types": ["vitest/globals", "vite/client", "node"]
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist", "build", "src/electron"]

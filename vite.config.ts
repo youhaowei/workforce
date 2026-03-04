@@ -26,6 +26,11 @@ function vitePortFile(): Plugin {
           writeFileSync(VITE_PORT_FILE, String(addr.port));
         }
       });
+      // Clean up on dev server shutdown (Ctrl+C, etc.)
+      const cleanup = () => {
+        try { unlinkSync(VITE_PORT_FILE); } catch { /* not found */ }
+      };
+      server.httpServer?.on('close', cleanup);
     },
     buildEnd() {
       try { unlinkSync(VITE_PORT_FILE); } catch { /* not found */ }

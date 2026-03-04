@@ -11,6 +11,12 @@
     <style>
       .titlebar-drag-region { -webkit-app-region: drag; app-region: drag; }
       .titlebar-no-drag { -webkit-app-region: no-drag; app-region: no-drag; }
+      /* All interactive elements opt out of drag so they remain clickable
+         above the drag-region overlay. */
+      button, input, select, textarea, a, [role="button"] {
+        -webkit-app-region: no-drag;
+        app-region: no-drag;
+      }
     </style>
   </head>
   <body>
