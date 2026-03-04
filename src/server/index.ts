@@ -1,20 +1,23 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { serveStatic } from 'hono/bun'
-import { trpcServer } from '@hono/trpc-server'
-import { existsSync, writeFileSync, unlinkSync } from 'fs'
+import { serve } from '@hono/node-server'
+import { serveStatic } from '@hono/node-server/serve-static'
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
 import { homedir } from 'os'
-import { join } from 'path'
+import { join, dirname, resolve } from 'path'
+import { fileURLToPath } from 'url'
 import { debugLog, getLogPath } from '@/shared/debug-log'
 import { getLogService } from '@/services/log'
 import { getAgentService } from '@/services/agent'
 import { appRouter } from './routers'
+import { trpcServer } from '@hono/trpc-server'
+import type { ServerType } from '@hono/node-server'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // Eagerly create the AgentService singleton at module-load time so the Claude
 // SDK subprocess and model cache begin loading as early as possible — well
 // before the HTTP server is bound or the first UI request arrives.
-// In production (Electron), this runs as soon as the Bun subprocess starts;
-// in dev, as soon as `bun run server:watch` evaluates the entry point.
 getAgentService();
 
 /**
@@ -37,7 +40,7 @@ function logAuthDiagnostics() {
   })
 }
 
-const app = new Hono()
+export const app = new Hono()
 
 // Trusted-local threat model: server binds to localhost:4096, only the local
 // desktop webview (or dev browser on localhost) should access it.
@@ -63,7 +66,6 @@ app.get('/health', (c) => c.json({ ok: true }))
 app.get('/debug-log', async (c) => {
   const logPath = getLogPath()
   try {
-    const { readFileSync } = await import('fs')
     const content = readFileSync(logPath, 'utf-8')
     // Return last 200 lines
     const lines = content.split('\n')
@@ -112,7 +114,6 @@ app.get('/auth-check', async (c) => {
   // Try to read and parse credentials file
   if (result.hasCredentialsFile) {
     try {
-      const { readFileSync } = await import('fs')
       const content = readFileSync(credPath, 'utf-8')
       const creds = JSON.parse(content)
       result.credentialsFileReadable = true
@@ -140,62 +141,60 @@ app.get('/auth-check', async (c) => {
 })
 
 // Serve Vite build output in production (same-origin, no CORS needed).
-// In Electron production bundle: import.meta.dir = Resources/app/src/server/ → ../../dist
-// In dev standalone: import.meta.dir = <project>/src/server/ → ../../dist
-const distCandidates = [join(import.meta.dir, '../dist'), join(import.meta.dir, '../../dist')];
+// In Electron production bundle: __dirname = Resources/app.asar.unpacked/.vite/build/ → ../../dist
+// The asar.unpack config extracts dist/ to app.asar.unpacked/ so non-Electron
+// fs APIs (like @hono/node-server serveStatic) can read the files.
+// In dev standalone: __dirname = <project>/src/server/ → ../../dist
+const distCandidates = [
+  join(__dirname, '../dist'),
+  join(__dirname, '../../dist'),
+  // Electron asar.unpacked path: .vite/build → app.asar.unpacked/dist
+  join(__dirname.replace('app.asar', 'app.asar.unpacked'), '../dist'),
+  join(__dirname.replace('app.asar', 'app.asar.unpacked'), '../../dist'),
+];
 const distPath = distCandidates.find((p) => existsSync(p));
 if (distPath) {
   app.use('*', serveStatic({ root: distPath }))
   // SPA fallback: serve index.html for non-API paths that don't match a static file
   const indexPath = join(distPath, 'index.html');
   if (existsSync(indexPath)) {
-    const indexHtml = Bun.file(indexPath).text();
-    app.get('*', async (c) => c.html(await indexHtml))
+    const indexHtml = readFileSync(indexPath, 'utf-8');
+    app.get('*', (c) => c.html(indexHtml))
   }
 }
 
-const DEV_PORT_FILE = join(import.meta.dir, '../../.dev-port')
+const DEV_PORT_FILE = join(__dirname, '../../.dev-port')
 
-function tryServe(port: number): ReturnType<typeof Bun.serve> {
-  try {
-    return Bun.serve({
-      port,
-      hostname: 'localhost',
-      fetch: app.fetch,
-      idleTimeout: 120,
-    })
-  } catch {
-    // Port in use — let the OS assign a free one
-    debugLog('Server', `Port ${port} in use, requesting OS-assigned port`)
-    return Bun.serve({
-      port: 0,
-      hostname: 'localhost',
-      fetch: app.fetch,
-      idleTimeout: 120,
-    })
-  }
+function tryServe(port: number): ServerType {
+  const server = serve({
+    fetch: app.fetch,
+    port,
+    hostname: 'localhost',
+  })
+  return server
 }
 
 export function startServer(overrides?: { port?: number }) {
   const basePort = overrides?.port ?? parseInt(process.env.PORT || '4096')
   const server = tryServe(basePort)
 
+  // Retrieve the actual bound port
+  const addr = server.address()
+  const actualPort = typeof addr === 'object' && addr ? addr.port : basePort
+
   // Write actual port so vite can discover it
-  if (import.meta.main) {
-    writeFileSync(DEV_PORT_FILE, String(server.port))
+  const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])
+  if (isMain) {
+    writeFileSync(DEV_PORT_FILE, String(actualPort))
     process.on('exit', () => { try { unlinkSync(DEV_PORT_FILE) } catch { /* cleanup best-effort */ } })
     process.on('SIGINT', () => process.exit(0))
     process.on('SIGTERM', () => process.exit(0))
   }
 
   logAuthDiagnostics()
-  debugLog('Server', `Workforce server running on ${server.url}`)
+  debugLog('Server', `Workforce server running on http://localhost:${actualPort}`)
 
   // Warm up model list cache eagerly so it's ready before the first query.
-  // getSupportedModels() will first try disk cache (instant) then refresh
-  // from the SDK subprocess in the background. Concurrent callers during
-  // warm-up piggyback on the same in-flight promise, avoiding duplicate
-  // subprocess spawns.
   getAgentService().getSupportedModels().then(
     (models) => debugLog('Server', `Model cache warmed: ${models.length} models`),
     (err) => debugLog('Server', 'Model cache warm-up failed (will retry on demand)', { error: err instanceof Error ? err.message : String(err) }),
@@ -204,5 +203,6 @@ export function startServer(overrides?: { port?: number }) {
   return server
 }
 
-// Standalone mode (bun run server)
-if (import.meta.main) startServer()
+// Standalone mode (tsx src/server/index.ts)
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])
+if (isMain) startServer()

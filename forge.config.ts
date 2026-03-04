@@ -8,10 +8,26 @@ const config: ForgeConfig = {
     name: 'Workforce',
     appBundleId: 'dev.workforce.app',
     icon: 'icon',
+    // The Forge Vite plugin packages /.vite/** by default.
+    // Server code is now bundled into .vite/build/main.cjs, so we only need
+    // the Vite output, dist (production UI build), and node_modules for
+    // any native dependencies.
+    ignore: (file: string) => {
+      if (!file) return false;
+
+      const includedPrefixes = ['/.vite', '/dist', '/node_modules'];
+      if (includedPrefixes.some((prefix) => file.startsWith(prefix))) return false;
+
+      const includedFiles = ['/package.json'];
+      if (includedFiles.includes(file)) return false;
+
+      return true;
+    },
     asar: {
-      // Bun subprocess can't read from asar archives — unpack the entire
-      // src/ tree so the server's import graph resolves on the real filesystem.
-      unpack: 'src/**',
+      // Unpack dist so the Hono static server can read renderer assets
+      // via normal filesystem paths (asar-packed files aren't accessible
+      // to non-Electron fs APIs like @hono/node-server's serveStatic).
+      unpack: '{dist/**,node_modules/**/*.node}',
     },
   },
   makers: [
