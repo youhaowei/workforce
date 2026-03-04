@@ -10,11 +10,11 @@ import { execFileSync } from 'child_process';
 import { readFileSync } from 'fs';
 import path from 'path';
 import type { ServerType } from '@hono/node-server';
-import { SERVER_PORT } from '../shared/constants';
 import { startServer } from '../server/index';
 
 const isDev = !app.isPackaged;
 const appName = isDev ? 'Workforce Dev' : 'Workforce';
+const serverPort = parseInt(process.env.PORT || '4096');
 let server: ServerType | null = null;
 
 /** Read .vite-port written by Vite dev server on startup. */
@@ -39,7 +39,7 @@ function repairPath() {
   if (isDev) return;
   try {
     const loginShell = process.env.SHELL || '/bin/zsh';
-    const shellPath = execFileSync(loginShell, ['-il', '-c', 'printf %s "$PATH"'], {
+    const shellPath = execFileSync(loginShell, ['-l', '-c', 'printf %s "$PATH"'], {
       encoding: 'utf-8',
     }).trim();
     if (shellPath) {
@@ -72,11 +72,11 @@ function createWindow() {
   });
 
   const vitePort = isDev ? discoverVitePort() : null;
-  const loadUrl = isDev ? `http://localhost:${vitePort}` : `http://localhost:${SERVER_PORT}`;
+  const loadUrl = isDev ? `http://localhost:${vitePort}` : `http://localhost:${serverPort}`;
   win.loadURL(loadUrl);
 
   // Security: prevent navigation away from the app
-  const allowedPort = isDev ? vitePort : SERVER_PORT;
+  const allowedPort = isDev ? vitePort : String(serverPort);
   win.webContents.on('will-navigate', (event, url) => {
     try {
       const parsed = new URL(url);
@@ -173,7 +173,7 @@ app.whenReady().then(async () => {
   // In production, start it in-process.
   if (!isDev) {
     try {
-      server = startServer({ port: parseInt(SERVER_PORT) });
+      server = startServer({ port: serverPort });
     } catch (err) {
       dialog.showErrorBox(
         'Server failed to start',

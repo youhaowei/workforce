@@ -51,9 +51,12 @@ export default defineConfig({
   },
   define: {
     // Propagate discovered port so bridge/config.ts picks it up at build time
-    ...(discoverApiPort() && !process.env.VITE_API_PORT
-      ? { 'import.meta.env.VITE_API_PORT': JSON.stringify(discoverApiPort()) }
-      : {}),
+    ...(() => {
+      const apiPort = discoverApiPort();
+      return apiPort && !process.env.VITE_API_PORT
+        ? { 'import.meta.env.VITE_API_PORT': JSON.stringify(apiPort) }
+        : {};
+    })(),
   },
   build: {
     target: 'ES2020',

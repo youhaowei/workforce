@@ -60,7 +60,7 @@ app.use('*', cors({
 // tRPC endpoint — all routers available at /api/trpc/*
 app.use('/api/trpc/*', trpcServer({ router: appRouter }))
 
-// Health check — also polled by Electron main process at startup (see src/shared/constants.ts)
+// Health check — also polled by Electron main process at startup
 app.get('/health', (c) => c.json({ ok: true }))
 
 app.get('/debug-log', async (c) => {
@@ -171,6 +171,8 @@ function tryServe(port: number): ServerType {
     port,
     hostname: 'localhost',
   })
+  // SSE connections are long-lived; prevent premature closure
+  if ('keepAliveTimeout' in server) server.keepAliveTimeout = 120_000
   return server
 }
 
@@ -183,8 +185,7 @@ export function startServer(overrides?: { port?: number }) {
   const actualPort = typeof addr === 'object' && addr ? addr.port : basePort
 
   // Write actual port so vite can discover it
-  const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])
-  if (isMain) {
+  if (isMainModule) {
     writeFileSync(DEV_PORT_FILE, String(actualPort))
     process.on('exit', () => { try { unlinkSync(DEV_PORT_FILE) } catch { /* cleanup best-effort */ } })
     process.on('SIGINT', () => process.exit(0))
@@ -204,5 +205,5 @@ export function startServer(overrides?: { port?: number }) {
 }
 
 // Standalone mode (tsx src/server/index.ts)
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])
-if (isMain) startServer()
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])
+if (isMainModule) startServer()
