@@ -33,7 +33,7 @@ export function StageFloatingPill({
         size="icon"
         active={sessionsPanelOpen}
         onClick={onToggleSessions}
-        className="absolute top-2 left-2 z-10 h-7 w-7 rounded-full backdrop-blur-xl shadow-sm border border-neutral-border/30"
+        className="absolute top-2 left-2 z-10 h-7 w-7 rounded-full shadow-sm border border-neutral-border/30"
         aria-pressed={sessionsPanelOpen}
         aria-label={sessionsPanelOpen ? 'Hide sessions panel' : 'Show sessions panel'}
       >
@@ -42,7 +42,7 @@ export function StageFloatingPill({
 
       {/* Top-center: session title */}
       {sessionTitle && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center h-7 px-3 bg-neutral-bg/70 backdrop-blur-xl rounded-full shadow-sm border border-neutral-border/30">
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center h-7 px-3 bg-neutral-bg/70 rounded-full shadow-sm border border-neutral-border/30">
           <span className="text-xs font-medium text-neutral-fg truncate max-w-56 select-none">
             {sessionTitle}
           </span>
@@ -56,7 +56,7 @@ export function StageFloatingPill({
         size="icon"
         active={infoPanelOpen}
         onClick={onToggleInfo}
-        className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full backdrop-blur-xl shadow-sm border border-neutral-border/30"
+        className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full shadow-sm border border-neutral-border/30"
         aria-pressed={infoPanelOpen}
         aria-label={infoPanelOpen ? 'Hide info panel' : 'Show info panel'}
       >

@@ -11,6 +11,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
+import { usePlatform } from "@/ui/context/PlatformProvider";
 
 import {
   Tooltip,
@@ -60,6 +61,11 @@ export default function AppSidebar({
 }: AppSidebarProps) {
   const activeView = currentView === "detail" ? "board" : currentView;
   const isCollapsed = mode === "collapsed";
+  const { isDesktop } = usePlatform();
+  const isMacDesktop = isDesktop && typeof navigator !== "undefined"
+    ? /^Mac/i.test((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform)
+    : false;
+  const topSpacerHeight = isDesktop ? "h-10" : "h-2";
 
   return (
     <nav
@@ -67,7 +73,15 @@ export default function AppSidebar({
       className={`shrink-0 flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden relative z-50 pointer-events-none ${SIDEBAR_WIDTH_CLASSES[mode]}`}
     >
       {/* Traffic light zone — inherits pointer-events-none so drag overlay beneath is reachable */}
-      <div className="h-10 shrink-0" />
+      <div className={`${topSpacerHeight} shrink-0 flex items-center pointer-events-auto`}>
+        {isMacDesktop && (
+          <div
+            data-tauri-drag-region=""
+            className="h-full w-full rounded-lg border-neutral-border-subtle flex items-center font-medium text-neutral-fg-subtle tracking-tight"
+          >
+          </div>
+        )}
+      </div>
 
       {/* Logo */}
       <div

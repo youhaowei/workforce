@@ -360,13 +360,9 @@ export default function Shell() {
         className="h-screen flex overflow-hidden shell-ground"
         data-desktop={isDesktop || undefined}
       >
-        {/* Drag region overlay — fixed strip at z-40 enables window dragging.
-            All interactive content (sidebar, topbar, panels) sits at z-50+ above it.
-            titlebar-drag-region class is defined in index.html <style> to bypass
-            Lightning CSS which strips -webkit-app-region from Tailwind-processed CSS. */}
-        {isDesktop && (
-          <div className="titlebar-drag-region fixed top-0 left-0 right-0 h-[var(--topbar-height)] z-40" />
-        )}
+        {/* Tauri: window dragging handled by data-tauri-drag-region on AppHeader.
+            No overlay div needed — Tauri intercepts drag at the native WKWebView level.
+            (The old z-40 overlay with -webkit-app-region: drag was Chromium/Electron-only.) */}
 
         <AppSidebar
           currentView={currentView}

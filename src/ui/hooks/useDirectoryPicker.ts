@@ -1,5 +1,5 @@
 /**
- * useDirectoryPicker — Opens a native folder picker via Electron IPC, no-op on web.
+ * useDirectoryPicker — Opens a native folder picker via Tauri command, no-op on web.
  *
  * Returns `pick()` which resolves to the selected directory path, or null
  * if the user cancelled. On web, `pick` is null (callers should hide the
