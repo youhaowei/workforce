@@ -421,8 +421,6 @@ export default function Shell() {
 
             <MainContentColumn
               serverConnected={serverConnected}
-              error={error}
-              onDismissError={dismissError}
               showFloatingPill={currentView === "sessions"}
               sessionTitle={activeSessionTitle}
               sessionsPanelOpen={!sessionsPanelCollapsed}
@@ -442,6 +440,8 @@ export default function Shell() {
                 messages={messages}
                 isStreaming={isStreaming}
                 forksMap={forksMap}
+                error={error}
+                onDismissError={dismissError}
                 onSelectAgent={navigateToDetail}
                 onBackFromDetail={navigateBack}
                 onStartChat={handleCreateSession}

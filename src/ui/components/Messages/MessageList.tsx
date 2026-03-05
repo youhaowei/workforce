@@ -5,10 +5,10 @@
  * with auto-scroll and "jump to bottom" affordance.
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { Button } from '@/components/ui/button';
-import { ArrowDown } from 'lucide-react';
+import { AlertCircle, ArrowDown } from 'lucide-react';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import MessageItem, { type ForkInfo } from './MessageItem';
 
@@ -24,18 +24,25 @@ interface MessageListProps {
   }>;
   isStreaming: boolean;
   forksMap?: Map<string, ForkInfo[]>;
+  error?: string | null;
+  onDismissError?: () => void;
   onRewind?: (messageIndex: number) => void;
   onFork?: (messageIndex: number) => void;
   onSelectSession?: (sessionId: string) => void;
 }
 
 export default function MessageList({
-  messages, isStreaming, forksMap, onRewind, onFork, onSelectSession,
+  messages, isStreaming, forksMap, error, onDismissError, onRewind, onFork, onSelectSession,
 }: MessageListProps) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
+  const scrollerRef = useRef<HTMLElement | null>(null);
   const [showJumpButton, setShowJumpButton] = useState(false);
   const prevFirstMsgId = useRef<string | null>(null);
   const isAtBottomRef = useRef(true);
+  // Synchronous user-intent flag: set immediately on wheel-up / touchmove,
+  // cleared when user returns to bottom. Prevents the RAF loop from overriding
+  // user scroll before Virtuoso's async atBottomStateChange fires.
+  const userScrolledUpRef = useRef(false);
   const storeIsStreaming = useMessagesStore((s) => s.isStreaming);
   const firstMsgId = messages[0]?.id ?? null;
 
@@ -57,18 +64,46 @@ export default function MessageList({
   const handleAtBottomStateChange = useCallback(
     (atBottom: boolean) => {
       isAtBottomRef.current = atBottom;
-      setShowJumpButton(!atBottom && messages.length > 3);
+      if (atBottom) userScrolledUpRef.current = false;
+      setShowJumpButton(!atBottom);
     },
-    [messages.length],
+    [],
   );
+
+  // Detect user scroll-up intent synchronously via wheel/touch events.
+  // Shows the jump-to-bottom button immediately (Virtuoso's atBottomStateChange
+  // is async and may not fire when the RAF loop was preventing actual scroll movement).
+  // Active in both streaming and non-streaming modes.
+  useEffect(() => {
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY < 0) {
+        userScrolledUpRef.current = true;
+        setShowJumpButton(true);
+      }
+    };
+    const onTouchMove = () => {
+      userScrolledUpRef.current = true;
+      setShowJumpButton(true);
+    };
+    scroller.addEventListener('wheel', onWheel, { passive: true });
+    scroller.addEventListener('touchmove', onTouchMove, { passive: true });
+    return () => {
+      scroller.removeEventListener('wheel', onWheel);
+      scroller.removeEventListener('touchmove', onTouchMove);
+    };
+  }, []);
 
   // Auto-scroll during streaming: height changes in the streaming message
   // don't trigger Virtuoso's followOutput, so we poll while at bottom.
+  // Respects user scroll intent via userScrolledUpRef.
   useEffect(() => {
-    if (!storeIsStreaming || !isAtBottomRef.current) return;
+    if (!storeIsStreaming) return;
     let rafId: number;
     const tick = () => {
-      if (isAtBottomRef.current) {
+      if (isAtBottomRef.current && !userScrolledUpRef.current) {
         virtuosoRef.current?.scrollToIndex({
           index: messages.length - 1,
           align: 'end',
@@ -82,6 +117,7 @@ export default function MessageList({
   }, [storeIsStreaming, messages.length]);
 
   const jumpToBottom = useCallback(() => {
+    userScrolledUpRef.current = false;
     virtuosoRef.current?.scrollToIndex({
       index: messages.length - 1,
       behavior: 'smooth',
@@ -108,7 +144,27 @@ export default function MessageList({
     [forksMap, onRewind, onFork, onSelectSession],
   );
 
-  const scrollerRef = useRef<HTMLElement | null>(null);
+  const virtuosoComponents = useMemo(() => ({
+    Header: () => (
+      <>
+        <div className="h-14" />
+        {error && (
+          <div className="mx-4 mb-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-palette-danger shrink-0" />
+              <span className="text-sm text-palette-danger">{error}</span>
+            </div>
+            {onDismissError && (
+              <Button variant="ghost" size="sm" onClick={onDismissError} className="text-palette-danger h-7 shrink-0">
+                Dismiss
+              </Button>
+            )}
+          </div>
+        )}
+      </>
+    ),
+    Footer: () => <div className="h-52" />,
+  }), [error, onDismissError]);
 
   // Empty state is handled by the parent (SessionsView)
   if (messages.length === 0 && !isStreaming) {
@@ -130,10 +186,7 @@ export default function MessageList({
         atBottomStateChange={handleAtBottomStateChange}
         followOutput="smooth"
         overscan={200}
-        components={{
-          Header: () => <div className="h-14" />,
-          Footer: () => <div className="h-52" />,
-        }}
+        components={virtuosoComponents}
         itemContent={renderItem}
         className="flex-1"
       />
@@ -142,7 +195,7 @@ export default function MessageList({
         <Button
           size="sm"
           onClick={jumpToBottom}
-          className="absolute bottom-4 right-4 rounded-full shadow-lg z-10"
+          className="absolute bottom-48 right-4 rounded-full shadow-lg z-10"
         >
           <ArrowDown className="h-3.5 w-3.5 mr-1.5" />
           Jump to bottom

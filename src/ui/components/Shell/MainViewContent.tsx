@@ -34,6 +34,8 @@ interface MainViewContentProps {
   }>;
   isStreaming: boolean;
   forksMap?: Map<string, ForkInfo[]>;
+  error: string | null;
+  onDismissError: () => void;
   onSelectAgent: (sessionId: string) => void;
   onBackFromDetail: () => void;
   onStartChat: () => void;
@@ -60,6 +62,8 @@ export function MainViewContent({
   messages,
   isStreaming,
   forksMap,
+  error,
+  onDismissError,
   onSelectAgent,
   onBackFromDetail,
   onStartChat,
@@ -111,6 +115,8 @@ export function MainViewContent({
           messages={messages}
           isStreaming={isStreaming}
           forksMap={forksMap}
+          error={error}
+          onDismissError={onDismissError}
           onSubmit={onSubmitMessage}
           onCancel={onCancelStream}
           onRewind={onRewind}

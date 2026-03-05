@@ -18,14 +18,11 @@ import { useEventBusInit } from './hooks/useEventBusInit';
 import { useServerEventInvalidation } from './hooks/useServerEventInvalidation';
 import { SetupGate } from './components/SetupGate';
 import Shell from './components/Shell/Shell';
-import { API_PORT } from '@/bridge/config';
-
 // Electron preload exposes this on the window object via contextBridge
 const electronAPI = typeof window !== 'undefined' ? window.electronAPI : undefined;
 
-// Detect desktop mode: Electron preload presence (works in both dev and prod),
-// or port-based fallback for production where preload loads from API port
-const isDesktop = !!electronAPI || (typeof window !== 'undefined' && window.location.port === API_PORT);
+// Detect desktop mode: Electron preload always exposes electronAPI in both dev and prod
+const isDesktop = !!electronAPI;
 
 // In desktop mode, mark <html> so CSS can make backgrounds transparent for vibrancy
 if (isDesktop && typeof document !== 'undefined') {

@@ -1,13 +1,10 @@
-import { AlertCircle, WifiOff } from 'lucide-react';
+import { WifiOff } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Button } from '@/components/ui/button';
 import { Surface } from '@/components/ui/surface';
 import { StageFloatingPill } from './StageFloatingPill';
 
 interface MainContentColumnProps {
   serverConnected: boolean;
-  error: string | null;
-  onDismissError: () => void;
   showFloatingPill?: boolean;
   sessionTitle?: string;
   sessionsPanelOpen?: boolean;
@@ -19,8 +16,6 @@ interface MainContentColumnProps {
 
 export function MainContentColumn({
   serverConnected,
-  error,
-  onDismissError,
   showFloatingPill,
   sessionTitle,
   sessionsPanelOpen = false,
@@ -40,18 +35,6 @@ export function MainContentColumn({
               Run <code className="bg-neutral-bg-dim px-1.5 py-0.5 rounded text-xs font-mono">pnpm run server</code> to start
             </p>
           </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="mx-4 my-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-palette-danger" />
-            <span className="text-sm text-palette-danger">{error}</span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={onDismissError} className="text-palette-danger h-7">
-            Dismiss
-          </Button>
         </div>
       )}
 

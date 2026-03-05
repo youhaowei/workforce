@@ -36,6 +36,8 @@ interface SessionsViewProps {
   }>;
   isStreaming: boolean;
   forksMap?: Map<string, ForkInfo[]>;
+  error: string | null;
+  onDismissError: () => void;
   onSubmit: (submission: { content: string; agentConfig: AgentConfig }) => void;
   onCancel: () => void;
   onRewind?: (messageIndex: number) => void;
@@ -52,6 +54,8 @@ export function SessionsView({
   messages,
   isStreaming,
   forksMap,
+  error,
+  onDismissError,
   onSubmit,
   onCancel,
   onRewind,
@@ -68,6 +72,8 @@ export function SessionsView({
           messages={messages}
           isStreaming={isStreaming}
           forksMap={forksMap}
+          error={error}
+          onDismissError={onDismissError}
           onRewind={onRewind}
           onFork={onFork}
           onSelectSession={onSelectSession}
