@@ -4,6 +4,7 @@ import { homedir } from 'os';
 import type { StreamResult, AgentStreamEvent } from './types';
 import { getEventBus } from '@/shared/event-bus';
 import { formatToolInput } from './agent';
+import { resolveClaudeCliPath } from './agent-cli-path';
 
 /**
  * Build environment variables for the SDK subprocess.
@@ -104,6 +105,7 @@ export class AgentInstance {
         model: 'sonnet',
         cwd: this.options.cwd,
         env: this.options.env ?? buildSdkEnv(),
+        pathToClaudeCodeExecutable: resolveClaudeCliPath(),
         abortController: this.abortController,
         includePartialMessages: true,
         includeRawEvents: true,

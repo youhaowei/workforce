@@ -9,6 +9,7 @@ import { debugLog } from '@/shared/debug-log';
 import { buildSdkEnv, isAuthError, AgentError } from './agent-instance';
 import type { AgentErrorCode } from './agent-instance';
 import { ModelCache, readLastUsedModelSync, writeLastUsedModel } from './agent-models';
+import { resolveClaudeCliPath } from './agent-cli-path';
 
 // Re-export for backward compatibility
 export { AgentInstance, AgentError, buildSdkEnv, isAuthError } from './agent-instance';
@@ -111,6 +112,7 @@ class AgentServiceImpl implements AgentService {
       this.warmSession = createSession('claude', {
         model,
         env: buildSdkEnv(),
+        pathToClaudeCodeExecutable: resolveClaudeCliPath(),
         includeRawEvents: true,
         interaction: { onAgentQuestion: this.handleAgentQuestion },
       });
@@ -146,6 +148,7 @@ class AgentServiceImpl implements AgentService {
     return createSession('claude', {
       model,
       env: buildSdkEnv(),
+      pathToClaudeCodeExecutable: resolveClaudeCliPath(),
       includeRawEvents: true,
       interaction: { onAgentQuestion: this.handleAgentQuestion },
       ...(needsV1 ? {
