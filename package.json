@@ -8,7 +8,7 @@
     "dev": "trap 'kill 0' EXIT; bun run server:watch & bun run vite & sleep 2 && electron-forge start",
     "dev:web": "bun run server:watch & bun run vite",
     "server": "tsx src/server/index.ts",
-    "server:watch": "PORT=4096 tsx --watch src/server/index.ts",
+    "server:watch": "PORT=19675 tsx --watch src/server/index.ts",
     "build": "PYTHON=${PYTHON:-python3} npm_config_python=${npm_config_python:-python3} pnpm run vite:build && electron-forge make",
     "release": "pnpm run build",
     "clean": "rm -rf dist out",
@@ -95,7 +95,8 @@
   },
   "pnpm": {
     "overrides": {
-      "@openai/codex": "0.107.0"
+      "@openai/codex": "0.107.0",
+      "unifai": "link:../unifai"
     },
     "onlyBuiltDependencies": [
       "electron",

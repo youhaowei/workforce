@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve } from 'path';
 import { readFileSync, writeFileSync, unlinkSync } from 'fs';
+import { DEFAULT_SERVER_PORT } from './src/shared/ports';
 
 /** Read the server's actual port from .dev-port (written by server on startup). */
 function discoverApiPort(): string | undefined {
@@ -38,7 +39,7 @@ function vitePortFile(): Plugin {
   };
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss(), vitePortFile()],
   resolve: {
     alias: {
@@ -46,21 +47,22 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
+    port: 19676,
     strictPort: false,
   },
   define: {
-    // Propagate discovered port so bridge/config.ts picks it up at build time
-    ...(() => {
-      const apiPort = discoverApiPort();
-      return apiPort && !process.env.VITE_API_PORT
-        ? { 'import.meta.env.VITE_API_PORT': JSON.stringify(apiPort) }
-        : {};
-    })(),
+    // Dev/E2E: always inject VITE_API_PORT so the UI finds the API server.
+    // Production build: omit it — Electron loads the UI from the API server
+    // (same-origin), so bridge/config.ts uses window.location.origin instead.
+    ...(command === 'serve'
+      ? { 'import.meta.env.VITE_API_PORT': JSON.stringify(
+          process.env.VITE_API_PORT || discoverApiPort() || String(DEFAULT_SERVER_PORT),
+        ) }
+      : {}),
   },
   build: {
     target: 'ES2020',
     minify: 'esbuild',
     sourcemap: false,
   },
-});
+}));

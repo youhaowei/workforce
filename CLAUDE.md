@@ -11,16 +11,16 @@ pnpm run test -- src/services/session.test.ts  # Single test file
 pnpm run test:e2e     # Playwright E2E tests
 pnpm run lint         # Lint code
 pnpm run type-check   # TypeScript check
-pnpm run server       # Start backend server (port 4096)
+pnpm run server       # Start backend server (port 19675)
 pnpm run server:watch # Server with hot-reload
-pnpm run dev:web      # Start server + vite for web testing (port 5173)
+pnpm run dev:web      # Start server + vite for web testing (port 19676)
 pnpm run clean        # Remove build artifacts (dist, out)
 ```
 
 **ASK FIRST — never auto-run:**
 
 ```bash
-pnpm run dev   # Server + Electron desktop app (dev loads from Vite :5173)
+pnpm run dev   # Server + Electron desktop app (dev loads from Vite :19676)
 pnpm run build # Electron Forge release build
 ```
 
@@ -72,7 +72,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 ### Architecture
 - **`electron` imports only in `src/electron/`** — Keep `src/ui/` browser-safe. Native dialogs via IPC (`window.electronAPI.openDirectory()`).
-- **`isDesktop` detection** — `window.location.port === '4096'` in `App.tsx`. Dev web `:5173`, desktop `:4096`.
+- **`isDesktop` detection** — `!!window.electronAPI` in `App.tsx`. Electron preload always exposes `electronAPI`.
 - **Singleflight for lazy init** — `this.initPromise ??= this.doInit()` prevents concurrent callers racing.
 - **SetupGate** — Wraps `Shell`, guarantees user identity + initialized org. `useRequiredOrgId()` throws if called outside.
 
@@ -89,8 +89,8 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **Drag region overlay** — `index.html` has a z-40 fixed div covering `--topbar-height` for window dragging. Interactive elements (`button`, `input`, `a`, `[role="button"]`) auto-opt-out via `-webkit-app-region: no-drag`. Custom interactive elements in the topbar need `role="button"` or explicit `app-region: no-drag` to be clickable. The raw `<style>` tag in `index.html` is intentional — Lightning CSS strips `-webkit-app-region`.
 
 ### Testing & Build
-- **NEVER kill user processes** — Do NOT kill processes on ports 4096, 5173. If occupied, fail clearly.
-- **E2E isolation** — Tests use temp data dir (`WORKFORCE_DATA_DIR`), own server on ports 4199 (API) / 5174 (Vite), `reuseExistingServer: false`. Never writes to `~/.workforce/`.
+- **NEVER kill user processes** — Do NOT kill processes on ports 19675, 19676. If occupied, fail clearly.
+- **E2E isolation** — Tests use temp data dir (`WORKFORCE_DATA_DIR`), own server on ports 19775 (API) / 19776 (Vite), `reuseExistingServer: false`. Never writes to `~/.workforce/`.
 - **E2E fixtures** — Clean up tRPC API data in `afterEach`. Sync via `page.waitForResponse()`, not text selectors.
 - **vitest.config.ts** — Separate from vite.config.ts; both need `@vitejs/plugin-react`.
 - **Fake timers + `waitFor()`** — Deadlocks. Use `vi.useRealTimers()` before async assertions.

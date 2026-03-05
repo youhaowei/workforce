@@ -8,10 +8,10 @@ import { tmpdir } from 'os'
 const e2eDataDir = mkdtempSync(join(tmpdir(), 'workforce-e2e-'));
 process.env.WORKFORCE_E2E_DATA_DIR = e2eDataDir;
 
-// Use separate ports so E2E tests never conflict with the dev server (4096 + 5173).
-const E2E_API_PORT = '4199';
+// Use separate ports so E2E tests never conflict with the dev server (19675 + 19676).
+const E2E_API_PORT = '19775';
 process.env.WORKFORCE_E2E_API_PORT = E2E_API_PORT;
-const E2E_VITE_PORT = '5174';
+const E2E_VITE_PORT = '19776';
 
 export default defineConfig({
   testDir: './e2e',
