@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
+import { createServer } from 'net'
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs'
 import { homedir } from 'os'
 import { join, dirname, resolve } from 'path'
@@ -9,6 +10,7 @@ import { fileURLToPath } from 'url'
 import { debugLog, getLogPath } from '@/shared/debug-log'
 import { getLogService } from '@/services/log'
 import { getAgentService } from '@/services/agent'
+import { DEFAULT_SERVER_PORT } from '@/shared/ports'
 import { appRouter } from './routers'
 import { trpcServer } from '@hono/trpc-server'
 import type { ServerType } from '@hono/node-server'
@@ -42,7 +44,7 @@ function logAuthDiagnostics() {
 
 export const app = new Hono()
 
-// Trusted-local threat model: server binds to localhost:4096, only the local
+// Trusted-local threat model: server binds to localhost, only the local
 // desktop webview (or dev browser on localhost) should access it.
 const ALLOWED_ORIGINS = new Set(['localhost', '127.0.0.1']);
 
@@ -176,24 +178,49 @@ function tryServe(port: number): ServerType {
   return server
 }
 
-export function startServer(overrides?: { port?: number }) {
-  const basePort = overrides?.port ?? parseInt(process.env.PORT || '4096')
-  const server = tryServe(basePort)
+/** Probe whether a port is available by briefly binding and closing a TCP server. */
+function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const srv = createServer()
+    srv.once('error', () => resolve(false))
+    srv.listen(port, 'localhost', () => {
+      srv.close(() => resolve(true))
+    })
+  })
+}
 
-  // Retrieve the actual bound port
-  const addr = server.address()
-  const actualPort = typeof addr === 'object' && addr ? addr.port : basePort
+const MAX_PORT_RETRIES = 10
+
+export async function startServer(overrides?: { port?: number }): Promise<{ server: ServerType; port: number }> {
+  const basePort = overrides?.port ?? parseInt(process.env.PORT || String(DEFAULT_SERVER_PORT))
+
+  // Find an available port starting from basePort
+  let port = basePort
+  for (let i = 0; i <= MAX_PORT_RETRIES; i++) {
+    const candidate = basePort + i
+    if (await isPortAvailable(candidate)) {
+      port = candidate
+      break
+    }
+    if (i < MAX_PORT_RETRIES) {
+      debugLog('Server', `Port ${candidate} in use, trying ${candidate + 1}`)
+    } else {
+      throw new Error(`All ports ${basePort}–${basePort + MAX_PORT_RETRIES} are in use`)
+    }
+  }
+
+  const server = tryServe(port)
 
   // Write actual port so vite can discover it
   if (isMainModule) {
-    writeFileSync(DEV_PORT_FILE, String(actualPort))
+    writeFileSync(DEV_PORT_FILE, String(port))
     process.on('exit', () => { try { unlinkSync(DEV_PORT_FILE) } catch { /* cleanup best-effort */ } })
     process.on('SIGINT', () => process.exit(0))
     process.on('SIGTERM', () => process.exit(0))
   }
 
   logAuthDiagnostics()
-  debugLog('Server', `Workforce server running on http://localhost:${actualPort}`)
+  debugLog('Server', `Workforce server running on http://localhost:${port}`)
 
   // Warm up model list cache eagerly so it's ready before the first query.
   getAgentService().getSupportedModels().then(
@@ -201,7 +228,7 @@ export function startServer(overrides?: { port?: number }) {
     (err) => debugLog('Server', 'Model cache warm-up failed (will retry on demand)', { error: err instanceof Error ? err.message : String(err) }),
   )
 
-  return server
+  return { server, port }
 }
 
 // Standalone mode (tsx src/server/index.ts)

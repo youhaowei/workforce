@@ -2,7 +2,7 @@
  * Electron main process — runs the Hono HTTP server in-process and opens a BrowserWindow.
  *
  * In dev mode, Vite writes .vite-port; Electron reads it to load the correct URL.
- * In production, Hono serves the Vite build output on :4096 (same origin as API).
+ * In production, Hono serves the Vite build output on the server port (same origin as API).
  */
 
 import { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, shell } from 'electron';
@@ -11,10 +11,11 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import type { ServerType } from '@hono/node-server';
 import { startServer } from '../server/index';
+import { DEFAULT_SERVER_PORT } from '../shared/ports';
 
 const isDev = !app.isPackaged;
 const appName = isDev ? 'Workforce Dev' : 'Workforce';
-const serverPort = parseInt(process.env.PORT || '4096');
+let serverPort = DEFAULT_SERVER_PORT;
 let server: ServerType | null = null;
 
 /** Read .vite-port written by Vite dev server on startup. */
@@ -22,7 +23,7 @@ function discoverVitePort(): string {
   try {
     return readFileSync(path.join(app.getAppPath(), '.vite-port'), 'utf-8').trim();
   } catch {
-    return '5173'; // fallback
+    return '19676'; // fallback
   }
 }
 
@@ -173,7 +174,9 @@ app.whenReady().then(async () => {
   // In production, start it in-process.
   if (!isDev) {
     try {
-      server = startServer({ port: serverPort });
+      const result = await startServer({ port: serverPort });
+      server = result.server;
+      serverPort = result.port;
     } catch (err) {
       dialog.showErrorBox(
         'Server failed to start',

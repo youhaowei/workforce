@@ -1,10 +1,15 @@
 /**
  * Client-side connection config.
  *
- * Reads VITE_API_PORT at build time; defaults to 4096 (dev server).
- * E2E tests override this via playwright.config.ts → VITE_API_PORT env var.
+ * Cross-origin (dev/E2E): Vite injects VITE_API_PORT at build time → use it.
+ * Same-origin (Electron production): not injected → use window.location.origin.
  */
 
-export const API_PORT = import.meta.env.VITE_API_PORT || '4096';
-export const SERVER_URL = `http://localhost:${API_PORT}`;
+function resolveServerUrl() {
+  if (import.meta.env.VITE_API_PORT) return `http://localhost:${import.meta.env.VITE_API_PORT}`;
+  if (typeof window !== 'undefined') return window.location.origin;
+  return 'http://localhost:19675';
+}
+
+export const SERVER_URL = resolveServerUrl();
 export const TRPC_URL = `${SERVER_URL}/api/trpc`;
