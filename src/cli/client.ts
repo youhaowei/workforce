@@ -4,7 +4,9 @@ import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from
 import superjson from 'superjson';
 import type { AppRouter } from '../server/routers';
 
-const BASE_URL = process.env.WORKFORCE_URL || 'http://localhost:4096/api/trpc';
+import { DEFAULT_SERVER_PORT } from '@/shared/ports';
+
+const BASE_URL = process.env.WORKFORCE_URL || `http://localhost:${DEFAULT_SERVER_PORT}/api/trpc`;
 
 let client: ReturnType<typeof createTRPCClient<AppRouter>> | undefined;
 
