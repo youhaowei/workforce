@@ -12,6 +12,7 @@ import {
   type PaletteColor,
   type ModeOverrides,
   type ResolvedMode,
+  type SurfaceTintStyle,
 } from '@/ui/stores/useThemeStore';
 import { ColorPicker } from './ColorPicker';
 import { NeutralPicker } from './NeutralPicker';
@@ -54,6 +55,11 @@ const MODE_OPTIONS: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
   { value: 'system', label: 'System', icon: Monitor },
   { value: 'light', label: 'Light', icon: Sun },
   { value: 'dark', label: 'Dark', icon: Moon },
+];
+const SURFACE_TINT_STYLES: { value: SurfaceTintStyle; label: string }[] = [
+  { value: 'solid', label: 'Solid' },
+  { value: 'gradient2', label: '2-Stop' },
+  { value: 'gradient3', label: '3-Stop' },
 ];
 
 export function AppearanceSection() {
@@ -170,6 +176,7 @@ function ModeColorControls({
   const defaultPalette = modeKey === 'light' ? DEFAULT_PALETTE_LIGHT : DEFAULT_PALETTE_DARK;
   const defaultSurface = modeKey === 'light' ? DEFAULT_SURFACE_LIGHT : DEFAULT_SURFACE_DARK;
   const previewLevels = modeKey === 'light' ? PREVIEW_LEVELS_LIGHT : PREVIEW_LEVELS_DARK;
+  const surfaceTintStyle = modeOverrides.surfaceTintStyle ?? 'solid';
 
   // Only colors the user has actually customized (overrides only, not defaults)
   const usedColors = useMemo(() => {
@@ -261,6 +268,22 @@ function ModeColorControls({
           value={modeOverrides.surfaceBase ?? defaultSurface}
           onChange={(v) => updateModeOverride({ surfaceBase: v })}
         />
+        <div className="flex gap-1.5 pt-1">
+          {SURFACE_TINT_STYLES.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => updateModeOverride({ surfaceTintStyle: value })}
+              className={`flex-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
+                surfaceTintStyle === value
+                  ? 'bg-palette-primary text-palette-primary-fg border-palette-primary'
+                  : 'bg-neutral-bg-subtle text-neutral-fg-subtle border-neutral-border hover:border-neutral-ring'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

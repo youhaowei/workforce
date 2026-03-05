@@ -5,11 +5,12 @@
  * and brightness is secondary. Chroma is kept low (tint-appropriate).
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { parseOklch, formatOklch, oklchToHex, hexToOklch } from '@/ui/lib/oklch';
-import { safeOklchToHex, addRecentColor } from '@/ui/stores/useThemeStore';
+import { parseOklch, formatOklch, oklchToHex } from '@/ui/lib/oklch';
+import { addRecentColor } from '@/ui/stores/useThemeStore';
+import { usePlatform } from '@/ui/context/PlatformProvider';
 
 const WHEEL_SIZE = 160;
 const WHEEL_RADIUS = WHEEL_SIZE / 2;
@@ -22,34 +23,26 @@ const TINT_CHROMA = 0.03;
 interface TintPickerProps {
   value: string;
   onChange: (oklch: string) => void;
+  showHexValue?: boolean;
 }
 
-export function TintPicker({ value, onChange }: TintPickerProps) {
-  const hex = safeOklchToHex(value);
+export function TintPicker({ value, onChange, showHexValue = true }: TintPickerProps) {
+  const { isDesktop } = usePlatform();
+  const effectivePreviewBackground = isDesktop
+    ? 'var(--shell-bg-vibrancy, var(--shell-bg))'
+    : 'var(--shell-bg)';
 
   let lch = { l: 0.8, c: TINT_CHROMA, h: 0 };
   try { lch = parseOklch(value); } catch { /* keep default */ }
 
-  const [hexText, setHexText] = useState(hex);
-  useEffect(() => { setHexText(hex); }, [hex]);
-
   const snapshotRef = useRef<string | null>(null);
+  const chromaStrength = Math.max(0, Math.min(1, lch.c / 0.08));
+  const softenedChroma = lch.c * (1 - chromaStrength * 0.45);
+  const previewChroma = Math.max(0.002, Math.min(TINT_CHROMA, softenedChroma));
 
   const emit = useCallback(
     (l: number, c: number, h: number) => onChange(formatOklch(l, c, h)),
     [onChange],
-  );
-
-  const handleHexInput = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const raw = e.target.value;
-      setHexText(raw);
-      if (/^#[0-9a-fA-F]{6}$/.test(raw)) {
-        const parsed = hexToOklch(raw);
-        emit(parsed.l, parsed.c, parsed.h);
-      }
-    },
-    [emit],
   );
 
   const handleReset = useCallback(() => {
@@ -71,7 +64,7 @@ export function TintPicker({ value, onChange }: TintPickerProps) {
           <button
             type="button"
             className="w-7 h-7 rounded-md border border-neutral-border shrink-0 cursor-pointer transition-shadow hover:ring-2 hover:ring-neutral-ring/30"
-            style={{ background: hex }}
+            style={{ background: effectivePreviewBackground }}
             aria-label="Pick surface tint"
           />
         </PopoverTrigger>
@@ -82,31 +75,25 @@ export function TintPicker({ value, onChange }: TintPickerProps) {
         >
           <HueWheel
             hue={lch.h}
-            lightness={lch.l}
+            previewBackground={effectivePreviewBackground}
+            ringChroma={previewChroma}
             onChangeHue={(h) => emit(lch.l, TINT_CHROMA, h)}
           />
           <BrightnessSlider
             lightness={lch.l}
             hue={lch.h}
-            chroma={lch.c}
+            chroma={previewChroma}
             onChangeLightness={(l) => emit(l, TINT_CHROMA, lch.h)}
           />
           <div className="flex items-center gap-2">
             <div
               className="w-6 h-6 rounded-[4px] border border-neutral-border shrink-0"
-              style={{ background: hex }}
-            />
-            <input
-              type="text"
-              value={hexText}
-              onChange={handleHexInput}
-              className="flex-1 h-6 px-2 text-[11px] font-mono rounded-md border border-neutral-border bg-neutral-bg text-neutral-fg focus:outline-none focus:ring-1 focus:ring-neutral-ring"
-              spellCheck={false}
+              style={{ background: effectivePreviewBackground }}
             />
             <button
               type="button"
               onClick={handleReset}
-              className="w-6 h-6 flex items-center justify-center rounded-md text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-subtle transition-colors"
+              className="w-6 h-6 ml-auto flex items-center justify-center rounded-md text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-subtle transition-colors"
               title="Reset to value before opening"
             >
               <RotateCcw className="w-3 h-3" />
@@ -114,13 +101,15 @@ export function TintPicker({ value, onChange }: TintPickerProps) {
           </div>
         </PopoverContent>
       </Popover>
-      <input
-        type="text"
-        value={hexText}
-        onChange={handleHexInput}
-        className="w-[72px] h-7 px-2 text-[11px] font-mono rounded-md border border-neutral-border bg-neutral-bg text-neutral-fg focus:outline-none focus:ring-1 focus:ring-neutral-ring"
-        spellCheck={false}
-      />
+      {showHexValue && (
+        <input
+          type="text"
+          value={value}
+          readOnly
+          className="w-[72px] h-7 px-2 text-[11px] font-mono rounded-md border border-neutral-border bg-neutral-bg text-neutral-fg-subtle"
+          spellCheck={false}
+        />
+      )}
     </div>
   );
 }
@@ -129,11 +118,13 @@ export function TintPicker({ value, onChange }: TintPickerProps) {
 
 function HueWheel({
   hue,
-  lightness,
+  previewBackground,
+  ringChroma,
   onChangeHue,
 }: {
   hue: number;
-  lightness: number;
+  previewBackground: string;
+  ringChroma: number;
   onChangeHue: (h: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | undefined>(undefined);
@@ -162,7 +153,7 @@ function HueWheel({
       ctx.arc(WHEEL_RADIUS, WHEEL_RADIUS, WHEEL_RADIUS - 1, angle, nextAngle + 0.02);
       ctx.arc(WHEEL_RADIUS, WHEEL_RADIUS, INNER_RADIUS, nextAngle + 0.02, angle, true);
       ctx.closePath();
-      ctx.fillStyle = oklchToHex(0.7, 0.12, h);
+      ctx.fillStyle = oklchToHex(0.68, ringChroma, h);
       ctx.fill();
     }
 
@@ -172,7 +163,7 @@ function HueWheel({
     ctx.arc(WHEEL_RADIUS, WHEEL_RADIUS, INNER_RADIUS, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
-  }, []);
+  }, [ringChroma]);
 
   const angleFromEvent = useCallback((e: React.PointerEvent | PointerEvent) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -209,9 +200,6 @@ function HueWheel({
   const handleX = WHEEL_RADIUS + Math.cos(handleAngle) * handleDist;
   const handleY = WHEEL_RADIUS + Math.sin(handleAngle) * handleDist;
 
-  // Preview color in center
-  const previewHex = oklchToHex(lightness, TINT_CHROMA, hue);
-
   return (
     <div
       ref={containerRef as React.RefObject<HTMLDivElement>}
@@ -233,7 +221,7 @@ function HueWheel({
           height: INNER_RADIUS * 2 - 16,
           left: WHEEL_RADIUS - (INNER_RADIUS - 8),
           top: WHEEL_RADIUS - (INNER_RADIUS - 8),
-          background: previewHex,
+          background: previewBackground,
         }}
       />
       {/* Ring handle */}
