@@ -84,3 +84,4 @@ Desktop.ini
 *.cert
 .playwright-mcp/
 node_modules
+.pnpm-store
