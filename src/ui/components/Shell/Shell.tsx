@@ -2,7 +2,11 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Outlet, useNavigate, useLocation } from "@tanstack/react-router";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ShellProvider } from "@/ui/context/ShellContext";
+import { useCurrentView } from "@/ui/hooks/useCurrentView";
+import { useShellStore } from "@/ui/stores/shellStore";
 
 import { ThemePanel } from "../Theme/ThemePanel";
 import { ChatInfoPanel } from "../ChatInfo";
@@ -23,7 +27,6 @@ import { getEventBus } from "@/shared/event-bus";
 import type { Project } from "@/services/types";
 import AppSidebar from "./AppSidebar";
 import TopBar from "./AppHeader";
-import { MainViewContent } from "./MainViewContent";
 import { MainContentColumn } from "./MainContentColumn";
 import { Surface } from "@/components/ui/surface";
 import { useActiveSessionTitle } from "./useActiveSessionTitle";
@@ -31,14 +34,10 @@ import { useForkActions } from "./useForkActions";
 import { useAgentStream } from "./useAgentStream";
 import { usePlanMode } from "@/ui/hooks/usePlanMode";
 import {
-  SIDEBAR_STORAGE_KEY,
   SESSIONS_PANEL_STORAGE_KEY,
-  INFO_PANEL_STORAGE_KEY,
   VIEW_STORAGE_KEY,
   SELECTED_SESSION_STORAGE_KEY,
   checkServerConnection,
-  getInitialView,
-  getInitialSidebarMode,
 } from "./shellHelpers";
 
 export type ViewType =
@@ -56,36 +55,46 @@ export type SidebarMode = "expanded" | "collapsed";
 
 export default function Shell() {
   const { isDesktop } = usePlatform();
-  const [currentView, setCurrentView] = useState<ViewType>(getInitialView);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentView = useCurrentView();
+  const pathname = location.pathname;
+
+  // UI state from shell store (for panels, sidebar, etc.)
+  const themePanelOpen = useShellStore((s) => s.themePanelOpen);
+  const setThemePanelOpen = useShellStore((s) => s.setThemePanelOpen);
+  const sessionsPanelCollapsed = useShellStore((s) => s.sessionsPanelCollapsed);
+  const setSessionsPanelCollapsed = useShellStore((s) => s.setSessionsPanelCollapsed);
+  const infoPanelCollapsed = useShellStore((s) => s.infoPanelCollapsed);
+  const setInfoPanelCollapsed = useShellStore((s) => s.setInfoPanelCollapsed);
+  const sidebarMode = useShellStore((s) => s.sidebarMode);
+  const setSidebarMode = useShellStore((s) => s.setSidebarMode);
+  const serverConnected = useShellStore((s) => s.serverConnected);
+  const setServerConnected = useShellStore((s) => s.setServerConnected);
+  const error = useShellStore((s) => s.error);
+  const setError = useShellStore((s) => s.setError);
+  const boardKeyword = useShellStore((s) => s.boardKeyword);
+  const setBoardKeyword = useShellStore((s) => s.setBoardKeyword);
+  const boardStatusFilter = useShellStore((s) => s.boardStatusFilter);
+  const setBoardStatusFilter = useShellStore((s) => s.setBoardStatusFilter);
+  const createProjectDialogOpen = useShellStore((s) => s.createProjectDialogOpen);
+  const createProjectDialogSource = useShellStore((s) => s.createProjectDialogSource);
+  const setCreateProjectDialog = useShellStore((s) => s.setCreateProjectDialog);
+  const newSessionProjectId = useShellStore((s) => s.newSessionProjectId);
+  const setNewSessionProjectId = useShellStore((s) => s.setNewSessionProjectId);
+
+  // Local state for session/project selection
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [themePanelOpen, setThemePanelOpen] = useState(false);
-  const [sessionsPanelCollapsed, setSessionsPanelCollapsed] = useState(
-    () => localStorage.getItem(SESSIONS_PANEL_STORAGE_KEY) === "true",
-  );
-  const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(
-    () => localStorage.getItem(INFO_PANEL_STORAGE_KEY) !== "false",
-  );
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
     () => localStorage.getItem(SELECTED_SESSION_STORAGE_KEY),
   );
-  const [serverConnected, setServerConnected] = useState(true);
-  const [sidebarMode, setSidebarMode] = useState<SidebarMode>(getInitialSidebarMode);
+  const [projectsPanelCollapsed, setProjectsPanelCollapsed] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
   const cancelStreamRef = useRef<(() => void) | null>(null);
   const activeSessionRef = useRef<string | null>(selectedSessionId);
   const lastLoadedSessionRef = useRef<string | null>(null);
   const planReadyRef = useRef<(path: string, sessId: string | null) => void>(() => {});
-
-  // Board filter state
-  const [boardKeyword, setBoardKeyword] = useState("");
-  const [boardStatusFilter, setBoardStatusFilter] = useState("all");
-  const [createProjectDialogOpen, setCreateProjectDialogOpen] = useState(false);
-  const [createProjectDialogSource, setCreateProjectDialogSource] = useState<
-    "projects-panel" | "new-session" | null
-  >(null);
-  const [projectsPanelCollapsed, setProjectsPanelCollapsed] = useState(false);
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [newSessionProjectId, setNewSessionProjectId] = useState<string | null>(null);
 
   const trpc = useTRPC();
   const orgId = useRequiredOrgId();
@@ -107,19 +116,21 @@ export default function Shell() {
     serverConnected,
   });
 
+  const showSessionsView = pathname.startsWith('/sessions');
+
   useEffect(() => {
     setSelectedProjectId(null);
     setNewSessionProjectId(null);
-  }, [orgId]);
+  }, [orgId, setNewSessionProjectId]);
 
   const navigateToDetail = useCallback((sessionId: string) => {
     setSelectedAgentId(sessionId);
-    setCurrentView("detail");
-  }, []);
+    navigate({ to: `/agent/${sessionId}` });
+  }, [navigate]);
   const navigateBack = useCallback(() => {
     setSelectedAgentId(null);
-    setCurrentView("board");
-  }, []);
+    navigate({ to: '/board' });
+  }, [navigate]);
 
   const cancelActiveStream = useCallback(() => {
     trpcClient.agent.cancel.mutate().catch(() => { /* best-effort */ });
@@ -144,28 +155,16 @@ export default function Shell() {
   }, [cancelActiveStream, finishStreamingMessage]);
 
   const toggleSidebarSize = useCallback(() => {
-    setSidebarMode((prev) => {
-      const next: SidebarMode = prev === "expanded" ? "collapsed" : "expanded";
-      localStorage.setItem(SIDEBAR_STORAGE_KEY, next);
-      return next;
-    });
-  }, []);
+    setSidebarMode(sidebarMode === "expanded" ? "collapsed" : "expanded");
+  }, [sidebarMode, setSidebarMode]);
 
   const toggleSessionsPanel = useCallback(() => {
-    setSessionsPanelCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, String(next));
-      return next;
-    });
-  }, []);
+    setSessionsPanelCollapsed(!sessionsPanelCollapsed);
+  }, [sessionsPanelCollapsed, setSessionsPanelCollapsed]);
 
   const toggleInfoPanel = useCallback(() => {
-    setInfoPanelCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem(INFO_PANEL_STORAGE_KEY, String(next));
-      return next;
-    });
-  }, []);
+    setInfoPanelCollapsed(!infoPanelCollapsed);
+  }, [infoPanelCollapsed, setInfoPanelCollapsed]);
 
   const toggleProjectsPanel = useCallback(() => {
     setProjectsPanelCollapsed((prev) => !prev);
@@ -199,12 +198,12 @@ export default function Shell() {
       setSelectedSessionId(sessionId);
       activeSessionRef.current = sessionId;
       lastLoadedSessionRef.current = null;
-      setCurrentView("sessions");
+      navigate({ to: '/sessions/$id', params: { id: sessionId } });
       queryClient.invalidateQueries({
         queryKey: trpc.session.messages.queryKey({ sessionId }),
       });
     },
-    [cancelActiveStream, finishStreamingMessage, clearMessages, setActiveSession, trpc],
+    [cancelActiveStream, finishStreamingMessage, setNewSessionProjectId, clearMessages, setActiveSession, trpc, navigate],
   );
 
   const handleDeleteSession = useCallback(
@@ -219,7 +218,7 @@ export default function Shell() {
       lastLoadedSessionRef.current = null;
       localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
     },
-    [cancelActiveStream, clearMessages, setActiveSession],
+    [cancelActiveStream, clearMessages, setActiveSession, setNewSessionProjectId],
   );
 
   const handleCreateSession = useCallback(() => {
@@ -230,10 +229,10 @@ export default function Shell() {
     setNewSessionProjectId(currentView === "projects" ? selectedProjectId : null);
     activeSessionRef.current = null;
     lastLoadedSessionRef.current = null;
-    setCurrentView("sessions");
+    navigate({ to: '/sessions' });
     setSessionsPanelCollapsed(false);
     localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, "false");
-  }, [cancelActiveStream, clearMessages, setActiveSession, currentView, selectedProjectId]);
+  }, [cancelActiveStream, clearMessages, setActiveSession, setNewSessionProjectId, currentView, selectedProjectId, navigate, setSessionsPanelCollapsed]);
 
   const { forksMap, handleRewind, handleFork } = useForkActions({
     selectedSessionId,
@@ -244,7 +243,7 @@ export default function Shell() {
   });
 
   useHotkey("toggleHistory", toggleSessionsPanel);
-  useHotkey("toggleTasks", () => setThemePanelOpen((prev) => !prev));
+  useHotkey("toggleTasks", () => setThemePanelOpen(!themePanelOpen));
   useHotkey("cancelStream", handleCancel, isStreaming);
 
   useEffect(() => () => { cancelStreamRef.current?.(); }, []);
@@ -260,7 +259,7 @@ export default function Shell() {
   }, [selectedSessionId]);
 
   // Restore session messages via React Query
-  const restoreEnabled = !!selectedSessionId && currentView === "sessions" && !isStreaming;
+  const restoreEnabled = !!selectedSessionId && showSessionsView && !isStreaming;
   const { data: restoredMessages, error: restoreError } = useQuery(
     trpc.session.messages.queryOptions(
       { sessionId: selectedSessionId! },
@@ -306,23 +305,23 @@ export default function Shell() {
     lastLoadedSessionRef.current = null;
     setActiveSession(null);
     clearMessages();
-    setCurrentView("home");
+    navigate({ to: '/' });
     localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
-  }, [restoreError, setActiveSession, clearMessages]);
+  }, [restoreError, setActiveSession, clearMessages, navigate]);
 
   useEffect(() => {
     const id = setInterval(async () => {
       setServerConnected(await checkServerConnection());
     }, 5000);
     return () => clearInterval(id);
-  }, []);
+  }, [setServerConnected]);
 
   useEffect(() => {
     return getEventBus().on("BridgeError", (e) => {
       setError((e as { error: string }).error);
       setTimeout(() => setError(null), 5000);
     });
-  }, []);
+  }, [setError]);
 
   // Plan mode
   const {
@@ -337,9 +336,8 @@ export default function Shell() {
   planReadyRef.current = handlePlanReady;
 
   const handleProjectDialogOpenChange = useCallback((open: boolean) => {
-    setCreateProjectDialogOpen(open);
-    if (!open) setCreateProjectDialogSource(null);
-  }, []);
+    setCreateProjectDialog(open, open ? createProjectDialogSource : null);
+  }, [createProjectDialogSource, setCreateProjectDialog]);
 
   const handleProjectCreated = useCallback(
     (projectId: string) => {
@@ -348,14 +346,44 @@ export default function Shell() {
         setNewSessionProjectId(projectId);
       }
     },
-    [createProjectDialogSource],
+    [createProjectDialogSource, setNewSessionProjectId],
   );
 
-  const dismissError = useCallback(() => setError(null), []);
-  const showChatInfo = currentView === "sessions" && !!selectedSessionId && !infoPanelCollapsed;
+  const dismissError = useCallback(() => setError(null), [setError]);
+  const showChatInfo = showSessionsView && !!selectedSessionId && !infoPanelCollapsed;
+
+  // Provide Shell state to route components via context
+  const shellContextValue = {
+    selectedSessionId,
+    selectedProjectId,
+    selectedAgentId,
+    newSessionProjectId,
+    messages,
+    isStreaming,
+    forksMap,
+    projects: projects as Project[],
+    boardKeyword,
+    boardStatusFilter,
+    error,
+    onSelectSession: handleSelectSession,
+    onSelectProject: setSelectedProjectId,
+    onSelectAgent: navigateToDetail,
+    onBackFromDetail: navigateBack,
+    onStartChat: handleCreateSession,
+    onNewSessionProjectChange: setNewSessionProjectId,
+    onCreateProjectForSession: () => {
+      setCreateProjectDialog(true, "new-session");
+    },
+    onSubmitMessage: handleSubmit,
+    onCancelStream: handleCancel,
+    onDismissError: dismissError,
+    onRewind: handleRewind,
+    onFork: handleFork,
+  };
 
   return (
-    <TooltipProvider>
+    <ShellProvider value={shellContextValue}>
+      <TooltipProvider>
       <div
         className="h-screen flex overflow-hidden shell-ground"
         data-desktop={isDesktop || undefined}
@@ -365,8 +393,6 @@ export default function Shell() {
             (The old z-40 overlay with -webkit-app-region: drag was Chromium/Electron-only.) */}
 
         <AppSidebar
-          currentView={currentView}
-          onViewChange={setCurrentView}
           mode={sidebarMode}
           onToggleSize={toggleSidebarSize}
         />
@@ -382,7 +408,7 @@ export default function Shell() {
             onToggleProjectsPanel={toggleProjectsPanel}
             onQuickCreate={handleCreateSession}
             themePanelOpen={themePanelOpen}
-            onToggleThemePanel={() => setThemePanelOpen((prev) => !prev)}
+            onToggleThemePanel={() => setThemePanelOpen(!themePanelOpen)}
             boardKeyword={boardKeyword}
             onBoardKeywordChange={setBoardKeyword}
             boardStatusFilter={boardStatusFilter}
@@ -391,7 +417,7 @@ export default function Shell() {
 
           <div className="flex-1 flex min-h-0 overflow-hidden">
             <Surface variant="main" className="flex min-w-0 flex-1 m-[0_var(--surface-inset)_var(--surface-inset)_0] rounded-[var(--surface-radius)] [contain:paint]">
-            {currentView === "sessions" && (
+            {showSessionsView && (
               <SessionsPanel
                 collapsed={sessionsPanelCollapsed}
                 activeSessionId={selectedSessionId ?? undefined}
@@ -409,51 +435,21 @@ export default function Shell() {
                 onSelectProject={setSelectedProjectId}
                 onClearSelection={() => setSelectedProjectId(null)}
                 onCreateProject={() => {
-                  setCreateProjectDialogSource("projects-panel");
-                  setCreateProjectDialogOpen(true);
+                  setCreateProjectDialog(true, "projects-panel");
                 }}
               />
             )}
 
             <MainContentColumn
               serverConnected={serverConnected}
-              showFloatingPill={currentView === "sessions"}
+              showFloatingPill={showSessionsView}
               sessionTitle={activeSessionTitle}
               sessionsPanelOpen={!sessionsPanelCollapsed}
               infoPanelOpen={showChatInfo}
               onToggleSessions={toggleSessionsPanel}
               onToggleInfo={toggleInfoPanel}
             >
-              <MainViewContent
-                currentView={currentView}
-                selectedAgentId={selectedAgentId}
-                selectedSessionId={selectedSessionId}
-                selectedProjectId={selectedProjectId}
-                projects={projects as Project[]}
-                newSessionProjectId={newSessionProjectId}
-                boardKeyword={boardKeyword}
-                boardStatusFilter={boardStatusFilter}
-                messages={messages}
-                isStreaming={isStreaming}
-                forksMap={forksMap}
-                error={error}
-                onDismissError={dismissError}
-                onSelectAgent={navigateToDetail}
-                onBackFromDetail={navigateBack}
-                onStartChat={handleCreateSession}
-                onNavigate={setCurrentView}
-                onSelectSession={handleSelectSession}
-                onSelectProject={setSelectedProjectId}
-                onNewSessionProjectChange={setNewSessionProjectId}
-                onCreateProjectForSession={() => {
-                  setCreateProjectDialogSource("new-session");
-                  setCreateProjectDialogOpen(true);
-                }}
-                onSubmitMessage={handleSubmit}
-                onCancelStream={handleCancel}
-                onRewind={handleRewind}
-                onFork={handleFork}
-              />
+              <Outlet />
             </MainContentColumn>
 
             <PlanPanel
@@ -490,6 +486,7 @@ export default function Shell() {
       />
       <ConfirmDialog />
       <AgentQuestionDialog />
-    </TooltipProvider>
+      </TooltipProvider>
+    </ShellProvider>
   );
 }

@@ -9,6 +9,8 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from '@tanstack/react-router';
+import type { Router } from '@tanstack/react-router';
 import { queryClient } from '@/bridge/query-client';
 import { TRPCProvider } from '@/bridge/react';
 import { trpc } from '@/bridge/trpc';
@@ -20,7 +22,6 @@ import { AppContextMenu } from './components/Shell/AppContextMenu';
 import { useEventBusInit } from './hooks/useEventBusInit';
 import { useServerEventInvalidation } from './hooks/useServerEventInvalidation';
 import { SetupGate } from './components/SetupGate';
-import Shell from './components/Shell/Shell';
 
 // Detect desktop mode: Tauri v1/v2 inject __TAURI__ or __TAURI_INTERNALS__ on the window.
 function detectTauri(): boolean {
@@ -79,17 +80,17 @@ function createPlatformActions(isDesktop: boolean, isTauri: boolean): PlatformAc
   };
 }
 
-function AppInner() {
+function AppInner({ router }: { router: Router<any, any, any, any> }) {
   useEventBusInit();
   useServerEventInvalidation();
   return (
     <SetupGate>
-      <Shell />
+      <RouterProvider router={router} />
     </SetupGate>
   );
 }
 
-export default function App() {
+export default function App({ router }: { router: Router<any, any, any, any> }) {
   const { isDesktop, isTauri } = useDesktopDetection();
   const platformActions = useMemo(
     () => createPlatformActions(isDesktop, isTauri),
@@ -109,7 +110,7 @@ export default function App() {
         <PlatformProvider actions={platformActions}>
           <HotkeyProvider>
             <AppContextMenu>
-              <AppInner />
+              <AppInner router={router} />
             </AppContextMenu>
           </HotkeyProvider>
         </PlatformProvider>

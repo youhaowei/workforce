@@ -11,6 +11,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { usePlatform } from "@/ui/context/PlatformProvider";
 
 import {
@@ -27,18 +28,19 @@ interface NavItem {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: React.ReactNode;
+  path: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { id: "home", label: "Home", icon: Home },
-  { id: "board", label: "Board", icon: LayoutDashboard },
-  { id: "queue", label: "Queue", icon: ClipboardList, badge: <ReviewBadge /> },
-  { id: "sessions", label: "Sessions", icon: MessageSquare },
-  { id: "projects", label: "Projects", icon: FolderGit2 },
-  { id: "templates", label: "Templates", icon: Blocks },
-  { id: "workflows", label: "Workflows", icon: Workflow },
-  { id: "orgs", label: "Orgs", icon: FolderKanban },
-  { id: "audit", label: "Audit", icon: History },
+  { id: "home", label: "Home", icon: Home, path: "/" },
+  { id: "board", label: "Board", icon: LayoutDashboard, path: "/board" },
+  { id: "queue", label: "Queue", icon: ClipboardList, badge: <ReviewBadge />, path: "/queue" },
+  { id: "sessions", label: "Sessions", icon: MessageSquare, path: "/sessions" },
+  { id: "projects", label: "Projects", icon: FolderGit2, path: "/projects" },
+  { id: "templates", label: "Templates", icon: Blocks, path: "/templates" },
+  { id: "workflows", label: "Workflows", icon: Workflow, path: "/workflows" },
+  { id: "orgs", label: "Orgs", icon: FolderKanban, path: "/orgs" },
+  { id: "audit", label: "Audit", icon: History, path: "/audit" },
 ];
 
 const SIDEBAR_WIDTH_CLASSES: Record<SidebarMode, string> = {
@@ -47,19 +49,14 @@ const SIDEBAR_WIDTH_CLASSES: Record<SidebarMode, string> = {
 };
 
 interface AppSidebarProps {
-  currentView: ViewType;
-  onViewChange: (view: ViewType) => void;
   mode: SidebarMode;
   onToggleSize?: () => void;
 }
 
 export default function AppSidebar({
-  currentView,
-  onViewChange,
   mode,
   onToggleSize,
 }: AppSidebarProps) {
-  const activeView = currentView === "detail" ? "board" : currentView;
   const isCollapsed = mode === "collapsed";
   const { isDesktop } = usePlatform();
   const isMacDesktop = isDesktop && typeof navigator !== "undefined"
@@ -102,33 +99,33 @@ export default function AppSidebar({
         className="flex-1 flex flex-col gap-0.5 overflow-y-auto pointer-events-auto px-2 py-2"
       >
         {NAV_ITEMS.map((item) => {
-          const isActive = activeView === item.id;
           const Icon = item.icon;
 
-          const button = (
-            <button
+          const linkElement = (
+            <Link
               key={item.id}
-              onClick={() => onViewChange(item.id)}
-              className={`nav-glass-item relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 ${
+              to={item.path}
+              className={`nav-glass-item relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 text-neutral-fg/50 hover:text-neutral-fg/80 hover:bg-white/30 dark:hover:bg-white/5 ${
                 isCollapsed ? "px-0 py-2 justify-center" : "px-2.5 py-[7px]"
-              } ${
-                isActive
-                  ? "nav-glass-active text-neutral-fg font-medium"
-                  : "text-neutral-fg/50 hover:text-neutral-fg/80 hover:bg-white/30 dark:hover:bg-white/5"
               }`}
+              activeProps={{
+                className: `nav-glass-item nav-glass-active relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 text-neutral-fg font-medium ${
+                  isCollapsed ? "px-0 py-2 justify-center" : "px-2.5 py-[7px]"
+                }`
+              }}
             >
               <Icon
                 className="h-[18px] w-[18px] shrink-0"
               />
               {!isCollapsed && <span className="truncate">{item.label}</span>}
-              {!isActive && item.badge}
-            </button>
+              {item.badge}
+            </Link>
           );
 
           if (isCollapsed) {
             return (
               <Tooltip key={item.id} delayDuration={0}>
-                <TooltipTrigger asChild>{button}</TooltipTrigger>
+                <TooltipTrigger asChild>{linkElement}</TooltipTrigger>
                 <TooltipContent side="right" sideOffset={8}>
                   {item.label}
                 </TooltipContent>
@@ -136,7 +133,7 @@ export default function AppSidebar({
             );
           }
 
-          return button;
+          return linkElement;
         })}
       </div>
 

@@ -121,5 +121,12 @@ export default [
     rules: {
       'max-lines': 'off',
     }
+  },
+  // TanStack Router files export both Route and component
+  {
+    files: ['src/ui/routes/**/*.tsx', 'src/ui/context/**/*.tsx'],
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    }
   }
 ];
