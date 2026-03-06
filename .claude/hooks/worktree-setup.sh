@@ -11,10 +11,10 @@ git -C "$CWD" worktree add -b "$NAME" "$DIR" HEAD >&2
 
 # Install dependencies
 cd "$DIR"
-pnpm install >&2
+bun install >&2
 
 # Restore local unifai link
-pnpm link ~/Projects/unifai >&2
+bun link ~/Projects/unifai >&2
 
 # Print path (required — Claude Code reads this as the worktree directory)
 echo "$DIR"

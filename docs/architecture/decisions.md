@@ -24,16 +24,13 @@ Last updated: 2026-02-17
     - template portability: workspace-local in MVP
 14. **Effect library deferred** — POC evaluated Effect for session persistence error handling. Typed errors are valuable but the paradigm overhead isn't justified yet. Instead: adopt typed error classes + `Result<T, E>` without Effect. Revisit when retry policies, resource scoping, or structured concurrency become needed.
 15. **Error handling strategy** — Use typed domain error classes + discriminated `Result<T, E>` unions at service boundaries. Tracing via structured LogService fields. No new library dependencies until complexity warrants it.
-16. **~~Sidecar server architecture~~ → ~~Electrobun direct-call~~ → Electron subprocess architecture** — Originally Tauri sidecar (~300 lines Rust). Migrated to Electrobun Feb 2026 (Bun-native, direct `startServer()` call). Migrated to Electron Mar 2026 — Electrobun couldn't reposition macOS traffic lights, was macOS-only, and lacked CDP support for AI agent tooling.
+16. **~~Sidecar server architecture~~ → ~~Electrobun direct-call~~ → ~~Electron subprocess~~ → Tauri sidecar architecture** — Originally Tauri sidecar (~300 lines Rust). Migrated to Electrobun, then Electron. This worktree returns to Tauri for smaller footprint and native vibrancy.
 
-    **Current architecture (Electron)**:
-    - `src/electron/main.ts` — Electron main process (Node): repairs PATH, starts Hono server in-process, opens `BrowserWindow` with `hiddenInset` title bar
-    - `src/electron/preload.ts` — Context bridge exposing `electronAPI.openDirectory()` via IPC
-    - `src/server/index.ts` — Hono HTTP server on Node.js via @hono/node-server. Runs in-process in production, externally in dev
-    - In production, Hono serves both the API and Vite build output on `:4096` (same origin, no CORS)
-    - In dev, server runs externally via `server:watch`; Electron window points to Vite at `:5173`
-    - Native dialogs via Electron IPC (`window.electronAPI.openDirectory()`)
-    - `isDesktop` detected via `window.location.port === API_PORT` (`:4096` = desktop, `:5173` = web dev)
-    - Electron Forge + `@electron-forge/plugin-vite` handles main/preload compilation and packaging
-
-    **What was removed in Electron migration**: `src/bun/index.ts` (Electrobun main process), `electrobun.config.ts`, tRPC `dialog.openDirectory` implementation (now a stub — real dialog via IPC)
+    **Current architecture (Tauri)**:
+    - `src-tauri/` — Rust main process: repairs PATH for sidecar, applies window vibrancy, spawns Bun sidecar
+    - `src-tauri/sidecar.rs` — Spawns Bun server (`src/server/index.ts`) as sidecar, waits for health before showing window
+    - `src/server/index.ts` — Hono HTTP server (Bun). Runs as sidecar in desktop, standalone for dev:web
+    - `tauri.conf.json` — `devUrl: localhost:5173` (Vite); `transparent: true` for macOS vibrancy
+    - Native dialogs via Tauri commands: `invoke('open_directory')`, `invoke('open_external')`
+    - `isDesktop` detected via `!!window.__TAURI__` or `!!window.__TAURI_INTERNALS__`. Do not use port-based detection.
+    - Tauri 2 + `@tauri-apps/api` handles build and packaging

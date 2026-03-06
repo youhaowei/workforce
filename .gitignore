@@ -3,10 +3,6 @@ node_modules/
 .pnp
 .pnp.js
 
-# pnpm
-pnpm-debug.log*
-.pnpm-store/
-
 # Dev server port discovery
 .dev-port
 .vite-port
@@ -17,7 +13,11 @@ dist-server/
 build/
 *.tsbuildinfo
 
-# Electron Forge
+# Tauri
+src-tauri/target/
+src-tauri/binaries/
+
+# Electron Forge (legacy)
 out/
 .vite/
 
@@ -41,7 +41,6 @@ coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
 lerna-debug.log*
 bun-debug.log*
 

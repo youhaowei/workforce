@@ -2,13 +2,14 @@
 
 > **⚠️ ARCHIVED — February 15, 2026**
 > This document is kept as historical reference. Active content has been extracted to:
+>
 > - **Feature specs** → Notion (child pages of [Workforce project](https://www.notion.so/2ffd48ccaf5481d7bb33d67599423042))
 > - **Architecture reference** → Notion: Agent Model, Distributed Architecture, Department Orchestration, Design Principles
 > - **Product overview** → `docs/product/PRD-MVP.md` (slimmed)
 > - **Vision** → `docs/product/vision.md` (unchanged)
 
-*Generated: February 6, 2026*
-*Sources: Current Workforce, Architecture Decisions doc, Craft Agents OSS, OpenCode Desktop, Cursor Self-Driving Codebases, Anthropic C Compiler, Opus 4.6 Finance*
+_Generated: February 6, 2026_
+_Sources: Current Workforce, Architecture Decisions doc, Craft Agents OSS, OpenCode Desktop, Cursor Self-Driving Codebases, Anthropic C Compiler, Opus 4.6 Finance_
 
 ---
 
@@ -17,6 +18,7 @@
 Workforce is the **platform layer** that makes autonomous agentic work possible. It is NOT the agents themselves.
 
 **What Workforce provides:**
+
 - **Agent lifecycle** — Spawn, monitor, coordinate, and stop agent sessions (Claude Code, Agent SDK, MCP-connected agents)
 - **Tool connectivity** — MCP servers, API sources, credentials, file systems — everything an agent needs to do its work
 - **Self-organization infrastructure** — Agents can discover available tools, claim tasks, share context, hand off work
@@ -25,6 +27,7 @@ Workforce is the **platform layer** that makes autonomous agentic work possible.
 - **Communication fabric** — How agents share state, how results flow between departments, how the human gets notified
 
 **What Workforce does NOT do:**
+
 - Build specialized agents for each department. The intelligence is already in Claude (via Claude Code, Agent SDK, skills).
 - Micromanage agent task execution. Agents self-orient within their configured environment.
 - Require the user to understand the internals. The UX is: "What do you want to do?" → system figures out the rest.
@@ -40,6 +43,7 @@ Workforce is the **platform layer** that makes autonomous agentic work possible.
 ### Hard Constraint: One Agent, One Job
 
 Each **WorkAgent** is specialized to do exactly one thing. This is a context window constraint, not a design preference:
+
 - An agent loaded with legal domain knowledge, contract templates, and compliance rules cannot simultaneously hold a codebase and reason about engineering tasks
 - Context is a finite resource — mixing domains degrades quality in both
 - Single-purpose agents are more predictable, debuggable, and cost-efficient
@@ -47,6 +51,7 @@ Each **WorkAgent** is specialized to do exactly one thing. This is a context win
 ### Two Agent Types
 
 **WorkAgent** — The worker. Single-skill, single-purpose, works independently.
+
 - Loaded with exactly one skill bundle (domain knowledge + tools + templates)
 - Executes one task or one workflow step
 - Short-to-medium lived (task duration)
@@ -54,6 +59,7 @@ Each **WorkAgent** is specialized to do exactly one thing. This is a context win
 - Reports progress and produces deliverables, then terminates
 
 **Supervisor** — The team lead. Longer-running, broader context, doesn't do the work.
+
 - Holds project-level context (goals, constraints, dependencies, progress so far)
 - Spawns WorkAgents with the right skill + task assignment
 - Tracks WorkAgent progress, synthesizes results
@@ -82,6 +88,7 @@ User: "Launch a marketing campaign for our new product"
 ```
 
 Each WorkAgent gets:
+
 - One skill bundle
 - One task description (from Supervisor or workflow step)
 - Access to the tools defined in its skill
@@ -89,16 +96,17 @@ Each WorkAgent gets:
 
 ### Why Not One Big Agent?
 
-| Approach | Pros | Cons |
-|----------|------|------|
-| One big agent | Simpler, full context | Context limit hit fast, quality degrades with mixed domains, expensive, single point of failure |
-| Specialized WorkAgents | Better quality per domain, parallelizable, cost-efficient, fault-isolated | Coordination overhead, context handoff between agents |
+| Approach               | Pros                                                                      | Cons                                                                                            |
+| ---------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| One big agent          | Simpler, full context                                                     | Context limit hit fast, quality degrades with mixed domains, expensive, single point of failure |
+| Specialized WorkAgents | Better quality per domain, parallelizable, cost-efficient, fault-isolated | Coordination overhead, context handoff between agents                                           |
 
 The coordination overhead is Workforce's job to handle. That's the whole point of the platform.
 
 ### Implications for the Platform
 
 Workforce must provide:
+
 - **Agent spawner** — Create a WorkAgent with: skill bundle + task + tool access
 - **Context handoff** — Pass relevant context from Supervisor to WorkAgent (and back) without contaminating domains
 - **Result synthesis** — Supervisor collects WorkAgent outputs, synthesizes into project-level progress
@@ -144,27 +152,28 @@ Workforce is not a single desktop app. It's a **distributed orchestration system
 2. A Supervisor agent is created (can run on any node)
 3. Supervisor breaks work into tasks, puts them in the org's work queue
 4. Available nodes pick up tasks based on:
-   - Available capacity (slots free)
-   - Required skills/tools (node has the right MCP servers connected)
-   - Auth scope (node has the right Claude CLI auth)
+    - Available capacity (slots free)
+    - Required skills/tools (node has the right MCP servers connected)
+    - Auth scope (node has the right Claude CLI auth)
 5. WorkAgents execute on whichever node picked up the task
 6. Results flow back to the Supervisor via the shared state layer
 7. Supervisor synthesizes, surfaces to CEO dashboard on all connected nodes
 
 ### Scaling Model
 
-| Want more throughput? | Do this |
-|----------------------|---------|
-| Local development | 1 node on your laptop (capacity: 2-3) |
-| Solo power user | Laptop + 1 cloud VM (capacity: 5-10) |
-| Small team | 3-5 cloud VMs (capacity: 10-50 total) |
-| Full workforce | N cloud VMs, scale horizontally |
+| Want more throughput? | Do this                               |
+| --------------------- | ------------------------------------- |
+| Local development     | 1 node on your laptop (capacity: 2-3) |
+| Solo power user       | Laptop + 1 cloud VM (capacity: 5-10)  |
+| Small team            | 3-5 cloud VMs (capacity: 10-50 total) |
+| Full workforce        | N cloud VMs, scale horizontally       |
 
 Each node is stateless except for its Claude CLI auth. All project state lives in the organization's shared layer. Adding a node = adding capacity.
 
 ### Auth Implication
 
 Each node needs its own Claude CLI auth (`~/.claude/.credentials.json`). This is actually fine for the distributed model:
+
 - Your laptop has your auth
 - Cloud VMs can be set up with service account auth (when Anthropic supports it)
 - Each node operates with its own billing/rate limits
@@ -189,6 +198,7 @@ The organization needs a shared persistence layer that all nodes can access. Opt
 ### What This Changes in the Platform
 
 Workforce must now provide:
+
 - **Node registration** — Node joins org on startup, advertises capacity and capabilities
 - **Work queue** — Distributed task queue where Supervisors post work and nodes claim it
 - **Shared state** — Org-level state that all nodes can read/write (projects, progress, deliverables)
@@ -202,17 +212,20 @@ Workforce must now provide:
 ## Hard Constraint: No Sidecar, No Custom Auth
 
 **Claude Agent SDK requires the OS-level Claude CLI auth** from `~/.claude/.credentials.json`. This auth state:
+
 - Only persists in the shell environment where `claude` was authenticated
 - Does NOT propagate to child processes spawned by Tauri's Rust backend
 - Cannot be worked around by offering a custom login flow (violates Claude Code ToS)
 
 **Implication:** The sidecar architecture pattern (used by OpenCode) is **off the table**. Workforce must either:
+
 1. **External server started from terminal** (current approach — server runs in a terminal with proper shell env, WebView connects via HTTP)
 2. **In-process services** where Bun has inherited the shell environment
 
-The current Workforce already solved this: `pnpm run dev` starts the server from the terminal first, then launches Electron. The server process inherits `PATH`, `HOME`, and the Claude credential files.
+The current Workforce already solved this: `bun run dev` starts the server from the terminal first, then launches Tauri. The server process inherits `PATH`, `HOME`, and the Claude credential files.
 
 **What this means for state management:**
+
 - TanStack Query is still valuable — but for caching Agent SDK responses over the HTTP bridge, not for querying a sidecar
 - The Hono server on port 4096 stays (it's the auth boundary)
 - EventBus stays for in-WebView communication
@@ -229,6 +242,7 @@ Auto-generates TypeScript bindings from Rust `#[tauri::command]` functions. Elim
 
 **2. Platform Abstraction Layer (Expanded)**
 OpenCode's `Platform` interface is more complete than our PlatformBridge:
+
 ```typescript
 interface Platform {
   platform: "desktop" | "web"
@@ -242,15 +256,18 @@ interface Platform {
   notifications: NotificationAPI              // Missing from our plan
 }
 ```
+
 Action: Expand our PlatformBridge with `storage`, `notifications`, `parseMarkdown`.
 
 **3. Event Coalescing for Streaming Performance**
 OpenCode batches streamed events by type/key, flushing every ~16ms (requestAnimationFrame). Critical for React — even with Jotai atoms, rapid token deltas can thrash the reconciler.
 
 Pattern:
+
 ```
 Token events arrive → Queue by message ID → Deduplicate → Flush on rAF
 ```
+
 Action: Implement coalescing layer between EventBus and Jotai atom updates.
 
 **4. Native Markdown Rendering (Rust comrak)**
@@ -261,11 +278,13 @@ Consideration: Use Streamdown for streaming state management + Rust comrak for f
 `workforce://session/{id}` — navigate from notifications or CLI to specific agent sessions. Useful for "CEO transparency" vision.
 
 **6. MCP OAuth State Machine**
+
 ```
 disabled → connecting → needs_auth → authenticating → connected
                     ↓
                   failed (with error)
 ```
+
 Full OAuth 2.0 with state validation, code verifier, token refresh. Our current Workforce has no MCP management — this is a gap.
 
 ### Not Adopting
@@ -281,6 +300,7 @@ Full OAuth 2.0 with state validation, code verifier, token refresh. Our current 
 ### Core Patterns to Adopt
 
 **1. Workspace-Scoped Config Folder**
+
 ```
 ~/.workforce/
 ├── config.json                 # Global: active workspace, defaults
@@ -299,10 +319,12 @@ Full OAuth 2.0 with state validation, code verifier, token refresh. Our current 
     │   └── SKILL.md            # Skill with YAML frontmatter
     └── hooks/                  # Custom pre/post tool hooks
 ```
+
 Maps to Workforce's "virtual firm" metaphor: each workspace = a company with its own agents, tools, permissions.
 
 **2. JSONL Session Persistence**
 Line-delimited JSON: header line (metadata) + message lines. Benefits:
+
 - Append-only writes (crash-safe)
 - Streaming reads (load only visible messages)
 - Easy corruption recovery (skip bad lines)
@@ -311,16 +333,19 @@ Line-delimited JSON: header line (metadata) + message lines. Benefits:
 Replaces current JSON-per-session format.
 
 **3. Source Server Builder Pattern**
+
 ```typescript
 class SourceServerBuilder {
-  buildMcpServer(source, token): McpServerConfig | null
-  buildApiServer(source, credential): SDKMcpServer | null
-  async buildAll(sources): { mcpServers, apiServers, errors }
+    buildMcpServer(source, token): McpServerConfig | null;
+    buildApiServer(source, credential): SDKMcpServer | null;
+    async buildAll(sources): {mcpServers; apiServers; errors};
 }
 ```
+
 Unified interface wrapping MCP (stdio/HTTP/SSE) and API sources with credential management.
 
 **4. Three-Layer Permission Model**
+
 1. **Mode** (coarse): `safe` / `ask` / `allow-all`
 2. **Rules** (fine): Pattern-based bash/tool allow/blocklists
 3. **Workspace overrides**: Per-workspace write path permissions
@@ -328,14 +353,17 @@ Unified interface wrapping MCP (stdio/HTTP/SSE) and API sources with credential 
 This IS the "CEO approval" mechanism.
 
 **5. Auth Request Pattern**
+
 ```
 Tool calls requestAuth → Agent stops (forceAbort with AbortReason.AuthRequest)
 → UI shows auth dialog → User completes auth → Result sent as "faked user message"
 → Agent resumes from same point
 ```
+
 Decouples auth from tool execution. Works for OAuth, API keys, manual entry.
 
 **6. Skill System with YAML Frontmatter**
+
 ```markdown
 ---
 name: "Code Review"
@@ -344,11 +372,14 @@ icon: "magnifying-glass"
 globs: ["**/*.ts"]
 alwaysAllow: ["read", "bash:grep"]
 ---
+
 # Instructions injected into system prompt...
 ```
+
 Skills declare their own permission rules. Extends current Fuxi skill format.
 
 **7. Tool Assembly Pipeline**
+
 ```
 User Message
     ↓ Load workspace sources
@@ -362,6 +393,7 @@ User Message
 
 **8. CraftAgent Class Pattern**
 2500+ line stateful orchestrator wrapping Claude Agent SDK:
+
 - Manages session state (messages, tools, thinking level, permission mode)
 - Dynamic tool composition from sources + skills + built-ins
 - Permission checking before tool execution
@@ -371,6 +403,7 @@ User Message
 
 **9. Session Manager Pattern**
 3500+ line lifecycle manager:
+
 - Map<string, ManagedSession> with lazy agent initialization
 - Async persistence queue (batched writes, all-or-nothing)
 - Config watching with hot-reload
@@ -471,6 +504,7 @@ Given no sidecar, the three-layer state works as:
 ## Migration Phases
 
 ### Phase 0: Foundation Reset
+
 - React 19.2 + Vite + Tailwind v4 + shadcn/ui scaffold
 - Port PlatformBridge (add tauri-specta, expand with OpenCode's interface)
 - Port EventBus to framework-agnostic TypeScript (remove SolidJS deps)
@@ -479,6 +513,7 @@ Given no sidecar, the three-layer state works as:
 - Wire SSE → coalescing layer → Jotai atoms
 
 ### Phase 1: Core Services (Server-Side)
+
 - Port AgentService (keep Claude SDK wrapper, improve event mapping)
 - Port SessionService (migrate to JSONL format)
 - Port OrchestratorService (add workspace scoping from Craft)
@@ -488,6 +523,7 @@ Given no sidecar, the three-layer state works as:
 - Upgrade SkillService (add YAML frontmatter parsing)
 
 ### Phase 2: UI Shell
+
 - App shell with shadcn/ui (sidebar, panels, header)
 - Chat view with react-virtuoso + Streamdown
 - Tool execution display (inline, collapsible)
@@ -496,6 +532,7 @@ Given no sidecar, the three-layer state works as:
 - Settings panel
 
 ### Phase 3: Orchestration
+
 - Profile routing with workspace awareness
 - Source management UI (add/remove MCP servers, OAuth flows)
 - Permission mode selector in UI
@@ -504,6 +541,7 @@ Given no sidecar, the three-layer state works as:
 - Background task manager with progress display
 
 ### Phase 4: Polish
+
 - Deep linking (workforce://session/{id})
 - Event coalescing tuning (profile and optimize rAF batching)
 - E2E tests with Playwright (port + expand)
@@ -514,23 +552,23 @@ Given no sidecar, the three-layer state works as:
 
 ## Decision Matrix
 
-| Decision | Current Fuxi | OpenCode | Craft Agents | Fuxi v2 |
-|----------|-------------|----------|--------------|---------|
-| UI Framework | SolidJS | SolidJS | React | **React 19.2** |
-| Desktop | Tauri 2 | Tauri 2 | Electron | **Tauri 2** |
-| Process Model | External server | Sidecar | N/A | **External server (auth req)** |
-| State | SolidJS stores | Solid context | N/A | **Zustand + Jotai + TQ** |
-| Components | Custom | Custom lib | shadcn/ui | **shadcn/ui** |
-| Streaming MD | marked | comrak (Rust) | N/A | **Streamdown (+comrak opt)** |
-| Chat Scroll | tanstack/solid-virtual | Custom | N/A | **react-virtuoso** |
-| Sessions | JSON per file | Server-side DB | JSONL | **JSONL** |
-| Config | Flat ~/.workforce/ | Server-side | Workspace-scoped | **Workspace-scoped** |
-| Permissions | None | N/A | Three-layer | **Three-layer** |
-| MCP | None | Full lifecycle | Full lifecycle | **Full lifecycle** |
-| Auth | Claude CLI only | Server-side | Encrypted+OAuth | **Claude CLI + encrypted** |
-| IPC | Minimal | tauri-specta | Electron IPC | **tauri-specta** |
-| Skills | Markdown files | N/A | YAML frontmatter | **YAML frontmatter** |
-| Events | EventBus (typed) | SSE from server | AsyncGenerator | **EventBus + coalescing** |
+| Decision      | Current Fuxi           | OpenCode        | Craft Agents     | Fuxi v2                        |
+| ------------- | ---------------------- | --------------- | ---------------- | ------------------------------ |
+| UI Framework  | SolidJS                | SolidJS         | React            | **React 19.2**                 |
+| Desktop       | Tauri 2                | Tauri 2         | Electron         | **Tauri 2**                    |
+| Process Model | External server        | Sidecar         | N/A              | **External server (auth req)** |
+| State         | SolidJS stores         | Solid context   | N/A              | **Zustand + Jotai + TQ**       |
+| Components    | Custom                 | Custom lib      | shadcn/ui        | **shadcn/ui**                  |
+| Streaming MD  | marked                 | comrak (Rust)   | N/A              | **Streamdown (+comrak opt)**   |
+| Chat Scroll   | tanstack/solid-virtual | Custom          | N/A              | **react-virtuoso**             |
+| Sessions      | JSON per file          | Server-side DB  | JSONL            | **JSONL**                      |
+| Config        | Flat ~/.workforce/     | Server-side     | Workspace-scoped | **Workspace-scoped**           |
+| Permissions   | None                   | N/A             | Three-layer      | **Three-layer**                |
+| MCP           | None                   | Full lifecycle  | Full lifecycle   | **Full lifecycle**             |
+| Auth          | Claude CLI only        | Server-side     | Encrypted+OAuth  | **Claude CLI + encrypted**     |
+| IPC           | Minimal                | tauri-specta    | Electron IPC     | **tauri-specta**               |
+| Skills        | Markdown files         | N/A             | YAML frontmatter | **YAML frontmatter**           |
+| Events        | EventBus (typed)       | SSE from server | AsyncGenerator   | **EventBus + coalescing**      |
 
 ---
 
@@ -551,6 +589,7 @@ Given no sidecar, the three-layer state works as:
 ## Insights from Latest Research (Feb 2026)
 
 ### Cursor: Self-Driving Codebases
+
 *https://cursor.com/blog/self-driving-codebases*
 
 Key patterns for Workforce's multi-agent orchestration:
@@ -566,6 +605,7 @@ Key patterns for Workforce's multi-agent orchestration:
 **Implication:** The "virtual firm" should embrace parallel agents with loose coordination, not rigid task assignment. The CEO role is about engineering the environment — tests, feedback loops, constraints — not micromanaging agents.
 
 ### Anthropic: Building a C Compiler with Parallel Claudes
+
 *https://www.anthropic.com/engineering/building-c-compiler*
 
 16 parallel Claude Opus 4.6 agents built a 100K-line C compiler in Rust over ~2,000 sessions ($20K cost, 2 weeks). Key patterns:
@@ -578,6 +618,7 @@ Key patterns for Workforce's multi-agent orchestration:
 **Implication:** The orchestrator's primary job is building the right environment (tests, verification, feedback) not assigning tasks. The "CEO dashboard" should show test results and environment health, not just task completion. Simple coordination (file locks, git) may outperform complex orchestration protocols.
 
 ### Opus 4.6 Finance Workflows
+
 *https://claude.com/blog/opus-4-6-finance*
 
 Opus 4.6 capabilities directly relevant to Workforce's architecture:
@@ -600,16 +641,19 @@ Not all work is the same. The orchestration layer must provide different **execu
 The Cursor/Anthropic model. Workforce spawns Claude Code instances, configures the environment, and gets out of the way.
 
 **What Workforce configures:**
+
 - Environment (repo path, branch, test commands, CI hooks)
 - Constraints (coding standards, forbidden patterns, scope boundaries)
 - Coordination rules (git push/pull, file locks for multi-agent)
 
 **What the agent does on its own:**
+
 - Self-orients: reads codebase, runs tests, makes changes
 - Self-corrects via test feedback
 - Resolves merge conflicts with other agents
 
 **What Workforce tracks:**
+
 - Files changed, test results, build status
 - Tokens used, sessions spawned, cost
 - Blockers (test failures, merge conflicts needing human input)
@@ -619,17 +663,20 @@ The Cursor/Anthropic model. Workforce spawns Claude Code instances, configures t
 For marketing, legal, finance, product, support. Workforce provides the workflow definition and skill bundles; the agent follows the defined steps.
 
 **What Workforce configures:**
+
 - Workflow definition (steps, checkpoints, review gates)
 - Skill bundle per workflow (domain knowledge + MCP tools + output templates)
 - Approval rules (which steps need human sign-off)
 
 **What the agent does on its own:**
+
 - Executes each step using the provided skills and tools
 - Reports progress at each checkpoint
 - Produces deliverables in the defined format
 - Flags exceptions or decisions that need human input
 
 **What Workforce tracks:**
+
 - Step completion status
 - Deliverables produced (with preview)
 - Review gate status (pending / approved / rejected)
@@ -638,6 +685,7 @@ For marketing, legal, finance, product, support. Workforce provides the workflow
 ### Key Insight: Workflows Are Configurable
 
 Workflow definitions are data, not code. They live in the workspace config (`~/.workforce/workspaces/{id}/workflows/`). This means:
+
 - Users can define custom workflows for their specific needs
 - Agents themselves can suggest workflow improvements based on experience
 - New department types can be added without changing the platform
@@ -645,15 +693,15 @@ Workflow definitions are data, not code. They live in the workspace config (`~/.
 
 ### The Spectrum
 
-| Aspect | Engineering | Knowledge Work |
-|--------|------------|----------------|
-| Steering | Minimal — constraints only | Structured — workflow steps |
-| Coordination | Loose — git, file locks | Tight — defined handoffs |
-| Error tolerance | High — fixup pass | Low — compliance matters |
-| Agent type | Claude Code instance | Specialized domain agent |
-| Feedback loop | Tests, CI/CD | Checkpoints, review gates |
-| Deliverable | Code + passing tests | Formatted document/analysis |
-| CEO role | Environment designer | Workflow designer + reviewer |
+| Aspect          | Engineering                | Knowledge Work               |
+| --------------- | -------------------------- | ---------------------------- |
+| Steering        | Minimal — constraints only | Structured — workflow steps  |
+| Coordination    | Loose — git, file locks    | Tight — defined handoffs     |
+| Error tolerance | High — fixup pass          | Low — compliance matters     |
+| Agent type      | Claude Code instance       | Specialized domain agent     |
+| Feedback loop   | Tests, CI/CD               | Checkpoints, review gates    |
+| Deliverable     | Code + passing tests       | Formatted document/analysis  |
+| CEO role        | Environment designer       | Workflow designer + reviewer |
 
 ### Project Oversight Layer — Unified Reporting
 
@@ -682,10 +730,11 @@ Workforce is a platform. These principles govern what it provides, not what agen
 
 ---
 
-*References:*
-- *Craft Agents OSS: Config-driven workspaces, JSONL persistence, three-layer permissions, source abstraction*
-- *OpenCode Desktop: tauri-specta, event coalescing, Platform abstraction, MCP OAuth, deep linking*
-- *Workforce v1: External server architecture, EventBus, lazy singletons, performance baselines*
-- *Cursor: Self-driving codebases — constraints over instructions, accept error rate, design for throughput*
-- *Anthropic: C Compiler — simple coordination, environment engineering, tests as feedback*
-- *Opus 4.6 Finance: Subagent spinning, adaptive thinking, plugins as skill bundles*
+_References:_
+
+- _Craft Agents OSS: Config-driven workspaces, JSONL persistence, three-layer permissions, source abstraction_
+- _OpenCode Desktop: tauri-specta, event coalescing, Platform abstraction, MCP OAuth, deep linking_
+- _Workforce v1: External server architecture, EventBus, lazy singletons, performance baselines_
+- _Cursor: Self-driving codebases — constraints over instructions, accept error rate, design for throughput_
+- _Anthropic: C Compiler — simple coordination, environment engineering, tests as feedback_
+- _Opus 4.6 Finance: Subagent spinning, adaptive thinking, plugins as skill bundles_
