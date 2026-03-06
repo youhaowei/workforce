@@ -8,8 +8,10 @@ use tauri_plugin_opener::OpenerExt;
 mod sidecar;
 
 /// Native directory picker — equivalent of Electron's dialog.showOpenDialog.
+/// Uses blocking_pick_folder in a synchronous command (not async) to avoid
+/// blocking a tokio worker thread.
 #[tauri::command]
-async fn open_directory(
+fn open_directory(
     app: AppHandle,
     starting_folder: Option<String>,
 ) -> Result<Option<String>, String> {
@@ -32,13 +34,29 @@ async fn open_external(app: AppHandle, url: String) -> Result<(), String> {
 /// Return the actual port the Bun sidecar bound to.
 /// The frontend calls this at startup to resolve the API base URL dynamically,
 /// so port scanning in the server never silently breaks the connection.
+///
+/// Blocks (async-polls) until the port is available, so callers don't need to retry.
 #[tauri::command]
-fn get_server_port(port: tauri::State<'_, ServerPort>) -> u16 {
-    port.0
+async fn get_server_port(port: tauri::State<'_, ServerPort>) -> Result<u16, String> {
+    let start = std::time::Instant::now();
+    let timeout = Duration::from_secs(30);
+    loop {
+        {
+            let guard = port.0.lock().unwrap();
+            if let Some(p) = *guard {
+                return Ok(p);
+            }
+        }
+        if start.elapsed() > timeout {
+            return Err("Server port not available within 30s".to_string());
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
 }
 
-/// Shared state holding the resolved server port, set once after health-check succeeds.
-struct ServerPort(u16);
+/// Shared state holding the resolved server port.
+/// Registered synchronously in setup() with None; set once port discovery succeeds.
+struct ServerPort(Arc<Mutex<Option<u16>>>);
 
 /// Repair PATH for GUI-launched apps on macOS.
 /// Without this, the agent SDK can't find `claude` CLI in production.
@@ -99,23 +117,31 @@ pub fn run() {
                 .expect("Failed to apply vibrancy");
             }
 
+            // Register ServerPort state synchronously so get_server_port never panics,
+            // even if the webview calls it before the async discovery completes.
+            let port_inner: Arc<Mutex<Option<u16>>> = Arc::new(Mutex::new(None));
+            app.manage(ServerPort(port_inner.clone()));
+
+            // Delete any stale .dev-port file left over from a previous crashed server,
+            // so we don't discover a dead port and connect to the wrong process.
+            let port_file = dev_port_file(app);
+            let _ = std::fs::remove_file(&port_file);
+
             // Spawn Bun sidecar — no PORT env var; the server picks its own port
             // (starting from DEFAULT_SERVER_PORT in src/shared/ports.ts) and writes
             // the actual port to .dev-port for discovery.
             let child = sidecar::spawn_server(&handle)?;
             *sidecar_child.lock().unwrap() = Some(child);
 
-            // Discover port from .dev-port, wait for health, expose port as state, show window.
-            let port_file = dev_port_file(app);
+            // Discover port from .dev-port, wait for health, then reveal the window.
             let win = window.clone();
-            let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let timeout = Duration::from_secs(30);
                 match sidecar::discover_port(&port_file, timeout).await {
                     Ok(port) => {
                         eprintln!("[tauri] Server bound on port {}", port);
-                        // Register the port so the frontend can query it via get_server_port.
-                        app_handle.manage(ServerPort(port));
+                        // Write the discovered port into state so get_server_port unblocks.
+                        *port_inner.lock().unwrap() = Some(port);
                         match sidecar::wait_for_health(port, timeout).await {
                             Ok(()) => {
                                 eprintln!("[tauri] Server is healthy on port {}", port);

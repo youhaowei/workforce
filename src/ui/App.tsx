@@ -7,12 +7,13 @@
  * EventBus → Zustand wiring is initialized via useEventBusInit().
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@/bridge/query-client';
 import { TRPCProvider } from '@/bridge/react';
 import { trpc } from '@/bridge/trpc';
 import { initServerUrl } from '@/bridge/config';
+import { refreshTrpcClient } from '@/bridge/trpc';
 import { PlatformProvider, type PlatformActions } from './context/PlatformProvider';
 import { HotkeyProvider } from './hotkeys/HotkeyProvider';
 import { AppContextMenu } from './components/Shell/AppContextMenu';
@@ -90,13 +91,17 @@ function AppInner() {
 
 export default function App() {
   const { isDesktop, isTauri } = useDesktopDetection();
-  const platformActions = createPlatformActions(isDesktop, isTauri);
+  const platformActions = useMemo(
+    () => createPlatformActions(isDesktop, isTauri),
+    [isDesktop, isTauri],
+  );
 
   // In Tauri, discover the actual sidecar port once at startup.
-  // initServerUrl() updates resolvedPort in bridge/config so the health-check
-  // polling in SetupGate uses the correct URL. The tRPC client URL is baked in
-  // at module load; in practice port scanning is rare so this is acceptable.
-  useEffect(() => { initServerUrl(); }, []);
+  // initServerUrl() updates resolvedPort in bridge/config; refreshTrpcClient()
+  // ensures the lazy tRPC singleton is (re-)created with the correct URL.
+  useEffect(() => {
+    initServerUrl().then(refreshTrpcClient);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
