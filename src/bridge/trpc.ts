@@ -47,6 +47,11 @@ export function refreshTrpcClient(): void {
  * Uses splitLink to route:
  *  - subscriptions → httpSubscriptionLink (SSE)
  *  - everything else → httpBatchLink (batched HTTP)
+ *
+ * URL is resolved once at module load from getTrpcUrl(). In Tauri, App.tsx calls
+ * initServerUrl() on mount to update resolvedPort; the health-check polling in
+ * SetupGate uses getServerUrl() dynamically so it always hits the correct port.
+ * TODO: handle the rare port-scan edge case (tRPC URL fixed; health-check adapts).
  */
 export const trpc = new Proxy({} as TrpcClient, {
   get(_target, prop) {
