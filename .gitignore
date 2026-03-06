@@ -13,6 +13,9 @@ dist-server/
 build/
 *.tsbuildinfo
 
+# Router (auto-generated)
+src/ui/routeTree.gen.ts
+
 # Tauri
 src-tauri/target/
 src-tauri/binaries/

@@ -1,6 +1,8 @@
 import {defineConfig, type Plugin} from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import {TanStackRouterVite} from "@tanstack/router-plugin/vite";
+import {visualizer} from "rollup-plugin-visualizer";
 import {resolve} from "path";
 import {readFileSync, writeFileSync, unlinkSync} from "fs";
 import {DEFAULT_SERVER_PORT, DEFAULT_VITE_PORT} from "./src/shared/ports";
@@ -51,7 +53,21 @@ function vitePortFile(): Plugin {
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig(({command}) => ({
-    plugins: [react(), tailwindcss(), vitePortFile()],
+    plugins: [
+        TanStackRouterVite({
+            routesDirectory: "./src/ui/routes",
+            generatedRouteTree: "./src/ui/routeTree.gen.ts",
+        }), // Must be before react()
+        react(),
+        tailwindcss(),
+        vitePortFile(),
+        visualizer({
+            open: false, // Don't auto-open (can be noisy during dev)
+            gzipSize: true,
+            brotliSize: true,
+            filename: "dist/stats.html",
+        }),
+    ],
     resolve: {
         alias: {
             "@": resolve(__dirname, "src"),
@@ -83,5 +99,35 @@ export default defineConfig(({command}) => ({
         target: "ES2020",
         minify: "esbuild",
         sourcemap: false,
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (id.includes("node_modules")) {
+                        // React core
+                        if (id.includes("react") || id.includes("react-dom")) {
+                            return "react-vendor";
+                        }
+                        // Icons
+                        if (id.includes("lucide-react")) {
+                            return "icons";
+                        }
+                        // Data layer
+                        if (id.includes("@trpc") || id.includes("@tanstack/react-query")) {
+                            return "data-vendor";
+                        }
+                        // Router
+                        if (id.includes("@tanstack/react-router")) {
+                            return "router";
+                        }
+                        // UI primitives
+                        if (id.includes("radix-ui")) {
+                            return "ui-vendor";
+                        }
+                        // Everything else
+                        return "vendor";
+                    }
+                },
+            },
+        },
     },
 }));
