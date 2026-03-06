@@ -192,6 +192,7 @@ export default function Shell() {
 
       cancelActiveStream();
       finishStreamingMessage();
+      useAgentQuestionStore.getState().clear();
       setNewSessionProjectId(null);
       clearMessages();
       setActiveSession(sessionId);
@@ -210,6 +211,7 @@ export default function Shell() {
     (sessionId: string) => {
       if (sessionId !== activeSessionRef.current) return;
       cancelActiveStream();
+      useAgentQuestionStore.getState().clear();
       clearMessages();
       setActiveSession(null);
       setSelectedSessionId(null);
@@ -223,6 +225,7 @@ export default function Shell() {
 
   const handleCreateSession = useCallback(() => {
     cancelActiveStream();
+    useAgentQuestionStore.getState().clear();
     clearMessages();
     setActiveSession(null);
     setSelectedSessionId(null);

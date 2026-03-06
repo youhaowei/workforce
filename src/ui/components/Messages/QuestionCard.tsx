@@ -278,15 +278,15 @@ export default function QuestionCard({ block }: {
 }) {
   const pending = useAgentQuestionStore((s) => s.pending);
 
-  const isLive = pending !== null;
+  const isLive = pending?.requestId === block.id;
   const hasAnswer = block.result !== undefined && block.result !== null;
   const isColdReplay = !isLive && !hasAnswer && block.name === 'AskUserQuestion';
   const isAnswered = !isLive && hasAnswer;
 
   const questions = useMemo(() => {
-    if (pending) return pending.questions;
+    if (isLive && pending) return pending.questions;
     return extractQuestionsFromBlock(block);
-  }, [pending, block]);
+  }, [isLive, pending, block]);
 
   if (questions.length === 0) return null;
 

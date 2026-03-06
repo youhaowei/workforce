@@ -101,6 +101,26 @@ export function completeRunningBlocks(acc: BlockAccumulator) {
   }
 }
 
+export function recordSubmittedQuestionAnswer(
+  blocks: ContentBlock[],
+  requestId: string,
+  answers: Record<string, string[]>,
+): boolean {
+  const questionBlocks = blocks.filter(
+    (block): block is ContentBlock & { type: 'tool_use' } =>
+      block.type === 'tool_use' && block.name === 'AskUserQuestion',
+  );
+  if (questionBlocks.length === 0) return false;
+
+  const target = [...questionBlocks].reverse().find((block) => block.id === requestId)
+    ?? [...questionBlocks].reverse().find((block) => block.result == null);
+  if (!target) return false;
+
+  target.result = answers;
+  if (target.status === 'running') target.status = 'complete';
+  return true;
+}
+
 // =============================================================================
 // SSE event types
 // =============================================================================
@@ -310,6 +330,13 @@ class AgentRunnerImpl {
 
   cancel(): void {
     getAgentService().cancel();
+  }
+
+  recordQuestionAnswer(requestId: string, answers: Record<string, string[]>): void {
+    const run = this.activeRun;
+    if (!run || run.done) return;
+    if (!recordSubmittedQuestionAnswer(run.acc.blocks, requestId, answers)) return;
+    this.snapshotBlocks(run);
   }
 
   // ─── Private ────────────────────────────────────────────────────────

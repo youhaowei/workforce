@@ -63,6 +63,7 @@ export const agentRouter = router({
       answers: z.record(z.string(), z.array(z.string())),
     }))
     .mutation(({ input }) => {
+      getAgentRunner().recordQuestionAnswer(input.requestId, input.answers);
       getAgentService().submitAnswer(input.requestId, input.answers);
       return { ok: true };
     }),
