@@ -83,3 +83,4 @@ Desktop.ini
 *.key
 *.cert
 .playwright-mcp/
+node_modules
