@@ -18,8 +18,8 @@
     "paths": {
       "@/*": ["src/*"]
     },
-    "types": ["vitest/globals", "vite/client", "node"]
+    "types": ["vitest/globals", "vite/client", "bun"]
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist", "build", "src/electron"]
+  "exclude": ["node_modules", "dist", "build", "src-tauri"]
 }

@@ -12,34 +12,19 @@ import {
   type PaletteColor,
   type ModeOverrides,
   type ResolvedMode,
+  type SurfaceTintStyle,
 } from '@/ui/stores/useThemeStore';
 import { ColorPicker } from './ColorPicker';
 import { NeutralPicker } from './NeutralPicker';
 import { TintPicker } from './TintPicker';
-
-const DEFAULT_PALETTE_LIGHT: Record<PaletteColor, string> = {
-  primary:   'oklch(0.205 0 0)',
-  secondary: 'oklch(0.45 0 0)',
-  success:   'oklch(0.59 0.19 149)',
-  danger:    'oklch(0.577 0.245 27.325)',
-  warning:   'oklch(0.75 0.08 55)',
-  info:      'oklch(0.55 0.15 250)',
-};
-
-const DEFAULT_PALETTE_DARK: Record<PaletteColor, string> = {
-  primary:   'oklch(0.922 0 0)',
-  secondary: 'oklch(0.65 0 0)',
-  success:   'oklch(0.65 0.19 149)',
-  danger:    'oklch(0.704 0.191 22.216)',
-  warning:   'oklch(0.75 0.1 70)',
-  info:      'oklch(0.65 0.15 250)',
-};
-
-const DEFAULT_SURFACE_LIGHT = 'oklch(0.95 0.006 70)';
-const DEFAULT_SURFACE_DARK = 'oklch(0.2 0.005 250)';
-
-const PREVIEW_LEVELS_LIGHT = [1.0, 0.98, 0.96, 0.94, 0.92, 0.90, 0.87];
-const PREVIEW_LEVELS_DARK = [0.145, 0.17, 0.19, 0.22, 0.24, 0.26, 0.12];
+import {
+  DEFAULT_PALETTE_LIGHT,
+  DEFAULT_PALETTE_DARK,
+  DEFAULT_SURFACE_LIGHT,
+  DEFAULT_SURFACE_DARK,
+  PREVIEW_LEVELS_LIGHT,
+  PREVIEW_LEVELS_DARK,
+} from './theme-defaults';
 
 const PALETTE_LABELS: Record<PaletteColor, string> = {
   primary: 'Primary',
@@ -54,6 +39,11 @@ const MODE_OPTIONS: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
   { value: 'system', label: 'System', icon: Monitor },
   { value: 'light', label: 'Light', icon: Sun },
   { value: 'dark', label: 'Dark', icon: Moon },
+];
+const SURFACE_TINT_STYLES: { value: SurfaceTintStyle; label: string }[] = [
+  { value: 'solid', label: 'Solid' },
+  { value: 'gradient2', label: '2-Stop' },
+  { value: 'gradient3', label: '3-Stop' },
 ];
 
 export function AppearanceSection() {
@@ -170,6 +160,7 @@ function ModeColorControls({
   const defaultPalette = modeKey === 'light' ? DEFAULT_PALETTE_LIGHT : DEFAULT_PALETTE_DARK;
   const defaultSurface = modeKey === 'light' ? DEFAULT_SURFACE_LIGHT : DEFAULT_SURFACE_DARK;
   const previewLevels = modeKey === 'light' ? PREVIEW_LEVELS_LIGHT : PREVIEW_LEVELS_DARK;
+  const surfaceTintStyle = modeOverrides.surfaceTintStyle ?? 'solid';
 
   // Only colors the user has actually customized (overrides only, not defaults)
   const usedColors = useMemo(() => {
@@ -261,6 +252,22 @@ function ModeColorControls({
           value={modeOverrides.surfaceBase ?? defaultSurface}
           onChange={(v) => updateModeOverride({ surfaceBase: v })}
         />
+        <div className="flex gap-1.5 pt-1">
+          {SURFACE_TINT_STYLES.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => updateModeOverride({ surfaceTintStyle: value })}
+              className={`flex-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
+                surfaceTintStyle === value
+                  ? 'bg-palette-primary text-palette-primary-fg border-palette-primary'
+                  : 'bg-neutral-bg-subtle text-neutral-fg-subtle border-neutral-border hover:border-neutral-ring'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

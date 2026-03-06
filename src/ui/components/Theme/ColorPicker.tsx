@@ -16,7 +16,10 @@ import { safeOklchToHex, getRecentColors, addRecentColor } from '@/ui/stores/use
 const AREA_W = 192;
 const AREA_H = 144;
 const HUE_H = 14;
-const MAX_CHROMA = 0.35;
+const DEFAULT_MAX_CHROMA = 0.35;
+const DEFAULT_HUE_STRIP_CHROMA = 0.15;
+const DEFAULT_MIN_LIGHTNESS = 0;
+const DEFAULT_MAX_LIGHTNESS = 1;
 
 export interface UsedColorSet {
   light: string[];
@@ -27,15 +30,62 @@ interface ColorPickerProps {
   value: string;
   onChange: (oklch: string) => void;
   label?: string;
+  /** Optional applied preview background (e.g. blended shell tint). */
+  previewBackground?: string;
+  /** Optional action for clicking the applied preview swatch. */
+  onPreviewClick?: () => void;
+  /** Max chroma shown in gradient area (lower for tint workflows). */
+  maxChroma?: number;
+  /** Chroma shown in hue strip gradient. */
+  hueStripChroma?: number;
+  /** Lightness bounds used by gradient area. */
+  minLightness?: number;
+  maxLightness?: number;
+  /** Show used-colors rows (Light/Dark) in popover. */
+  showUsedColors?: boolean;
+  /** Show/persist recent colors row in popover. */
+  showRecentColors?: boolean;
+  /** Show hex inputs inline and in popover. */
+  showHexValue?: boolean;
   /** Colors currently in use across the theme, split by mode */
   usedColors?: UsedColorSet;
 }
 
-export function ColorPicker({ value, onChange, label, usedColors }: ColorPickerProps) {
+export function ColorPicker({
+  value,
+  onChange,
+  label,
+  previewBackground,
+  onPreviewClick,
+  maxChroma = DEFAULT_MAX_CHROMA,
+  hueStripChroma = DEFAULT_HUE_STRIP_CHROMA,
+  minLightness = DEFAULT_MIN_LIGHTNESS,
+  maxLightness = DEFAULT_MAX_LIGHTNESS,
+  showUsedColors = true,
+  showRecentColors = true,
+  showHexValue = true,
+  usedColors,
+}: ColorPickerProps) {
   const hex = safeOklchToHex(value);
+  const previewBg = previewBackground ?? hex;
+  const lightnessLow = Math.min(minLightness, maxLightness);
+  const lightnessHigh = Math.max(minLightness, maxLightness);
+  const clampLightness = useCallback(
+    (l: number) => Math.max(lightnessLow, Math.min(lightnessHigh, l)),
+    [lightnessLow, lightnessHigh],
+  );
+  const clampChroma = useCallback(
+    (c: number) => Math.max(0, Math.min(maxChroma, c)),
+    [maxChroma],
+  );
 
   let lch = { l: 0.5, c: 0.1, h: 0 };
   try { lch = parseOklch(value); } catch { /* keep default */ }
+  const uiLch = {
+    l: clampLightness(lch.l),
+    c: clampChroma(lch.c),
+    h: lch.h,
+  };
 
   const [hexText, setHexText] = useState(hex);
   useEffect(() => { setHexText(hex); }, [hex]);
@@ -44,8 +94,8 @@ export function ColorPicker({ value, onChange, label, usedColors }: ColorPickerP
   const snapshotRef = useRef<string | null>(null);
 
   const emit = useCallback(
-    (l: number, c: number, h: number) => onChange(formatOklch(l, c, h)),
-    [onChange],
+    (l: number, c: number, h: number) => onChange(formatOklch(clampLightness(l), clampChroma(c), h)),
+    [onChange, clampLightness, clampChroma],
   );
 
   const handleHexInput = useCallback(
@@ -72,12 +122,18 @@ export function ColorPicker({ value, onChange, label, usedColors }: ColorPickerP
   const handleOpenChange = useCallback((open: boolean) => {
     if (open) {
       snapshotRef.current = value;
-      setRecentColors(getRecentColors());
+      if (showRecentColors) {
+        setRecentColors(getRecentColors());
+      } else {
+        setRecentColors([]);
+      }
     } else {
-      addRecentColor(value);
-      setRecentColors(getRecentColors());
+      if (showRecentColors) {
+        addRecentColor(value);
+        setRecentColors(getRecentColors());
+      }
     }
-  }, [value]);
+  }, [value, showRecentColors]);
 
   // Used colors minus current value; recent minus anything already in used/current
   const dedupedLight = usedColors?.light.filter((c) => c !== value);
@@ -96,7 +152,7 @@ export function ColorPicker({ value, onChange, label, usedColors }: ColorPickerP
           <button
             type="button"
             className="w-7 h-7 rounded-md border border-neutral-border shrink-0 cursor-pointer transition-shadow hover:ring-2 hover:ring-neutral-ring/30"
-            style={{ background: hex }}
+            style={{ background: previewBg }}
             aria-label={`Pick ${label ?? 'color'}`}
           />
         </PopoverTrigger>
@@ -106,61 +162,48 @@ export function ColorPicker({ value, onChange, label, usedColors }: ColorPickerP
           className="w-auto p-2 space-y-2"
         >
           <GradientArea
-            lightness={lch.l}
-            chroma={lch.c}
-            hue={lch.h}
+            lightness={uiLch.l}
+            chroma={uiLch.c}
+            hue={uiLch.h}
+            maxChroma={maxChroma}
+            minLightness={lightnessLow}
+            maxLightness={lightnessHigh}
             onChangeLC={(l, c) => emit(l, c, lch.h)}
           />
           <HueStrip
-            hue={lch.h}
+            hue={uiLch.h}
+            stripChroma={hueStripChroma}
             onChangeHue={(h) => emit(lch.l, lch.c, h)}
           />
-          <div className="flex items-center gap-2">
-            <div
-              className="w-6 h-6 rounded-[4px] border border-neutral-border shrink-0"
-              style={{ background: hex }}
-            />
-            <input
-              type="text"
-              value={hexText}
-              onChange={handleHexInput}
-              className="flex-1 h-6 px-2 text-[11px] font-mono rounded-md border border-neutral-border bg-neutral-bg text-neutral-fg focus:outline-none focus:ring-1 focus:ring-neutral-ring"
-              spellCheck={false}
-            />
-            <button
-              type="button"
-              onClick={handleReset}
-              className="w-6 h-6 flex items-center justify-center rounded-md text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-subtle transition-colors"
-              title="Reset to value before opening"
-            >
-              <RotateCcw className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="text-[10px] text-neutral-fg-subtle font-mono tabular-nums">
-            L{(lch.l * 100).toFixed(0)} C{(lch.c * 100).toFixed(0)} H{Math.round(lch.h)}
-          </div>
-
-          {/* Used colors — light + dark rows */}
-          {dedupedLight && dedupedLight.length > 0 && (
-            <SwatchRow label="Light" colors={dedupedLight} onPick={handleSwatchClick} />
-          )}
-          {dedupedDark && dedupedDark.length > 0 && (
-            <SwatchRow label="Dark" colors={dedupedDark} onPick={handleSwatchClick} />
-          )}
-
-          {/* Recent colors */}
-          {dedupedRecent.length > 0 && (
-            <SwatchRow label="Recent" colors={dedupedRecent} onPick={handleSwatchClick} />
-          )}
+          <PopoverControls
+            previewBg={previewBg}
+            previewBackground={previewBackground}
+            onPreviewClick={onPreviewClick}
+            showHexValue={showHexValue}
+            hexText={hexText}
+            onHexInput={handleHexInput}
+            onReset={handleReset}
+            uiLch={uiLch}
+          />
+          <SwatchSection
+            showUsedColors={showUsedColors}
+            showRecentColors={showRecentColors}
+            dedupedLight={dedupedLight}
+            dedupedDark={dedupedDark}
+            dedupedRecent={dedupedRecent}
+            onPick={handleSwatchClick}
+          />
         </PopoverContent>
       </Popover>
-      <input
-        type="text"
-        value={hexText}
-        onChange={handleHexInput}
-        className="w-[72px] h-7 px-2 text-[11px] font-mono rounded-md border border-neutral-border bg-neutral-bg text-neutral-fg focus:outline-none focus:ring-1 focus:ring-neutral-ring"
-        spellCheck={false}
-      />
+      {showHexValue && (
+        <input
+          type="text"
+          value={hexText}
+          onChange={handleHexInput}
+          className="w-[72px] h-7 px-2 text-[11px] font-mono rounded-md border border-neutral-border bg-neutral-bg text-neutral-fg focus:outline-none focus:ring-1 focus:ring-neutral-ring"
+          spellCheck={false}
+        />
+      )}
     </div>
   );
 }
@@ -187,17 +230,125 @@ function SwatchRow({ label, colors, onPick }: { label: string; colors: string[];
   );
 }
 
+// ── Popover Controls Row ─────────────────────────────────────────────────────
+
+function PopoverControls({
+  previewBg,
+  previewBackground,
+  onPreviewClick,
+  showHexValue,
+  hexText,
+  onHexInput,
+  onReset,
+  uiLch,
+}: {
+  previewBg: string;
+  previewBackground?: string;
+  onPreviewClick?: () => void;
+  showHexValue?: boolean;
+  hexText: string;
+  onHexInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onReset: () => void;
+  uiLch: { l: number; c: number; h: number };
+}) {
+  return (
+    <>
+      <div className="flex items-center gap-2">
+        <div
+          className="w-6 h-6 rounded-[4px] border border-neutral-border shrink-0"
+          style={{ background: previewBg }}
+        />
+        {previewBackground && (
+          onPreviewClick ? (
+            <button
+              type="button"
+              onClick={onPreviewClick}
+              className="h-6 flex-1 min-w-[64px] rounded-[4px] border border-neutral-border-subtle cursor-pointer transition-shadow hover:ring-1 hover:ring-neutral-ring/30"
+              style={{ background: previewBg }}
+              title="Applied preview (click to cycle tint style)"
+            />
+          ) : (
+            <div
+              className="h-6 flex-1 min-w-[64px] rounded-[4px] border border-neutral-border-subtle"
+              style={{ background: previewBg }}
+              title="Applied preview"
+            />
+          )
+        )}
+        {showHexValue && (
+          <input
+            type="text"
+            value={hexText}
+            onChange={onHexInput}
+            className="flex-1 h-6 px-2 text-[11px] font-mono rounded-md border border-neutral-border bg-neutral-bg text-neutral-fg focus:outline-none focus:ring-1 focus:ring-neutral-ring"
+            spellCheck={false}
+          />
+        )}
+        <button
+          type="button"
+          onClick={onReset}
+          className={`w-6 h-6 flex items-center justify-center rounded-md text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-subtle transition-colors ${showHexValue ? '' : 'ml-auto'}`}
+          title="Reset to value before opening"
+        >
+          <RotateCcw className="w-3 h-3" />
+        </button>
+      </div>
+      <div className="text-[10px] text-neutral-fg-subtle font-mono tabular-nums">
+        L{(uiLch.l * 100).toFixed(0)} C{(uiLch.c * 100).toFixed(0)} H{Math.round(uiLch.h)}
+      </div>
+    </>
+  );
+}
+
+// ── Swatch Section ────────────────────────────────────────────────────────────
+
+function SwatchSection({
+  showUsedColors,
+  showRecentColors,
+  dedupedLight,
+  dedupedDark,
+  dedupedRecent,
+  onPick,
+}: {
+  showUsedColors?: boolean;
+  showRecentColors?: boolean;
+  dedupedLight?: string[];
+  dedupedDark?: string[];
+  dedupedRecent: string[];
+  onPick: (c: string) => void;
+}) {
+  return (
+    <>
+      {showUsedColors && dedupedLight && dedupedLight.length > 0 && (
+        <SwatchRow label="Light" colors={dedupedLight} onPick={onPick} />
+      )}
+      {showUsedColors && dedupedDark && dedupedDark.length > 0 && (
+        <SwatchRow label="Dark" colors={dedupedDark} onPick={onPick} />
+      )}
+      {showRecentColors && dedupedRecent.length > 0 && (
+        <SwatchRow label="Recent" colors={dedupedRecent} onPick={onPick} />
+      )}
+    </>
+  );
+}
+
 // ── 2D Gradient Area (Lightness × Chroma) ────────────────────────────────────
 
 function GradientArea({
   lightness,
   chroma,
   hue,
+  maxChroma,
+  minLightness,
+  maxLightness,
   onChangeLC,
 }: {
   lightness: number;
   chroma: number;
   hue: number;
+  maxChroma: number;
+  minLightness: number;
+  maxLightness: number;
   onChangeLC: (l: number, c: number) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | undefined>(undefined);
@@ -212,9 +363,10 @@ function GradientArea({
 
     const img = ctx.createImageData(AREA_W, AREA_H);
     for (let y = 0; y < AREA_H; y++) {
-      const l = 1 - y / (AREA_H - 1); // top = 1, bottom = 0
+      const t = y / (AREA_H - 1);
+      const l = maxLightness - t * (maxLightness - minLightness);
       for (let x = 0; x < AREA_W; x++) {
-        const c = (x / (AREA_W - 1)) * MAX_CHROMA;
+        const c = (x / (AREA_W - 1)) * maxChroma;
         const hexStr = oklchToHex(l, c, hue);
         const i = (y * AREA_W + x) * 4;
         img.data[i] = parseInt(hexStr.slice(1, 3), 16);
@@ -224,7 +376,7 @@ function GradientArea({
       }
     }
     ctx.putImageData(img, 0, 0);
-  }, [hue]);
+  }, [hue, maxChroma, minLightness, maxLightness]);
 
   const handlePointer = useCallback(
     (e: React.PointerEvent | PointerEvent) => {
@@ -232,9 +384,10 @@ function GradientArea({
       if (!rect) return;
       const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       const y = Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height));
-      onChangeLC(1 - y, x * MAX_CHROMA);
+      const l = maxLightness - y * (maxLightness - minLightness);
+      onChangeLC(l, x * maxChroma);
     },
-    [onChangeLC],
+    [onChangeLC, maxChroma, minLightness, maxLightness],
   );
 
   const startDrag = useCallback(
@@ -247,8 +400,12 @@ function GradientArea({
   );
 
   // Handle position as percentages
-  const handleX = Math.min(100, Math.max(0, (chroma / MAX_CHROMA) * 100));
-  const handleY = Math.min(100, Math.max(0, (1 - lightness) * 100));
+  const handleX = Math.min(100, Math.max(0, (chroma / maxChroma) * 100));
+  const lightnessRange = Math.max(0.0001, maxLightness - minLightness);
+  const handleY = Math.min(
+    100,
+    Math.max(0, ((maxLightness - lightness) / lightnessRange) * 100),
+  );
 
   return (
     <div
@@ -279,9 +436,11 @@ function GradientArea({
 
 function HueStrip({
   hue,
+  stripChroma,
   onChangeHue,
 }: {
   hue: number;
+  stripChroma: number;
   onChangeHue: (h: number) => void;
 }) {
   const containerRef = useRef<HTMLDivElement | undefined>(undefined);
@@ -308,7 +467,7 @@ function HueStrip({
   // Build hue gradient stops
   const stops = Array.from({ length: 7 }, (_, i) => {
     const h = (i / 6) * 360;
-    return `oklch(0.7 0.15 ${h})`;
+    return `oklch(0.7 ${stripChroma} ${h})`;
   }).join(', ');
 
   return (

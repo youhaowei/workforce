@@ -5,28 +5,60 @@ Docs: `docs/` (high-level) + [Notion](https://www.notion.so/2ffd48ccaf5481d7bb33
 ## Commands
 
 ```bash
-pnpm install          # Install dependencies
-pnpm run test         # All unit tests (Vitest)
-pnpm run test -- src/services/session.test.ts  # Single test file
-pnpm run test:e2e     # Playwright E2E tests
-pnpm run lint         # Lint code
-pnpm run type-check   # TypeScript check
-pnpm run server       # Start backend server (port 19675)
-pnpm run server:watch # Server with hot-reload
-pnpm run dev:web      # Start server + vite for web testing (port 19676)
-pnpm run clean        # Remove build artifacts (dist, out)
+bun install           # Install dependencies
+bun run test          # All unit tests (Vitest)
+bun run test -- src/services/session.test.ts  # Single test file
+bun run test:e2e      # Playwright E2E tests
+bun run lint          # Lint code
+bun run type-check    # TypeScript check
+bun run server        # Start backend server (port 19675)
+bun run server:watch  # Server with hot-reload
+bun run dev:web       # Start server + vite for web testing (port 19676)
+bun run clean         # Remove build artifacts (dist, out)
 ```
 
 **ASK FIRST — never auto-run:**
 
 ```bash
-pnpm run dev   # Server + Electron desktop app (dev loads from Vite :19676)
-pnpm run build # Electron Forge release build
+bun run dev   # Server + Tauri desktop app (dev loads from Vite :19676)
+bun run build # Tauri release build
 ```
+
+## Debugging & Inspection
+
+### Peekaboo MCP (Tauri UI automation)
+Installed globally (`brew install steipete/tap/peekaboo`) and configured as an MCP server in `~/.claude.json`. Gives Claude Code direct access to the running Tauri app via native macOS APIs — no CDP needed.
+
+```bash
+# Available as MCP tools in Claude Code (no CLI needed):
+peekaboo see --app Workforce      # screenshot + accessibility tree with element IDs
+peekaboo click --on <elem_id>     # click by element ID or label
+peekaboo type --text "..."        # type into focused field
+peekaboo list --item_type running_applications  # find app PID
+```
+
+Covers: visual state, rendered elements, UI interactions. Requires Screen Recording + Accessibility permissions.
+
+### Workforce CLI (server introspection)
+```bash
+bun run cli -- health check            # confirm server is up
+bun run cli -- session list --json     # list all sessions
+bun run cli -- session messages <id>   # inspect session history
+bun run cli -- audit session <id>      # full audit trail
+bun run cli -- --help                  # all commands
+```
+
+Talks to the running server on port 19675 (default). Use for server-side state: sessions, tasks, audit logs.
+
+### Gaps (tracked as Notion tasks)
+- **`eval_js`** — no way to query React/DOM/store state in the webview yet (Notion task: "Add `eval_js` Tauri command")
+- **`health logs`** — server logs reachable via tRPC but no CLI command yet (Notion task: "Add `health logs` CLI command")
+- **workforce MCP** — would expose CLI + eval_js as MCP tools for agents (Notion task: "Create workforce MCP server")
 
 ## Key Disambiguation
 
 **Two component directories** — Don't confuse them:
+
 - `src/components/ui/` — Radix-based **primitives** (Button, Surface, Card, Dialog, etc.). Styled with CVA + token classes.
 - `src/ui/components/` — **Feature** components (Shell, Sessions, Theme, Messages, etc.). Compose primitives into app-specific UI.
 
@@ -35,10 +67,12 @@ pnpm run build # Electron Forge release build
 ## Conventions
 
 ### Infrastructure Values
+
 - **Never hardcode ports, URLs, or paths** — Use discovery patterns (e.g., `.dev-port`, `.vite-port` files). Hardcoded values silently break when ports shift, servers restart on different ports, or environments differ.
 - **Port-file pattern** — Server writes `.dev-port`, Vite writes `.vite-port` on startup. Consumers read the file to discover the actual port.
 
 ### Error Handling
+
 - **`Result<T, E>`** at service boundaries (from `src/services/types.ts`) — not `null`, not thrown exceptions
 - **Tagged error classes** with `readonly _tag` discriminant — callers `switch` on `_tag`
 - **`null`** only for genuine absence, never for "something went wrong"
@@ -46,10 +80,12 @@ pnpm run build # Electron Forge release build
 - **Never** silently swallow errors — at minimum log with context
 
 ### Testing
+
 Test at the layer the change lives in (test both if a fix crosses layers):
+
 - **Service/router** — `router.test.ts` via `createCaller()`, or service-level with factory functions + temp dirs
 - **UI** — React Testing Library + jsdom (`src/ui/**/*.test.tsx`)
-- **E2E** — Playwright (`pnpm run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
+- **E2E** — Playwright (`bun run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
 - **Bug reproduction** — Construct JSONL journal records and replay via `replaySession()`. More reliable than mocking UI state.
 - **Co-located tests** — `Foo.test.ts` next to `Foo.ts`, not in `__tests__/` directories
 - **Environments** — Node (default) for services/routers; `jsdom` for `src/ui/**/*.test.tsx` (auto-matched in vitest.config.ts)
@@ -57,6 +93,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **Temp data** — `WORKFORCE_DATA_DIR` points to tmpdir in tests, never `~/.workforce/`
 
 ### Design Tokens & Styling
+
 - **Always use token classes** — Use `bg-palette-primary`, `text-neutral-fg`, etc. Never use raw colors (`bg-gray-500`, `text-black`) in components.
 - **Button color axis** — Button uses `color="neutral"` (not `"default"`). Active/selected states use `color="primary"`.
 - **Surface variant determines bg** — `<Surface variant="main">` provides the frosted glass bg. Don't add manual `bg-*` classes on top.
@@ -66,22 +103,25 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 ## Reference Implementation
 
-**craft-agents-oss** (`/Users/youhaowei/Projects/external/craft-agents-oss/`) — Same stack (Electron + Tailwind v4 + Vite + React). Strong reference for Electron window chrome, drag regions, native integrations, panel layouts, and desktop UX patterns. Check it FIRST before implementing Electron-specific features or debugging platform issues.
+**craft-agents-oss** (`/Users/youhaowei/Projects/external/craft-agents-oss/`) — Same UI stack (Tailwind v4 + Vite + React). Strong reference for window chrome, drag regions, native integrations, panel layouts, and desktop UX patterns. Uses Electron; this worktree uses Tauri — many patterns transfer.
 
 ## Gotchas
 
 ### Architecture
-- **`electron` imports only in `src/electron/`** — Keep `src/ui/` browser-safe. Native dialogs via IPC (`window.electronAPI.openDirectory()`).
-- **`isDesktop` detection** — `!!window.electronAPI` in `App.tsx`. Electron preload always exposes `electronAPI`.
+
+- **Tauri commands** — Keep `src/ui/` browser-safe. Native dialogs via `invoke('open_directory')`. Rust code in `src-tauri/`.
+- **`isDesktop` detection** — `!!window.__TAURI__` or `!!window.__TAURI_INTERNALS__`. Do not use port-based detection.
 - **Singleflight for lazy init** — `this.initPromise ??= this.doInit()` prevents concurrent callers racing.
 - **SetupGate** — Wraps `Shell`, guarantees user identity + initialized org. `useRequiredOrgId()` throws if called outside.
 
 ### SDK & Streaming
+
 - **Streaming** — `content_block_delta` events only (not final message). Never `.trim()` SSE data — strips inter-token spaces.
 - **@hono/node-server** — Server runs via `@hono/node-server`'s `serve()`. SSE connections need appropriate timeout handling.
 - **Cold-replay answers** — Answers persisted in `block.result` via `updateBlockResult`. Historical answers as follow-up messages: `backfillQuestionResults` in `session-journal.ts` handles migration.
 
 ### UI
+
 - **Radix UI** — Unified `radix-ui` package, not individual `@radix-ui/*`. ContextMenu has no controlled `open` prop — gate via capture-phase `stopPropagation` on `contextmenu`.
 - **React 19 `useRef`** — Requires initial value: `useRef<T | undefined>(undefined)`, not `useRef<T>()`.
 - **`useState` + async queries** — `useState(() => fn(queryData))` captures `undefined` at first render. Use `useEffect` + ref guard instead.
@@ -89,6 +129,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **Drag region overlay** — `index.html` has a z-40 fixed div covering `--topbar-height` for window dragging. Interactive elements (`button`, `input`, `a`, `[role="button"]`) auto-opt-out via `-webkit-app-region: no-drag`. Custom interactive elements in the topbar need `role="button"` or explicit `app-region: no-drag` to be clickable. The raw `<style>` tag in `index.html` is intentional — Lightning CSS strips `-webkit-app-region`.
 
 ### Testing & Build
+
 - **NEVER kill user processes** — Do NOT kill processes on ports 19675, 19676. If occupied, fail clearly.
 - **E2E isolation** — Tests use temp data dir (`WORKFORCE_DATA_DIR`), own server on ports 19775 (API) / 19776 (Vite), `reuseExistingServer: false`. Never writes to `~/.workforce/`.
 - **E2E fixtures** — Clean up tRPC API data in `afterEach`. Sync via `page.waitForResponse()`, not text selectors.
@@ -98,28 +139,33 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **Optimistic updates** — `onMutate` must return rollback context for `onError`.
 
 ### unifai Dependency
-- **What**: Multi-provider agent abstraction (`github:youhaowei/unifai`). GitHub dep for portability; `pnpm link` for local dev.
-- **Local setup**: `cd ~/Projects/workforce && pnpm link ~/Projects/unifai`
-- **After `pnpm install`**: Re-run `pnpm link ~/Projects/unifai` (install overwrites the link)
-- **In worktrees**: Run `pnpm link ~/Projects/unifai` after creation (or just use the GitHub version)
+
+- **What**: Multi-provider agent abstraction (`github:youhaowei/unifai`). GitHub dep for portability; `bun link` for local dev.
+- **Local setup**: `cd ~/Projects/workforce && bun link ~/Projects/unifai`
+- **After `bun install`**: Re-run `bun link ~/Projects/unifai` (install overwrites the link)
+- **In worktrees**: Run `bun link ~/Projects/unifai` after creation (or just use the GitHub version)
 
 ## Recipes
 
 **Add a new tRPC router:**
+
 1. Create `src/server/routers/{name}.ts` — export a `{name}Router` using `router()` + `publicProcedure`
 2. Add to `src/server/routers/index.ts` `appRouter` merge
 3. Access service via `getXxxService()` from `src/server/routers/_services.ts`
 
 **Add a new service:**
+
 1. Create `src/services/{name}.ts` — class with `ensureInitialized()`, `dispose()`, lazy singleton getter
 2. Export `get{Name}Service()` and `reset{Name}Service()` from `src/services/index.ts`
 3. Add to `src/server/routers/_services.ts` for router access
 
 **Add a new UI primitive:**
+
 1. Create `src/components/ui/{name}.tsx` — CVA variants, token classes, `forwardRef`
 2. Follow Button/Surface pattern: variant × color compound variants, token classes (not raw colors)
 
 **Add a new feature component:**
+
 1. Create `src/ui/components/{Name}/` directory with `index.ts` barrel
 2. Use primitives from `@/components/ui/*`, stores from `@/ui/stores/*`
 3. Data via `trpc.{domain}.{method}.useQuery()` from `@/bridge/react`

@@ -1,6 +1,6 @@
 import type { Session, SessionSummary, AgentQuestion } from '@/services/types';
 import type { SidebarMode, ViewType } from './Shell';
-import { SERVER_URL } from '@/bridge/config';
+import { getServerUrl } from '@/bridge/config';
 import { trpc as trpcClient } from '@/bridge/trpc';
 
 export const SIDEBAR_STORAGE_KEY = 'workforce-sidebar-mode';
@@ -66,7 +66,7 @@ export function handleStreamError(
 
 export async function checkServerConnection(): Promise<boolean> {
   try {
-    const response = await fetch(`${SERVER_URL}/health`, { method: 'GET' });
+    const response = await fetch(`${getServerUrl()}/health`, { method: 'GET' });
     return response.ok;
   } catch {
     return false;

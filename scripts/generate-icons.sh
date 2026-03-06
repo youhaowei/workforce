@@ -41,4 +41,4 @@ iconutil -c icns "$ICONSET" -o icon.icns
 rm -rf "$TMP_DIR"
 
 echo "Done: $(ls "$ICONSET" | wc -l | tr -d ' ') icons in $ICONSET/, icon.icns generated"
-echo "Restart 'pnpm run dev' to see the updated Dock icon."
+echo "Restart 'bun run dev' to see the updated Dock icon."

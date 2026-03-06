@@ -61,9 +61,18 @@ export default function TopBar({
     : (VIEW_TITLES[currentView] ?? currentView);
 
   return (
-    <header className="shell-topbar relative z-50 pointer-events-none [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_select]:pointer-events-auto">
-      {/* Left — pointer-events-none inherited; buttons get pointer-events-auto via header selector */}
-      <div className="flex items-center gap-2 min-w-0 flex-1">
+    <header
+      className="shell-topbar relative z-50"
+    >
+      {/* Drag overlay — fills the entire header for Tauri window dragging + dblclick zoom.
+          acceptFirstMouse in tauri.conf.json fixes the "only works once" issue (#11605). */}
+      <div
+        className="absolute inset-0 z-0"
+        data-tauri-drag-region=""
+      />
+
+      {/* Left — pointer-events-none lets empty space fall through to drag overlay */}
+      <div className="flex items-center gap-2 min-w-0 flex-1 relative z-10 pointer-events-none [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_a]:pointer-events-auto">
         {sessionsPanelCollapsed && currentView === 'sessions' && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -108,7 +117,7 @@ export default function TopBar({
 
       {/* Center — view-specific controls */}
       {currentView === 'board' && (
-        <div>
+        <div className="relative z-10 pointer-events-auto">
           <BoardFilters
             keyword={boardKeyword}
             onKeywordChange={onBoardKeywordChange}
@@ -119,7 +128,7 @@ export default function TopBar({
       )}
 
       {/* Right — global actions */}
-      <div className="flex items-center gap-0.5 shrink-0">
+      <div className="flex items-center gap-0.5 shrink-0 relative z-10 pointer-events-none [&_button]:pointer-events-auto">
         <Button
           variant="ghost" size="xs"
           onClick={onQuickCreate}

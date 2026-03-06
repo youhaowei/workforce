@@ -8,6 +8,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import { X, RotateCcw, Sun, Moon, Monitor, ChevronRight } from 'lucide-react';
 import { Surface } from '@/components/ui/surface';
 import { Button } from '@/components/ui/button';
+import { usePlatform } from '@/ui/context/PlatformProvider';
 import {
   useThemeStore,
   hasModeOverrides,
@@ -16,32 +17,20 @@ import {
   type PaletteColor,
   type ModeOverrides,
   type ResolvedMode,
+  type SurfaceTintStyle,
 } from '@/ui/stores/useThemeStore';
 import { ColorPicker } from './ColorPicker';
 import { NeutralPicker } from './NeutralPicker';
+import {
+  DEFAULT_PALETTE_LIGHT,
+  DEFAULT_PALETTE_DARK,
+  DEFAULT_SURFACE_LIGHT,
+  DEFAULT_SURFACE_DARK,
+  PREVIEW_LEVELS_LIGHT,
+  PREVIEW_LEVELS_DARK,
+} from './theme-defaults';
 
 // ── Constants ────────────────────────────────────────────────────────────────
-
-const DEFAULT_PALETTE_LIGHT: Record<PaletteColor, string> = {
-  primary:   'oklch(0.205 0 0)',
-  secondary: 'oklch(0.45 0 0)',
-  success:   'oklch(0.59 0.19 149)',
-  danger:    'oklch(0.577 0.245 27.325)',
-  warning:   'oklch(0.75 0.08 55)',
-  info:      'oklch(0.55 0.15 250)',
-};
-
-const DEFAULT_PALETTE_DARK: Record<PaletteColor, string> = {
-  primary:   'oklch(0.922 0 0)',
-  secondary: 'oklch(0.65 0 0)',
-  success:   'oklch(0.65 0.19 149)',
-  danger:    'oklch(0.704 0.191 22.216)',
-  warning:   'oklch(0.75 0.1 70)',
-  info:      'oklch(0.65 0.15 250)',
-};
-
-const DEFAULT_SURFACE_LIGHT = 'oklch(0.95 0.006 70)';
-const DEFAULT_SURFACE_DARK = 'oklch(0.2 0.005 250)';
 
 const PALETTE_ENTRIES: { key: PaletteColor; label: string }[] = [
   { key: 'primary', label: 'Primary' },
@@ -58,8 +47,12 @@ const MODE_OPTIONS: { value: ThemeMode; icon: typeof Sun; label: string }[] = [
   { value: 'dark', icon: Moon, label: 'Dark' },
 ];
 
-const PREVIEW_LEVELS_LIGHT = [1.0, 0.98, 0.96, 0.94, 0.92, 0.90, 0.87];
-const PREVIEW_LEVELS_DARK = [0.145, 0.17, 0.19, 0.22, 0.24, 0.26, 0.12];
+const SURFACE_TINT_STYLES: { value: SurfaceTintStyle; label: string }[] = [
+  { value: 'solid', label: 'Solid' },
+  { value: 'gradient2', label: '2-Stop' },
+  { value: 'gradient3', label: '3-Stop' },
+];
+const SURFACE_TINT_STYLE_ORDER: SurfaceTintStyle[] = ['solid', 'gradient2', 'gradient3'];
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -224,6 +217,14 @@ function ModeControls({
   const defaultPalette = modeKey === 'light' ? DEFAULT_PALETTE_LIGHT : DEFAULT_PALETTE_DARK;
   const defaultSurface = modeKey === 'light' ? DEFAULT_SURFACE_LIGHT : DEFAULT_SURFACE_DARK;
   const previewLevels = modeKey === 'light' ? PREVIEW_LEVELS_LIGHT : PREVIEW_LEVELS_DARK;
+  const surfaceTintStyle = modeOverrides.surfaceTintStyle ?? 'solid';
+  const { isDesktop } = usePlatform();
+  const surfaceTintBounds = modeKey === 'dark'
+    ? { maxChroma: 0.07, hueStripChroma: 0.06, minLightness: 0.16, maxLightness: 0.42 }
+    : { maxChroma: 0.07, hueStripChroma: 0.06, minLightness: 0.62, maxLightness: 0.95 };
+  const surfaceTintPreviewBackground = isDesktop
+    ? 'var(--shell-bg-vibrancy, var(--shell-bg))'
+    : 'var(--shell-bg)';
 
   const neutralHue = modeOverrides.neutralHue ?? 0;
   const neutralChroma = modeOverrides.neutralChroma ?? 0;
@@ -267,6 +268,11 @@ function ModeControls({
   const toggleSection = useCallback((section: string) => {
     setExpandedSection((prev) => prev === section ? null : section);
   }, []);
+  const cycleSurfaceTintStyle = useCallback(() => {
+    const currentIndex = SURFACE_TINT_STYLE_ORDER.indexOf(surfaceTintStyle);
+    const next = SURFACE_TINT_STYLE_ORDER[(currentIndex + 1) % SURFACE_TINT_STYLE_ORDER.length];
+    updateModeOverride({ surfaceTintStyle: next });
+  }, [surfaceTintStyle, updateModeOverride]);
 
   return (
     <div className="space-y-4">
@@ -312,8 +318,31 @@ function ModeControls({
           <ColorPicker
             value={modeOverrides.surfaceBase ?? defaultSurface}
             onChange={(v) => updateModeOverride({ surfaceBase: v })}
+            previewBackground={surfaceTintPreviewBackground}
+            onPreviewClick={cycleSurfaceTintStyle}
+            maxChroma={surfaceTintBounds.maxChroma}
+            hueStripChroma={surfaceTintBounds.hueStripChroma}
+            minLightness={surfaceTintBounds.minLightness}
+            maxLightness={surfaceTintBounds.maxLightness}
+            showUsedColors={false}
+            showRecentColors={false}
+            showHexValue={false}
             usedColors={usedColors}
           />
+        </div>
+        <div className="mt-2 flex gap-1">
+          {SURFACE_TINT_STYLES.map(({ value, label }) => (
+            <Button
+              key={value}
+              variant={surfaceTintStyle === value ? 'soft' : 'outline'}
+              color={surfaceTintStyle === value ? 'primary' : 'neutral'}
+              size="sm"
+              className="flex-1"
+              onClick={() => updateModeOverride({ surfaceTintStyle: value })}
+            >
+              {label}
+            </Button>
+          ))}
         </div>
       </div>
     </div>

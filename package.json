@@ -3,15 +3,14 @@
   "version": "0.1.0",
   "description": "High-performance desktop agentic orchestrator with Claude Code parity",
   "type": "module",
-  "main": ".vite/build/main.cjs",
   "scripts": {
-    "dev": "trap 'kill 0' EXIT; bun run server:watch & bun run vite & sleep 2 && electron-forge start",
+    "dev": "tauri dev",
     "dev:web": "bun run server:watch & bun run vite",
-    "server": "tsx src/server/index.ts",
-    "server:watch": "PORT=19675 tsx --watch src/server/index.ts",
-    "build": "PYTHON=${PYTHON:-python3} npm_config_python=${npm_config_python:-python3} pnpm run vite:build && electron-forge make",
-    "release": "pnpm run build",
-    "clean": "rm -rf dist out",
+    "server": "bun run src/server/index.ts",
+    "server:watch": "PORT=19675 bun --watch src/server/index.ts",
+    "build": "tauri build",
+    "release": "tauri build",
+    "clean": "rm -rf dist src-tauri/target",
     "vite": "vite",
     "vite:build": "vite build",
     "test": "vitest run",
@@ -22,26 +21,18 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "test:event-bus": "vitest run src/shared/event-bus.test.ts",
-    "bench:event-bus": "node scripts/bench-event-bus.js",
-    "perf:startup": "node scripts/perf-startup.js",
-    "perf:memory": "node scripts/perf-memory.js",
-    "perf:stream": "node scripts/perf-stream.js",
     "lint": "eslint src --max-warnings 0",
     "type-check": "tsc --noEmit",
-    "cli": "tsx src/cli/index.ts",
-    "bun:dev": "bun run dev",
-    "bun:dev:web": "bun run dev:web",
-    "bun:test": "bun run test",
-    "bun:lint": "bun run lint",
-    "bun:type-check": "bun run type-check"
+    "cli": "bun run src/cli/index.ts",
+    "tauri": "tauri"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.50",
-    "@hono/node-server": "^1",
     "@hono/trpc-server": "^0.4.2",
     "@radix-ui/react-popover": "^1.1.15",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-query": "^5",
+    "@tauri-apps/api": "^2",
     "@trpc/client": "^11",
     "@trpc/server": "^11",
     "@trpc/tanstack-react-query": "^11",
@@ -69,43 +60,23 @@
     "zustand": "^5"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7",
-    "@electron-forge/maker-dmg": "^7",
-    "@electron-forge/maker-zip": "^7",
-    "@electron-forge/plugin-vite": "^7",
     "@playwright/test": "^1.58.1",
+    "@tauri-apps/cli": "^2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16",
+    "@types/bun": "^1",
     "@types/dompurify": "^3.2.0",
-    "@types/node": "^25.1.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
-    "electron": "^36.0.0",
     "eslint": "^8.55.0",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.0",
     "jsdom": "^27.4.0",
     "tailwindcss": "^4.1.18",
-    "tsx": "^4",
     "typescript": "^5.3.0",
     "vite": "^5.0.0",
     "vitest": "^1.0.0"
-  },
-  "pnpm": {
-    "overrides": {
-      "@openai/codex": "0.107.0",
-      "unifai": "link:../unifai"
-    },
-    "onlyBuiltDependencies": [
-      "electron",
-      "esbuild",
-      "fs-xattr",
-      "macos-alias"
-    ]
-  },
-  "engines": {
-    "node": ">=20"
   }
 }
