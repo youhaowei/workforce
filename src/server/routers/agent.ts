@@ -2,7 +2,9 @@ import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
 import { getAgentService } from '@/services/agent';
 import { getAgentRunner } from '@/server/agent-runner';
-import { debugLog } from '@/shared/debug-log';
+import { createLogger } from 'tracey';
+
+const log = createLogger('AgentRouter');
 
 export const agentRouter = router({
   /**
@@ -47,7 +49,7 @@ export const agentRouter = router({
     try {
       return await getAgentService().getSupportedModels();
     } catch (err) {
-      debugLog('tRPC', 'supportedModels failed', { error: err instanceof Error ? err.message : String(err) });
+      log.error({ error: err instanceof Error ? err.message : String(err) }, 'supportedModels failed');
       return [];
     }
   }),

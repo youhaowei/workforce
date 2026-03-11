@@ -11,7 +11,9 @@
 
 import { initTRPC } from '@trpc/server';
 import superjson from 'superjson';
-import { debugLog } from '@/shared/debug-log';
+import { createLogger } from 'tracey';
+
+const log = createLogger('tRPC');
 
 export const isDev = process.env.NODE_ENV !== 'production';
 
@@ -59,15 +61,15 @@ function summarizeResult(raw: unknown): string {
 const devLoggingMiddleware = t.middleware(async ({ path, type, getRawInput, next }) => {
   const start = performance.now();
   const rawInput = await getRawInput();
-  debugLog('tRPC', `→ ${type} ${path} ${summarizeInput(rawInput)}`);
+  log.info(`→ ${type} ${path} ${summarizeInput(rawInput)}`);
 
   const result = await next();
 
   const ms = (performance.now() - start).toFixed(1);
   if (result.ok) {
-    debugLog('tRPC', `← ${path} OK ${ms}ms ${summarizeResult(result.data)}`);
+    log.info(`← ${path} OK ${ms}ms ${summarizeResult(result.data)}`);
   } else {
-    debugLog('tRPC', `← ${path} ERROR ${ms}ms ${result.error.message}`);
+    log.error(`← ${path} ERROR ${ms}ms ${result.error.message}`);
   }
   return result;
 });

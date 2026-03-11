@@ -58,10 +58,10 @@ describe('tRPC Routers', () => {
       expect(result).toHaveProperty('cwd');
     });
 
-    it('debugLog returns log content', async () => {
+    it('debugLog returns ring buffer entries', async () => {
       const result = await caller.health.debugLog({ lines: 10 });
-      expect(result).toHaveProperty('logPath');
-      expect(result).toHaveProperty('content');
+      expect(result).toHaveProperty('entries');
+      expect(Array.isArray(result.entries)).toBe(true);
     });
   });
 
