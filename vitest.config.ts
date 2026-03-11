@@ -8,6 +8,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      'tracey': path.resolve(__dirname, './lib/tracey/src'),
+      'unifai': path.resolve(__dirname, './lib/unifai/src'),
     },
   },
   test: {

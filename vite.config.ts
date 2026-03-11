@@ -71,6 +71,8 @@ export default defineConfig(({command}) => ({
     resolve: {
         alias: {
             "@": resolve(__dirname, "src"),
+            "tracey": resolve(__dirname, "lib/tracey/src"),
+            "unifai": resolve(__dirname, "lib/unifai/src"),
         },
     },
     // Prevent vite from obscuring Rust errors

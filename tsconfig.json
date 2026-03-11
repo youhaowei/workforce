@@ -16,10 +16,13 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "tracey": ["lib/tracey/src/index.ts"],
+      "tracey/*": ["lib/tracey/src/*"],
+      "unifai": ["lib/unifai/src/index.ts"]
     },
     "types": ["vitest/globals", "vite/client", "bun"]
   },
-  "include": ["src"],
+  "include": ["src", "lib/tracey/src", "lib/unifai/src"],
   "exclude": ["node_modules", "dist", "build", "src-tauri"]
 }
