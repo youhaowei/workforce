@@ -8,8 +8,11 @@
 
 import { getAgentService } from '@/services/agent';
 import { getSessionService } from '@/services/session';
-import { debugLog } from '@/shared/debug-log';
+import { createLogger } from 'tracey';
 import type { ContentBlock, ToolActivity, AgentStreamEvent, AgentQuestion } from '@/services/types';
+
+const log = createLogger('AgentRunner');
+const streamLog = createLogger('Stream');
 
 // =============================================================================
 // Block accumulation (shared with agent router for processEvent)
@@ -155,12 +158,12 @@ export function* processEvent(
       break;
     case 'tool_start':
       accumulateToolStart(acc, event);
-      debugLog('stream', 'tool start', { name: event.name, toolUseId: event.toolUseId });
+      streamLog.info({ name: event.name, toolUseId: event.toolUseId }, 'tool start');
       yield { type: 'tool_start', name: event.name, input: event.input, toolUseId: event.toolUseId, inputRaw: event.inputRaw };
       break;
     case 'tool_result':
       accumulateToolResult(acc, event);
-      debugLog('stream', 'tool result', { toolName: event.toolName, toolUseId: event.toolUseId, isError: event.isError });
+      streamLog.info({ toolName: event.toolName, toolUseId: event.toolUseId, isError: event.isError }, 'tool result');
       snapshotBlocks();
       yield { type: 'tool_result', toolUseId: event.toolUseId, toolName: event.toolName, result: event.result, isError: event.isError };
       break;
@@ -183,7 +186,7 @@ export function* processEvent(
       yield { type: 'plan_ready', path: event.path };
       break;
     case 'agent_question':
-      debugLog('stream', 'agent question', { requestId: event.requestId, questionCount: event.questions.length });
+      streamLog.info({ requestId: event.requestId, questionCount: event.questions.length }, 'agent question');
       yield { type: 'agent_question', requestId: event.requestId, questions: event.questions };
       break;
   }
@@ -220,7 +223,7 @@ async function persistStreamEnd(
       acc.blocks.length > 0 ? acc.blocks : undefined,
     );
   } catch (err) {
-    debugLog('AgentRunner', 'persistStreamEnd failed', { sessionId, messageId, error: err instanceof Error ? err.message : String(err) });
+    log.error({ sessionId, messageId, error: err instanceof Error ? err.message : String(err) }, 'persistStreamEnd failed');
   }
 }
 
@@ -265,7 +268,7 @@ class AgentRunnerImpl {
 
     // Fire-and-forget — the run continues independently of SSE connections
     this.executeRun(run, input).catch((err) => {
-      debugLog('AgentRunner', 'executeRun unhandled error', { error: err instanceof Error ? err.message : String(err) });
+      log.error({ error: err instanceof Error ? err.message : String(err) }, 'executeRun unhandled error');
     });
   }
 
@@ -275,7 +278,7 @@ class AgentRunnerImpl {
    */
   async *observe(): AsyncGenerator<SSEEvent> {
     const run = this.activeRun;
-    debugLog('stream', 'observer connected', { hasActiveRun: !!run, done: run?.done ?? true });
+    streamLog.info({ hasActiveRun: !!run, done: run?.done ?? true }, 'observer connected');
     if (!run || run.done) {
       // If the run just finished, yield any final event
       if (run?.error) {
@@ -324,7 +327,7 @@ class AgentRunnerImpl {
       }
     } finally {
       run.listeners.delete(listener);
-      debugLog('stream', 'observer disconnected', { sessionId: run.sessionId, remainingObservers: run.listeners.size });
+      streamLog.info({ sessionId: run.sessionId, remainingObservers: run.listeners.size }, 'observer disconnected');
     }
   }
 
@@ -359,11 +362,11 @@ class AgentRunnerImpl {
     run: ActiveRun,
     input: { prompt: string; model?: string; maxThinkingTokens?: number; permissionMode?: string; sessionId?: string; messageId?: string },
   ): Promise<void> {
-    debugLog('AgentRunner', 'run started', {
+    log.info({
       prompt: input.prompt.slice(0, 100),
       model: input.model,
       sessionId: input.sessionId,
-    });
+    }, 'run started');
 
     const agent = getAgentService();
     let tokensSinceSnapshot = 0;
@@ -401,11 +404,11 @@ class AgentRunnerImpl {
         await persistStreamEnd(input.sessionId, input.messageId, run.fullText, 'end_turn', run.acc);
       }
 
-      debugLog('AgentRunner', 'run complete', { totalTokens: run.tokenCount });
+      log.info({ totalTokens: run.tokenCount }, 'run complete');
       this.broadcast(run, { type: 'done', data: '' });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      debugLog('AgentRunner', 'run error', { error: message });
+      log.error({ error: message }, 'run error');
       run.error = message;
 
       if (input.sessionId && input.messageId && (run.fullText.length > 0 || run.acc.blocks.length > 0)) {

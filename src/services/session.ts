@@ -32,7 +32,7 @@ import type {
 import { getEventBus } from '@/shared/event-bus';
 import { getDataDir } from './data-dir';
 import { runMigrations } from './migration';
-import { debugLog } from '@/shared/debug-log';
+import { createLogger } from 'tracey';
 import { getLogService } from './log';
 import {
   appendRecord,
@@ -50,6 +50,7 @@ import * as lifecycle from './session-lifecycle';
 import * as streaming from './session-streaming';
 
 const SESSIONS_DIR = join(getDataDir(), 'sessions');
+const log = createLogger('Session');
 /** Debounce delay (ms) for consolidation after writes. */
 const CONSOLIDATION_DEBOUNCE_MS = 500;
 
@@ -168,22 +169,22 @@ class SessionServiceImpl implements SessionService {
   async get(sessionId: string): Promise<Session | null> {
     await this.ensureInitialized();
     const status = this.hydrationStatus.get(sessionId);
-    debugLog('Session', `get(${sessionId}) status=${status}`);
+    log.info({ sessionId, status }, `get(${sessionId}) status=${status}`);
 
     // Fast path: fully rehydrated
     if (status === 'ready') {
       const s = this.sessions.get(sessionId) ?? null;
-      debugLog('Session', `get(${sessionId}) ready → msgs=${s?.messages.length ?? 'null'}`);
+      log.info({ sessionId, msgs: s?.messages.length ?? 'null' }, `get(${sessionId}) ready → msgs=${s?.messages.length ?? 'null'}`);
       return s;
     }
 
     // Await in-flight rehydration
     const flight = this.rehydrator.getFlight(sessionId);
     if (flight) {
-      debugLog('Session', `get(${sessionId}) awaiting rehydration flight`);
+      log.info({ sessionId }, `get(${sessionId}) awaiting rehydration flight`);
       await flight;
       const s = this.sessions.get(sessionId) ?? null;
-      debugLog('Session', `get(${sessionId}) flight done → msgs=${s?.messages.length ?? 'null'}`);
+      log.info({ sessionId, msgs: s?.messages.length ?? 'null' }, `get(${sessionId}) flight done → msgs=${s?.messages.length ?? 'null'}`);
       return s;
     }
 
@@ -192,16 +193,16 @@ class SessionServiceImpl implements SessionService {
     if (status === 'failed') {
       const cached = this.sessions.get(sessionId);
       if (cached && cached.messages.length > 0) {
-        debugLog('Session', `get(${sessionId}) using cached from failed rehydration → msgs=${cached.messages.length}`);
+        log.info({ sessionId, msgs: cached.messages.length }, `get(${sessionId}) using cached from failed rehydration → msgs=${cached.messages.length}`);
         return cached;
       }
     }
 
     // Cold / failed-without-cache / unknown: do a direct replay
-    debugLog('Session', `get(${sessionId}) ${status ?? 'unknown'}, no flight → direct replay`);
+    log.info({ sessionId, status: status ?? 'unknown' }, `get(${sessionId}) ${status ?? 'unknown'}, no flight → direct replay`);
     const session = await replaySession(this.sessionsDir, sessionId);
-    if (!session) { debugLog('Session', `get(${sessionId}) replay returned null`); return null; }
-    debugLog('Session', `get(${sessionId}) replayed → msgs=${session.messages.length}`);
+    if (!session) { log.info({ sessionId }, `get(${sessionId}) replay returned null`); return null; }
+    log.info({ sessionId, msgs: session.messages.length }, `get(${sessionId}) replayed → msgs=${session.messages.length}`);
     this.sessions.set(sessionId, session);
     this.hydrationStatus.set(sessionId, 'ready');
     this.scheduleConsolidation(sessionId);
@@ -382,13 +383,13 @@ class SessionServiceImpl implements SessionService {
   setCurrent(session: Session | null): void { this.currentSession = session; }
 
   async getMessages(sessionId: string, options?: { limit?: number; offset?: number }): Promise<Message[]> {
-    debugLog('Session', `getMessages(${sessionId}) called`);
+    log.info({ sessionId }, `getMessages(${sessionId}) called`);
     const session = await this.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? session.messages.length;
     const result = session.messages.slice(offset, offset + limit);
-    debugLog('Session', `getMessages(${sessionId}) → returning ${result.length} messages`);
+    log.info({ sessionId, count: result.length }, `getMessages(${sessionId}) → returning ${result.length} messages`);
     return result;
   }
 
@@ -452,10 +453,10 @@ class SessionServiceImpl implements SessionService {
             if (this.deletedSessionIds.has(sessionId)) return;
             await consolidateSession(this.sessionsDir, session);
           });
-          debugLog('Session', `Consolidated session ${sessionId}`);
+          log.info({ sessionId }, `Consolidated session ${sessionId}`);
         }
       } catch (err) {
-        debugLog('Session', `Consolidation failed for ${sessionId}`, err);
+        log.error({ sessionId, error: err instanceof Error ? err.message : String(err) }, `Consolidation failed for ${sessionId}`);
       }
     }, CONSOLIDATION_DEBOUNCE_MS);
     this.consolidationTimers.set(sessionId, timer);

@@ -5,11 +5,13 @@ import type { AgentService, AgentModelInfo, AgentQuestion, RunOptions, AgentStre
 import type { QueryResultEvent, HookResponseEvent, TaskNotificationEvent } from '@/shared/event-types';
 import type { EventBus } from '@/shared/event-bus';
 import { getEventBus } from '@/shared/event-bus';
-import { debugLog } from '@/shared/debug-log';
+import { createLogger } from 'tracey';
 import { buildSdkEnv, isAuthError, AgentError } from './agent-instance';
 import type { AgentErrorCode } from './agent-instance';
 import { ModelCache, readLastUsedModelSync, writeLastUsedModel } from './agent-models';
 import { resolveClaudeCliPath } from './agent-cli-path';
+
+const log = createLogger('Agent');
 
 // Re-export for backward compatibility
 export { AgentInstance, AgentError, buildSdkEnv, isAuthError } from './agent-instance';
@@ -118,11 +120,9 @@ class AgentServiceImpl implements AgentService {
       });
       this.warmSessionModel = model;
 
-      debugLog('Agent', `Pre-created warm V2 session for fast startup (model: ${model})`);
+      log.info(`Pre-created warm V2 session for fast startup (model: ${model})`);
     } catch (err) {
-      debugLog('Agent', 'Failed to pre-create warm session', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      log.error({ error: err instanceof Error ? err.message : String(err) }, 'Failed to pre-create warm session');
     }
   }
 
@@ -135,7 +135,7 @@ class AgentServiceImpl implements AgentService {
       const session = this.warmSession;
       this.warmSession = null;
       this.warmSessionModel = null;
-      debugLog('Agent', 'Reusing warm session', { model });
+      log.info({ model }, 'Reusing warm session');
       return session;
     }
 
@@ -321,7 +321,7 @@ class AgentServiceImpl implements AgentService {
         bus.emit({ type: 'ContentBlockStop', index: event.index, timestamp: now });
         break;
       case 'assistant_message':
-        debugLog('Agent', 'Assistant message received', { contentBlocks: event.content.length });
+        log.info({ contentBlocks: event.content.length }, 'Assistant message received');
         bus.emit({
           type: 'AssistantMessage',
           messageId: event.messageId,
@@ -345,7 +345,7 @@ class AgentServiceImpl implements AgentService {
   ) {
     switch (event.type) {
       case 'tool_start':
-        debugLog('Agent', 'Processing tool_use block', { toolName: event.toolName });
+        log.info({ toolName: event.toolName }, 'Processing tool_use block');
         bus.emit({ type: 'ToolStart', toolId: event.toolUseId, toolName: event.toolName, args: event.input, timestamp: now });
         break;
       case 'tool_progress':
@@ -367,7 +367,7 @@ class AgentServiceImpl implements AgentService {
   ) {
     switch (event.type) {
       case 'session_init':
-        debugLog('Agent', 'System init message received');
+        log.info('System init message received');
         bus.emit({
           type: 'SystemInit',
           claudeCodeVersion: event.claudeCodeVersion ?? '',
@@ -386,7 +386,7 @@ class AgentServiceImpl implements AgentService {
         bus.emit({ type: 'SystemStatus', status: event.message === 'compacting' ? 'compacting' : null, permissionMode: event.permissionMode, timestamp: now });
         break;
       case 'session_complete':
-        debugLog('Agent', 'Result message received', { subtype: event.subtype });
+        log.info({ subtype: event.subtype }, 'Result message received');
         this.emitSessionComplete(event, bus, now);
         break;
       case 'auth_status':
@@ -469,7 +469,7 @@ class AgentServiceImpl implements AgentService {
 
   private *handleRunError(err: unknown, _bus: EventBus, _tokenIndex: number): Generator<AgentStreamEvent> {
     if (this.abortController?.signal.aborted) {
-      debugLog('Agent', 'Query cancelled by user');
+      log.info('Query cancelled by user');
       yield { type: 'token', token: ' [cancelled]' };
       return;
     }
@@ -477,14 +477,14 @@ class AgentServiceImpl implements AgentService {
     const errorCode: AgentErrorCode = isAuthError(err) ? 'AUTH_ERROR' : 'STREAM_FAILED';
 
     if (errorCode === 'AUTH_ERROR') {
-      debugLog('Agent', 'Authentication error', {
+      log.error({
         error: err instanceof Error ? err.message : String(err),
         HOME: process.env.HOME || homedir(),
         hasApiKey: !!process.env.ANTHROPIC_API_KEY,
         hasAuthToken: !!process.env.ANTHROPIC_AUTH_TOKEN,
-      });
+      }, 'Authentication error');
     } else {
-      debugLog('Agent', 'Query error', { error: err instanceof Error ? err.message : String(err) });
+      log.error({ error: err instanceof Error ? err.message : String(err) }, 'Query error');
     }
 
     throw new AgentError(
@@ -503,7 +503,7 @@ class AgentServiceImpl implements AgentService {
     if (resolve) {
       resolve(answers);
     } else {
-      debugLog('Agent', 'submitAnswer: no pending question', { requestId });
+      log.warn({ requestId }, 'submitAnswer: no pending question');
     }
   }
 

@@ -17,7 +17,9 @@ import type {
   JournalMessage,
   JournalMessageFinal,
 } from './types';
-import { debugLog } from '@/shared/debug-log';
+import { createLogger } from 'tracey';
+
+const log = createLogger('Session');
 
 export const JSONL_VERSION = 2;
 
@@ -232,13 +234,13 @@ async function parseHeader(
   try {
     const header = JSON.parse(headerLine) as JournalHeader;
     if (header.t !== 'header') {
-      debugLog('Session', `Invalid header in ${sessionId}, marking corrupt`);
+      log.warn({ sessionId }, `Invalid header in ${sessionId}, marking corrupt`);
       await corruptBackup(sessionsDir, sessionId);
       return null;
     }
     return header;
   } catch {
-    debugLog('Session', `Corrupt header in ${sessionId}, marking corrupt`);
+    log.warn({ sessionId }, `Corrupt header in ${sessionId}, marking corrupt`);
     await corruptBackup(sessionsDir, sessionId);
     return null;
   }
@@ -285,7 +287,7 @@ export async function replaySession(sessionsDir: string, sessionId: string): Pro
       const record = JSON.parse(lines[i]) as JournalRecord;
       applyRecord(ctx, record);
     } catch {
-      debugLog('Session', `Skipping malformed line ${i + 1} in ${sessionId}`);
+      log.warn({ sessionId, line: i + 1 }, `Skipping malformed line ${i + 1} in ${sessionId}`);
     }
   }
 

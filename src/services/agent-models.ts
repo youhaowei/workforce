@@ -10,8 +10,10 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import type { AgentModelInfo } from './types';
 import { buildSdkEnv } from './agent-instance';
-import { debugLog } from '@/shared/debug-log';
+import { createLogger } from 'tracey';
 import { getDataDir } from './data-dir';
+
+const log = createLogger('Agent');
 
 // ---------------------------------------------------------------------------
 // Disk-backed model cache — survives restarts so cold starts return instantly.
@@ -138,7 +140,7 @@ export class ModelCache {
       if (Array.isArray(parsed.models) && parsed.models.length > 0) {
         this.cache = parsed.models;
         this.cacheAt = Date.now();
-        debugLog('Agent', `Hydrated ${parsed.models.length} models from disk cache (sync)`);
+        log.info({ count: parsed.models.length }, `Hydrated ${parsed.models.length} models from disk cache (sync)`);
       }
     } catch {
       // No disk cache available — first run.
@@ -157,12 +159,10 @@ export class ModelCache {
       this.cache = normalized;
       this.cacheAt = Date.now();
       writeDiskModelCache(normalized).catch(() => {});
-      debugLog('Agent', `SDK model refresh complete: ${normalized.length} models`);
+      log.info({ count: normalized.length }, `SDK model refresh complete: ${normalized.length} models`);
       return normalized;
     } catch (err) {
-      debugLog('Agent', 'SDK model refresh failed', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      log.error({ error: err instanceof Error ? err.message : String(err) }, 'SDK model refresh failed');
       return this.cache ?? FALLBACK_MODELS;
     }
   }

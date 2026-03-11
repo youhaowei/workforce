@@ -15,7 +15,9 @@
 
 import { readFile, writeFile, mkdir, readdir, rename } from 'fs/promises';
 import { join } from 'path';
-import { debugLog } from '@/shared/debug-log';
+import { createLogger } from 'tracey';
+
+const log = createLogger('Migration');
 
 // =============================================================================
 // Types
@@ -113,25 +115,25 @@ export async function runMigrations(dataDir: string): Promise<void> {
 
   if (pending.length === 0) return;
 
-  debugLog('Migration', `${pending.length} pending migration(s) to run`);
+  log.info({ count: pending.length }, `${pending.length} pending migration(s) to run`);
 
   for (const migration of pending) {
     const start = Date.now();
-    debugLog('Migration', `Running: ${migration.id} — ${migration.description}`);
+    log.info({ id: migration.id, description: migration.description }, `Running: ${migration.id} — ${migration.description}`);
 
     try {
       const result = await migration.run(dataDir);
       const durationMs = Date.now() - start;
 
-      debugLog(
-        'Migration',
-        `${migration.id}: ${result.migrated} migrated, ${result.skipped} skipped, ${result.failed} failed (${durationMs}ms)`,
-        result.errors.length > 0 ? result.errors : undefined,
-      );
+      if (result.errors.length > 0) {
+        log.warn({ id: migration.id, migrated: result.migrated, skipped: result.skipped, failed: result.failed, durationMs, errors: result.errors }, `${migration.id}: ${result.migrated} migrated, ${result.skipped} skipped, ${result.failed} failed (${durationMs}ms)`);
+      } else {
+        log.info({ id: migration.id, migrated: result.migrated, skipped: result.skipped, failed: result.failed, durationMs }, `${migration.id}: ${result.migrated} migrated, ${result.skipped} skipped, ${result.failed} failed (${durationMs}ms)`);
+      }
 
       // Skip ledger recording if any items failed — migration will retry next run
       if (result.failed > 0) {
-        debugLog('Migration', `${migration.id}: ${result.failed} failures — will retry next run`);
+        log.warn({ id: migration.id, failed: result.failed }, `${migration.id}: ${result.failed} failures — will retry next run`);
         continue;
       }
 
@@ -146,7 +148,7 @@ export async function runMigrations(dataDir: string): Promise<void> {
       await writeLedger(dataDir, ledger);
     } catch (err) {
       // Migration-level failure: log and continue with next migration
-      debugLog('Migration', `${migration.id} FAILED`, err);
+      log.error({ id: migration.id, error: err instanceof Error ? err.message : String(err) }, `${migration.id} FAILED`);
     }
   }
 }

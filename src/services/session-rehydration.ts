@@ -7,8 +7,10 @@
 
 import type { Session, HydrationStatus } from './types';
 import { getEventBus } from '@/shared/event-bus';
-import { debugLog } from '@/shared/debug-log';
+import { createLogger } from 'tracey';
 import { replaySession, consolidateSession, AppendLock } from './session-journal';
+
+const log = createLogger('Session');
 
 /** Max concurrent background rehydration workers at startup. */
 const REHYDRATION_CONCURRENCY = 3;
@@ -43,7 +45,7 @@ export class RehydrationManager {
     for (const [id, status] of this.deps.hydrationStatus) {
       if (status === 'cold') this.queue.push(id);
     }
-    debugLog('Session', `Rehydration: enqueued ${this.queue.length} cold sessions`);
+    log.info({ count: this.queue.length }, `Rehydration: enqueued ${this.queue.length} cold sessions`);
     this.drain();
   }
 
@@ -131,10 +133,10 @@ export class RehydrationManager {
 
           hydrationStatus.set(sessionId, 'ready');
           bus.emit({ type: 'SessionRehydrateDone', sessionId, timestamp: Date.now() });
-          debugLog('Session', `Rehydrated session ${sessionId}`);
+          log.info({ sessionId }, `Rehydrated session ${sessionId}`);
           return;
         } catch (err) {
-          debugLog('Session', `Rehydration failed for ${sessionId} (attempt ${attempt + 1})`, err);
+          log.error({ sessionId, attempt: attempt + 1, error: err instanceof Error ? err.message : String(err) }, `Rehydration failed for ${sessionId} (attempt ${attempt + 1})`);
 
           if (attempt < REHYDRATION_MAX_RETRIES) {
             hydrationStatus.set(sessionId, 'cold');
