@@ -130,6 +130,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 ### Testing & Build
 
+- **Infrastructure changes need runtime verification** — For logging, config, transport, or middleware changes, start the server and verify at runtime. Static checks (type-check, lint, unit tests) miss transport misconfigurations and integration issues.
 - **NEVER kill user processes** — Do NOT kill processes on ports 19675, 19676. If occupied, fail clearly.
 - **E2E isolation** — Tests use temp data dir (`WORKFORCE_DATA_DIR`), own server on ports 19775 (API) / 19776 (Vite), `reuseExistingServer: false`. Never writes to `~/.workforce/`.
 - **E2E fixtures** — Clean up tRPC API data in `afterEach`. Sync via `page.waitForResponse()`, not text selectors.
@@ -138,12 +139,29 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **Router tests** — Share global singletons. `resetXxxService()` in `afterEach` is mandatory. For isolated tests, use factory functions with temp dirs.
 - **Optimistic updates** — `onMutate` must return rollback context for `onError`.
 
-### unifai Dependency
+### Git Submodules (lib/)
 
-- **What**: Multi-provider agent abstraction (`github:youhaowei/unifai`). GitHub dep for portability; `bun link` for local dev.
-- **Local setup**: `cd ~/Projects/workforce && bun link ~/Projects/unifai`
-- **After `bun install`**: Re-run `bun link ~/Projects/unifai` (install overwrites the link)
-- **In worktrees**: Run `bun link ~/Projects/unifai` after creation (or just use the GitHub version)
+Both **unifai** and **tracey** are git submodules under `lib/`:
+
+- `lib/unifai` — Multi-provider agent abstraction. Imports as `"unifai"`.
+- `lib/tracey` — Structured logging (pino-based). Imports as `"tracey"`.
+
+```bash
+git submodule update --init          # After fresh clone
+cd lib/tracey && bun install         # Install tracey's deps (pino, pino-pretty)
+```
+
+**Branch-per-agent for submodule changes**: When modifying a submodule, create a branch (e.g., `agent/feat-redaction`). Commit on the branch, push, then merge to main. This prevents conflicts when multiple agents work on the same submodule in parallel. The parent repo's submodule pointer should always reference a merge commit on main.
+
+**Path resolution**: tsconfig `paths` + vite `resolve.alias` + vitest `resolve.alias` all map `"tracey"` → `lib/tracey/src` and `"unifai"` → `lib/unifai/src`.
+
+### Logging (tracey)
+
+- **`createLogger(name)`** — Creates a named child logger. Used in every service/router.
+- **`initTracey(config)`** — Called once in `src/server/index.ts` with file transport + ring buffer.
+- **`getRecentLogs()`** — Ring buffer of recent log entries (used by health router + `/debug-log` endpoint).
+- **Redaction** — API keys, tokens, passwords auto-redacted by tracey's formatters.
+- **No `debugLog`** — The old `src/shared/debug-log.ts` is deleted. All logging goes through tracey.
 
 ## Recipes
 
