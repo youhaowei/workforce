@@ -37,29 +37,72 @@ export default function MessageList({
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const scrollerRef = useRef<HTMLElement | null>(null);
   const [showJumpButton, setShowJumpButton] = useState(false);
-  const prevFirstMsgId = useRef<string | null>(null);
   const isAtBottomRef = useRef(true);
   // Synchronous user-intent flag: set immediately on wheel-up / touchmove,
   // cleared when user returns to bottom. Prevents the RAF loop from overriding
   // user scroll before Virtuoso's async atBottomStateChange fires.
   const userScrolledUpRef = useRef(false);
   const storeIsStreaming = useMessagesStore((s) => s.isStreaming);
+  const activeSessionId = useMessagesStore((s) => s.activeSessionId);
+
   const firstMsgId = messages[0]?.id ?? null;
 
-  // When messages are bulk-loaded (session switch / restore), scroll to bottom.
-  // Depends only on the first message ID — streaming appends don't change it.
+  // Track whether we need to scroll to bottom after Virtuoso finishes layout.
+  // Set on session switch or bulk message load; cleared after scroll completes.
+  const needsScrollToBottomRef = useRef(false);
+  const messagesLengthRef = useRef(messages.length);
+  messagesLengthRef.current = messages.length;
+  // Generation counter — incremented on each session switch so stale timeouts
+  // from a previous session don't clear the flag for the current session.
+  const scrollGenRef = useRef(0);
+
+  // Reset scroll state when switching sessions so stale userScrolledUpRef
+  // from the previous session doesn't suppress auto-scroll.
+  const prevSessionId = useRef(activeSessionId);
+  useEffect(() => {
+    if (activeSessionId !== prevSessionId.current) {
+      userScrolledUpRef.current = false;
+      isAtBottomRef.current = true;
+      setShowJumpButton(false);
+      needsScrollToBottomRef.current = true;
+      scrollGenRef.current++;
+      prevSessionId.current = activeSessionId;
+    }
+  }, [activeSessionId]);
+
+  // When messages are bulk-loaded (session switch / restore), mark that
+  // we need to scroll to bottom. The actual scroll happens in
+  // handleTotalListHeightChanged once Virtuoso finishes measuring items.
+  const prevFirstMsgId = useRef<string | null>(null);
   useEffect(() => {
     if (firstMsgId && firstMsgId !== prevFirstMsgId.current && messages.length > 0) {
-      // Use requestAnimationFrame so Virtuoso has time to measure item heights
-      requestAnimationFrame(() => {
-        virtuosoRef.current?.scrollToIndex({
-          index: messages.length - 1,
-          align: 'end',
-        });
-      });
+      needsScrollToBottomRef.current = true;
     }
     prevFirstMsgId.current = firstMsgId;
   }, [firstMsgId, messages.length]);
+
+  // Virtuoso fires this when total list height changes (items measured/rendered).
+  // This is the reliable moment to scroll — Virtuoso has actual item heights.
+  // Uses refs instead of closure values so the callback is stable (no deps)
+  // and always reads fresh state.
+  const handleTotalListHeightChanged = useCallback(() => {
+    if (!needsScrollToBottomRef.current || userScrolledUpRef.current) return;
+    virtuosoRef.current?.scrollToIndex({
+      index: messagesLengthRef.current - 1,
+      align: 'end',
+      behavior: 'auto',
+    });
+    // Clear after a short delay — Virtuoso may fire multiple height changes
+    // as it measures items progressively. Keep scrolling until stable.
+    // Generation counter prevents stale timeouts from a previous session
+    // clearing the flag for the current session.
+    const gen = scrollGenRef.current;
+    setTimeout(() => {
+      if (scrollGenRef.current === gen) {
+        needsScrollToBottomRef.current = false;
+      }
+    }, 500);
+  }, []);
 
   const handleAtBottomStateChange = useCallback(
     (atBottom: boolean) => {
@@ -96,8 +139,9 @@ export default function MessageList({
     };
   }, []);
 
-  // Auto-scroll during streaming: height changes in the streaming message
-  // don't trigger Virtuoso's followOutput, so we poll while at bottom.
+  // Auto-scroll during streaming: streaming tokens expand the existing message
+  // (no new items appended), so Virtuoso's followOutput doesn't fire.
+  // This RAF loop catches intra-message height growth.
   // Respects user scroll intent via userScrolledUpRef.
   useEffect(() => {
     if (!storeIsStreaming) return;
@@ -119,11 +163,11 @@ export default function MessageList({
   const jumpToBottom = useCallback(() => {
     userScrolledUpRef.current = false;
     virtuosoRef.current?.scrollToIndex({
-      index: messages.length - 1,
+      index: messagesLengthRef.current - 1,
       behavior: 'smooth',
       align: 'end',
     });
-  }, [messages.length]);
+  }, []);
 
   // Stable render function for Virtuoso items
   const renderItem = useCallback(
@@ -184,6 +228,10 @@ export default function MessageList({
         initialTopMostItemIndex={Math.max(0, messages.length - 1)}
         atBottomThreshold={100}
         atBottomStateChange={handleAtBottomStateChange}
+        totalListHeightChanged={handleTotalListHeightChanged}
+        // followOutput handles non-streaming new messages (item appended).
+        // Streaming uses the RAF loop above (intra-message growth, no new items).
+        // Session switch uses totalListHeightChanged (bulk load with layout sync).
         followOutput="smooth"
         overscan={200}
         components={virtuosoComponents}

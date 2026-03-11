@@ -32,11 +32,12 @@ vi.mock('react-virtuoso', () => ({
   }),
 }));
 
-// Control storeIsStreaming from tests
+// Control store values from tests
 let mockStoreIsStreaming = false;
+let mockActiveSessionId: string | null = null;
 vi.mock('@/ui/stores/useMessagesStore', () => ({
-  useMessagesStore: (selector: (s: { isStreaming: boolean }) => boolean) =>
-    selector({ isStreaming: mockStoreIsStreaming }),
+  useMessagesStore: (selector: (s: { isStreaming: boolean; activeSessionId: string | null }) => unknown) =>
+    selector({ isStreaming: mockStoreIsStreaming, activeSessionId: mockActiveSessionId }),
 }));
 
 // Stub MessageItem — we're testing scroll, not message rendering
@@ -61,6 +62,7 @@ describe('MessageList scroll behavior', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mockStoreIsStreaming = false;
+    mockActiveSessionId = null;
     mockScrollToIndex.mockClear();
     capturedAtBottomStateChange = null;
   });
@@ -177,6 +179,35 @@ describe('MessageList scroll behavior', () => {
     fireEvent.wheel(scroller, { deltaY: -100 });
     act(() => capturedAtBottomStateChange?.(false));
     expect(screen.getByText('Jump to bottom')).toBeInTheDocument();
+  });
+
+  it('should reset scroll state when session changes', async () => {
+    mockActiveSessionId = 'session-a';
+    const messagesA = makeMessages(10);
+
+    const { rerender } = render(
+      <MessageList messages={messagesA} isStreaming={false} />,
+    );
+
+    // Simulate user scrolling up in session A
+    const scroller = screen.getByTestId('virtuoso-scroller');
+    fireEvent.wheel(scroller, { deltaY: -100 });
+    act(() => capturedAtBottomStateChange?.(false));
+    expect(screen.getByText('Jump to bottom')).toBeInTheDocument();
+
+    // Switch to session B — session-change effect resets scroll state
+    mockActiveSessionId = 'session-b';
+    const messagesB = Array.from({ length: 5 }, (_, i) => ({
+      id: `session-b-msg-${i}`,
+      role: 'assistant' as const,
+      content: `Session B Message ${i}`,
+      timestamp: Date.now(),
+      isStreaming: false,
+    }));
+    rerender(<MessageList messages={messagesB} isStreaming={false} />);
+
+    // Jump button should be hidden — session switch resets scroll state
+    expect(screen.queryByText('Jump to bottom')).toBeNull();
   });
 
   it('should show jump-to-bottom button even with only 2 messages', () => {

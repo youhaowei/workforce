@@ -127,6 +127,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **`useState` + async queries** — `useState(() => fn(queryData))` captures `undefined` at first render. Use `useEffect` + ref guard instead.
 - **Markdown** — `marked` + `dompurify`. `stripMarkdown()` regexes must use word boundaries to avoid corrupting `foo_bar_baz` identifiers.
 - **Drag region overlay** — `index.html` has a z-40 fixed div covering `--topbar-height` for window dragging. Interactive elements (`button`, `input`, `a`, `[role="button"]`) auto-opt-out via `-webkit-app-region: no-drag`. Custom interactive elements in the topbar need `role="button"` or explicit `app-region: no-drag` to be clickable. The raw `<style>` tag in `index.html` is intentional — Lightning CSS strips `-webkit-app-region`.
+- **Debug before fixing layout/scroll bugs** — For virtualized lists (react-virtuoso) and layout-dependent behavior: add `console.log` with dimensions (`scrollTop`, `scrollHeight`, `clientHeight`) and check browser console BEFORE implementing a fix. Don't assume the first hypothesis — Virtuoso's timing (when items are measured vs when scroll fires) is non-obvious and code-level reasoning alone leads to wrong fixes.
 
 ### Testing & Build
 
