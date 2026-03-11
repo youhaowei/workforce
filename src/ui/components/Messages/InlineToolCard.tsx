@@ -84,6 +84,7 @@ const TOOL_SUMMARIZERS: Record<string, (args: Record<string, unknown>, input: st
   Glob: (args, input) => ({ displayName: 'Glob', inputSummary: String(args.pattern ?? input) }),
   Grep: summarizeGrep,
   Task: summarizeTask,
+  Agent: summarizeTask,
   AskUserQuestion: summarizeAskUser,
 };
 
@@ -95,31 +96,79 @@ function summarize(name: string, input: string, inputRaw?: unknown): ToolSummary
   return { displayName: name, inputSummary: input ? trunc(input, 80) : undefined };
 }
 
+// ─── Result normalization ─────────────────────────────────────────────────────
+
+/** Extract text from SDK tool_result content (may be string, content block array, or structured object). */
+function normalizeResultText(result: unknown): string | null {
+  if (typeof result === 'string') return result;
+  if (Array.isArray(result)) {
+    const texts = result
+      .filter((b): b is { type: string; text: string } => b?.type === 'text' && typeof b.text === 'string')
+      .map((b) => b.text);
+    return texts.length > 0 ? texts.join('\n') : null;
+  }
+  return null;
+}
+
+/** Count total lines in a string (including blank lines). */
+function countLines(s: string) {
+  return s.split('\n').length;
+}
+
+/** Count non-empty lines (used as a proxy for entry counts in Glob results). */
+function countEntries(s: string) {
+  return s.split('\n').filter((l) => l.trim().length > 0).length;
+}
+
 // ─── Result badge ────────────────────────────────────────────────────────────
 
 function getBashBadge(result: unknown): string | null {
-  if (typeof result !== 'object') return null;
-  const code = (result as { exitCode?: number }).exitCode;
-  if (code === undefined) return null;
-  return code === 0 ? 'success' : `exit ${code}`;
+  // Structured result from internal formatters
+  if (typeof result === 'object' && result !== null) {
+    const code = (result as { exitCode?: number }).exitCode;
+    if (code !== undefined) return code === 0 ? 'success' : `exit ${code}`;
+  }
+  // Raw string from SDK — show "done" if non-empty
+  const text = normalizeResultText(result);
+  if (text !== null) return 'done';
+  return null;
 }
 
 function getSearchBadge(name: string, result: unknown): string | null {
-  if (typeof result !== 'object') return null;
-  if (name === 'Glob') {
-    const files = (result as { files?: unknown[] }).files;
-    return files ? `${files.length} file${files.length !== 1 ? 's' : ''}` : null;
+  // Structured result from internal formatters
+  if (typeof result === 'object' && result !== null && !Array.isArray(result)) {
+    if (name === 'Glob') {
+      const files = (result as { files?: unknown[] }).files;
+      return files ? `${files.length} file${files.length !== 1 ? 's' : ''}` : null;
+    }
+    const r = result as { totalMatches?: number; matches?: unknown[] };
+    const n = r.totalMatches ?? r.matches?.length ?? 0;
+    return `${n} match${n !== 1 ? 'es' : ''}`;
   }
-  const r = result as { totalMatches?: number; matches?: unknown[] };
-  const n = r.totalMatches ?? r.matches?.length ?? 0;
-  return `${n} match${n !== 1 ? 'es' : ''}`;
+  // Raw string/content-array from SDK — count entries heuristically
+  const text = normalizeResultText(result);
+  if (text === null) return null;
+  const n = countEntries(text);
+  if (name === 'Glob') return `${n} file${n !== 1 ? 's' : ''}`;
+  // Grep output includes context lines and separators, so line count ≠ match count
+  return `${n} result${n !== 1 ? 's' : ''}`;
 }
 
 const STATIC_BADGES: Record<string, string> = { Edit: 'applied', Write: 'written' };
 
 function getResultBadge(name: string, result: unknown, error?: string): string | null {
   if (error || result == null) return null;
-  if (name === 'Read' && typeof result === 'string') return `${result.split('\n').length} lines`;
+  // Read: count lines from either string or structured result
+  if (name === 'Read') {
+    const text = normalizeResultText(result);
+    if (text !== null) return `${countLines(text)} lines`;
+    if (typeof result === 'object') {
+      const r = result as { content?: string; lineCount?: number };
+      const n = r.lineCount ?? r.content?.split('\n').length ?? 0;
+      return `${n} lines`;
+    }
+    return null;
+  }
   if (name in STATIC_BADGES) return STATIC_BADGES[name];
   if (name === 'Bash') return getBashBadge(result);
   if (name === 'Glob' || name === 'Grep') return getSearchBadge(name, result);

@@ -368,7 +368,7 @@ export const useMessagesStore = create<MessagesStore>()(
 
     completeNonTaskTools: () => {
       set((state) => {
-        const taskLike = new Set(['Task', 'Explore', 'AskUserQuestion']);
+        const taskLike = new Set(['Task', 'Agent', 'Explore', 'AskUserQuestion']);
         for (const block of state.streamingBlocks) {
           if (block.type === 'tool_use' && block.status === 'running' && !taskLike.has(block.name)) {
             block.status = 'complete';

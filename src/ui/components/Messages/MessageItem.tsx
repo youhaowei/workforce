@@ -141,7 +141,7 @@ function groupActivities(blocks: ContentBlock[]): GroupedItem[] {
   }
 
   for (const block of blocks) {
-    if (block.type === 'tool_use' && block.name === 'Task') {
+    if (block.type === 'tool_use' && (block.name === 'Task' || block.name === 'Agent')) {
       flushTask();
       currentTask = block;
       currentChildren = [];
