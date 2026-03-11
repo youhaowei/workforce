@@ -1,0 +1,6 @@
+[submodule "lib/tracey"]
+	path = lib/tracey
+	url = git@github.com:youhaowei/tracey.git
+[submodule "lib/unifai"]
+	path = lib/unifai
+	url = git@github.com:youhaowei/unifai.git
