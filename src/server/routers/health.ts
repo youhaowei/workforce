@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { router, publicProcedure } from '../trpc';
-import { getLogPath } from '@/shared/debug-log';
-import { readFileSync, existsSync } from 'fs';
+import { getRecentLogs } from 'tracey';
+import { existsSync, readFileSync } from 'fs';
 import { homedir } from 'os';
 
 export const healthRouter = router({
@@ -10,14 +10,9 @@ export const healthRouter = router({
   debugLog: publicProcedure
     .input(z.object({ lines: z.number().optional().default(200) }))
     .query(({ input }) => {
-      const logPath = getLogPath();
-      try {
-        const content = readFileSync(logPath, 'utf-8');
-        const all = content.split('\n');
-        return { logPath, content: all.slice(-input.lines).join('\n') };
-      } catch (err) {
-        return { logPath, content: '', error: String(err) };
-      }
+      const entries = getRecentLogs();
+      const recent = entries.slice(-input.lines);
+      return { entries: recent };
     }),
 
   authCheck: publicProcedure.query(async () => {

@@ -6,10 +6,17 @@ import {createServer} from "net";
 import {homedir} from "os";
 import {join, dirname, resolve} from "path";
 import {fileURLToPath} from "url";
-import {debugLog, getLogPath} from "@/shared/debug-log";
-import {getLogService} from "@/services/log";
+import {createLogger, initTracey, getRecentLogs} from "tracey";
 import {getAgentService} from "@/services/agent";
 import {DEFAULT_SERVER_PORT} from "@/shared/ports";
+import {getDataDir} from "@/services/data-dir";
+
+initTracey({
+    file: {dir: join(getDataDir(), "logs"), prefix: "workforce", flushOnCrash: true},
+    ringBuffer: 1000,
+});
+
+const log = createLogger('Server');
 import {appRouter} from "./routers";
 import {trpcServer} from "@hono/trpc-server";
 
@@ -27,9 +34,8 @@ getAgentService();
 function logAuthDiagnostics() {
     const home = process.env.HOME || homedir();
     const credPath = `${home}/.claude/.credentials.json`;
-    const log = getLogService();
 
-    log.info("general", "Auth diagnostics", {
+    log.info({
         cwd: process.cwd(),
         home,
         credentialsExist: existsSync(credPath),
@@ -37,7 +43,7 @@ function logAuthDiagnostics() {
         anthropicAuthTokenSet: !!process.env.ANTHROPIC_AUTH_TOKEN,
         pid: process.pid,
         ppid: process.ppid,
-    });
+    }, "Auth diagnostics");
 }
 
 export const app = new Hono();
@@ -69,16 +75,13 @@ app.use("/api/trpc/*", trpcServer({router: appRouter}));
 app.get("/health", (c) => c.json({ok: true}));
 
 app.get("/debug-log", async (c) => {
-    const logPath = getLogPath();
-    try {
-        const content = readFileSync(logPath, "utf-8");
-        // Return last 200 lines
-        const lines = content.split("\n");
-        const lastLines = lines.slice(-200).join("\n");
-        return c.text(`Log file: ${logPath}\n\n${lastLines}`);
-    } catch (err) {
-        return c.text(`Log file: ${logPath}\nError reading log: ${err}`);
-    }
+    const entries = getRecentLogs().slice(-200);
+    const lines = entries.map((e) => {
+        const time = new Date(e.time).toISOString();
+        const component = e.component ? `[${e.component}]` : "";
+        return `[${time}] ${component} ${e.msg}`;
+    });
+    return c.text(lines.join("\n"));
 });
 
 /**
@@ -186,7 +189,7 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
             break;
         }
         if (i < MAX_PORT_RETRIES) {
-            debugLog("Server", `Port ${candidate} in use, trying ${candidate + 1}`);
+            log.info(`Port ${candidate} in use, trying ${candidate + 1}`);
         } else {
             throw new Error(`All ports ${basePort}–${basePort + MAX_PORT_RETRIES} are in use`);
         }
@@ -215,17 +218,15 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
     }
 
     logAuthDiagnostics();
-    debugLog("Server", `Workforce server running on http://localhost:${port}`);
+    log.info(`Workforce server running on http://localhost:${port}`);
 
     // Warm up model list cache eagerly so it's ready before the first query.
     getAgentService()
         .getSupportedModels()
         .then(
-            (models) => debugLog("Server", `Model cache warmed: ${models.length} models`),
+            (models) => log.info(`Model cache warmed: ${models.length} models`),
             (err) =>
-                debugLog("Server", "Model cache warm-up failed (will retry on demand)", {
-                    error: err instanceof Error ? err.message : String(err),
-                }),
+                log.warn({ error: err instanceof Error ? err.message : String(err) }, "Model cache warm-up failed (will retry on demand)"),
         );
 
     return {port};
