@@ -13,6 +13,7 @@ import {
   consolidateSession,
   writeForkSession,
   AppendLock,
+  SeqAllocator,
   JSONL_VERSION,
 } from './session-journal';
 
@@ -33,19 +34,22 @@ function parseJsonl(raw: string): unknown[] {
   return raw.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
 }
 
+let seqCounter = 0;
+function nextSeq() { return seqCounter++; }
+
 function makeHeader(id = 'sess-1', metadata: Record<string, unknown> = {}): JournalRecord {
   return {
-    t: 'header', v: JSONL_VERSION, id, title: 'Test Session',
-    createdAt: 1000, updatedAt: 1000, metadata,
+    t: 'header', v: JSONL_VERSION, seq: 0, ts: 1000, id, title: 'Test Session',
+    createdAt: 1000, metadata,
   };
 }
 
 function makeMessage(id: string, role: 'user' | 'assistant', content: string, ts = 2000): JournalRecord {
-  return { t: 'message', id, role, content, timestamp: ts };
+  return { t: 'message', seq: nextSeq(), ts, id, role, content };
 }
 
 function makeFinal(id: string, content: string, ts = 3000): JournalRecord {
-  return { t: 'message_final', id, role: 'assistant', content, timestamp: ts, stopReason: 'end_turn' };
+  return { t: 'message_final', seq: nextSeq(), ts, id, role: 'assistant', content, stopReason: 'end_turn' };
 }
 
 beforeEach(async () => {
@@ -136,85 +140,91 @@ describe('replaySession', () => {
       makeFinal('m2', 'hi there', 3000),
     ]);
 
-    const session = await replaySession(dir, 'sess-1');
-    expect(session).not.toBeNull();
-    expect(session!.id).toBe('sess-1');
-    expect(session!.title).toBe('Test Session');
-    expect(session!.messages).toHaveLength(2);
-    expect(session!.messages[0]).toMatchObject({ id: 'm1', role: 'user', content: 'hello' });
-    expect(session!.messages[1]).toMatchObject({ id: 'm2', role: 'assistant', content: 'hi there' });
-    expect(session!.updatedAt).toBe(3000);
+    const result = await replaySession(dir, 'sess-1');
+    expect(result).not.toBeNull();
+    const session = result!.session;
+    expect(session.id).toBe('sess-1');
+    expect(session.title).toBe('Test Session');
+    expect(session.messages).toHaveLength(2);
+    expect(session.messages[0]).toMatchObject({ id: 'm1', role: 'user', content: 'hello' });
+    expect(session.messages[1]).toMatchObject({ id: 'm2', role: 'assistant', content: 'hi there' });
+    expect(session.updatedAt).toBe(3000);
   });
 
   it('replays streaming deltas (start → delta → final)', async () => {
     const dir = nextDir();
     await writeRecords(dir, 'sess-1', [
       makeHeader(),
-      { t: 'message_start', id: 'msg-1', role: 'assistant', timestamp: 2000 },
-      { t: 'message_delta', id: 'msg-1', delta: 'hel', seq: 0 },
-      { t: 'message_delta', id: 'msg-1', delta: 'lo', seq: 1 },
-      { t: 'message_final', id: 'msg-1', role: 'assistant', content: 'hello', timestamp: 3000, stopReason: 'end_turn' },
+      { t: 'message_start', seq: 1, ts: 2000, id: 'msg-1', role: 'assistant' },
+      { t: 'message_delta', seq: 2, ts: 2001, id: 'msg-1', delta: 'hel' },
+      { t: 'message_delta', seq: 3, ts: 2002, id: 'msg-1', delta: 'lo' },
+      { t: 'message_final', seq: 4, ts: 3000, id: 'msg-1', role: 'assistant', content: 'hello', stopReason: 'end_turn' },
     ]);
 
-    const session = await replaySession(dir, 'sess-1');
-    expect(session!.messages).toHaveLength(1);
-    expect(session!.messages[0].content).toBe('hello');
+    const result = await replaySession(dir, 'sess-1');
+    const session = result!.session;
+    expect(session.messages).toHaveLength(1);
+    expect(session.messages[0].content).toBe('hello');
   });
 
   it('sorts deltas by seq during replay', async () => {
     const dir = nextDir();
     await writeRecords(dir, 'sess-1', [
       makeHeader(),
-      { t: 'message_start', id: 'msg-1', role: 'assistant', timestamp: 2000 },
-      { t: 'message_delta', id: 'msg-1', delta: 'world', seq: 1 },
-      { t: 'message_delta', id: 'msg-1', delta: 'hello ', seq: 0 },
-      { t: 'message_abort', id: 'msg-1', reason: 'crash', timestamp: 3000 },
+      { t: 'message_start', seq: 1, ts: 2000, id: 'msg-1', role: 'assistant' },
+      { t: 'message_delta', seq: 3, ts: 2002, id: 'msg-1', delta: 'world' },
+      { t: 'message_delta', seq: 2, ts: 2001, id: 'msg-1', delta: 'hello ' },
+      { t: 'message_abort', seq: 4, ts: 3000, id: 'msg-1', reason: 'crash' },
     ]);
 
-    const session = await replaySession(dir, 'sess-1');
-    expect(session!.messages).toHaveLength(1);
-    expect(session!.messages[0].content).toBe('hello world');
+    const result = await replaySession(dir, 'sess-1');
+    const session = result!.session;
+    expect(session.messages).toHaveLength(1);
+    expect(session.messages[0].content).toBe('hello world');
   });
 
   it('recovers orphaned streams (deltas without final/abort)', async () => {
     const dir = nextDir();
     await writeRecords(dir, 'sess-1', [
       makeHeader(),
-      { t: 'message_start', id: 'msg-1', role: 'assistant', timestamp: 2000 },
-      { t: 'message_delta', id: 'msg-1', delta: 'partial content', seq: 0 },
+      { t: 'message_start', seq: 1, ts: 2000, id: 'msg-1', role: 'assistant' },
+      { t: 'message_delta', seq: 2, ts: 2001, id: 'msg-1', delta: 'partial content' },
       // No final or abort — simulates a crash
     ]);
 
-    const session = await replaySession(dir, 'sess-1');
-    expect(session!.messages).toHaveLength(1);
-    expect(session!.messages[0].content).toBe('partial content');
+    const result = await replaySession(dir, 'sess-1');
+    const session = result!.session;
+    expect(session.messages).toHaveLength(1);
+    expect(session.messages[0].content).toBe('partial content');
   });
 
   it('handles message_blocks during stream', async () => {
     const dir = nextDir();
     await writeRecords(dir, 'sess-1', [
       makeHeader(),
-      { t: 'message_start', id: 'msg-1', role: 'assistant', timestamp: 2000 },
-      { t: 'message_blocks', id: 'msg-1', contentBlocks: [{ type: 'text', text: 'block' }] },
-      { t: 'message_delta', id: 'msg-1', delta: 'content', seq: 0 },
+      { t: 'message_start', seq: 1, ts: 2000, id: 'msg-1', role: 'assistant' },
+      { t: 'message_blocks', seq: 2, ts: 2001, id: 'msg-1', contentBlocks: [{ type: 'text', text: 'block' }] },
+      { t: 'message_delta', seq: 3, ts: 2002, id: 'msg-1', delta: 'content' },
       // Orphaned — should recover with blocks
     ]);
 
-    const session = await replaySession(dir, 'sess-1');
-    expect(session!.messages[0].contentBlocks).toEqual([{ type: 'text', text: 'block' }]);
+    const result = await replaySession(dir, 'sess-1');
+    const session = result!.session;
+    expect(session.messages[0].contentBlocks).toEqual([{ type: 'text', text: 'block' }]);
   });
 
   it('applies meta records to update session fields', async () => {
     const dir = nextDir();
     await writeRecords(dir, 'sess-1', [
       makeHeader(),
-      { t: 'meta', updatedAt: 5000, patch: { title: 'New Title', custom: 'value' } },
+      { t: 'meta', seq: 1, ts: 5000, patch: { title: 'New Title', custom: 'value' } },
     ]);
 
-    const session = await replaySession(dir, 'sess-1');
-    expect(session!.title).toBe('New Title');
-    expect(session!.metadata.custom).toBe('value');
-    expect(session!.updatedAt).toBe(5000);
+    const result = await replaySession(dir, 'sess-1');
+    const session = result!.session;
+    expect(session.title).toBe('New Title');
+    expect(session.metadata.custom).toBe('value');
+    expect(session.updatedAt).toBe(5000);
   });
 
   it('skips malformed lines gracefully', async () => {
@@ -225,9 +235,10 @@ describe('replaySession', () => {
 
     await writeFile(join(dir, 'sess-1.jsonl'), content, 'utf-8');
 
-    const session = await replaySession(dir, 'sess-1');
-    expect(session!.messages).toHaveLength(1);
-    expect(session!.messages[0].content).toBe('hello');
+    const result = await replaySession(dir, 'sess-1');
+    const session = result!.session;
+    expect(session.messages).toHaveLength(1);
+    expect(session.messages[0].content).toBe('hello');
   });
 
   it('marks file as corrupt if header is invalid', async () => {
@@ -244,15 +255,16 @@ describe('replaySession', () => {
     await writeRecords(dir, 'sess-1', [
       makeHeader(),
       {
-        t: 'message_final', id: 'msg-1', role: 'assistant', content: 'Asking...',
-        timestamp: 2000, stopReason: 'end_turn',
+        t: 'message_final', seq: 1, ts: 2000, id: 'msg-1', role: 'assistant', content: 'Asking...',
+        stopReason: 'end_turn',
         contentBlocks: [{ type: 'tool_use', id: 'tu-1', name: 'AskUserQuestion', input: '{}', status: 'complete' }],
       },
       makeMessage('msg-2', 'user', 'My answer', 3000),
     ]);
 
-    const session = await replaySession(dir, 'sess-1');
-    const block = session!.messages[0].contentBlocks![0];
+    const result = await replaySession(dir, 'sess-1');
+    const session = result!.session;
+    const block = session.messages[0].contentBlocks![0];
     expect(block.type === 'tool_use' && block.result).toEqual({ _fromFollowUp: true, answer: 'My answer' });
   });
 });
@@ -285,8 +297,8 @@ describe('consolidateSession', () => {
     // Write a messy JSONL with streaming artifacts
     await writeRecords(dir, 'sess-1', [
       makeHeader(),
-      { t: 'message_start', id: 'msg-1', role: 'assistant', timestamp: 2000 },
-      { t: 'message_delta', id: 'msg-1', delta: 'hello', seq: 0 },
+      { t: 'message_start', seq: 1, ts: 2000, id: 'msg-1', role: 'assistant' },
+      { t: 'message_delta', seq: 2, ts: 2001, id: 'msg-1', delta: 'hello' },
     ]);
 
     // Create a session as if it was replayed
@@ -303,7 +315,7 @@ describe('consolidateSession', () => {
 
     const lines = parseJsonl(await readJsonl(dir, 'sess-1'));
     expect(lines).toHaveLength(3); // header + 2 messages
-    expect(lines[0]).toMatchObject({ t: 'header', updatedAt: 3000, metadata: { key: 'val' } });
+    expect(lines[0]).toMatchObject({ t: 'header', ts: 3000, metadata: { key: 'val' } });
     expect(lines[1]).toMatchObject({ t: 'message_final', id: 'msg-1', content: 'hello' });
     expect(lines[2]).toMatchObject({ t: 'message', id: 'msg-2', role: 'user' });
   });
@@ -340,10 +352,11 @@ describe('writeForkSession', () => {
 
     await writeForkSession(dir, forked);
 
-    const session = await replaySession(dir, 'fork-1');
-    expect(session!.id).toBe('fork-1');
-    expect(session!.parentId).toBe('parent-1');
-    expect(session!.messages).toHaveLength(2);
+    const result = await replaySession(dir, 'fork-1');
+    const session = result!.session;
+    expect(session.id).toBe('fork-1');
+    expect(session.parentId).toBe('parent-1');
+    expect(session.messages).toHaveLength(2);
   });
 });
 
@@ -401,5 +414,225 @@ describe('AppendLock', () => {
   it('clear resets all locks', () => {
     const lock = new AppendLock();
     lock.clear(); // Should not throw
+  });
+});
+
+// =============================================================================
+// v0.3.0 Journal Tests
+// =============================================================================
+
+describe('v0.3.0 journal features', () => {
+  describe('new record types in replay', () => {
+    it('preserves unknown record types in session.records', async () => {
+      const dir = nextDir();
+      await writeRecords(dir, 'sess-1', [
+        makeHeader(),
+        makeMessage('m1', 'user', 'hello'),
+        { t: 'tool_call', seq: 10, ts: 2000, actionId: 'tu-1', messageId: 'msg-1', name: 'Read', input: { path: '/a.ts' } } as JournalRecord,
+        { t: 'hook', seq: 11, ts: 2001, hookId: 'h-1', hookName: 'lint', hookEvent: 'PostToolUse', outcome: 'success' } as JournalRecord,
+        makeFinal('m2', 'done'),
+      ]);
+
+      const result = await replaySession(dir, 'sess-1');
+      expect(result).not.toBeNull();
+      const session = result!.session;
+      // Messages should have the user + assistant messages
+      expect(session.messages).toHaveLength(2);
+      // Non-message records should be in session.records
+      expect(session.records).toBeDefined();
+      expect(session.records).toHaveLength(2);
+      expect(session.records![0]).toMatchObject({ t: 'tool_call', name: 'Read' });
+      expect(session.records![1]).toMatchObject({ t: 'hook', hookName: 'lint' });
+    });
+
+    it('handles session with only message records (no records bag)', async () => {
+      const dir = nextDir();
+      await writeRecords(dir, 'sess-1', [
+        makeHeader(),
+        makeMessage('m1', 'user', 'hi'),
+        makeFinal('m2', 'hello'),
+      ]);
+
+      const result = await replaySession(dir, 'sess-1');
+      const session = result!.session;
+      expect(session.messages).toHaveLength(2);
+      expect(session.records).toBeUndefined();
+    });
+  });
+
+  describe('consolidation with new record types', () => {
+    it('preserves tool_call records through consolidation', async () => {
+      const dir = nextDir();
+      await writeRecords(dir, 'sess-1', [
+        makeHeader(),
+        makeMessage('m1', 'user', 'fix the bug'),
+        { t: 'tool_call', seq: 5, ts: 2000, actionId: 'tu-1', messageId: 'msg-1', name: 'Read', input: { path: '/a.ts' } } as JournalRecord,
+        makeFinal('m2', 'done'),
+      ]);
+
+      const session: Session = {
+        id: 'sess-1', title: 'Test', createdAt: 1000, updatedAt: 3000,
+        messages: [
+          { id: 'm1', role: 'user', content: 'fix the bug', timestamp: 2000 },
+          { id: 'm2', role: 'assistant', content: 'done', timestamp: 3000 },
+        ],
+        metadata: {},
+      };
+
+      await consolidateSession(dir, session);
+
+      const lines = parseJsonl(await readJsonl(dir, 'sess-1'));
+      // header + 2 messages + 1 tool_call
+      expect(lines).toHaveLength(4);
+      const toolCall = lines.find((l: any) => l.t === 'tool_call') as any;
+      expect(toolCall).toBeDefined();
+      expect(toolCall.name).toBe('Read');
+      expect(toolCall.actionId).toBe('tu-1');
+    });
+
+    it('drops streaming intermediaries during consolidation', async () => {
+      const dir = nextDir();
+      await writeRecords(dir, 'sess-1', [
+        makeHeader(),
+        { t: 'message_start', seq: 1, ts: 2000, id: 'msg-1', role: 'assistant' } as JournalRecord,
+        { t: 'message_delta', seq: 2, ts: 2001, id: 'msg-1', delta: 'hello' } as JournalRecord,
+        { t: 'thinking_delta', seq: 3, ts: 2002, id: 'msg-1', delta: 'thinking...' } as JournalRecord,
+        { t: 'message_blocks', seq: 4, ts: 2003, id: 'msg-1', contentBlocks: [] } as JournalRecord,
+        { t: 'tool_progress', seq: 5, ts: 2004, actionId: 'tu-1', name: 'Read', output: 'reading...' } as JournalRecord,
+        { t: 'tool_call', seq: 6, ts: 2005, actionId: 'tu-1', messageId: 'msg-1', name: 'Read', input: {} } as JournalRecord,
+        makeFinal('msg-1', 'hello'),
+      ]);
+
+      const session: Session = {
+        id: 'sess-1', title: 'Test', createdAt: 1000, updatedAt: 3000,
+        messages: [
+          { id: 'msg-1', role: 'assistant', content: 'hello', timestamp: 3000 },
+        ],
+        metadata: {},
+      };
+
+      await consolidateSession(dir, session);
+
+      const lines = parseJsonl(await readJsonl(dir, 'sess-1'));
+      const types = (lines as any[]).map((l) => l.t);
+      // Should keep: header, tool_call (ts:2005), message_final (ts:3000) — chronological order
+      expect(types).toEqual(['header', 'tool_call', 'message_final']);
+      // Should NOT have any streaming types
+      expect(types).not.toContain('message_start');
+      expect(types).not.toContain('message_delta');
+      expect(types).not.toContain('thinking_delta');
+      expect(types).not.toContain('message_blocks');
+      expect(types).not.toContain('tool_progress');
+    });
+
+    it('folds meta patches into header metadata', async () => {
+      const dir = nextDir();
+      await writeRecords(dir, 'sess-1', [
+        makeHeader('sess-1', { initial: true }),
+        { t: 'meta', seq: 1, ts: 1500, patch: { title: 'Updated Title', custom: 'value' } } as JournalRecord,
+        { t: 'meta', seq: 2, ts: 2000, patch: { another: 'patch' } } as JournalRecord,
+        makeMessage('m1', 'user', 'hi'),
+      ]);
+
+      const session: Session = {
+        id: 'sess-1', title: 'Updated Title', createdAt: 1000, updatedAt: 2000,
+        messages: [
+          { id: 'm1', role: 'user', content: 'hi', timestamp: 2000 },
+        ],
+        metadata: { initial: true, title: 'Updated Title', custom: 'value', another: 'patch' },
+      };
+
+      await consolidateSession(dir, session);
+
+      const lines = parseJsonl(await readJsonl(dir, 'sess-1'));
+      // No standalone meta records
+      const metas = (lines as any[]).filter((l) => l.t === 'meta');
+      expect(metas).toHaveLength(0);
+      // Header has folded metadata
+      const header = lines[0] as any;
+      expect(header.metadata).toMatchObject({ initial: true, custom: 'value', another: 'patch' });
+    });
+
+    it('falls back to state rebuild when JSONL is missing', async () => {
+      const dir = nextDir();
+      // No JSONL file exists
+
+      const session: Session = {
+        id: 'sess-new', title: 'New Session', createdAt: 1000, updatedAt: 2000,
+        messages: [
+          { id: 'm1', role: 'user', content: 'hello', timestamp: 1500 },
+        ],
+        metadata: { source: 'test' },
+      };
+
+      await consolidateSession(dir, session);
+
+      const lines = parseJsonl(await readJsonl(dir, 'sess-new'));
+      expect(lines).toHaveLength(2); // header + message
+      expect((lines[0] as any).t).toBe('header');
+      expect((lines[1] as any).t).toBe('message');
+    });
+  });
+
+  describe('SeqAllocator', () => {
+    it('allocates monotonically increasing values', () => {
+      const alloc = new SeqAllocator(5);
+      expect(alloc.allocate()).toBe(5);
+      expect(alloc.allocate()).toBe(6);
+      expect(alloc.allocate()).toBe(7);
+    });
+
+    it('reports current value', () => {
+      const alloc = new SeqAllocator(10);
+      expect(alloc.current()).toBe(10);
+      alloc.allocate();
+      expect(alloc.current()).toBe(11);
+    });
+
+    it('initializes from max(seq) in replayed session', async () => {
+      const dir = nextDir();
+      await writeRecords(dir, 'sess-1', [
+        makeHeader(),
+        { t: 'message', seq: 5, ts: 2000, id: 'm1', role: 'user', content: 'hi' } as JournalRecord,
+        { t: 'tool_call', seq: 42, ts: 2001, actionId: 'tu-1', messageId: 'm1', name: 'Read', input: {} } as JournalRecord,
+        { t: 'message_final', seq: 20, ts: 3000, id: 'm2', role: 'assistant', content: 'hello', stopReason: 'end_turn' } as JournalRecord,
+      ]);
+
+      // Replay to get maxSeq
+      const result = await replaySession(dir, 'sess-1');
+      expect(result).not.toBeNull();
+      const session = result!.session;
+
+      // maxSeq should be 42 (highest seq in the file)
+      expect(result!.maxSeq).toBe(42);
+
+      // SeqAllocator initialized from maxSeq + 1 would start at 43
+      const alloc = new SeqAllocator(result!.maxSeq + 1);
+      expect(alloc.allocate()).toBe(43);
+
+      // The records bag should have the tool_call with seq=42
+      const toolCall = session.records?.find((r) => r.t === 'tool_call');
+      expect(toolCall).toBeDefined();
+      expect(toolCall!.seq).toBe(42);
+    });
+  });
+
+  describe('seq ordering in replay', () => {
+    it('assembles deltas using seq for ordering', async () => {
+      const dir = nextDir();
+      // Write deltas out of order (by seq)
+      await writeRecords(dir, 'sess-1', [
+        makeHeader(),
+        { t: 'message_start', seq: 1, ts: 2000, id: 'msg-1', role: 'assistant' } as JournalRecord,
+        { t: 'message_delta', seq: 3, ts: 2002, id: 'msg-1', delta: ' world' } as JournalRecord,
+        { t: 'message_delta', seq: 2, ts: 2001, id: 'msg-1', delta: 'hello' } as JournalRecord,
+        { t: 'message_final', seq: 4, ts: 2003, id: 'msg-1', role: 'assistant', content: 'hello world', stopReason: 'end_turn' } as JournalRecord,
+      ]);
+
+      const result = await replaySession(dir, 'sess-1');
+      const session = result!.session;
+      expect(session.messages).toHaveLength(1);
+      expect(session.messages[0].content).toBe('hello world');
+    });
   });
 });

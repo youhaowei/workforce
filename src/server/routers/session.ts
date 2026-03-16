@@ -155,10 +155,9 @@ export const sessionRouter = router({
     .input(z.object({
       sessionId: z.string(),
       messageId: z.string(),
-      meta: z.record(z.unknown()).optional(),
     }))
     .mutation(({ input }) =>
-      getSessionService().recordStreamStart(input.sessionId, input.messageId, input.meta),
+      getSessionService().recordStreamStart(input.sessionId, input.messageId),
     ),
 
   streamDelta: publicProcedure

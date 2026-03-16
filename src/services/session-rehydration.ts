@@ -8,7 +8,7 @@
 import type { Session, HydrationStatus } from './types';
 import { getEventBus } from '@/shared/event-bus';
 import { createLogger } from 'tracey';
-import { replaySession, consolidateSession, AppendLock } from './session-journal';
+import { replaySession, consolidateSession, AppendLock, SeqAllocator } from './session-journal';
 
 const log = createLogger('Session');
 
@@ -24,6 +24,7 @@ export interface RehydrationDeps {
   readonly hydrationStatus: Map<string, HydrationStatus>;
   readonly deletedSessionIds: Set<string>;
   readonly appendLock: AppendLock;
+  readonly seqAllocators: Map<string, SeqAllocator>;
   readonly sessionsDir: string;
   isDisposed(): boolean;
 }
@@ -107,15 +108,17 @@ export class RehydrationManager {
           hydrationStatus.set(sessionId, 'rehydrating');
           bus.emit({ type: 'SessionRehydrateStarted', sessionId, timestamp: Date.now() });
 
-          const session = await replaySession(sessionsDir, sessionId);
+          const result = await replaySession(sessionsDir, sessionId);
 
           if (deletedSessionIds.has(sessionId)) return;
-          if (!session) {
+          if (!result) {
             hydrationStatus.set(sessionId, 'failed');
             bus.emit({ type: 'SessionRehydrateFailed', sessionId, error: 'Session file not found', timestamp: Date.now() });
             return;
           }
+          const { session, maxSeq } = result;
           sessions.set(sessionId, session);
+          this.deps.seqAllocators.set(sessionId, new SeqAllocator(maxSeq + 1));
 
           hydrationStatus.set(sessionId, 'consolidating');
           bus.emit({ type: 'SessionConsolidationStarted', sessionId, timestamp: Date.now() });

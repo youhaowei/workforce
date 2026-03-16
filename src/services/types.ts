@@ -254,6 +254,8 @@ export interface Message {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
+  model?: string;
+  usage?: TokenUsage;
   agentConfig?: AgentConfig;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
@@ -269,6 +271,8 @@ export interface Session {
   parentId?: string;
   messages: Message[];
   metadata: Record<string, unknown>;
+  /** Non-message records (tool calls, hooks, file changes, etc.). Optional — not sent over tRPC by default. */
+  records?: AnyJournalRecord[];
 }
 
 /**
@@ -298,28 +302,70 @@ export interface SessionSavePatch {
 }
 
 // =============================================================================
-// JSONL Record Types (Session Persistence)
+// JSONL Record Types (Session Persistence) — v0.3.0
 // =============================================================================
+
+/** Universal author identity for action records. */
+export type Author =
+  | { type: 'user'; id: string }
+  | { type: 'agent'; sessionId: string; actionId: string }
+  | { type: 'system' };
+
+/** Git repository context snapshot. */
+export interface GitContext {
+  branch: string;
+  commitHash?: string;
+  repoRoot?: string;
+  isDirty?: boolean;
+}
+
+/** Token usage statistics for an API turn. */
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadInputTokens?: number;
+  cacheCreationInputTokens?: number;
+}
+
+/** File operation within a file_change record. */
+export interface FileOperation {
+  path: string;
+  operation: 'create' | 'modify' | 'delete' | 'rename';
+  oldPath?: string;
+  diff?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Record Interfaces
+// ---------------------------------------------------------------------------
 
 /** Session identity + base metadata — always the first line in a .jsonl file. */
 export interface JournalHeader {
   t: 'header';
-  v: number;
+  v: string;
+  seq: number;
+  ts: number;
   id: string;
+  sessionType?: SessionType;
   title?: string;
   createdAt: number;
-  updatedAt: number;
   parentId?: string;
+  orgId?: string;
+  projectId?: string;
+  gitContext?: GitContext;
+  agentConfig?: AgentConfig;
   metadata: Record<string, unknown>;
 }
 
 /** A complete non-streaming message (user or system). */
 export interface JournalMessage {
   t: 'message';
+  seq: number;
+  ts: number;
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
-  timestamp: number;
+  author?: Author;
   agentConfig?: AgentConfig;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
@@ -330,66 +376,279 @@ export interface JournalMessage {
 /** Marks the start of an assistant streaming response. */
 export interface JournalMessageStart {
   t: 'message_start';
+  seq: number;
+  ts: number;
   id: string;
   role: 'assistant';
-  timestamp: number;
-  meta?: Record<string, unknown>;
+  model?: string;
+  usage?: TokenUsage;
 }
 
 /** A single token/chunk delta for an in-progress stream. */
 export interface JournalMessageDelta {
   t: 'message_delta';
+  seq: number;
+  ts: number;
   id: string;
   delta: string;
+}
+
+/** Thinking block delta for an in-progress stream. */
+export interface JournalThinkingDelta {
+  t: 'thinking_delta';
   seq: number;
+  ts: number;
+  id: string;
+  delta: string;
+}
+
+/** Snapshot of content blocks during streaming (survives page refresh). */
+export interface JournalMessageBlocks {
+  t: 'message_blocks';
+  seq: number;
+  ts: number;
+  id: string;
+  contentBlocks: ContentBlock[];
+  toolActivities?: ToolActivity[];
 }
 
 /** Authoritative final content for a completed assistant message. */
 export interface JournalMessageFinal {
   t: 'message_final';
+  seq: number;
+  ts: number;
   id: string;
   role: 'assistant';
   content: string;
-  timestamp: number;
   stopReason: string;
+  model?: string;
+  usage?: TokenUsage;
   toolCalls?: ToolCall[];
   toolResults?: ToolResult[];
   toolActivities?: ToolActivity[];
   contentBlocks?: ContentBlock[];
 }
 
-/** Snapshot of content blocks during streaming (survives page refresh). */
-export interface JournalMessageBlocks {
-  t: 'message_blocks';
-  id: string;
-  contentBlocks: ContentBlock[];
-  toolActivities?: ToolActivity[];
-}
-
 /** Stream aborted/interrupted marker. */
 export interface JournalMessageAbort {
   t: 'message_abort';
+  seq: number;
+  ts: number;
   id: string;
   reason: string;
-  timestamp: number;
+}
+
+/** Tool invocation by the agent. */
+export interface JournalToolCall {
+  t: 'tool_call';
+  seq: number;
+  ts: number;
+  actionId: string;
+  messageId: string;
+  name: string;
+  input: Record<string, unknown>;
+}
+
+/** Tool execution result. */
+export interface JournalToolResult {
+  t: 'tool_result';
+  seq: number;
+  ts: number;
+  actionId: string;
+  name: string;
+  result: unknown;
+  error?: string;
+  isError: boolean;
+  durationMs?: number;
+}
+
+/** Long-running tool progress update. */
+export interface JournalToolProgress {
+  t: 'tool_progress';
+  seq: number;
+  ts: number;
+  actionId: string;
+  name: string;
+  elapsedMs?: number;
+  message?: string;
+  output?: string;
+}
+
+/** Hook execution (collapsed — single record per hook invocation). */
+export interface JournalHook {
+  t: 'hook';
+  seq: number;
+  ts: number;
+  hookId: string;
+  hookName: string;
+  hookEvent: string;
+  actionId?: string;
+  outcome: 'success' | 'error' | 'cancelled';
+  output?: string;
+  durationMs?: number;
+}
+
+/** Files modified by a tool call. */
+export interface JournalFileChange {
+  t: 'file_change';
+  seq: number;
+  ts: number;
+  actionId: string;
+  files: FileOperation[];
+}
+
+/** Task created or updated within this session. */
+export interface JournalTaskUpdate {
+  t: 'task_update';
+  seq: number;
+  ts: number;
+  taskId: string;
+  author: Author;
+  patch: {
+    title?: string;
+    description?: string;
+    status?: TaskStatus;
+    priority?: number;
+    metadata?: Record<string, unknown>;
+  };
+}
+
+/** Session interaction with a workspace-level artifact. */
+export interface JournalArtifactLink {
+  t: 'artifact_link';
+  seq: number;
+  ts: number;
+  artifactId: string;
+  action: 'create' | 'open' | 'modify' | 'close' | 'link' | 'unlink';
+  author: Author;
+  actionId?: string;
+  snapshot?: { title: string; type: string; status?: PlanArtifactStatus };
+}
+
+/** Plan status change. */
+export interface JournalPlanUpdate {
+  t: 'plan_update';
+  seq: number;
+  ts: number;
+  artifactId: string;
+  status: PlanArtifactStatus;
+  approvedPermission?: AgentPermissionMode;
+  author: Author;
+}
+
+/** Review comment on an artifact. */
+export interface JournalReviewComment {
+  t: 'review_comment';
+  seq: number;
+  ts: number;
+  artifactId: string;
+  reviewId: string;
+  content: string;
+  anchor?: { line?: number; section?: string };
+  author: Author;
+}
+
+/** Review batch submitted. */
+export interface JournalReviewSubmit {
+  t: 'review_submit';
+  seq: number;
+  ts: number;
+  artifactId: string;
+  reviewId: string;
+  action: ReviewAction;
+  summary?: string;
+  author: Author;
+}
+
+/** Subagent spawned from this session. */
+export interface JournalSubagentSpawn {
+  t: 'subagent_spawn';
+  seq: number;
+  ts: number;
+  childSessionId: string;
+  templateId?: string;
+  goal: string;
+  actionId?: string;
+}
+
+/** Subagent completed/failed. */
+export interface JournalSubagentResult {
+  t: 'subagent_result';
+  seq: number;
+  ts: number;
+  childSessionId: string;
+  outcome: 'completed' | 'failed' | 'cancelled';
+  summary?: string;
+  durationMs?: number;
+}
+
+/** Explicit git state capture (before/after commits, branch changes). */
+export interface JournalGitSnapshot {
+  t: 'git_snapshot';
+  seq: number;
+  ts: number;
+  context: GitContext;
+  trigger: 'commit' | 'checkout' | 'merge' | 'manual';
+  actionId?: string;
+  commitMessage?: string;
+}
+
+/** End-of-turn statistics. */
+export interface JournalQueryResult {
+  t: 'query_result';
+  seq: number;
+  ts: number;
+  messageId: string;
+  durationMs: number;
+  usage?: TokenUsage;
+  model?: string;
 }
 
 /** Metadata patch (title change, lifecycle transition, etc.). */
 export interface JournalMeta {
   t: 'meta';
-  updatedAt: number;
+  seq: number;
+  ts: number;
   patch: Record<string, unknown>;
 }
 
+/** Forward-compat escape hatch for unknown record types. */
+export interface JournalUnknown {
+  t: string;
+  seq: number;
+  ts: number;
+  [key: string]: unknown;
+}
+
+/** Discriminated union of all known journal record types. */
 export type JournalRecord =
   | JournalHeader
   | JournalMessage
   | JournalMessageStart
   | JournalMessageDelta
+  | JournalThinkingDelta
   | JournalMessageBlocks
   | JournalMessageFinal
   | JournalMessageAbort
+  | JournalToolCall
+  | JournalToolResult
+  | JournalToolProgress
+  | JournalHook
+  | JournalFileChange
+  | JournalTaskUpdate
+  | JournalArtifactLink
+  | JournalPlanUpdate
+  | JournalReviewComment
+  | JournalReviewSubmit
+  | JournalSubagentSpawn
+  | JournalSubagentResult
+  | JournalGitSnapshot
+  | JournalQueryResult
   | JournalMeta;
+
+/** Union including unknown records — used in parsed/persisted contexts where
+ *  forward-compat matters (e.g., Session.records, replay output). */
+export type AnyJournalRecord = JournalRecord | JournalUnknown;
 
 /** Runtime-only hydration status for a session (not persisted on Session type). */
 export type HydrationStatus = 'cold' | 'rehydrating' | 'consolidating' | 'ready' | 'failed';
@@ -497,7 +756,7 @@ export interface SessionService extends Disposable {
   // ---------------------------------------------------------------------------
 
   /** Record the start of an assistant streaming response. */
-  recordStreamStart(sessionId: string, messageId: string, meta?: Record<string, unknown>): Promise<void>;
+  recordStreamStart(sessionId: string, messageId: string): Promise<void>;
 
   /** Record a streaming token delta. */
   recordStreamDelta(sessionId: string, messageId: string, delta: string, seq: number): Promise<void>;

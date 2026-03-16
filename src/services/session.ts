@@ -43,6 +43,7 @@ import {
   replaySessionMetadata,
   consolidateSession,
   AppendLock,
+  SeqAllocator,
   JSONL_VERSION,
 } from './session-journal';
 import { RehydrationManager } from './session-rehydration';
@@ -67,6 +68,7 @@ class SessionServiceImpl implements SessionService {
   private initialized = false;
   private initPromise: Promise<void> | null = null;
   private appendLock = new AppendLock();
+  private seqAllocators = new Map<string, SeqAllocator>();
   private consolidationTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private _disposed = false;
   private deletedSessionIds = new Set<string>();
@@ -85,6 +87,7 @@ class SessionServiceImpl implements SessionService {
       hydrationStatus: this.hydrationStatus,
       deletedSessionIds: this.deletedSessionIds,
       appendLock: this.appendLock,
+      seqAllocators: this.seqAllocators,
       sessionsDir: this.sessionsDir,
       isDisposed: () => this._disposed,
     });
@@ -159,8 +162,8 @@ class SessionServiceImpl implements SessionService {
 
     this.registerSession(session, 'ready');
     await journalWriteRecords(this.sessionsDir, session.id, [{
-      t: 'header', v: JSONL_VERSION, id: session.id, title: session.title,
-      createdAt: now, updatedAt: now, parentId, metadata: initialMetadata,
+      t: 'header', v: JSONL_VERSION, seq: 0, ts: now, id: session.id, title: session.title,
+      createdAt: now, parentId, metadata: initialMetadata,
     }]);
     getEventBus().emit({ type: 'SessionChange', sessionId: session.id, action: 'created', timestamp: now });
     return session;
@@ -200,10 +203,12 @@ class SessionServiceImpl implements SessionService {
 
     // Cold / failed-without-cache / unknown: do a direct replay
     log.info({ sessionId, status: status ?? 'unknown' }, `get(${sessionId}) ${status ?? 'unknown'}, no flight → direct replay`);
-    const session = await replaySession(this.sessionsDir, sessionId);
-    if (!session) { log.info({ sessionId }, `get(${sessionId}) replay returned null`); return null; }
+    const result = await replaySession(this.sessionsDir, sessionId);
+    if (!result) { log.info({ sessionId }, `get(${sessionId}) replay returned null`); return null; }
+    const { session, maxSeq } = result;
     log.info({ sessionId, msgs: session.messages.length }, `get(${sessionId}) replayed → msgs=${session.messages.length}`);
     this.sessions.set(sessionId, session);
+    this.seqAllocators.set(sessionId, new SeqAllocator(maxSeq + 1));
     this.hydrationStatus.set(sessionId, 'ready');
     this.scheduleConsolidation(sessionId);
     return session;
@@ -223,7 +228,7 @@ class SessionServiceImpl implements SessionService {
 
     const patchRecord: Record<string, unknown> = { title: session.title, ...session.metadata };
     await this.writeRecords(sessionId, [{
-      t: 'meta', updatedAt: session.updatedAt, patch: patchRecord,
+      t: 'meta', seq: 0, ts: session.updatedAt, patch: patchRecord,
     } satisfies JournalMeta], true);
   }
 
@@ -350,15 +355,15 @@ class SessionServiceImpl implements SessionService {
     const session = await this.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
 
-    const ts = Math.max(message.timestamp, Date.now());
+    const msgTs = Math.max(message.timestamp, Date.now());
     const record: JournalMessage = {
-      t: 'message', id: message.id, role: message.role, content: message.content,
-      timestamp: ts, agentConfig: message.agentConfig, toolCalls: message.toolCalls, toolResults: message.toolResults,
+      t: 'message', seq: 0, ts: msgTs, id: message.id, role: message.role, content: message.content,
+      agentConfig: message.agentConfig, toolCalls: message.toolCalls, toolResults: message.toolResults,
     };
 
     await this.appendLock.acquire(sessionId, async () => {
-      session.messages.push({ ...message, timestamp: ts });
-      session.updatedAt = ts;
+      session.messages.push({ ...message, timestamp: msgTs });
+      session.updatedAt = msgTs;
       await appendRecord(this.sessionsDir, sessionId, record);
     });
     this.scheduleConsolidation(sessionId);
@@ -395,8 +400,8 @@ class SessionServiceImpl implements SessionService {
 
   // ─── Delegated: Streaming ──────────────────────────────────────────
 
-  recordStreamStart(sessionId: string, messageId: string, meta?: Record<string, unknown>) {
-    return streaming.recordStreamStart(this.streamingDeps, sessionId, messageId, meta);
+  recordStreamStart(sessionId: string, messageId: string) {
+    return streaming.recordStreamStart(this.streamingDeps, sessionId, messageId);
   }
   recordStreamDelta(sessionId: string, messageId: string, delta: string, seq: number) {
     return streaming.recordStreamDelta(this.streamingDeps, sessionId, messageId, delta, seq);
@@ -431,11 +436,16 @@ class SessionServiceImpl implements SessionService {
 
   private async writeRecords(sessionId: string, records: JournalRecord[], consolidate = false): Promise<void> {
     if (records.length === 0) return;
-    await this.appendLock.acquire(sessionId, () =>
-      records.length === 1
+    await this.appendLock.acquire(sessionId, () => {
+      // Stamp seq from allocator (create on-demand for new sessions)
+      const alloc = this.seqAllocators.get(sessionId) ?? new SeqAllocator(0);
+      if (!this.seqAllocators.has(sessionId)) this.seqAllocators.set(sessionId, alloc);
+      for (const rec of records) rec.seq = alloc.allocate();
+
+      return records.length === 1
         ? appendRecord(this.sessionsDir, sessionId, records[0])
-        : appendRecords(this.sessionsDir, sessionId, records),
-    );
+        : appendRecords(this.sessionsDir, sessionId, records);
+    });
     if (consolidate) this.scheduleConsolidation(sessionId);
   }
 

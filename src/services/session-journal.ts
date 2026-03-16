@@ -13,6 +13,7 @@ import type {
   ContentBlock,
   ToolActivity,
   JournalRecord,
+  AnyJournalRecord,
   JournalHeader,
   JournalMessage,
   JournalMessageFinal,
@@ -21,7 +22,7 @@ import { createLogger } from 'tracey';
 
 const log = createLogger('Session');
 
-export const JSONL_VERSION = 2;
+export const JSONL_VERSION = '0.3.0';
 
 // =============================================================================
 // JSONL I/O
@@ -57,7 +58,7 @@ export async function writeRecords(sessionsDir: string, sessionId: string, recor
 
 interface StreamState {
   deltas: Array<{ delta: string; seq: number }>;
-  timestamp: number;
+  ts: number;
   contentBlocks?: ContentBlock[];
   toolActivities?: ToolActivity[];
 }
@@ -76,10 +77,11 @@ interface ReplayContext {
   session: Session;
   activeStreams: Map<string, StreamState>;
   finalizedIds: Set<string>;
+  maxSeq: number;
 }
 
 function processMetaRecord(ctx: ReplayContext, record: JournalRecord & { t: 'meta' }): void {
-  ctx.session.updatedAt = record.updatedAt;
+  ctx.session.updatedAt = record.ts;
   // Extract top-level session fields before merging into metadata
   if ('title' in record.patch && typeof record.patch.title === 'string') {
     ctx.session.title = record.patch.title;
@@ -96,19 +98,19 @@ function processMessageRecord(ctx: ReplayContext, record: JournalRecord & { t: '
     id: record.id,
     role: record.role,
     content: record.content,
-    timestamp: record.timestamp,
+    timestamp: record.ts,
     agentConfig: record.agentConfig,
     toolCalls: record.toolCalls,
     toolResults: record.toolResults,
     toolActivities: record.toolActivities,
     contentBlocks: record.contentBlocks,
   });
-  if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
+  if (record.ts > ctx.session.updatedAt) ctx.session.updatedAt = record.ts;
 }
 
 function processMessageStart(ctx: ReplayContext, record: JournalRecord & { t: 'message_start' }): void {
-  ctx.activeStreams.set(record.id, { deltas: [], timestamp: record.timestamp });
-  if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
+  ctx.activeStreams.set(record.id, { deltas: [], ts: record.ts });
+  if (record.ts > ctx.session.updatedAt) ctx.session.updatedAt = record.ts;
 }
 
 function processMessageDelta(ctx: ReplayContext, record: JournalRecord & { t: 'message_delta' }): void {
@@ -125,13 +127,15 @@ function processMessageFinal(ctx: ReplayContext, record: JournalRecord & { t: 'm
     id: record.id,
     role: record.role,
     content: record.content,
-    timestamp: record.timestamp,
+    timestamp: record.ts,
+    model: record.model,
+    usage: record.usage,
     toolCalls: record.toolCalls,
     toolResults: record.toolResults,
     toolActivities: record.toolActivities,
     contentBlocks: record.contentBlocks,
   });
-  if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
+  if (record.ts > ctx.session.updatedAt) ctx.session.updatedAt = record.ts;
 }
 
 function processMessageBlocks(ctx: ReplayContext, record: JournalRecord & { t: 'message_blocks' }): void {
@@ -151,23 +155,33 @@ function processMessageAbort(ctx: ReplayContext, record: JournalRecord & { t: 'm
         id: record.id,
         role: 'assistant',
         content: partialContent,
-        timestamp: abortedStream.timestamp,
+        timestamp: abortedStream.ts,
       });
     }
   }
   ctx.activeStreams.delete(record.id);
-  if (record.timestamp > ctx.session.updatedAt) ctx.session.updatedAt = record.timestamp;
+  if (record.ts > ctx.session.updatedAt) ctx.session.updatedAt = record.ts;
 }
 
-function applyRecord(ctx: ReplayContext, record: JournalRecord): void {
+function applyRecord(ctx: ReplayContext, record: AnyJournalRecord): void {
+  // Track max seq for SeqAllocator initialization
+  if (typeof record.seq === 'number' && record.seq > ctx.maxSeq) {
+    ctx.maxSeq = record.seq;
+  }
+
   switch (record.t) {
-    case 'meta': return processMetaRecord(ctx, record);
-    case 'message': return processMessageRecord(ctx, record);
-    case 'message_start': return processMessageStart(ctx, record);
-    case 'message_delta': return processMessageDelta(ctx, record);
-    case 'message_blocks': return processMessageBlocks(ctx, record);
-    case 'message_final': return processMessageFinal(ctx, record);
-    case 'message_abort': return processMessageAbort(ctx, record);
+    case 'meta': return processMetaRecord(ctx, record as JournalRecord & { t: 'meta' });
+    case 'message': return processMessageRecord(ctx, record as JournalRecord & { t: 'message' });
+    case 'message_start': return processMessageStart(ctx, record as JournalRecord & { t: 'message_start' });
+    case 'message_delta': return processMessageDelta(ctx, record as JournalRecord & { t: 'message_delta' });
+    case 'message_blocks': return processMessageBlocks(ctx, record as JournalRecord & { t: 'message_blocks' });
+    case 'message_final': return processMessageFinal(ctx, record as JournalRecord & { t: 'message_final' });
+    case 'message_abort': return processMessageAbort(ctx, record as JournalRecord & { t: 'message_abort' });
+    default: {
+      // Forward-compat: preserve unknown record types in session.records
+      if (!ctx.session.records) ctx.session.records = [];
+      ctx.session.records.push(record);
+    }
   }
 }
 
@@ -181,7 +195,7 @@ function recoverOrphanedStreams(ctx: ReplayContext): void {
         id: msgId,
         role: 'assistant',
         content,
-        timestamp: stream.timestamp,
+        timestamp: stream.ts,
         ...(stream.contentBlocks?.length ? { contentBlocks: stream.contentBlocks } : {}),
         ...(stream.toolActivities?.length ? { toolActivities: stream.toolActivities } : {}),
       });
@@ -251,7 +265,12 @@ async function parseHeader(
  *
  * Applies records in order. Uses handler dispatch to keep complexity low.
  */
-export async function replaySession(sessionsDir: string, sessionId: string): Promise<Session | null> {
+export interface ReplayResult {
+  session: Session;
+  maxSeq: number;
+}
+
+export async function replaySession(sessionsDir: string, sessionId: string): Promise<ReplayResult | null> {
   const filePath = join(sessionsDir, `${sessionId}.jsonl`);
 
   let raw: string;
@@ -273,18 +292,19 @@ export async function replaySession(sessionsDir: string, sessionId: string): Pro
       id: header.id,
       title: header.title,
       createdAt: header.createdAt,
-      updatedAt: header.updatedAt,
+      updatedAt: header.ts,
       parentId: header.parentId,
       messages: [],
       metadata: { ...header.metadata },
     },
     activeStreams: new Map(),
     finalizedIds: new Set(),
+    maxSeq: 0,
   };
 
   for (let i = 1; i < lines.length; i++) {
     try {
-      const record = JSON.parse(lines[i]) as JournalRecord;
+      const record = JSON.parse(lines[i]) as AnyJournalRecord;
       applyRecord(ctx, record);
     } catch {
       log.warn({ sessionId, line: i + 1 }, `Skipping malformed line ${i + 1} in ${sessionId}`);
@@ -293,7 +313,7 @@ export async function replaySession(sessionsDir: string, sessionId: string): Pro
 
   recoverOrphanedStreams(ctx);
   backfillQuestionResults(ctx.session.messages);
-  return ctx.session;
+  return { session: ctx.session, maxSeq: ctx.maxSeq };
 }
 
 /**
@@ -330,7 +350,7 @@ export async function replaySessionMetadata(sessionsDir: string, sessionId: stri
     id: header.id,
     title: header.title,
     createdAt: header.createdAt,
-    updatedAt: header.updatedAt,
+    updatedAt: header.ts,
     parentId: header.parentId,
     messages: [],
     metadata: { ...header.metadata },
@@ -341,51 +361,156 @@ export async function replaySessionMetadata(sessionsDir: string, sessionId: stri
 // Consolidation
 // =============================================================================
 
+/** Record types dropped during consolidation (streaming intermediaries). */
+const DROPPABLE_TYPES = new Set([
+  'message_start', 'message_delta', 'thinking_delta',
+  'message_blocks', 'message_abort', 'tool_progress',
+]);
+
 /**
- * Consolidate a session's JSONL by:
- * - Keeping one header with latest metadata state.
- * - Keeping `message` and `message_final` records.
- * - Dropping superseded deltas for finalized messages.
- * - Atomic rewrite via .tmp + rename.
+ * Consolidate a session's JSONL using filter-and-rewrite:
+ * 1. Read raw JSONL, parse all records.
+ * 2. Fold meta patches into header.
+ * 3. Drop streaming intermediaries (deltas, progress, blocks).
+ * 4. Keep everything else in original seq order.
+ * 5. Atomic rewrite via .tmp + rename.
+ *
+ * Falls back to session-state rebuild if raw JSONL is missing/corrupt.
  */
 export async function consolidateSession(sessionsDir: string, session: Session): Promise<void> {
+  const filePath = join(sessionsDir, `${session.id}.jsonl`);
+
+  let raw: string | undefined;
+  try {
+    raw = await readFile(filePath, 'utf-8');
+  } catch {
+    // File missing — fall back to state-based rebuild
+  }
+
+  let outputRecords: JournalRecord[];
+
+  if (raw) {
+    outputRecords = filterAndRewrite(raw, session);
+  } else {
+    outputRecords = rebuildFromState(session);
+  }
+
+  const tmpPath = join(sessionsDir, `${session.id}.jsonl.tmp`);
+  const finalPath = join(sessionsDir, `${session.id}.jsonl`);
+  const content = outputRecords.map((r) => JSON.stringify(r)).join('\n') + '\n';
+  await writeFile(tmpPath, content, 'utf-8');
+  await rename(tmpPath, finalPath);
+}
+
+/**
+ * Filter-and-rewrite: parse raw JSONL, fold metas into header, drop
+ * streaming intermediaries, then append canonical messages from session state.
+ *
+ * Non-message records (tool_call, hook, file_change, etc.) are preserved from
+ * the raw JSONL. Messages always come from the session state (the authoritative
+ * source after replay + recovery).
+ */
+function filterAndRewrite(raw: string, session: Session): JournalRecord[] {
+  const lines = raw.split('\n').filter((l) => l.trim().length > 0);
+  if (lines.length === 0) return rebuildFromState(session);
+
+  let header: JournalHeader;
+  try {
+    header = JSON.parse(lines[0]) as JournalHeader;
+    if (header.t !== 'header') return rebuildFromState(session);
+  } catch {
+    return rebuildFromState(session);
+  }
+
+  // Update header with current session state
+  header.ts = session.updatedAt;
+  header.title = session.title;
+  header.parentId = session.parentId;
+  header.metadata = { ...session.metadata };
+
+  // Collect non-message, non-droppable records from raw JSONL
+  const nonMessageRecords: JournalRecord[] = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    let record: JournalRecord;
+    try {
+      record = JSON.parse(lines[i]) as JournalRecord;
+    } catch {
+      continue; // skip malformed
+    }
+
+    // Drop metas (already folded into session.metadata during replay)
+    if (record.t === 'meta') continue;
+
+    // Drop streaming intermediaries and message records (messages rebuilt from state)
+    if (DROPPABLE_TYPES.has(record.t)) continue;
+    if (record.t === 'message' || record.t === 'message_final') continue;
+
+    nonMessageRecords.push(record);
+  }
+
+  // Interleave messages and non-message records by timestamp for chronological order
+  const messageRecords = session.messages.map((msg) => messageToRecord(msg, 0, 'consolidated'));
+  const allRecords = [...messageRecords, ...nonMessageRecords];
+  allRecords.sort((a, b) => a.ts - b.ts);
+
+  // Reassign seq values
+  let seq = 0;
+  header.seq = seq++;
+  const result: JournalRecord[] = [header];
+  for (const rec of allRecords) {
+    rec.seq = seq++;
+    result.push(rec);
+  }
+
+  return result;
+}
+
+/** Rebuild from in-memory Session state (legacy fallback). */
+function rebuildFromState(session: Session): JournalRecord[] {
   const records: JournalRecord[] = [];
+  let seq = 0;
 
   records.push({
     t: 'header',
     v: JSONL_VERSION,
+    seq: seq++,
+    ts: session.updatedAt,
     id: session.id,
     title: session.title,
     createdAt: session.createdAt,
-    updatedAt: session.updatedAt,
     parentId: session.parentId,
     metadata: session.metadata,
   });
 
   for (const msg of session.messages) {
-    records.push(messageToRecord(msg, 'consolidated'));
+    records.push(messageToRecord(msg, seq++, 'consolidated'));
   }
 
-  const tmpPath = join(sessionsDir, `${session.id}.jsonl.tmp`);
-  const finalPath = join(sessionsDir, `${session.id}.jsonl`);
-  const content = records.map((r) => JSON.stringify(r)).join('\n') + '\n';
-  await writeFile(tmpPath, content, 'utf-8');
-  await rename(tmpPath, finalPath);
+  // Preserve non-message records from session.records (forward-compat)
+  if (session.records) {
+    for (const rec of session.records) {
+      records.push({ ...rec, seq: seq++ } as JournalRecord);
+    }
+  }
+
+  return records;
 }
 
 /** Convert a Message to the appropriate JournalRecord for serialization. */
-function messageToRecord(m: Session['messages'][number], stopReason?: string): JournalMessage | JournalMessageFinal {
+function messageToRecord(m: Session['messages'][number], seq: number, stopReason?: string): JournalMessage | JournalMessageFinal {
   if (m.role === 'assistant') {
     return {
-      t: 'message_final', id: m.id, role: 'assistant', content: m.content,
-      timestamp: m.timestamp, stopReason: stopReason ?? 'consolidated',
+      t: 'message_final', seq, ts: m.timestamp, id: m.id, role: 'assistant', content: m.content,
+      stopReason: stopReason ?? 'consolidated',
+      model: m.model, usage: m.usage,
       toolCalls: m.toolCalls, toolResults: m.toolResults,
       toolActivities: m.toolActivities, contentBlocks: m.contentBlocks,
     } satisfies JournalMessageFinal;
   }
   return {
-    t: 'message', id: m.id, role: m.role, content: m.content,
-    timestamp: m.timestamp, agentConfig: m.agentConfig,
+    t: 'message', seq, ts: m.timestamp, id: m.id, role: m.role, content: m.content,
+    agentConfig: m.agentConfig,
     toolCalls: m.toolCalls, toolResults: m.toolResults,
     toolActivities: m.toolActivities, contentBlocks: m.contentBlocks,
   } satisfies JournalMessage;
@@ -393,11 +518,11 @@ function messageToRecord(m: Session['messages'][number], stopReason?: string): J
 
 /** Write a forked session's JSONL from scratch (header + all messages). */
 export async function writeForkSession(sessionsDir: string, forked: Session): Promise<void> {
+  let seq = 0;
   const records: JournalRecord[] = [
-    { t: 'header', v: JSONL_VERSION, id: forked.id, title: forked.title,
-      createdAt: forked.createdAt, updatedAt: forked.updatedAt,
-      parentId: forked.parentId, metadata: forked.metadata },
-    ...forked.messages.map((m) => messageToRecord(m, 'forked')),
+    { t: 'header', v: JSONL_VERSION, seq: seq++, ts: forked.updatedAt, id: forked.id, title: forked.title,
+      createdAt: forked.createdAt, parentId: forked.parentId, metadata: forked.metadata },
+    ...forked.messages.map((m) => messageToRecord(m, seq++, 'forked') as JournalRecord),
   ];
   await writeRecords(sessionsDir, forked.id, records);
 }
@@ -405,6 +530,17 @@ export async function writeForkSession(sessionsDir: string, forked: Session): Pr
 // =============================================================================
 // Append Lock (per-session serialization)
 // =============================================================================
+
+/**
+ * Monotonic sequence counter for stamping journal records.
+ * Initialized from max(seq) after replay. Protected by AppendLock.
+ */
+export class SeqAllocator {
+  private next: number;
+  constructor(startFrom: number) { this.next = startFrom; }
+  allocate(): number { return this.next++; }
+  current(): number { return this.next; }
+}
 
 /**
  * Simple per-session promise chain to serialize appends.

@@ -79,13 +79,7 @@ describe('session-streaming', () => {
         id: 'msg-1',
         role: 'assistant',
       });
-      expect(record).toHaveProperty('timestamp');
-    });
-
-    it('includes meta when provided', async () => {
-      await recordStreamStart(deps, 'sess-1', 'msg-1', { model: 'opus' });
-      const record = deps.written[0][0];
-      expect(record).toMatchObject({ meta: { model: 'opus' } });
+      expect(record).toHaveProperty('ts');
     });
 
     it('throws if session not found', async () => {
@@ -212,7 +206,7 @@ describe('session-streaming', () => {
         id: 'msg-1',
         reason: 'user cancelled',
       });
-      expect(deps.written[0][0]).toHaveProperty('timestamp');
+      expect(deps.written[0][0]).toHaveProperty('ts');
     });
   });
 });

@@ -44,8 +44,8 @@ export async function createWorkAgent(deps: LifecycleDeps, config: WorkAgentConf
 
   deps.registerSession(session, 'ready');
   await writeRecords(deps.sessionsDir, session.id, [{
-    t: 'header', v: JSONL_VERSION, id: session.id, title: session.title,
-    createdAt: now, updatedAt: now, parentId: config.parentId, metadata,
+    t: 'header', v: JSONL_VERSION, seq: 0, ts: now, id: session.id, title: session.title,
+    createdAt: now, parentId: config.parentId, metadata,
   }]);
   getEventBus().emit({ type: 'SessionChange', sessionId: session.id, action: 'created', timestamp: now });
   return session;
@@ -81,7 +81,7 @@ export async function transitionState(
   session.metadata = { ...session.metadata, lifecycle: updatedLifecycle };
   session.updatedAt = now;
 
-  await deps.writeRecords(sessionId, [{ t: 'meta', updatedAt: now, patch: { lifecycle: updatedLifecycle } } satisfies JournalMeta]);
+  await deps.writeRecords(sessionId, [{ t: 'meta', seq: 0, ts: now, patch: { lifecycle: updatedLifecycle } } satisfies JournalMeta]);
   getEventBus().emit({ type: 'LifecycleTransition', sessionId, from: currentState, to: newState, reason, actor, timestamp: now });
   return session;
 }
