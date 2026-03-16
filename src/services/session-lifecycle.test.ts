@@ -7,7 +7,7 @@ import { getEventBus } from '@/shared/event-bus';
 
 vi.mock('./session-journal', () => ({
   writeRecords: vi.fn(),
-  JSONL_VERSION: 2,
+  JSONL_VERSION: '0.3.0',
 }));
 
 function makeDeps(sessions?: Map<string, Session>): LifecycleDeps {
