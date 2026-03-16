@@ -382,12 +382,13 @@ describe('SessionService', () => {
       await writeFile(join(sessionsDir, `${sessionId}.jsonl`), content, 'utf-8');
 
       // Replay should reconstruct the partial message
-      const session = await replaySession(sessionsDir, sessionId);
+      const result = await replaySession(sessionsDir, sessionId);
 
-      expect(session).not.toBeNull();
-      expect(session!.messages).toHaveLength(2); // user msg + reconstructed assistant
-      expect(session!.messages[1].role).toBe('assistant');
-      expect(session!.messages[1].content).toBe('Part one');
+      expect(result).not.toBeNull();
+      const session = result!.session;
+      expect(session.messages).toHaveLength(2); // user msg + reconstructed assistant
+      expect(session.messages[1].role).toBe('assistant');
+      expect(session.messages[1].content).toBe('Part one');
     });
 
     it('should handle out-of-order deltas via seq sorting', async () => {
@@ -409,8 +410,9 @@ describe('SessionService', () => {
         'utf-8',
       );
 
-      const session = await replaySession(dir, sessionId);
-      expect(session!.messages[0].content).toBe('A B C');
+      const result = await replaySession(dir, sessionId);
+      const session = result!.session;
+      expect(session.messages[0].content).toBe('A B C');
     });
 
     it('should preserve partial content on abort', async () => {
@@ -449,8 +451,9 @@ describe('SessionService', () => {
         'utf-8',
       );
 
-      const session = await replaySession(dir, sessionId);
-      expect(session!.messages).toHaveLength(0);
+      const result = await replaySession(dir, sessionId);
+      const session = result!.session;
+      expect(session.messages).toHaveLength(0);
     });
   });
 
@@ -888,7 +891,7 @@ describe('SessionService', () => {
       const sessionId = 'sess_bad_header';
       await writeFile(
         join(dir, `${sessionId}.jsonl`),
-        JSON.stringify({ t: 'message', id: 'x', role: 'user', content: '', timestamp: 1 }) + '\n',
+        JSON.stringify({ t: 'message', seq: 0, ts: 1, id: 'x', role: 'user', content: '' }) + '\n',
         'utf-8',
       );
 
@@ -902,16 +905,17 @@ describe('SessionService', () => {
 
       const sessionId = 'sess_malformed_line';
       const lines = [
-        JSON.stringify({ t: 'header', v: JSONL_VERSION, id: sessionId, createdAt: 1, updatedAt: 1, metadata: {} }),
+        JSON.stringify({ t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: sessionId, createdAt: 1, metadata: {} }),
         '{{bad json}}',
-        JSON.stringify({ t: 'message', id: 'msg_1', role: 'user', content: 'Good', timestamp: 1 }),
+        JSON.stringify({ t: 'message', seq: 1, ts: 1, id: 'msg_1', role: 'user', content: 'Good' }),
       ];
       await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
 
-      const session = await replaySession(dir, sessionId);
-      expect(session).not.toBeNull();
-      expect(session!.messages).toHaveLength(1);
-      expect(session!.messages[0].content).toBe('Good');
+      const result = await replaySession(dir, sessionId);
+      expect(result).not.toBeNull();
+      const session = result!.session;
+      expect(session.messages).toHaveLength(1);
+      expect(session.messages[0].content).toBe('Good');
     });
   });
 
@@ -959,7 +963,7 @@ describe('SessionService', () => {
       const header = records[0] as Record<string, unknown>;
       expect(header.t).toBe('header');
       expect(header.title).toBe('Consolidate Me');
-      expect(header.updatedAt).toBe(2000);
+      expect(header.ts).toBe(2000);
       expect((header.metadata as Record<string, unknown>).key).toBe('value');
 
       const msg1 = records[1] as Record<string, unknown>;
@@ -983,7 +987,7 @@ describe('SessionService', () => {
       };
 
       await writeRecords(dir, session.id, [
-        { t: 'header', v: JSONL_VERSION, id: session.id, createdAt: 1, updatedAt: 1, metadata: {} },
+        { t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: session.id, createdAt: 1, metadata: {} },
       ]);
 
       await consolidateSession(dir, session);
@@ -1024,16 +1028,17 @@ describe('SessionService', () => {
 
       const sessionId = 'sess_meta_order';
       const lines = [
-        JSON.stringify({ t: 'header', v: JSONL_VERSION, id: sessionId, title: 'V1', createdAt: 1, updatedAt: 1, metadata: {} }),
-        JSON.stringify({ t: 'meta', updatedAt: 2, patch: { title: 'V2', color: 'blue' } }),
-        JSON.stringify({ t: 'meta', updatedAt: 3, patch: { title: 'V3' } }),
+        JSON.stringify({ t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: sessionId, title: 'V1', createdAt: 1, metadata: {} }),
+        JSON.stringify({ t: 'meta', seq: 1, ts: 2, patch: { title: 'V2', color: 'blue' } }),
+        JSON.stringify({ t: 'meta', seq: 2, ts: 3, patch: { title: 'V3' } }),
       ];
       await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
 
-      const session = await replaySession(dir, sessionId);
-      expect(session!.title).toBe('V3');
-      expect(session!.updatedAt).toBe(3);
-      expect(session!.metadata.color).toBe('blue');
+      const result = await replaySession(dir, sessionId);
+      const session = result!.session;
+      expect(session.title).toBe('V3');
+      expect(session.updatedAt).toBe(3);
+      expect(session.metadata.color).toBe('blue');
     });
 
     it('should prioritize message_final over deltas', async () => {
@@ -1055,9 +1060,10 @@ describe('SessionService', () => {
         'utf-8',
       );
 
-      const session = await replaySession(dir, sessionId);
-      expect(session!.messages).toHaveLength(1);
-      expect(session!.messages[0].content).toBe('Authoritative final content');
+      const result = await replaySession(dir, sessionId);
+      const session = result!.session;
+      expect(session.messages).toHaveLength(1);
+      expect(session.messages[0].content).toBe('Authoritative final content');
     });
   });
 
@@ -1069,7 +1075,7 @@ describe('SessionService', () => {
       // dir doesn't exist yet
 
       await appendRecord(dir, 'sess_x', {
-        t: 'header', v: JSONL_VERSION, id: 'sess_x', createdAt: 1, updatedAt: 1, metadata: {},
+        t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: 'sess_x', createdAt: 1, metadata: {},
       });
 
       const content = await readFile(join(dir, 'sess_x.jsonl'), 'utf-8');
@@ -1082,13 +1088,13 @@ describe('SessionService', () => {
       await mkdir(dir, { recursive: true });
 
       await writeRecords(dir, 'sess_y', [
-        { t: 'header', v: JSONL_VERSION, id: 'sess_y', createdAt: 1, updatedAt: 1, metadata: {} },
-        { t: 'message', id: 'msg_1', role: 'user', content: 'First', timestamp: 1 },
+        { t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: 'sess_y', createdAt: 1, metadata: {} },
+        { t: 'message', seq: 1, ts: 1, id: 'msg_1', role: 'user', content: 'First' },
       ]);
 
       // Overwrite with different content
       await writeRecords(dir, 'sess_y', [
-        { t: 'header', v: JSONL_VERSION, id: 'sess_y', createdAt: 1, updatedAt: 2, metadata: {} },
+        { t: 'header', v: JSONL_VERSION, seq: 0, ts: 2, id: 'sess_y', createdAt: 1, metadata: {} },
       ]);
 
       const records = await readJsonl(join(dir, 'sess_y.jsonl'));
@@ -1373,8 +1379,9 @@ describe('SessionService', () => {
       await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
 
       // Full replay should pick up parentId from meta patch
-      const session = await replaySession(dir, sessionId);
-      expect(session!.parentId).toBe('sess_old_parent');
+      const result = await replaySession(dir, sessionId);
+      const session = result!.session;
+      expect(session.parentId).toBe('sess_old_parent');
 
       // Metadata-only replay reads only the header — won't see the meta patch.
       // After consolidation (which runs automatically), the header will include parentId.
@@ -1397,8 +1404,9 @@ describe('SessionService', () => {
       await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
 
       // Full replay
-      const session = await replaySession(dir, sessionId);
-      expect(session!.parentId).toBe('sess_original');
+      const result = await replaySession(dir, sessionId);
+      const session = result!.session;
+      expect(session.parentId).toBe('sess_original');
 
       // Metadata-only replay
       const meta = await replaySessionMetadata(dir, sessionId);
@@ -1616,9 +1624,9 @@ describe('SessionService', () => {
       // Header has everything consolidation bakes in: title, metadata, updatedAt
       const sessionId = 'sess_meta_only';
       const lines = [
-        JSON.stringify({ t: 'header', v: JSONL_VERSION, id: sessionId, title: 'Consolidated Title', createdAt: 1, updatedAt: 500, metadata: { foo: 'bar', baz: 42 } }),
-        JSON.stringify({ t: 'message', id: 'msg_1', role: 'user', content: 'Hello', timestamp: 600 }),
-        JSON.stringify({ t: 'meta', updatedAt: 700, patch: { title: 'Post-Consolidation Rename' } }),
+        JSON.stringify({ t: 'header', v: JSONL_VERSION, seq: 0, ts: 500, id: sessionId, title: 'Consolidated Title', createdAt: 1, metadata: { foo: 'bar', baz: 42 } }),
+        JSON.stringify({ t: 'message', seq: 1, ts: 600, id: 'msg_1', role: 'user', content: 'Hello' }),
+        JSON.stringify({ t: 'meta', seq: 2, ts: 700, patch: { title: 'Post-Consolidation Rename' } }),
       ];
       await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
 
@@ -1666,9 +1674,11 @@ describe('SessionService', () => {
       const deltas = records.filter((r) => (r as Record<string, unknown>).t === 'message_delta');
       expect(deltas).toHaveLength(5);
 
-      // Verify order preserved
-      expect((deltas[0] as Record<string, unknown>).seq).toBe(0);
-      expect((deltas[4] as Record<string, unknown>).seq).toBe(4);
+      // Verify order preserved (server assigns seq; values are monotonically increasing)
+      const seqs = deltas.map((d) => (d as Record<string, unknown>).seq as number);
+      for (let i = 1; i < seqs.length; i++) {
+        expect(seqs[i]).toBeGreaterThan(seqs[i - 1]);
+      }
     });
 
     it('batch deltas should be recoverable on crash (no finalize)', async () => {
@@ -1692,11 +1702,12 @@ describe('SessionService', () => {
       );
 
       // Replay should reconstruct from orphaned deltas
-      const session = await replaySession(dir, sessionId);
-      expect(session).not.toBeNull();
-      expect(session!.messages).toHaveLength(1);
-      expect(session!.messages[0].content).toBe('Batch recovery test');
-      expect(session!.messages[0].role).toBe('assistant');
+      const result = await replaySession(dir, sessionId);
+      expect(result).not.toBeNull();
+      const session = result!.session;
+      expect(session.messages).toHaveLength(1);
+      expect(session.messages[0].content).toBe('Batch recovery test');
+      expect(session.messages[0].role).toBe('assistant');
     });
 
     it('recordStreamDeltaBatch should no-op for empty array', async () => {
@@ -1720,14 +1731,14 @@ describe('SessionService', () => {
       const sessionId = 'sess_multi';
       // Write header first
       await writeRecords(dir, sessionId, [
-        { t: 'header', v: JSONL_VERSION, id: sessionId, createdAt: 1, updatedAt: 1, metadata: {} },
+        { t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: sessionId, createdAt: 1, metadata: {} },
       ]);
 
       // Batch append multiple records
       await appendRecords(dir, sessionId, [
-        { t: 'message', id: 'msg_1', role: 'user', content: 'First', timestamp: 1 },
-        { t: 'message', id: 'msg_2', role: 'user', content: 'Second', timestamp: 2 },
-        { t: 'message', id: 'msg_3', role: 'user', content: 'Third', timestamp: 3 },
+        { t: 'message', seq: 1, ts: 1, id: 'msg_1', role: 'user', content: 'First' },
+        { t: 'message', seq: 2, ts: 2, id: 'msg_2', role: 'user', content: 'Second' },
+        { t: 'message', seq: 3, ts: 3, id: 'msg_3', role: 'user', content: 'Third' },
       ]);
 
       const records = await readJsonl(join(dir, `${sessionId}.jsonl`));
@@ -1742,7 +1753,7 @@ describe('SessionService', () => {
 
       const sessionId = 'sess_empty_batch';
       await writeRecords(dir, sessionId, [
-        { t: 'header', v: JSONL_VERSION, id: sessionId, createdAt: 1, updatedAt: 1, metadata: {} },
+        { t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: sessionId, createdAt: 1, metadata: {} },
       ]);
 
       await appendRecords(dir, sessionId, []);
@@ -1804,15 +1815,16 @@ describe('SessionService', () => {
 
       const sessionId = 'sess_updatedAt_meta';
       const lines = [
-        JSON.stringify({ t: 'header', v: JSONL_VERSION, id: sessionId, createdAt: 100, updatedAt: 100, metadata: {} }),
-        JSON.stringify({ t: 'message', id: 'msg_1', role: 'user', content: 'Hello', timestamp: 500 }),
-        JSON.stringify({ t: 'message_final', id: 'msg_a1', role: 'assistant', content: 'Hi', timestamp: 800, stopReason: 'end_turn' }),
+        JSON.stringify({ t: 'header', v: JSONL_VERSION, seq: 0, ts: 100, id: sessionId, createdAt: 100, metadata: {} }),
+        JSON.stringify({ t: 'message', seq: 1, ts: 500, id: 'msg_1', role: 'user', content: 'Hello' }),
+        JSON.stringify({ t: 'message_final', seq: 2, ts: 800, id: 'msg_a1', role: 'assistant', content: 'Hi', stopReason: 'end_turn' }),
       ];
       await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
 
       // Full replay picks up updatedAt from message records
-      const full = await replaySession(dir, sessionId);
-      expect(full!.updatedAt).toBe(800);
+      const fullResult = await replaySession(dir, sessionId);
+      const full = fullResult!.session;
+      expect(full.updatedAt).toBe(800);
 
       // Metadata replay reads only the header — returns the header's updatedAt.
       // After consolidation, the header's updatedAt would be 800 too.
@@ -1827,13 +1839,14 @@ describe('SessionService', () => {
       // Scenario: only a header + message_start (stream started, never finalized)
       const sessionId = 'sess_start_only';
       const lines = [
-        JSON.stringify({ t: 'header', v: JSONL_VERSION, id: sessionId, createdAt: 1, updatedAt: 1, metadata: {} }),
-        JSON.stringify({ t: 'message_start', id: 'msg_s1', role: 'assistant', timestamp: 10, meta: {} }),
+        JSON.stringify({ t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: sessionId, createdAt: 1, metadata: {} }),
+        JSON.stringify({ t: 'message_start', seq: 1, ts: 10, id: 'msg_s1', role: 'assistant' }),
       ];
       await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
 
-      const full = await replaySession(dir, sessionId);
-      expect(full!.updatedAt).toBe(10);
+      const fullResult = await replaySession(dir, sessionId);
+      const full = fullResult!.session;
+      expect(full.updatedAt).toBe(10);
 
       // Metadata replay only reads the header — returns header's updatedAt
       const meta = await replaySessionMetadata(dir, sessionId);
@@ -1847,14 +1860,15 @@ describe('SessionService', () => {
       // Scenario: header + message_start + message_abort (stream started then aborted)
       const sessionId = 'sess_abort_ts';
       const lines = [
-        JSON.stringify({ t: 'header', v: JSONL_VERSION, id: sessionId, createdAt: 1, updatedAt: 1, metadata: {} }),
-        JSON.stringify({ t: 'message_start', id: 'msg_a1', role: 'assistant', timestamp: 10, meta: {} }),
-        JSON.stringify({ t: 'message_abort', id: 'msg_a1', reason: 'cancelled', timestamp: 20 }),
+        JSON.stringify({ t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: sessionId, createdAt: 1, metadata: {} }),
+        JSON.stringify({ t: 'message_start', seq: 1, ts: 10, id: 'msg_a1', role: 'assistant' }),
+        JSON.stringify({ t: 'message_abort', seq: 2, ts: 20, id: 'msg_a1', reason: 'cancelled' }),
       ];
       await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
 
-      const full = await replaySession(dir, sessionId);
-      expect(full!.updatedAt).toBe(20);
+      const fullResult = await replaySession(dir, sessionId);
+      const full = fullResult!.session;
+      expect(full.updatedAt).toBe(20);
     });
 
     it('replaySessionMetadata reads only the header (ignores body records)', async () => {
@@ -1865,9 +1879,9 @@ describe('SessionService', () => {
       // Metadata replay should only use the header value — body is deferred to full replay.
       const sessionId = 'sess_header_only';
       const lines = [
-        JSON.stringify({ t: 'header', v: JSONL_VERSION, id: sessionId, title: 'Original', createdAt: 1, updatedAt: 1, metadata: { foo: 'bar' } }),
-        JSON.stringify({ t: 'meta', updatedAt: 50, patch: { title: 'Renamed' } }),
-        JSON.stringify({ t: 'message', id: 'msg1', role: 'user', content: 'hello', timestamp: 100 }),
+        JSON.stringify({ t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: sessionId, title: 'Original', createdAt: 1, metadata: { foo: 'bar' } }),
+        JSON.stringify({ t: 'meta', seq: 1, ts: 50, patch: { title: 'Renamed' } }),
+        JSON.stringify({ t: 'message', seq: 2, ts: 100, id: 'msg1', role: 'user', content: 'hello' }),
       ];
       await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
 
@@ -1880,9 +1894,10 @@ describe('SessionService', () => {
       expect(meta!.messages).toEqual([]);
 
       // Full replay sees the body records
-      const full = await replaySession(dir, sessionId);
-      expect(full!.updatedAt).toBe(100);
-      expect(full!.title).toBe('Renamed');
+      const fullResult = await replaySession(dir, sessionId);
+      const full = fullResult!.session;
+      expect(full.updatedAt).toBe(100);
+      expect(full.title).toBe('Renamed');
     });
 
     it('recordMessage with old timestamp should still advance durable updatedAt', async () => {
@@ -2074,14 +2089,14 @@ describe('SessionService', () => {
       const sessionId = 'sess_legacy_hydrate';
       const lines = [
         JSON.stringify({
-          t: 'header', v: JSONL_VERSION, id: sessionId, title: 'Old Title',
-          createdAt: 1, updatedAt: 1, metadata: {},
+          t: 'header', v: JSONL_VERSION, seq: 0, ts: 1, id: sessionId, title: 'Old Title',
+          createdAt: 1, metadata: {},
         }),
         JSON.stringify({
-          t: 'meta', updatedAt: 100, patch: { title: 'New Title' },
+          t: 'meta', seq: 1, ts: 100, patch: { title: 'New Title' },
         }),
         JSON.stringify({
-          t: 'message', id: 'msg_1', role: 'user', content: 'Hello', timestamp: 200,
+          t: 'message', seq: 2, ts: 200, id: 'msg_1', role: 'user', content: 'Hello',
         }),
       ];
       await writeFile(join(dir, `${sessionId}.jsonl`), lines.join('\n') + '\n', 'utf-8');
@@ -2109,7 +2124,7 @@ describe('SessionService', () => {
       const records = await readJsonl(join(dir, `${sessionId}.jsonl`));
       const header = records[0] as Record<string, unknown>;
       expect(header.title).toBe('New Title');
-      expect(header.updatedAt).toBe(200);
+      expect(header.ts).toBe(200);
     });
 
     it('delete should clean up hydration status', async () => {
