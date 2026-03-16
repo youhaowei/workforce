@@ -24,24 +24,24 @@ export interface StreamingDeps {
 }
 
 export async function recordStreamStart(
-  deps: StreamingDeps, sessionId: string, messageId: string, meta?: Record<string, unknown>,
+  deps: StreamingDeps, sessionId: string, messageId: string,
 ): Promise<void> {
   await deps.ensureInitialized();
   if (!deps.sessions.has(sessionId)) throw new Error(`Session not found: ${sessionId}`);
-  await deps.writeRecords(sessionId, [{ t: 'message_start', id: messageId, role: 'assistant', timestamp: Date.now(), meta }]);
+  await deps.writeRecords(sessionId, [{ t: 'message_start', seq: 0, ts: Date.now(), id: messageId, role: 'assistant' }]);
 }
 
 export async function recordStreamDelta(
   deps: StreamingDeps, sessionId: string, messageId: string, delta: string, seq: number,
 ): Promise<void> {
-  await deps.writeRecords(sessionId, [{ t: 'message_delta', id: messageId, delta, seq }]);
+  await deps.writeRecords(sessionId, [{ t: 'message_delta', seq, ts: Date.now(), id: messageId, delta }]);
 }
 
 export async function recordStreamDeltaBatch(
   deps: StreamingDeps, sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>,
 ): Promise<void> {
   if (deltas.length === 0) return;
-  await deps.writeRecords(sessionId, deltas.map((d) => ({ t: 'message_delta' as const, id: messageId, delta: d.delta, seq: d.seq })));
+  await deps.writeRecords(sessionId, deltas.map((d) => ({ t: 'message_delta' as const, seq: d.seq, ts: Date.now(), id: messageId, delta: d.delta })));
 }
 
 export async function recordStreamEnd(
@@ -58,7 +58,7 @@ export async function recordStreamEnd(
 
   const now = Date.now();
   const record: JournalMessageFinal = {
-    t: 'message_final', id: messageId, role: 'assistant', content: fullContent, timestamp: now, stopReason,
+    t: 'message_final', seq: 0, ts: now, id: messageId, role: 'assistant', content: fullContent, stopReason,
     ...(toolActivities?.length ? { toolActivities } : {}),
     ...(contentBlocks?.length ? { contentBlocks } : {}),
   };
@@ -80,7 +80,7 @@ export async function recordStreamBlocks(
   contentBlocks: ContentBlock[], toolActivities?: ToolActivity[],
 ): Promise<void> {
   await deps.writeRecords(sessionId, [{
-    t: 'message_blocks', id: messageId, contentBlocks,
+    t: 'message_blocks', seq: 0, ts: Date.now(), id: messageId, contentBlocks,
     ...(toolActivities?.length ? { toolActivities } : {}),
   }]);
 }
@@ -88,5 +88,5 @@ export async function recordStreamBlocks(
 export async function recordStreamAbort(
   deps: StreamingDeps, sessionId: string, messageId: string, reason: string,
 ): Promise<void> {
-  await deps.writeRecords(sessionId, [{ t: 'message_abort', id: messageId, reason, timestamp: Date.now() }]);
+  await deps.writeRecords(sessionId, [{ t: 'message_abort', seq: 0, ts: Date.now(), id: messageId, reason }]);
 }
