@@ -11,8 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { RefreshCcw, Loader2 } from 'lucide-react';
 import type { Project } from '@/services/types';
 import { MessageList, MessageInput } from '../Messages';
+import { useCCSyncBanner } from '@/ui/hooks/useCCSyncBanner';
 import type { AgentConfig } from '@/services/types';
 import type { ForkInfo } from '../Messages/MessageItem';
 
@@ -62,6 +64,7 @@ export function SessionsView({
   onFork,
   onSelectSession,
 }: SessionsViewProps) {
+  const { hasUpdate, isSyncing, handleSync } = useCCSyncBanner(sessionId ?? undefined);
   const hasMessages = messages.length > 0 || isStreaming;
 
   // Messages exist: standard chat layout (message list + input at bottom)
@@ -81,10 +84,28 @@ export function SessionsView({
         <div className="absolute bottom-0 left-0 z-10 pointer-events-none chat-input-fade" />
         <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none">
           <div className="pointer-events-auto">
+            {hasUpdate && (
+              <div role="alert" className="flex items-center gap-2 max-w-3xl mx-auto w-full px-3 py-2 mb-2 rounded-lg bg-amber-500/10 backdrop-blur-xl border border-amber-500/20 text-xs text-amber-700">
+                <RefreshCcw className="h-3.5 w-3.5 shrink-0" />
+                <span className="flex-1">This session has new activity from Claude Code</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-500/10"
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                >
+                  {isSyncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                  {isSyncing ? 'Syncing...' : 'Sync Now'}
+                </Button>
+              </div>
+            )}
             <MessageInput
               onSubmit={onSubmit}
               onCancel={onCancel}
               isStreaming={isStreaming}
+              disabled={hasUpdate}
+              disabledMessage="Sync required — this session has new activity from Claude Code"
               sessionId={sessionId}
               messages={messages}
             />

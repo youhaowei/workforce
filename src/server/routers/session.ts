@@ -1,9 +1,11 @@
 import { z } from 'zod';
-import { resolve, relative } from 'path';
+import { resolve, relative, join } from 'path';
 import { readFile, realpath, stat } from 'fs/promises';
+import { homedir } from 'os';
 import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc';
 import { getSessionService } from '@/services/session';
+import { discoverCCSessions } from '@/services/cc-reader';
 import { getOrchestrationService } from './_services';
 import type { LifecycleState, PlanArtifact } from '@/services/types';
 
@@ -312,4 +314,36 @@ export const sessionRouter = router({
         metadata: { ...session.metadata, planArtifacts: existing },
       });
     }),
+
+  // ─── CC Session Sync ──────────────────────────────────────────────
+
+  discoverCC: publicProcedure
+    .input(z.object({
+      projectPath: z.string().optional(),
+    }).optional())
+    .query(({ input }) => discoverCCSessions(input?.projectPath ?? process.cwd())),
+
+  importCC: publicProcedure
+    .input(z.object({ ccFilePath: z.string(), orgId: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      // P0: Validate path is under ~/.claude/projects/ to prevent path traversal
+      const ccProjectsDir = join(homedir(), '.claude', 'projects');
+      const real = await realpath(resolve(input.ccFilePath)).catch(() => '');
+      if (!real.startsWith(ccProjectsDir)) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'CC file path must be within ~/.claude/projects/' });
+      }
+      return getSessionService().importCCSession(real, input.orgId);
+    }),
+
+  checkCCSync: publicProcedure
+    .input(z.object({ sessionId: z.string() }))
+    .query(({ input }) => getSessionService().checkCCSync(input.sessionId)),
+
+  syncCC: publicProcedure
+    .input(z.object({ sessionId: z.string() }))
+    .mutation(({ input }) => getSessionService().syncCCSession(input.sessionId)),
+
+  checkCCSyncBatch: publicProcedure
+    .input(z.object({ sessionIds: z.array(z.string()).max(100) }))
+    .query(({ input }) => getSessionService().checkCCSyncBatch(input.sessionIds)),
 });

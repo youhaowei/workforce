@@ -27,7 +27,7 @@ export interface TaskUpdateEvent {
 export interface SessionChangeEvent {
   type: 'SessionChange';
   sessionId: string;
-  action: 'created' | 'updated' | 'resumed' | 'suspended' | 'terminated';
+  action: 'created' | 'updated' | 'resumed' | 'suspended' | 'terminated' | 'cc_source_changed';
   timestamp: number;
 }
 

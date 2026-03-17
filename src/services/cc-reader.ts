@@ -43,18 +43,18 @@ export interface CCImportResult {
   };
 }
 
-export async function readCCSession(filePath: string): Promise<CCImportResult | null> {
+// Re-export discovery API from dedicated module
+export { discoverCCSessions, projectPathToSlug, type CCSessionSummary } from './cc-discovery';
+
+export async function readCCSession(filePath: string, skipLines = 0): Promise<CCImportResult | null> {
   let raw: string;
-  try {
-    raw = await readFile(filePath, 'utf-8');
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    throw err;
-  }
+  try { raw = await readFile(filePath, 'utf-8'); }
+  catch (err) { if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null; throw err; }
 
-  const lines = raw.split('\n').filter((l) => l.trim().length > 0);
+  const allLines = raw.split('\n').filter((l) => l.trim().length > 0);
+  if (allLines.length === 0) return null;
+  const lines = skipLines > 0 ? allLines.slice(skipLines) : allLines;
   if (lines.length === 0) return null;
-
   return parseCCRecords(lines, filePath);
 }
 

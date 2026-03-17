@@ -81,7 +81,8 @@ interface ReplayContext {
 }
 
 function processMetaRecord(ctx: ReplayContext, record: JournalRecord & { t: 'meta' }): void {
-  ctx.session.updatedAt = record.ts;
+  const ts = record.ts ?? (record as unknown as { updatedAt?: number }).updatedAt ?? ctx.session.updatedAt;
+  ctx.session.updatedAt = ts;
   // Extract top-level session fields before merging into metadata
   if ('title' in record.patch && typeof record.patch.title === 'string') {
     ctx.session.title = record.patch.title;
@@ -94,18 +95,19 @@ function processMetaRecord(ctx: ReplayContext, record: JournalRecord & { t: 'met
 }
 
 function processMessageRecord(ctx: ReplayContext, record: JournalRecord & { t: 'message' }): void {
+  const ts = record.ts ?? (record as unknown as { timestamp?: number }).timestamp ?? 0;
   ctx.session.messages.push({
     id: record.id,
     role: record.role,
     content: record.content,
-    timestamp: record.ts,
+    timestamp: ts,
     agentConfig: record.agentConfig,
     toolCalls: record.toolCalls,
     toolResults: record.toolResults,
     toolActivities: record.toolActivities,
     contentBlocks: record.contentBlocks,
   });
-  if (record.ts > ctx.session.updatedAt) ctx.session.updatedAt = record.ts;
+  if (ts > ctx.session.updatedAt) ctx.session.updatedAt = ts;
 }
 
 function processMessageStart(ctx: ReplayContext, record: JournalRecord & { t: 'message_start' }): void {
@@ -121,13 +123,14 @@ function processMessageDelta(ctx: ReplayContext, record: JournalRecord & { t: 'm
 }
 
 function processMessageFinal(ctx: ReplayContext, record: JournalRecord & { t: 'message_final' }): void {
+  const ts = record.ts ?? (record as unknown as { timestamp?: number }).timestamp ?? 0;
   ctx.finalizedIds.add(record.id);
   ctx.activeStreams.delete(record.id);
   ctx.session.messages.push({
     id: record.id,
     role: record.role,
     content: record.content,
-    timestamp: record.ts,
+    timestamp: ts,
     model: record.model,
     usage: record.usage,
     toolCalls: record.toolCalls,
@@ -135,7 +138,7 @@ function processMessageFinal(ctx: ReplayContext, record: JournalRecord & { t: 'm
     toolActivities: record.toolActivities,
     contentBlocks: record.contentBlocks,
   });
-  if (record.ts > ctx.session.updatedAt) ctx.session.updatedAt = record.ts;
+  if (ts > ctx.session.updatedAt) ctx.session.updatedAt = ts;
 }
 
 function processMessageBlocks(ctx: ReplayContext, record: JournalRecord & { t: 'message_blocks' }): void {
@@ -292,7 +295,7 @@ export async function replaySession(sessionsDir: string, sessionId: string): Pro
       id: header.id,
       title: header.title,
       createdAt: header.createdAt,
-      updatedAt: header.ts,
+      updatedAt: header.ts ?? (header as unknown as { updatedAt?: number }).updatedAt ?? header.createdAt,
       parentId: header.parentId,
       messages: [],
       metadata: { ...header.metadata },
@@ -350,7 +353,7 @@ export async function replaySessionMetadata(sessionsDir: string, sessionId: stri
     id: header.id,
     title: header.title,
     createdAt: header.createdAt,
-    updatedAt: header.ts,
+    updatedAt: header.ts ?? (header as unknown as { updatedAt?: number }).updatedAt ?? header.createdAt,
     parentId: header.parentId,
     messages: [],
     metadata: { ...header.metadata },

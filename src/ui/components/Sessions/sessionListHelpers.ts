@@ -7,7 +7,7 @@
 
 import type { Project, SessionLifecycle, SessionSummary, SessionType } from '@/services/types';
 
-export type GroupByMode = 'none' | 'date' | 'project' | 'status';
+export type GroupByMode = 'none' | 'date' | 'active' | 'project' | 'status';
 
 export interface SessionGroup {
   key: string;
@@ -84,29 +84,37 @@ function dateKey(timestamp: number): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+export type SortDirection = 'asc' | 'desc';
+
+function groupByTimestamp(sessions: SessionSummary[], field: 'createdAt' | 'updatedAt', dir: SortDirection): SessionGroup[] {
+  const grouped = new Map<string, SessionSummary[]>();
+  for (const session of sessions) {
+    const ts = session[field];
+    const key = dateKey(ts);
+    const arr = grouped.get(key) ?? [];
+    arr.push(session);
+    grouped.set(key, arr);
+  }
+  const mul = dir === 'desc' ? 1 : -1;
+  return [...grouped.entries()]
+    .sort(([a], [b]) => mul * b.localeCompare(a))
+    .map(([key, items]) => ({
+      key,
+      label: formatDateGroupLabel(new Date(items[0][field])),
+      sessions: items,
+    }));
+}
+
 export function groupSessions(
   filteredSessions: SessionSummary[],
   groupBy: GroupByMode,
   projectMap?: Map<string, Project>,
+  sortDir: SortDirection = 'desc',
 ): SessionGroup[] | null {
   if (groupBy === 'none') return null;
 
-  if (groupBy === 'date') {
-    const grouped = new Map<string, SessionSummary[]>();
-    for (const session of filteredSessions) {
-      const key = dateKey(session.updatedAt);
-      const arr = grouped.get(key) ?? [];
-      arr.push(session);
-      grouped.set(key, arr);
-    }
-    // Sort by date descending (most recent first)
-    return [...grouped.entries()]
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([key, sessions]) => ({
-        key,
-        label: formatDateGroupLabel(new Date(sessions[0].updatedAt)),
-        sessions,
-      }));
+  if (groupBy === 'date' || groupBy === 'active') {
+    return groupByTimestamp(filteredSessions, groupBy === 'date' ? 'createdAt' : 'updatedAt', sortDir);
   }
 
   if (groupBy === 'project') {
@@ -131,23 +139,30 @@ export function groupSessions(
         });
       }
     }
+    const mul = sortDir === 'desc' ? -1 : 1;
     return result.sort((a, b) => {
       if (a.key === '__ungrouped__') return 1;
       if (b.key === '__ungrouped__') return -1;
-      return a.label.localeCompare(b.label);
+      return mul * a.label.localeCompare(b.label);
     });
   }
 
   // Group by status
+  return groupByStatus(filteredSessions, sortDir);
+}
+
+function groupByStatus(sessions: SessionSummary[], dir: SortDirection): SessionGroup[] {
   const grouped = new Map<string, SessionSummary[]>();
-  for (const session of filteredSessions) {
+  for (const session of sessions) {
     const lifecycle = session.metadata?.lifecycle as SessionLifecycle | undefined;
     const state = lifecycle?.state ?? 'created';
     const arr = grouped.get(state) ?? [];
     arr.push(session);
     grouped.set(state, arr);
   }
-  const stateOrder = ['active', 'created', 'paused', 'completed', 'failed', 'cancelled'];
+  const stateOrder = dir === 'desc'
+    ? ['active', 'created', 'paused', 'completed', 'failed', 'cancelled']
+    : ['cancelled', 'failed', 'completed', 'paused', 'created', 'active'];
   return stateOrder
     .filter((s) => grouped.has(s))
     .map((state) => ({

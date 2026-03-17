@@ -9,7 +9,8 @@
  */
 
 import { useMemo, type MouseEvent } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, EyeOff, RefreshCcw, Link2, Unlink, Loader2 } from 'lucide-react';
+import { ClaudeIcon } from '@/ui/components/icons/ClaudeIcon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDialogStore } from '@/ui/stores/useDialogStore';
@@ -31,23 +32,82 @@ const TYPE_BADGE_COLOR: Record<string, 'default' | 'warning'> = {
   workagent: 'warning',
 };
 
+function deriveTitle(session: SessionSummary): string {
+  const sessionType = (session.metadata?.type as SessionType) ?? 'chat';
+  const isCC = session.metadata?.source === 'claude-code';
+  const raw = session.title
+    || (sessionType === 'workagent' ? (session.metadata?.goal as string) ?? 'Agent' : null)
+    || (isCC ? 'Claude Session' : 'Untitled');
+  return smartTruncateTitle(stripMarkdown(raw));
+}
+
+function StatusIndicator({ isUnloaded, isImporting, dotColor }: { isUnloaded: boolean; isImporting?: boolean; dotColor: string }) {
+  if (isImporting) {
+    return <Loader2 className="h-3 w-3 shrink-0 mt-1 text-[#D97757] animate-spin" />;
+  }
+  if (isUnloaded) {
+    return <ClaudeIcon className="h-3 w-3 shrink-0 mt-1 text-[#D97757]/60" />;
+  }
+  return <span className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${dotColor}`} />;
+}
+
+function SyncBadge({ isCC, isUnloaded, isOutOfSync }: { isCC: boolean; isUnloaded: boolean; isOutOfSync?: boolean }) {
+  if (isUnloaded) {
+    return (
+      <Badge variant="outline" className="h-[18px] px-1.5 py-0 text-[10px] rounded text-neutral-fg-subtle gap-0.5">
+        <Unlink className="h-2.5 w-2.5" />
+        External
+      </Badge>
+    );
+  }
+  if (isOutOfSync) {
+    return (
+      <Badge variant="soft" color="warning" className="h-[18px] px-1.5 py-0 text-[10px] rounded gap-0.5 text-amber-600 bg-amber-500/10">
+        <RefreshCcw className="h-2.5 w-2.5" />
+        Outdated
+      </Badge>
+    );
+  }
+  if (isCC) {
+    return (
+      <Badge variant="soft" color="default" className="h-[18px] px-1.5 py-0 text-[10px] rounded gap-0.5 text-blue-600 bg-blue-500/10">
+        <Link2 className="h-2.5 w-2.5" />
+        External
+      </Badge>
+    );
+  }
+  return null;
+}
+
 export interface SessionItemProps {
   session: SessionSummary;
   isActive?: boolean;
   projectName?: string;
+  isOutOfSync?: boolean;
+  isImporting?: boolean;
+  /** Which timestamp to show as time-ago (matches groupBy mode) */
+  timeField?: 'createdAt' | 'updatedAt';
   onSelect?: (sessionId: string) => void;
   onDelete?: (sessionId: string) => void;
+  onHide?: (sessionId: string) => void;
+  onSync?: (sessionId: string) => void;
 }
 
 export function SessionItem({
   session,
   isActive,
   projectName: projectNameProp,
+  isOutOfSync,
+  isImporting,
+  timeField = 'updatedAt',
   onSelect,
   onDelete,
+  onHide,
+  onSync,
 }: SessionItemProps) {
   const timeAgo = useMemo(() => {
-    const diff = Date.now() - session.updatedAt;
+    const ts = timeField === 'createdAt' ? session.createdAt : session.updatedAt;
+    const diff = Date.now() - ts;
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) return 'just now';
     if (minutes < 60) return `${minutes}m`;
@@ -55,7 +115,7 @@ export function SessionItem({
     if (hours < 24) return `${hours}h`;
     const days = Math.floor(hours / 24);
     return `${days}d`;
-  }, [session.updatedAt]);
+  }, [session.updatedAt, session.createdAt, timeField]);
 
   const sessionType = (session.metadata?.type as SessionType) ?? 'chat';
   const lifecycle = session.metadata?.lifecycle as SessionLifecycle | undefined;
@@ -64,9 +124,9 @@ export function SessionItem({
 
   const projectName = projectNameProp;
 
-  const rawTitle = session.title
-    || (sessionType === 'workagent' ? (session.metadata?.goal as string) ?? 'Agent' : 'Untitled');
-  const title = smartTruncateTitle(stripMarkdown(rawTitle));
+  const isCC = session.metadata?.source === 'claude-code' || session.id.startsWith('cc:');
+  const isUnloaded = session.id.startsWith('cc:');
+  const title = deriveTitle(session);
 
   const typeLabel = sessionType === 'workagent' ? 'Execute' : undefined;
 
@@ -101,12 +161,12 @@ export function SessionItem({
     >
       {/* Row 1: status dot + time */}
       <div className="flex items-start gap-2">
-        <span className={`h-2 w-2 rounded-full shrink-0 mt-1.5 ${dotColor}`} />
+        <StatusIndicator isUnloaded={isUnloaded} isImporting={isImporting} dotColor={dotColor} />
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between gap-2">
             <span className={`text-sm leading-snug line-clamp-2 ${
               isActive ? 'font-medium' : ''
-            }`} title={stripMarkdown(rawTitle)}>
+            }`} title={title}>
               {title}
             </span>
             <span className="text-[11px] text-neutral-fg-subtle/60 tabular-nums shrink-0">
@@ -128,22 +188,56 @@ export function SessionItem({
             {projectName}
           </Badge>
         )}
+        {isCC && (
+          <Badge variant="soft" color="default" className="h-[18px] px-1.5 py-0 text-[10px] rounded gap-0.5 bg-[#D97757]/10 text-[#D97757]">
+            <ClaudeIcon className="h-2.5 w-2.5" />
+            Claude
+          </Badge>
+        )}
+        <SyncBadge isCC={isCC} isUnloaded={isUnloaded} isOutOfSync={isOutOfSync} />
         {session.parentId && (
           <Badge variant="outline" className="h-[18px] px-1.5 py-0 text-[10px] rounded">
             fork
           </Badge>
         )}
+        {isOutOfSync && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 shrink-0 text-amber-500 hover:text-amber-600 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+            onClick={(e: MouseEvent) => { e.stopPropagation(); onSync?.(session.id); }}
+            onKeyDown={(e) => e.stopPropagation()}
+            aria-label="Sync from Claude"
+            title="CC session has new activity — click to sync"
+          >
+            <RefreshCcw className="h-3 w-3" />
+          </Button>
+        )}
         <span className="flex-1" />
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-5 w-5 -mr-1 shrink-0 text-neutral-fg-subtle hover:text-palette-danger opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
-          onClick={handleDelete}
-          onKeyDown={(e) => e.stopPropagation()}
-          aria-label="Delete session"
-        >
-          <Trash2 className="h-3 w-3" />
-        </Button>
+        {isUnloaded ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 -mr-1 shrink-0 text-neutral-fg-subtle hover:text-neutral-fg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+            onClick={(e: MouseEvent) => { e.stopPropagation(); onHide?.(session.id); }}
+            onKeyDown={(e) => e.stopPropagation()}
+            aria-label="Hide session"
+            title="Hide from list"
+          >
+            <EyeOff className="h-3 w-3" />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 -mr-1 shrink-0 text-neutral-fg-subtle hover:text-palette-danger opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
+            onClick={handleDelete}
+            onKeyDown={(e) => e.stopPropagation()}
+            aria-label="Delete session"
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        )}
       </div>
     </div>
   );

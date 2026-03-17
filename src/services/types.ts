@@ -788,6 +788,22 @@ export interface SessionService extends Disposable {
    * runtime start as 'ready' immediately.
    */
   getHydrationStatus(sessionId: string): HydrationStatus;
+
+  // ---------------------------------------------------------------------------
+  // CC Session Sync
+  // ---------------------------------------------------------------------------
+
+  /** Import a standalone CC session as a new WF session. */
+  importCCSession(ccFilePath: string, orgId?: string): Promise<Session>;
+
+  /** Check if a WF session's linked CC source has new records. */
+  checkCCSync(sessionId: string): Promise<{ inSync: boolean; newRecordCount?: number }>;
+
+  /** Batch check CC sync status for multiple sessions. Returns map of sessionId → inSync. */
+  checkCCSyncBatch(sessionIds: string[]): Promise<Record<string, boolean>>;
+
+  /** Re-sync a WF session from its linked CC source. */
+  syncCCSession(sessionId: string): Promise<Session>;
 }
 
 // =============================================================================

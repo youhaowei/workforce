@@ -2229,4 +2229,97 @@ describe('SessionService', () => {
       expect(service.getCurrent()).toBeNull();
     });
   });
+
+  // ─── CC Session Import & Sync ────────────────────────────────────
+
+  describe('CC session import', () => {
+    it('imports a CC session as a new WF session', async () => {
+      const dir = nextDir();
+      await mkdir(dir, { recursive: true });
+      const service = createSessionService(dir);
+
+      // Create a fake CC JSONL file
+      const ccDir = join(dir, 'cc-sessions');
+      await mkdir(ccDir, { recursive: true });
+      const ccFile = join(ccDir, 'cc-test-session.jsonl');
+      const ccContent = [
+        JSON.stringify({
+          type: 'user',
+          timestamp: '2026-03-14T10:00:00.000Z',
+          sessionId: 'cc-sess-123',
+          version: '1.0.42',
+          gitBranch: 'main',
+          cwd: '/projects/test',
+          message: { role: 'user', content: 'Hello from CC' },
+        }),
+        JSON.stringify({
+          type: 'assistant',
+          timestamp: '2026-03-14T10:00:01.000Z',
+          sessionId: 'cc-sess-123',
+          message: {
+            id: 'msg-1',
+            model: 'claude-sonnet-4-20250514',
+            role: 'assistant',
+            content: [{ type: 'text', text: 'Hi from assistant' }],
+            stop_reason: null,
+            usage: { input_tokens: 100, output_tokens: 50 },
+          },
+        }),
+      ].join('\n');
+      await writeFile(ccFile, ccContent, 'utf-8');
+
+      const imported = await service.importCCSession(ccFile);
+
+      expect(imported).not.toBeNull();
+      expect(imported.metadata.source).toBe('claude-code');
+      expect(imported.metadata.ccSessionId).toBe('cc-sess-123');
+      expect(imported.metadata.ccSourcePath).toBe(ccFile);
+      expect(imported.messages.length).toBeGreaterThan(0);
+
+      // Should appear in list
+      const list = await service.list();
+      expect(list.some((s) => s.id === imported.id)).toBe(true);
+
+      service.dispose();
+    });
+
+    it('deduplicates: importing same CC session twice returns existing', async () => {
+      const dir = nextDir();
+      await mkdir(dir, { recursive: true });
+      const service = createSessionService(dir);
+
+      const ccDir = join(dir, 'cc-sessions');
+      await mkdir(ccDir, { recursive: true });
+      const ccFile = join(ccDir, 'cc-dedup.jsonl');
+      await writeFile(ccFile, JSON.stringify({
+        type: 'user',
+        timestamp: '2026-03-14T10:00:00.000Z',
+        sessionId: 'cc-dedup-1',
+        message: { role: 'user', content: 'test' },
+      }), 'utf-8');
+
+      const first = await service.importCCSession(ccFile);
+      const second = await service.importCCSession(ccFile);
+
+      expect(first.id).toBe(second.id);
+
+      // Only one session in the list
+      const list = await service.list();
+      const ccSessions = list.filter((s) => s.metadata?.ccSessionId === 'cc-dedup-1');
+      expect(ccSessions).toHaveLength(1);
+
+      service.dispose();
+    });
+
+    it('checkCCSync returns inSync for sessions without CC link', async () => {
+      const dir = nextDir();
+      const service = createSessionService(dir);
+      const session = await service.create('No CC link');
+
+      const status = await service.checkCCSync(session.id);
+      expect(status.inSync).toBe(true);
+
+      service.dispose();
+    });
+  });
 });

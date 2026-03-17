@@ -49,6 +49,8 @@ import {
 import { RehydrationManager } from './session-rehydration';
 import * as lifecycle from './session-lifecycle';
 import * as streaming from './session-streaming';
+import { CCSourceWatcher } from './cc-watcher';
+import * as ccSync from './cc-sync';
 
 const SESSIONS_DIR = join(getDataDir(), 'sessions');
 const log = createLogger('Session');
@@ -72,10 +74,12 @@ class SessionServiceImpl implements SessionService {
   private consolidationTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private _disposed = false;
   private deletedSessionIds = new Set<string>();
+  private ccWatcher = new CCSourceWatcher();
   private rehydrator: RehydrationManager;
 
   // Bound references exposed to extracted modules via deps interfaces
   private lifecycleDeps: lifecycle.LifecycleDeps;
+  private ccSyncDeps: ccSync.CCSyncDeps;
   private streamingDeps: streaming.StreamingDeps;
 
   constructor(sessionsDir?: string) {
@@ -98,6 +102,17 @@ class SessionServiceImpl implements SessionService {
       generateId,
       registerSession: (s, status) => this.registerSession(s, status),
       writeRecords: (id, records) => this.writeRecords(id, records),
+      ensureInitialized: () => this.ensureInitialized(),
+    };
+
+    this.ccSyncDeps = {
+      sessions: this.sessions,
+      seqAllocators: this.seqAllocators,
+      sessionsDir: this.sessionsDir,
+      generateId,
+      registerSession: (s, status) => this.registerSession(s, status),
+      writeRecords: (id, records) => this.writeRecords(id, records),
+      scheduleConsolidation: (id) => this.scheduleConsolidation(id),
       ensureInitialized: () => this.ensureInitialized(),
     };
 
@@ -236,8 +251,15 @@ class SessionServiceImpl implements SessionService {
     const session = await this.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
     this.currentSession = session;
+    this.watchCCSource(session);
     getEventBus().emit({ type: 'SessionChange', sessionId: session.id, action: 'resumed', timestamp: Date.now() });
     return session;
+  }
+
+  private watchCCSource(session: Session) {
+    const ccPath = session.metadata.ccSourcePath as string | undefined;
+    if (ccPath) this.ccWatcher.start(session.id, ccPath);
+    else this.ccWatcher.stop();
   }
 
   async fork(sessionId: string, options?: { atMessageIndex?: number }): Promise<Session> {
@@ -296,7 +318,10 @@ class SessionServiceImpl implements SessionService {
   async list(options?: { limit?: number; offset?: number; orgId?: string; projectId?: string }): Promise<SessionSummary[]> {
     await this.ensureInitialized();
     let results = Array.from(this.sessions.values());
-    if (options?.orgId) results = results.filter((s) => s.metadata.orgId === options.orgId);
+    if (options?.orgId) results = results.filter((s) =>
+      s.metadata.orgId === options.orgId
+      || (s.metadata.source === 'claude-code' && !s.metadata.orgId) // include CC sessions missing orgId
+    );
     if (options?.projectId) results = results.filter((s) => s.metadata.projectId === options.projectId);
     const sorted = results.sort((a, b) => b.updatedAt - a.updatedAt);
     const offset = options?.offset ?? 0;
@@ -432,6 +457,14 @@ class SessionServiceImpl implements SessionService {
     return this.hydrationStatus.get(sessionId) ?? 'cold';
   }
 
+  // ─── CC Session Sync (delegated to cc-sync.ts) ──────────────────
+
+  importCCSession(ccFilePath: string, orgId?: string) { return ccSync.importCCSession(this.ccSyncDeps, ccFilePath, orgId); }
+  checkCCSync(sessionId: string) { return ccSync.checkCCSync(this.ccSyncDeps, sessionId); }
+  checkCCSyncBatch(sessionIds: string[]) { return ccSync.checkCCSyncBatch(this.ccSyncDeps, sessionIds); }
+  syncCCSession(sessionId: string) { return ccSync.syncCCSession(this.ccSyncDeps, sessionId);
+  }
+
   // ─── Write Path ────────────────────────────────────────────────────
 
   private async writeRecords(sessionId: string, records: JournalRecord[], consolidate = false): Promise<void> {
@@ -480,6 +513,7 @@ class SessionServiceImpl implements SessionService {
     this.hydrationStatus.clear();
     this.deletedSessionIds.clear();
     this.rehydrator.clear();
+    this.ccWatcher.stop();
     this.currentSession = null;
     this.initialized = false;
     this.initPromise = null;

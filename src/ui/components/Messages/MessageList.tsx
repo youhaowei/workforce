@@ -243,7 +243,7 @@ export default function MessageList({
         <Button
           size="sm"
           onClick={jumpToBottom}
-          className="absolute bottom-48 right-4 rounded-full shadow-lg z-10"
+          className="absolute bottom-48 right-4 rounded-full shadow-lg z-30"
         >
           <ArrowDown className="h-3.5 w-3.5 mr-1.5" />
           Jump to bottom

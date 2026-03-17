@@ -186,6 +186,10 @@ export function createMockSessionService(): SessionService {
     getHydrationStatus() {
       return 'ready' as const;
     },
+    async importCCSession() { throw new Error('Not implemented in mock'); },
+    async checkCCSync() { return { inSync: true }; },
+    async checkCCSyncBatch() { return {}; },
+    async syncCCSession() { throw new Error('Not implemented in mock'); },
     dispose() {
       sessions.clear();
     },

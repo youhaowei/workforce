@@ -26,6 +26,8 @@ interface MessageInputProps {
   onSubmit: (submission: { content: string; agentConfig: AgentConfig }) => void;
   onCancel?: () => void;
   isStreaming: boolean;
+  disabled?: boolean;
+  disabledMessage?: string;
   placeholder?: string;
   sessionId?: string | null;
   messages?: Array<{
@@ -66,6 +68,8 @@ export default function MessageInput({
   onSubmit,
   onCancel,
   isStreaming,
+  disabled,
+  disabledMessage,
   placeholder,
   sessionId,
   messages,
@@ -237,7 +241,7 @@ export default function MessageInput({
   return (
     <div className="shrink-0 px-6 pb-5 pt-2">
       <div className="max-w-3xl mx-auto">
-        <Card className="bg-neutral-bg/80 saturate-[1.2] rounded-(--surface-radius) shadow-[var(--shadow-lg),0_0_12px_var(--neutral-ring-glow)] border-0 transition-shadow focus-within:shadow-[var(--shadow-lg),0_0_0_1px_var(--neutral-ring),0_0_20px_var(--neutral-ring-glow)]">
+        <Card className="bg-neutral-bg/80 backdrop-blur-xl saturate-[1.2] rounded-(--surface-radius) shadow-[var(--shadow-lg),0_0_12px_var(--neutral-ring-glow)] border-0 transition-shadow focus-within:shadow-[var(--shadow-lg),0_0_0_1px_var(--neutral-ring),0_0_20px_var(--neutral-ring-glow)]">
           {/* Textarea area */}
           <div className="px-6 pt-[18px] pb-2">
             <textarea
@@ -245,8 +249,8 @@ export default function MessageInput({
               value={value}
               onChange={(e) => setValue(e.currentTarget.value)}
               onKeyDown={handleKeyDown}
-              placeholder={placeholder ?? 'Ask Workforce anything...'}
-              disabled={isStreaming}
+              placeholder={disabled && disabledMessage ? disabledMessage : placeholder ?? 'Ask Workforce anything...'}
+              disabled={isStreaming || disabled}
               rows={3}
               className="w-full bg-transparent text-neutral-fg placeholder:text-neutral-fg-subtle/30 resize-none outline-none text-[15px] min-h-[72px] max-h-[200px] disabled:opacity-50"
             />
