@@ -39,7 +39,6 @@ import {
   appendRecords,
   writeRecords as journalWriteRecords,
   writeForkSession,
-  replaySession,
   replaySessionMetadata,
   consolidateSession,
   AppendLock,
@@ -47,6 +46,7 @@ import {
   JSONL_VERSION,
 } from './session-journal';
 import { RehydrationManager } from './session-rehydration';
+import { loadSession } from './session-upgrade';
 import * as lifecycle from './session-lifecycle';
 import * as streaming from './session-streaming';
 import { CCSourceWatcher } from './cc-watcher';
@@ -207,7 +207,7 @@ class SessionServiceImpl implements SessionService {
     }
 
     // Failed rehydration may have left the session in the map with messages
-    // (replaySession succeeded but consolidation failed). Use it if available.
+    // (loadSession succeeded but consolidation failed). Use it if available.
     if (status === 'failed') {
       const cached = this.sessions.get(sessionId);
       if (cached && cached.messages.length > 0) {
@@ -216,12 +216,12 @@ class SessionServiceImpl implements SessionService {
       }
     }
 
-    // Cold / failed-without-cache / unknown: do a direct replay
-    log.info({ sessionId, status: status ?? 'unknown' }, `get(${sessionId}) ${status ?? 'unknown'}, no flight → direct replay`);
-    const result = await replaySession(this.sessionsDir, sessionId);
-    if (!result) { log.info({ sessionId }, `get(${sessionId}) replay returned null`); return null; }
+    // Cold / failed-without-cache / unknown: do a direct replay (with upgrade)
+    log.info({ sessionId, status: status ?? 'unknown' }, `get(${sessionId}) ${status ?? 'unknown'}, no flight → direct load`);
+    const result = await loadSession(this.sessionsDir, sessionId);
+    if (!result) { log.info({ sessionId }, `get(${sessionId}) load returned null`); return null; }
     const { session, maxSeq } = result;
-    log.info({ sessionId, msgs: session.messages.length }, `get(${sessionId}) replayed → msgs=${session.messages.length}`);
+    log.info({ sessionId, msgs: session.messages.length, upgraded: result.upgraded }, `get(${sessionId}) loaded → msgs=${session.messages.length}`);
     this.sessions.set(sessionId, session);
     this.seqAllocators.set(sessionId, new SeqAllocator(maxSeq + 1));
     this.hydrationStatus.set(sessionId, 'ready');

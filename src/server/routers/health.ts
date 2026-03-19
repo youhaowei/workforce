@@ -47,4 +47,5 @@ export const healthRouter = router({
     const authenticated = !!(result.hasCredentialsFile || result.hasApiKey || result.hasAuthToken);
     return { authenticated, ...result };
   }),
+
 });

@@ -1,4 +1,4 @@
-/** Shell - Main application layout (sidebar | sessions | content | plan | chatinfo | task). */
+/** Shell - Main application layout (sidebar | sessions | content | artifact | chatinfo | task). */
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -10,7 +10,7 @@ import { useShellStore } from "@/ui/stores/shellStore";
 
 import { ThemePanel } from "../Theme/ThemePanel";
 import { ChatInfoPanel } from "../ChatInfo";
-import { PlanPanel } from "../Plan";
+import { ArtifactPanel } from "../Artifact";
 import { SessionsPanel } from "../Sessions";
 import { ProjectsPanel, CreateProjectDialog } from "../Project";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -33,6 +33,7 @@ import { useActiveSessionTitle } from "./useActiveSessionTitle";
 import { useForkActions } from "./useForkActions";
 import { useAgentStream } from "./useAgentStream";
 import { usePlanMode } from "@/ui/hooks/usePlanMode";
+import { useArtifactPanel } from "@/ui/hooks/useArtifactPanel";
 import {
   SESSIONS_PANEL_STORAGE_KEY,
   VIEW_STORAGE_KEY,
@@ -53,6 +54,7 @@ export type ViewType =
   | "detail";
 export type SidebarMode = "expanded" | "collapsed";
 
+// eslint-disable-next-line complexity
 export default function Shell() {
   const { isDesktop } = usePlatform();
   const location = useLocation();
@@ -328,15 +330,24 @@ export default function Shell() {
 
   // Plan mode
   const {
-    isPlanMode, planPanelOpen, planArtifact, planContent, planLoadError,
-    handlePlanReady, handlePlanApprove, handlePlanReject, handlePlanClose, handleOpenPlan,
+    isPlanMode, planPanelOpen, planTitle, planFilePath, planStatus, planContent, planLoadError, planArtifactId,
+    handlePlanReady, handlePlanApprove, handlePlanReject, handlePlanClose,
   } = usePlanMode({
+    orgId,
     selectedSessionId,
     messages,
     onCancelStream: handleCancel,
     onSubmit: handleSubmit,
   });
   planReadyRef.current = handlePlanReady;
+
+  // Artifact panel (review, comments, artifact list)
+  const artifactPanel = useArtifactPanel({
+    planArtifactId,
+    sessionId: selectedSessionId,
+    onApprove: handlePlanApprove,
+    onReject: handlePlanReject,
+  });
 
   const handleProjectDialogOpenChange = useCallback((open: boolean) => {
     setCreateProjectDialog(open, open ? createProjectDialogSource : null);
@@ -455,22 +466,30 @@ export default function Shell() {
               <Outlet />
             </MainContentColumn>
 
-            <PlanPanel
-              isOpen={planPanelOpen}
+            <ArtifactPanel
+              isOpen={planPanelOpen || artifactPanel.panelOpen}
               isPlanMode={isPlanMode}
-              artifact={planArtifact}
-              content={planContent}
+              isPlanArtifact={!!planArtifactId && !artifactPanel.panelOpen}
+              title={artifactPanel.artifact?.title ?? planTitle}
+              filePath={artifactPanel.artifact?.filePath ?? planFilePath}
+              status={artifactPanel.artifact?.status ?? planStatus}
+              content={artifactPanel.panelOpen ? (artifactPanel.artifact?.content ?? '') : (artifactPanel.artifact?.content ?? planContent)}
               loadError={planLoadError}
-              onApprove={handlePlanApprove}
-              onReject={handlePlanReject}
-              onClose={handlePlanClose}
+              comments={artifactPanel.pendingComments}
+              sessionArtifacts={artifactPanel.sessionArtifacts}
+              activeArtifactId={artifactPanel.activeArtifactId}
+              onAddComment={artifactPanel.addComment}
+              onSubmitReview={artifactPanel.submitReview}
+              onApprove={artifactPanel.handleApprove}
+              onReject={artifactPanel.handleReject}
+              onClose={artifactPanel.panelOpen ? artifactPanel.closePanel : handlePlanClose}
+              onSelectArtifact={artifactPanel.openArtifact}
             />
 
             <ChatInfoPanel
               isOpen={showChatInfo}
               sessionId={selectedSessionId}
-              planArtifact={planArtifact}
-              onOpenPlan={handleOpenPlan}
+              onOpenArtifact={artifactPanel.openArtifact}
             />
           </Surface>
 

@@ -8,7 +8,8 @@
 import type { Session, HydrationStatus } from './types';
 import { getEventBus } from '@/shared/event-bus';
 import { createLogger } from 'tracey';
-import { replaySession, consolidateSession, AppendLock, SeqAllocator } from './session-journal';
+import { consolidateSession, AppendLock, SeqAllocator } from './session-journal';
+import { loadSession } from './session-upgrade';
 
 const log = createLogger('Session');
 
@@ -108,7 +109,7 @@ export class RehydrationManager {
           hydrationStatus.set(sessionId, 'rehydrating');
           bus.emit({ type: 'SessionRehydrateStarted', sessionId, timestamp: Date.now() });
 
-          const result = await replaySession(sessionsDir, sessionId);
+          const result = await loadSession(sessionsDir, sessionId);
 
           if (deletedSessionIds.has(sessionId)) return;
           if (!result) {

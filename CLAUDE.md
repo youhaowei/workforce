@@ -26,6 +26,13 @@ bun run build # Tauri release build
 
 ## Debugging & Inspection
 
+**Quick reference for subagents:** When you need to debug the running app, use this decision tree:
+- **Visual/CSS issue** → Peekaboo (`peekaboo see --app Workforce`) or agent-browser (web: `localhost:19676`)
+- **Server state** → Workforce CLI (`bun run cli -- health check`, `session list`, etc.)
+- **Server logs** → `curl http://localhost:19675/debug-log` or tRPC `health.debugLog`
+- **Type/lint/test** → `bun run type-check && bun run lint && bun run test`
+- **Port issues** → `lsof -ti :19675 :19676` to find stale processes
+
 ### Peekaboo MCP (Tauri UI automation)
 Installed globally (`brew install steipete/tap/peekaboo`) and configured as an MCP server in `~/.claude.json`. Gives Claude Code direct access to the running Tauri app via native macOS APIs — no CDP needed.
 
@@ -38,6 +45,12 @@ peekaboo list --item_type running_applications  # find app PID
 ```
 
 Covers: visual state, rendered elements, UI interactions. Requires Screen Recording + Accessibility permissions.
+
+### Web dev server (agent-browser / chrome-tester)
+For the web version running at `localhost:19676`:
+- Use `agent-browser` or `chrome-tester` agent to navigate, inspect elements, read console logs
+- Start with `bun run dev:web` (server on 19675, vite on 19676)
+- Inspect computed CSS styles directly in the DOM — don't reason about CSS behavior from memory
 
 ### Workforce CLI (server introspection)
 ```bash
@@ -54,6 +67,7 @@ Talks to the running server on port 19675 (default). Use for server-side state: 
 - **`eval_js`** — no way to query React/DOM/store state in the webview yet (Notion task: "Add `eval_js` Tauri command")
 - **`health logs`** — server logs reachable via tRPC but no CLI command yet (Notion task: "Add `health logs` CLI command")
 - **workforce MCP** — would expose CLI + eval_js as MCP tools for agents (Notion task: "Create workforce MCP server")
+- **Client→server log bridge** — no way for UI to send errors to tracey yet. Client uses `console.warn` only.
 
 ## Key Disambiguation
 
@@ -128,6 +142,8 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **Markdown** — `marked` + `dompurify`. `stripMarkdown()` regexes must use word boundaries to avoid corrupting `foo_bar_baz` identifiers.
 - **Drag region overlay** — `index.html` has a z-40 fixed div covering `--topbar-height` for window dragging. Interactive elements (`button`, `input`, `a`, `[role="button"]`) auto-opt-out via `-webkit-app-region: no-drag`. Custom interactive elements in the topbar need `role="button"` or explicit `app-region: no-drag` to be clickable. The raw `<style>` tag in `index.html` is intentional — Lightning CSS strips `-webkit-app-region`.
 - **Debug before fixing layout/scroll bugs** — For virtualized lists (react-virtuoso) and layout-dependent behavior: add `console.log` with dimensions (`scrollTop`, `scrollHeight`, `clientHeight`) and check browser console BEFORE implementing a fix. Don't assume the first hypothesis — Virtuoso's timing (when items are measured vs when scroll fires) is non-obvious and code-level reasoning alone leads to wrong fixes.
+- **CSS/layout bugs: inspect first, code second** — For CSS containment, z-index stacking, overflow clipping, or backdrop-filter issues: inspect computed styles in the running app (agent-browser or peekaboo) before making code changes. Don't reason about CSS spec behavior from memory — inspect the actual DOM. Learned 2026-03-18: 5 iterations of blind `contain:paint`/`isolate`/`z-index` changes when a single devtools inspection would have identified the root cause.
+- **Playground-first for layout decisions** — For spatial/layout decisions (panel arrangements, resize behavior, responsive breakpoints), build an interactive HTML playground in `wireframes/` before implementing in React. Faster convergence than wireframe→implement→iterate. The playground skill (`/playground`) generates these.
 
 ### Testing & Build
 

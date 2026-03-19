@@ -19,10 +19,16 @@
       "@/*": ["src/*"],
       "tracey": ["lib/tracey/src/index.ts"],
       "tracey/*": ["lib/tracey/src/*"],
-      "unifai": ["lib/unifai/src/index.ts"]
+      "unifai": ["lib/unifai/src/index.ts"],
+      "@wystack/types": ["lib/wystack/packages/types/src/index.ts"],
+      "@wystack/version": ["lib/wystack/packages/version/src/index.ts"],
+      "@wystack/db": ["lib/wystack/packages/db/src/index.ts"],
+      "@wystack/server": ["lib/wystack/packages/server/src/index.ts"],
+      "@wystack/client": ["lib/wystack/packages/client/src/index.ts"],
+      "@wystack/start": ["lib/wystack/packages/start/src/index.ts"]
     },
     "types": ["vitest/globals", "vite/client", "bun"]
   },
-  "include": ["src", "lib/tracey/src", "lib/unifai/src"],
-  "exclude": ["node_modules", "dist", "build", "src-tauri"]
+  "include": ["src", "lib/tracey/src", "lib/unifai/src", "lib/wystack/packages/types/src", "lib/wystack/packages/version/src"],
+  "exclude": ["node_modules", "dist", "build", "src-tauri", "lib/wystack/packages/*/src/__tests__"]
 }

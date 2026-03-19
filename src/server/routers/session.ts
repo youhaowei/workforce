@@ -7,7 +7,7 @@ import { router, publicProcedure } from '../trpc';
 import { getSessionService } from '@/services/session';
 import { discoverCCSessions } from '@/services/cc-reader';
 import { getOrchestrationService } from './_services';
-import type { LifecycleState, PlanArtifact } from '@/services/types';
+import type { LifecycleState } from '@/services/types';
 
 export const sessionRouter = router({
   list: publicProcedure
@@ -287,32 +287,6 @@ export const sessionRouter = router({
         }
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: `Failed to read file: ${input.path}` });
       }
-    }),
-
-  updatePlanArtifact: publicProcedure
-    .input(z.object({
-      sessionId: z.string(),
-      artifact: z.object({
-        path: z.string(),
-        title: z.string(),
-        status: z.enum(['pending_review', 'approved', 'rejected', 'executing']),
-        approvedPermission: z.enum(['plan', 'default', 'acceptEdits', 'bypassPermissions']).optional(),
-        updatedAt: z.number(),
-      }),
-    }))
-    .mutation(async ({ input }) => {
-      const session = await getSessionService().get(input.sessionId);
-      if (!session) throw new TRPCError({ code: 'NOT_FOUND', message: `Session not found: ${input.sessionId}` });
-      const existing = [...((session.metadata.planArtifacts as PlanArtifact[] | undefined) ?? [])];
-      const idx = existing.findIndex((a) => a.path === input.artifact.path);
-      if (idx >= 0) {
-        existing[idx] = input.artifact;
-      } else {
-        existing.push(input.artifact);
-      }
-      await getSessionService().updateSession(input.sessionId, {
-        metadata: { ...session.metadata, planArtifacts: existing },
-      });
     }),
 
   // ─── CC Session Sync ──────────────────────────────────────────────

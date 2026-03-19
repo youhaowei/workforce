@@ -8,7 +8,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, ArrowDown } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 import MessageItem, { type ForkInfo } from './MessageItem';
 
@@ -29,10 +29,12 @@ interface MessageListProps {
   onRewind?: (messageIndex: number) => void;
   onFork?: (messageIndex: number) => void;
   onSelectSession?: (sessionId: string) => void;
+  /** Called when jump-to-bottom visibility or handler changes */
+  onJumpToBottom?: (handler: (() => void) | null) => void;
 }
 
 export default function MessageList({
-  messages, isStreaming, forksMap, error, onDismissError, onRewind, onFork, onSelectSession,
+  messages, isStreaming, forksMap, error, onDismissError, onRewind, onFork, onSelectSession, onJumpToBottom,
 }: MessageListProps) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
   const scrollerRef = useRef<HTMLElement | null>(null);
@@ -169,6 +171,11 @@ export default function MessageList({
     });
   }, []);
 
+  // Notify parent about jump-to-bottom availability
+  useEffect(() => {
+    onJumpToBottom?.(showJumpButton ? jumpToBottom : null);
+  }, [showJumpButton, jumpToBottom, onJumpToBottom]);
+
   // Stable render function for Virtuoso items
   const renderItem = useCallback(
     (index: number, message: (typeof messages)[number]) => {
@@ -239,16 +246,6 @@ export default function MessageList({
         className="flex-1"
       />
 
-      {showJumpButton && (
-        <Button
-          size="sm"
-          onClick={jumpToBottom}
-          className="absolute bottom-48 right-4 rounded-full shadow-lg z-30"
-        >
-          <ArrowDown className="h-3.5 w-3.5 mr-1.5" />
-          Jump to bottom
-        </Button>
-      )}
     </div>
   );
 }

@@ -162,7 +162,7 @@ if (distPath) {
     }
 }
 
-const DEV_PORT_FILE = join(__dirname, "../../.dev-port");
+const DEV_PORT_FILE = join(process.cwd(), ".dev-port");
 
 /** Probe whether a port is available by briefly binding and closing a TCP server. */
 function isPortAvailable(port: number): Promise<boolean> {

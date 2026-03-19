@@ -25,7 +25,7 @@ export function MainContentColumn({
   children,
 }: MainContentColumnProps) {
   return (
-    <Surface variant="stage" className="flex-1 flex flex-col min-w-0 rounded-[10px] shadow-[var(--surface-shadow)] relative z-2">
+    <Surface variant="stage" className="flex-1 flex flex-col min-w-0 overflow-hidden rounded-[10px] shadow-[var(--surface-shadow)] relative isolate">
       {!serverConnected && (
         <div className="px-4 py-3 bg-neutral-bg-dim/50 border-b flex items-center gap-3">
           <WifiOff className="h-4 w-4 text-neutral-fg-subtle" />

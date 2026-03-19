@@ -107,6 +107,7 @@ import { getUserService, resetUserService } from './user';
 import { getProjectService, resetProjectService } from './project';
 import { getTemplateService, resetTemplateService } from './template';
 import { getWorktreeService, resetWorktreeService } from './worktree';
+import { getArtifactService, resetArtifactService } from './artifact';
 
 // Factory functions (for services that require composition)
 import { createOrchestrationService } from './orchestration';
@@ -144,6 +145,8 @@ export {
   resetTemplateService,
   getWorktreeService,
   resetWorktreeService,
+  getArtifactService,
+  resetArtifactService,
   createOrchestrationService,
   createWorkflowService,
   createReviewService,
@@ -169,4 +172,5 @@ export function disposeAllServices(): void {
   resetProjectService();
   resetTemplateService();
   resetWorktreeService();
+  resetArtifactService();
 }

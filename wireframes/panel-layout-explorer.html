@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workforce — Panel Layout Explorer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #1a1a2e; --bg-dim: #16162a; --bg-subtle: #222240; --border: #2a2a4a;
+    --fg: #e5e5ec; --fg-subtle: #8888a0; --fg-dim: #555570;
+    --primary: #6366f1; --primary-dim: rgba(99,102,241,0.12);
+    --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+    --info: #4a9eed; --claude: #D97757;
+    --radius: 8px; --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  body { font-family: var(--font); background: #111; color: var(--fg); height: 100vh; display: flex; overflow: hidden; font-size: 13px; }
+  .controls { width: 280px; background: var(--bg-dim); border-right: 1px solid var(--border); overflow-y: auto; flex-shrink: 0; padding: 16px; }
+  .controls h1 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .controls .subtitle { font-size: 11px; color: var(--fg-subtle); margin-bottom: 16px; }
+  .section { margin-bottom: 16px; }
+  .section-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--fg-subtle); margin-bottom: 8px; font-weight: 600; }
+  .control-row { margin-bottom: 8px; }
+  .control-label { font-size: 11px; color: var(--fg-subtle); margin-bottom: 3px; display: flex; justify-content: space-between; }
+  .control-label span { color: var(--fg-dim); font-family: var(--mono); font-size: 10px; }
+  input[type="range"] { width: 100%; accent-color: var(--primary); height: 4px; -webkit-appearance: none; background: var(--border); border-radius: 2px; outline: none; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--primary); cursor: pointer; }
+  select { width: 100%; background: var(--bg-subtle); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-size: 11px; font-family: var(--font); outline: none; }
+  .toggle-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .toggle-row input { accent-color: var(--primary); }
+  .toggle-row label { font-size: 11px; color: var(--fg); cursor: pointer; }
+  .presets { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 16px; }
+  .preset-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--fg-subtle); font-size: 10px; cursor: pointer; font-family: var(--font); transition: all 0.15s; }
+  .preset-btn:hover { border-color: var(--primary); color: var(--fg); }
+  .preset-btn.active { background: var(--primary); border-color: var(--primary); color: white; }
+  .right { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .preview-container { flex: 1; background: #0d0d1a; overflow: hidden; position: relative; }
+  .preview-label { position: absolute; top: 8px; left: 12px; font-size: 10px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.5px; z-index: 10; pointer-events: none; }
+  .app { width: 100%; height: 100%; display: flex; flex-direction: column; }
+  .app-topbar { height: 36px; background: var(--bg-dim); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 12px; gap: 8px; flex-shrink: 0; }
+  .app-topbar .logo { width: 20px; height: 20px; background: var(--primary); border-radius: 5px; font-size: 9px; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .app-topbar .title { font-size: 12px; font-weight: 600; }
+  .app-body { flex: 1; display: flex; overflow: hidden; position: relative; }
+  .panel { display: flex; flex-direction: column; overflow: hidden; transition: width 0.2s ease, opacity 0.2s ease; position: relative; background: var(--bg); }
+  .panel.collapsed { width: 0 !important; min-width: 0 !important; opacity: 0; overflow: hidden; }
+  .panel-header { height: 32px; display: flex; align-items: center; padding: 0 10px; gap: 6px; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--fg); }
+  .panel-content { flex: 1; overflow-y: auto; padding: 8px; }
+  .panel[data-type="sessions"] { background: var(--bg-dim); }
+  .panel[data-type="chat"] { background: var(--bg); }
+  .panel[data-type="artifact"] { background: var(--bg); }
+  .panel[data-type="info"] { background: var(--bg-dim); }
+  .resize-handle { width: 4px; cursor: col-resize; background: transparent; flex-shrink: 0; position: relative; z-index: 5; transition: background 0.15s; }
+  .resize-handle:hover, .resize-handle.active { background: var(--primary); }
+  .panel-separator { width: 1px; background: var(--border); flex-shrink: 0; }
+  .app-body.hscroll { overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; }
+  .app-body.hscroll .panel { flex-shrink: 0; scroll-snap-align: start; }
+  .app-body.grid-layout { display: grid; gap: 4px; padding: 4px; }
+  .app-body.grid-layout .resize-handle, .app-body.grid-layout .panel-separator { display: none; }
+  .mock-session { padding: 5px 8px; border-radius: 4px; margin-bottom: 2px; }
+  .mock-session.active { background: rgba(255,255,255,0.06); }
+  .s-title { font-size: 11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .s-meta { font-size: 9px; color: var(--fg-subtle); margin-top: 1px; }
+  .mock-msg { margin-bottom: 8px; max-width: 85%; }
+  .mock-msg.user { margin-left: auto; }
+  .bubble { padding: 7px 10px; border-radius: 6px; font-size: 11px; line-height: 1.5; }
+  .mock-msg.user .bubble { background: var(--bg-subtle); border: 1px solid var(--border); }
+  .role { font-size: 9px; color: var(--fg-subtle); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 2px; }
+  .mock-md h3 { font-size: 13px; font-weight: 600; margin: 8px 0 4px; }
+  .mock-md p { font-size: 11px; color: var(--fg-subtle); line-height: 1.6; margin-bottom: 6px; }
+  .checklist { font-size: 11px; padding-left: 4px; }
+  .checklist div { padding: 2px 0; display: flex; align-items: center; gap: 6px; }
+  .mock-info-row { font-size: 10px; color: var(--fg-subtle); padding: 3px 0; display: flex; justify-content: space-between; }
+  .mock-info-val { color: var(--fg); font-family: var(--mono); }
+  .mock-info-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--fg-dim); margin: 8px 0 4px; font-weight: 600; }
+  .mock-artifact-item { font-size: 10px; padding: 4px 8px; border-radius: 4px; background: var(--bg-subtle); margin-bottom: 3px; display: flex; align-items: center; gap: 5px; font-family: var(--mono); color: var(--fg-subtle); }
+  .artifact-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--success); }
+  .prompt-area { border-top: 1px solid var(--border); background: var(--bg-dim); padding: 10px 14px; max-height: 140px; overflow-y: auto; }
+  .prompt-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .prompt-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--fg-dim); }
+  .copy-btn { padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); background: transparent; color: var(--fg-subtle); font-size: 10px; cursor: pointer; font-family: var(--font); }
+  .copy-btn:hover { border-color: var(--primary); color: var(--fg); }
+  .prompt-text { font-size: 11px; color: var(--fg); line-height: 1.5; font-family: var(--mono); white-space: pre-wrap; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="controls">
+  <h1>Panel Layout</h1>
+  <div class="subtitle">Explore layout patterns for Workforce panels</div>
+  <div class="section"><div class="section-title">Presets</div><div class="presets" id="presets"></div></div>
+  <div class="section"><div class="section-title">Layout Mode</div><div class="control-row">
+    <select id="layoutMode" onchange="applyState()">
+      <option value="split">Split Panels (resizable dividers)</option>
+      <option value="hscroll">Horizontal Scroll (snap)</option>
+      <option value="grid-2x2">Grid 2x2</option>
+      <option value="grid-1x4">Grid 1x4</option>
+    </select>
+  </div></div>
+  <div class="section"><div class="section-title">Panel Visibility</div>
+    <div class="toggle-row"><input type="checkbox" id="showSessions" checked onchange="applyState()"><label for="showSessions">Sessions</label></div>
+    <div class="toggle-row"><input type="checkbox" id="showChat" checked onchange="applyState()"><label for="showChat">Chat</label></div>
+    <div class="toggle-row"><input type="checkbox" id="showArtifact" checked onchange="applyState()"><label for="showArtifact">Artifact</label></div>
+    <div class="toggle-row"><input type="checkbox" id="showInfo" checked onchange="applyState()"><label for="showInfo">Info</label></div>
+  </div>
+  <div class="section"><div class="section-title">Panel Widths</div>
+    <div class="control-row"><div class="control-label">Sessions <span id="sessionsWidthVal">200px</span></div><input type="range" id="sessionsWidth" min="140" max="320" value="200" oninput="applyState()"></div>
+    <div class="control-row"><div class="control-label">Chat <span id="chatWidthVal">flex: 2</span></div><input type="range" id="chatFlex" min="1" max="5" value="2" oninput="applyState()"></div>
+    <div class="control-row"><div class="control-label">Artifact <span id="artifactWidthVal">420px</span></div><input type="range" id="artifactWidth" min="280" max="700" value="420" oninput="applyState()"></div>
+    <div class="control-row"><div class="control-label">Info <span id="infoWidthVal">220px</span></div><input type="range" id="infoWidth" min="160" max="320" value="220" oninput="applyState()"></div>
+  </div>
+  <div class="section"><div class="section-title">Dividers</div><div class="control-row">
+    <select id="dividerStyle" onchange="applyState()">
+      <option value="resize">Resizable handles</option>
+      <option value="border">Thin border (1px)</option>
+      <option value="gap">Gap (4px)</option>
+      <option value="none">None</option>
+    </select>
+  </div></div>
+  <div class="section"><div class="section-title">Panel Order</div><div class="control-row">
+    <select id="panelOrder" onchange="applyState()">
+      <option value="S-C-A-I">Sessions - Chat - Artifact - Info</option>
+      <option value="S-C-I-A">Sessions - Chat - Info - Artifact</option>
+      <option value="C-A-I">Chat - Artifact - Info (no sessions)</option>
+      <option value="S-A-C-I">Sessions - Artifact - Chat - Info</option>
+      <option value="C-A">Chat - Artifact (focused)</option>
+    </select>
+  </div></div>
+  <div class="section"><div class="section-title">Chrome</div>
+    <div class="toggle-row"><input type="checkbox" id="showHeaders" checked onchange="applyState()"><label for="showHeaders">Panel headers</label></div>
+    <div class="toggle-row"><input type="checkbox" id="panelBg" checked onchange="applyState()"><label for="panelBg">Alternating backgrounds</label></div>
+    <div class="toggle-row"><input type="checkbox" id="panelRadius" onchange="applyState()"><label for="panelRadius">Rounded panels (grid)</label></div>
+  </div>
+</div>
+<div class="right">
+  <div class="preview-container">
+    <div class="preview-label">Preview</div>
+    <div class="app" id="app">
+      <div class="app-topbar"><div class="logo">W</div><span class="title">Workforce</span></div>
+      <div class="app-body" id="appBody"></div>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-header"><span class="prompt-label">Generated prompt</span><button class="copy-btn" id="copyBtn" onclick="copyPrompt()">Copy</button></div>
+    <div class="prompt-text" id="promptText"></div>
+  </div>
+</div>
+<script>
+var DEFAULTS = { layoutMode:'split', showSessions:true, showChat:true, showArtifact:true, showInfo:true, sessionsWidth:200, chatFlex:2, artifactWidth:420, infoWidth:220, dividerStyle:'resize', panelOrder:'S-C-A-I', showHeaders:true, panelBg:true, panelRadius:false };
+var PRESETS = [
+  { name:'Classic Split', values:Object.assign({}, DEFAULTS) },
+  { name:'Focus: Review', values:{ layoutMode:'split', showSessions:false, showChat:true, showArtifact:true, showInfo:false, sessionsWidth:200, chatFlex:1, artifactWidth:560, infoWidth:220, dividerStyle:'resize', panelOrder:'C-A', showHeaders:true, panelBg:false, panelRadius:false }},
+  { name:'H-Scroll', values:{ layoutMode:'hscroll', showSessions:true, showChat:true, showArtifact:true, showInfo:true, sessionsWidth:220, chatFlex:2, artifactWidth:500, infoWidth:260, dividerStyle:'gap', panelOrder:'S-C-A-I', showHeaders:true, panelBg:true, panelRadius:false }},
+  { name:'Grid 2x2', values:{ layoutMode:'grid-2x2', showSessions:true, showChat:true, showArtifact:true, showInfo:true, sessionsWidth:200, chatFlex:2, artifactWidth:420, infoWidth:220, dividerStyle:'gap', panelOrder:'S-C-A-I', showHeaders:true, panelBg:true, panelRadius:true }},
+  { name:'Compact', values:{ layoutMode:'split', showSessions:false, showChat:true, showArtifact:true, showInfo:true, sessionsWidth:200, chatFlex:3, artifactWidth:360, infoWidth:180, dividerStyle:'border', panelOrder:'C-A-I', showHeaders:false, panelBg:true, panelRadius:false }},
+];
+var state = Object.assign({}, DEFAULTS);
+var activePreset = 'Classic Split';
+var PANELS = {
+  S:{ type:'sessions', label:'Sessions', widthKey:'sessionsWidth', showKey:'showSessions', flexGrow:false },
+  C:{ type:'chat', label:'Chat', widthKey:null, showKey:'showChat', flexGrow:true },
+  A:{ type:'artifact', label:'Artifact', widthKey:'artifactWidth', showKey:'showArtifact', flexGrow:false },
+  I:{ type:'info', label:'Info', widthKey:'infoWidth', showKey:'showInfo', flexGrow:false }
+};
+
+function buildSessionsContent(container) {
+  var items = [
+    { title:'Plan: V2 API Migration', meta:'3m ago', active:true },
+    { title:'Fix auth bug in login', meta:'1h ago' },
+    { title:'CC Session Sync', meta:'5h ago' },
+    { title:'Journal v0.3.0', meta:'1d ago' },
+    { title:'Artifact system types', meta:'2d ago' }
+  ];
+  items.forEach(function(item) {
+    var el = document.createElement('div');
+    el.className = 'mock-session' + (item.active ? ' active' : '');
+    var t = document.createElement('div'); t.className = 's-title'; t.textContent = item.title;
+    var m = document.createElement('div'); m.className = 's-meta'; m.textContent = item.meta;
+    el.appendChild(t); el.appendChild(m); container.appendChild(el);
+  });
+}
+
+function buildChatContent(container) {
+  var msgs = [
+    { role:'You', text:'Create a migration plan for the V2 API.', isUser:true },
+    { role:'Assistant', text:'I will create a comprehensive plan and write it as an artifact for review.', isUser:false },
+    { role:'You', text:'Add WebSocket support to Phase 2 and extend dual-write to 60 days.', isUser:true },
+    { role:'Assistant', text:'Updated. The plan now includes WS endpoints and extended dual-write window.', isUser:false }
+  ];
+  msgs.forEach(function(msg) {
+    var el = document.createElement('div');
+    el.className = 'mock-msg' + (msg.isUser ? ' user' : ' assistant');
+    var r = document.createElement('div'); r.className = 'role'; r.textContent = msg.role;
+    var b = document.createElement('div'); b.className = 'bubble'; b.textContent = msg.text;
+    el.appendChild(r); el.appendChild(b); container.appendChild(el);
+  });
+}
+
+function buildArtifactContent(container) {
+  var md = document.createElement('div'); md.className = 'mock-md';
+  var h = document.createElement('h3'); h.textContent = 'V2 API Migration Plan'; md.appendChild(h);
+  var sections = [
+    { heading:'Phase 1: Authentication', items:['Replace JWT with OAuth2 + PKCE','Refresh token rotation','Rate limiting (200/50)','Migrate existing sessions'] },
+    { heading:'Phase 2: Endpoints', text:'/api/v2/users \u2014 CRUD + pagination\n/api/v2/sessions \u2014 WebSocket + REST\n/api/v2/artifacts \u2014 new resource' },
+    { heading:'Phase 3: Data Migration', text:'Dual-write v1+v2 (60 days)\nBackfill historical data\nValidate v1 vs v2 responses' }
+  ];
+  sections.forEach(function(s) {
+    var sh = document.createElement('h3'); sh.textContent = s.heading; sh.style.fontSize = '12px'; sh.style.color = 'var(--fg-subtle)'; sh.style.marginTop = '12px'; md.appendChild(sh);
+    if (s.items) {
+      var cl = document.createElement('div'); cl.className = 'checklist';
+      s.items.forEach(function(item) {
+        var row = document.createElement('div');
+        var cb = document.createElement('input'); cb.type = 'checkbox'; cb.disabled = true;
+        var sp = document.createElement('span'); sp.textContent = item;
+        row.appendChild(cb); row.appendChild(sp); cl.appendChild(row);
+      });
+      md.appendChild(cl);
+    }
+    if (s.text) { var p = document.createElement('p'); p.textContent = s.text; md.appendChild(p); }
+  });
+  container.appendChild(md);
+}
+
+function buildInfoContent(container) {
+  var data = [
+    { label:'Model', rows:[{ k:'Provider', v:'claude-4-opus' }] },
+    { label:'Usage', rows:[{ k:'Input', v:'12.4K' },{ k:'Output', v:'3.2K' },{ k:'Cost', v:'$0.18' }] },
+    { label:'Artifacts (1)', artifact:'v2-api-plan.md' }
+  ];
+  data.forEach(function(section) {
+    var lbl = document.createElement('div'); lbl.className = 'mock-info-label'; lbl.textContent = section.label; container.appendChild(lbl);
+    if (section.rows) {
+      section.rows.forEach(function(row) {
+        var r = document.createElement('div'); r.className = 'mock-info-row';
+        var k = document.createElement('span'); k.textContent = row.k;
+        var v = document.createElement('span'); v.className = 'mock-info-val'; v.textContent = row.v;
+        r.appendChild(k); r.appendChild(v); container.appendChild(r);
+      });
+    }
+    if (section.artifact) {
+      var a = document.createElement('div'); a.className = 'mock-artifact-item';
+      var dot = document.createElement('span'); dot.className = 'artifact-dot';
+      var name = document.createElement('span'); name.textContent = section.artifact;
+      a.appendChild(dot); a.appendChild(name); container.appendChild(a);
+    }
+  });
+}
+
+function makePanel(key) {
+  var def = PANELS[key];
+  var el = document.createElement('div');
+  el.className = 'panel'; el.dataset.type = def.type; el.dataset.key = key;
+  if (!state[def.showKey]) el.classList.add('collapsed');
+  if (state.showHeaders) {
+    var hdr = document.createElement('div'); hdr.className = 'panel-header'; hdr.textContent = def.label; el.appendChild(hdr);
+  }
+  var content = document.createElement('div'); content.className = 'panel-content';
+  if (def.type === 'sessions') buildSessionsContent(content);
+  else if (def.type === 'chat') buildChatContent(content);
+  else if (def.type === 'artifact') buildArtifactContent(content);
+  else if (def.type === 'info') buildInfoContent(content);
+  el.appendChild(content);
+  if (def.flexGrow) { el.style.flex = state.chatFlex; el.style.minWidth = '200px'; }
+  else if (def.widthKey) { el.style.width = state[def.widthKey] + 'px'; el.style.minWidth = state[def.widthKey] + 'px'; }
+  if (!state.panelBg) el.style.background = 'var(--bg)';
+  return el;
+}
+
+function makeDivider() {
+  if (state.dividerStyle === 'none') return null;
+  var el = document.createElement('div');
+  if (state.dividerStyle === 'gap') { el.style.width = '4px'; el.style.flexShrink = '0'; return el; }
+  if (state.dividerStyle === 'border') { el.className = 'panel-separator'; return el; }
+  el.className = 'resize-handle';
+  el.addEventListener('mousedown', startResize);
+  return el;
+}
+
+function startResize(e) {
+  e.preventDefault();
+  var handle = e.target;
+  var prev = handle.previousElementSibling;
+  var next = handle.nextElementSibling;
+  if (!prev || !next) return;
+  handle.classList.add('active');
+  var startX = e.clientX, prevW = prev.offsetWidth, nextW = next.offsetWidth;
+  function onMove(ev) {
+    var dx = ev.clientX - startX;
+    var nP = Math.max(100, prevW + dx), nN = Math.max(100, nextW - dx);
+    prev.style.width = nP+'px'; prev.style.minWidth = nP+'px'; prev.style.flex = 'none';
+    next.style.width = nN+'px'; next.style.minWidth = nN+'px'; next.style.flex = 'none';
+  }
+  function onUp() {
+    handle.classList.remove('active');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    updatePrompt();
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function render() {
+  var body = document.getElementById('appBody');
+  while (body.firstChild) body.removeChild(body.firstChild);
+  body.className = 'app-body';
+  var layout = state.layoutMode;
+  var order = state.panelOrder.split('-');
+  if (layout === 'grid-2x2') {
+    body.classList.add('grid-layout'); body.style.gridTemplateColumns = '1fr 1fr'; body.style.gridTemplateRows = '1fr 1fr';
+    order.forEach(function(k) { if (!PANELS[k]) return; var p = makePanel(k); if (state.panelRadius) { p.style.borderRadius='6px'; p.style.border='1px solid var(--border)'; } body.appendChild(p); });
+    return;
+  }
+  if (layout === 'grid-1x4') {
+    body.classList.add('grid-layout'); body.style.gridTemplateColumns = 'repeat(4,1fr)'; body.style.gridTemplateRows = '1fr';
+    order.forEach(function(k) { if (!PANELS[k]) return; var p = makePanel(k); if (state.panelRadius) { p.style.borderRadius='6px'; p.style.border='1px solid var(--border)'; } body.appendChild(p); });
+    return;
+  }
+  if (layout === 'hscroll') body.classList.add('hscroll');
+  var visible = order.filter(function(k) { return PANELS[k] && state[PANELS[k].showKey]; });
+  visible.forEach(function(k, i) {
+    body.appendChild(makePanel(k));
+    if (i < visible.length - 1) { var d = makeDivider(); if (d) body.appendChild(d); }
+  });
+}
+
+function applyState() {
+  state.layoutMode = document.getElementById('layoutMode').value;
+  state.showSessions = document.getElementById('showSessions').checked;
+  state.showChat = document.getElementById('showChat').checked;
+  state.showArtifact = document.getElementById('showArtifact').checked;
+  state.showInfo = document.getElementById('showInfo').checked;
+  state.sessionsWidth = +document.getElementById('sessionsWidth').value;
+  state.chatFlex = +document.getElementById('chatFlex').value;
+  state.artifactWidth = +document.getElementById('artifactWidth').value;
+  state.infoWidth = +document.getElementById('infoWidth').value;
+  state.dividerStyle = document.getElementById('dividerStyle').value;
+  state.panelOrder = document.getElementById('panelOrder').value;
+  state.showHeaders = document.getElementById('showHeaders').checked;
+  state.panelBg = document.getElementById('panelBg').checked;
+  state.panelRadius = document.getElementById('panelRadius').checked;
+  updateLabels(); render(); updatePrompt(); highlightPreset();
+}
+
+function updateLabels() {
+  document.getElementById('sessionsWidthVal').textContent = state.sessionsWidth+'px';
+  document.getElementById('chatWidthVal').textContent = 'flex: '+state.chatFlex;
+  document.getElementById('artifactWidthVal').textContent = state.artifactWidth+'px';
+  document.getElementById('infoWidthVal').textContent = state.infoWidth+'px';
+}
+
+function applyPreset(name) {
+  var preset = PRESETS.find(function(p) { return p.name === name; });
+  if (!preset) return;
+  activePreset = name; Object.assign(state, preset.values);
+  document.getElementById('layoutMode').value = state.layoutMode;
+  document.getElementById('showSessions').checked = state.showSessions;
+  document.getElementById('showChat').checked = state.showChat;
+  document.getElementById('showArtifact').checked = state.showArtifact;
+  document.getElementById('showInfo').checked = state.showInfo;
+  document.getElementById('sessionsWidth').value = state.sessionsWidth;
+  document.getElementById('chatFlex').value = state.chatFlex;
+  document.getElementById('artifactWidth').value = state.artifactWidth;
+  document.getElementById('infoWidth').value = state.infoWidth;
+  document.getElementById('dividerStyle').value = state.dividerStyle;
+  document.getElementById('panelOrder').value = state.panelOrder;
+  document.getElementById('showHeaders').checked = state.showHeaders;
+  document.getElementById('panelBg').checked = state.panelBg;
+  document.getElementById('panelRadius').checked = state.panelRadius;
+  updateLabels(); render(); updatePrompt(); highlightPreset();
+}
+
+function highlightPreset() {
+  document.querySelectorAll('.preset-btn').forEach(function(btn) {
+    btn.classList.toggle('active', btn.textContent === activePreset);
+  });
+}
+
+function updatePrompt() {
+  var parts = [], d = DEFAULTS;
+  if (state.layoutMode !== d.layoutMode) {
+    var names = { split:'resizable split panels', hscroll:'horizontal scrolling panels with snap', 'grid-2x2':'2x2 grid layout', 'grid-1x4':'1x4 grid layout' };
+    parts.push('Use ' + names[state.layoutMode] + ' layout');
+  }
+  var hidden = [];
+  if (!state.showSessions) hidden.push('Sessions');
+  if (!state.showChat) hidden.push('Chat');
+  if (!state.showArtifact) hidden.push('Artifact');
+  if (!state.showInfo) hidden.push('Info');
+  if (hidden.length > 0) parts.push('Hide ' + hidden.join(', ') + ' panel' + (hidden.length > 1 ? 's' : ''));
+  if (state.sessionsWidth !== d.sessionsWidth) parts.push('Sessions panel: ' + state.sessionsWidth + 'px wide');
+  if (state.chatFlex !== d.chatFlex) parts.push('Chat panel: flex-grow ' + state.chatFlex);
+  if (state.artifactWidth !== d.artifactWidth) parts.push('Artifact panel: ' + state.artifactWidth + 'px wide');
+  if (state.infoWidth !== d.infoWidth) parts.push('Info panel: ' + state.infoWidth + 'px wide');
+  if (state.panelOrder !== d.panelOrder) {
+    var n = { S:'Sessions', C:'Chat', A:'Artifact', I:'Info' };
+    parts.push('Panel order: ' + state.panelOrder.split('-').map(function(k) { return n[k]; }).join(' \u2192 '));
+  }
+  if (state.dividerStyle !== d.dividerStyle) {
+    var dn = { resize:'resizable drag handles', border:'thin 1px borders', gap:'4px gaps', none:'no dividers' };
+    parts.push('Panel dividers: ' + dn[state.dividerStyle]);
+  }
+  if (!state.showHeaders) parts.push('Hide panel headers');
+  if (!state.panelBg) parts.push('Uniform background (no alternating)');
+  if (state.panelRadius) parts.push('Rounded panel corners (6px)');
+  var text = parts.length > 0
+    ? 'Update the Workforce Shell layout:\n' + parts.map(function(p) { return '\u2022 ' + p; }).join('\n')
+    : 'Current layout matches defaults (classic split panels with resizable handles).';
+  document.getElementById('promptText').textContent = text;
+}
+
+function copyPrompt() {
+  var text = document.getElementById('promptText').textContent;
+  navigator.clipboard.writeText(text);
+  var btn = document.getElementById('copyBtn');
+  btn.textContent = 'Copied!';
+  setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+}
+
+// Init presets
+var presetsEl = document.getElementById('presets');
+PRESETS.forEach(function(p) {
+  var btn = document.createElement('button');
+  btn.className = 'preset-btn'; btn.textContent = p.name;
+  btn.onclick = function() { applyPreset(p.name); };
+  presetsEl.appendChild(btn);
+});
+applyPreset('Classic Split');
+</script>
+</body>
+</html>

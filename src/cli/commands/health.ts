@@ -18,4 +18,5 @@ export function registerHealthCommands(parent: Command) {
         process.exit(1);
       }
     });
+
 }

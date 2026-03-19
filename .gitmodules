@@ -4,3 +4,6 @@
 [submodule "lib/unifai"]
 	path = lib/unifai
 	url = git@github.com:youhaowei/unifai.git
+[submodule "lib/wystack"]
+	path = lib/wystack
+	url = git@github.com:youhaowei/wystack.git

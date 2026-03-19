@@ -119,23 +119,101 @@ export type AgentStreamEvent =
   | { type: 'agent_question'; requestId: string; questions: AgentQuestion[] };
 
 // =============================================================================
-// Plan Artifact Types
+// Artifact Types
 // =============================================================================
 
-export type PlanArtifactStatus = 'pending_review' | 'approved' | 'rejected' | 'executing';
+export type ArtifactMimeType =
+  | 'text/markdown'
+  | 'text/html'
+  | 'text/csv'
+  | 'application/json'
+  | 'image/svg+xml'
+  | 'text/plain';
 
-export interface PlanArtifact {
-  /** Absolute path to the .md file on disk */
-  path: string;
-  /** Display title (extracted from first H1 or filename) */
-  title: string;
-  /** Review status */
-  status: PlanArtifactStatus;
-  /** Permission mode chosen on approval */
-  approvedPermission?: AgentPermissionMode;
-  /** Timestamp of last status change */
-  updatedAt: number;
+export type ArtifactStatus = 'draft' | 'pending_review' | 'approved' | 'rejected' | 'executing' | 'archived';
+
+export interface ArtifactComment {
+  id: string;
+  artifactId: string;
+  content: string;
+  severity: 'suggestion' | 'issue' | 'question' | 'praise';
+  anchor?: { line?: number; startCol?: number; endCol?: number; section?: string };
+  author: Author;
+  createdAt: number;
+  resolved?: boolean;
 }
+
+export interface ArtifactReview {
+  id: string;
+  artifactId: string;
+  action: ReviewAction;
+  comments: ArtifactComment[];
+  summary?: string;
+  author: Author;
+  createdAt: number;
+}
+
+export interface Artifact {
+  id: string;
+  /** Org that owns this artifact (required) */
+  orgId: string;
+  /** Optional project association */
+  projectId?: string;
+  title: string;
+  mimeType: ArtifactMimeType;
+  /** Absolute path on disk — agent reads/writes this file */
+  filePath: string;
+  /** Current content (cached, may be stale if file changed externally) */
+  content?: string;
+  status: ArtifactStatus;
+  createdBy: Author;
+  createdAt: number;
+  updatedAt: number;
+  /** Sessions that reference this artifact */
+  sessionLinks: string[];
+  /** Pending comments not yet submitted as a review */
+  pendingComments: ArtifactComment[];
+  /** Submitted reviews */
+  reviews: ArtifactReview[];
+  metadata: Record<string, unknown>;
+}
+
+export interface ArtifactFilter {
+  orgId?: string;
+  projectId?: string;
+  mimeType?: ArtifactMimeType;
+  status?: ArtifactStatus;
+  sessionId?: string;
+}
+
+export type ArtifactPatch = Partial<Pick<Artifact, 'title' | 'status' | 'content' | 'metadata'>>;
+
+export interface ArtifactService extends Disposable {
+  ensureInitialized(): Promise<void>;
+  create(input: {
+    orgId: string;
+    projectId?: string;
+    title: string;
+    mimeType: ArtifactMimeType;
+    filePath: string;
+    content?: string;
+    status?: ArtifactStatus;
+    createdBy: Author;
+    sessionId?: string;
+    metadata?: Record<string, unknown>;
+  }): Promise<Artifact>;
+  get(artifactId: string): Promise<Artifact | null>;
+  list(filter?: ArtifactFilter): Promise<Artifact[]>;
+  update(artifactId: string, patch: ArtifactPatch): Promise<Artifact>;
+  delete(artifactId: string): Promise<void>;
+  linkToSession(artifactId: string, sessionId: string): Promise<void>;
+  addComment(artifactId: string, comment: Omit<ArtifactComment, 'id' | 'createdAt'>): Promise<ArtifactComment>;
+  submitReview(artifactId: string, review: Omit<ArtifactReview, 'id' | 'createdAt'>): Promise<ArtifactReview>;
+}
+
+// =============================================================================
+// Tool Types
+// =============================================================================
 
 export interface ToolCall {
   id: string;
@@ -522,18 +600,7 @@ export interface JournalArtifactLink {
   action: 'create' | 'open' | 'modify' | 'close' | 'link' | 'unlink';
   author: Author;
   actionId?: string;
-  snapshot?: { title: string; type: string; status?: PlanArtifactStatus };
-}
-
-/** Plan status change. */
-export interface JournalPlanUpdate {
-  t: 'plan_update';
-  seq: number;
-  ts: number;
-  artifactId: string;
-  status: PlanArtifactStatus;
-  approvedPermission?: AgentPermissionMode;
-  author: Author;
+  snapshot?: { title: string; type: string; status?: ArtifactStatus };
 }
 
 /** Review comment on an artifact. */
@@ -637,7 +704,6 @@ export type JournalRecord =
   | JournalFileChange
   | JournalTaskUpdate
   | JournalArtifactLink
-  | JournalPlanUpdate
   | JournalReviewComment
   | JournalReviewSubmit
   | JournalSubagentSpawn

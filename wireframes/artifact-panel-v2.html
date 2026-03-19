@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workforce — Artifact Panel v2 (Side-by-side + Focused)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #1a1a2e; --bg-dim: #16162a; --bg-subtle: #222240; --border: #2a2a4a;
+    --fg: #e5e5ec; --fg-subtle: #8888a0;
+    --primary: #6366f1; --primary-dim: rgba(99,102,241,0.12);
+    --success: #22c55e; --success-dim: rgba(34,197,94,0.12);
+    --warning: #f59e0b; --warning-dim: rgba(245,158,11,0.12);
+    --danger: #ef4444; --danger-dim: rgba(239,68,68,0.12);
+    --claude: #D97757; --claude-dim: rgba(217,119,87,0.12);
+    --info: #4a9eed; --info-dim: rgba(74,158,237,0.12);
+    --radius: 8px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', monospace;
+  }
+  body { font-family: var(--font); background: var(--bg); color: var(--fg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; font-size: 13px; }
+
+  .topbar { height: 40px; background: var(--bg-dim); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 12px; }
+  .topbar-logo { width: 24px; height: 24px; background: var(--primary); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 11px; color: white; }
+  .topbar-title { font-size: 13px; font-weight: 600; }
+  .topbar-spacer { flex: 1; }
+  .topbar-mode { display: flex; gap: 2px; background: var(--bg-subtle); border-radius: 6px; padding: 2px; }
+  .topbar-mode button { padding: 4px 10px; border: none; border-radius: 4px; background: transparent; color: var(--fg-subtle); font-size: 11px; cursor: pointer; font-family: var(--font); }
+  .topbar-mode button.active { background: var(--primary); color: white; }
+  .topbar-mode button:hover:not(.active) { color: var(--fg); }
+
+  .main { flex: 1; display: flex; overflow: hidden; transition: all 0.25s ease; }
+
+  /* Sessions */
+  .sessions { width: 220px; border-right: 1px solid var(--border); background: var(--bg-dim); display: flex; flex-direction: column; transition: width 0.25s ease; overflow: hidden; }
+  .sessions.collapsed { width: 0; border: none; }
+  .sessions-header { padding: 10px 14px 6px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .sessions-list { flex: 1; overflow-y: auto; padding: 0 4px; }
+  .session-item { padding: 7px 10px; border-radius: 6px; cursor: pointer; margin-bottom: 1px; }
+  .session-item:hover { background: var(--bg-subtle); }
+  .session-item.active { background: rgba(255,255,255,0.06); }
+  .session-title { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .session-meta { display: flex; gap: 3px; margin-top: 3px; }
+  .badge { padding: 1px 5px; border-radius: 3px; font-size: 9px; font-weight: 600; }
+  .badge-plan { background: var(--warning-dim); color: var(--warning); }
+  .badge-claude { background: var(--claude-dim); color: var(--claude); }
+  .session-time { font-size: 10px; color: var(--fg-subtle); margin-left: auto; }
+  .date-group { padding: 5px 10px; font-size: 9px; color: var(--fg-subtle); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Chat */
+  .chat { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; transition: all 0.25s ease; }
+  .chat.mini { max-width: 320px; border-right: 1px solid var(--border); }
+  .chat-header { padding: 8px 16px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; display: none; }
+  .chat.mini .chat-header { display: block; }
+  .chat-messages { flex: 1; overflow-y: auto; padding: 16px 20px 140px; }
+  .message { max-width: 700px; margin: 0 auto 12px; }
+  .chat.mini .message { max-width: 100%; }
+  .message-user { background: var(--bg-subtle); padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--border); }
+  .message-assistant { padding: 10px 14px; }
+  .message-role { font-size: 10px; font-weight: 600; color: var(--fg-subtle); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .message-content { line-height: 1.6; font-size: 13px; }
+  .chat.mini .message-content { font-size: 12px; }
+  .message-tool { background: var(--success-dim); border: 1px solid rgba(34,197,94,0.15); border-radius: 5px; padding: 6px 10px; margin: 6px 0; font-size: 11px; color: var(--success); }
+  .message-review { background: var(--primary-dim); border: 1px solid rgba(99,102,241,0.15); border-radius: var(--radius); padding: 10px 14px; margin: 6px 0; }
+  .message-review-title { font-size: 10px; color: var(--primary); font-weight: 600; margin-bottom: 6px; }
+  .message-review-item { font-size: 11px; color: var(--fg); margin-bottom: 4px; padding-left: 10px; border-left: 2px solid var(--primary); }
+  .chat-input-area { position: absolute; bottom: 0; left: 0; right: 0; padding: 0 20px 16px; pointer-events: none; }
+  .chat-input { max-width: 700px; margin: 0 auto; background: var(--bg-dim); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; pointer-events: auto; backdrop-filter: blur(20px); }
+  .chat.mini .chat-input { max-width: 100%; }
+  .chat-textarea { width: 100%; background: transparent; border: none; color: var(--fg); font-size: 13px; font-family: var(--font); resize: none; outline: none; min-height: 40px; }
+  .chat-textarea::placeholder { color: var(--fg-subtle); opacity: 0.4; }
+
+  /* Artifact */
+  .artifact { width: 460px; border-left: 1px solid var(--border); display: flex; flex-direction: column; background: var(--bg-dim); transition: all 0.25s ease; }
+  .artifact.expanded { flex: 1; width: auto; }
+  .artifact-header { padding: 8px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .artifact-filename { font-size: 13px; font-weight: 600; font-family: var(--mono); }
+  .artifact-status { font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 600; background: var(--warning-dim); color: var(--warning); }
+  .artifact-close { margin-left: auto; cursor: pointer; color: var(--fg-subtle); font-size: 14px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+  .artifact-close:hover { background: var(--bg-subtle); color: var(--fg); }
+
+  .artifact-content { flex: 1; overflow-y: auto; padding: 14px; }
+  .artifact.expanded .artifact-content { max-width: 800px; margin: 0 auto; width: 100%; padding: 20px 32px; }
+  .content-line { padding: 3px 8px; border-radius: 4px; position: relative; }
+  .content-line:hover { background: rgba(99,102,241,0.05); }
+  .content-line:hover .add-comment-btn { opacity: 1; }
+  .content-line h1 { font-size: 20px; margin-bottom: 8px; }
+  .content-line h2 { font-size: 15px; margin: 12px 0 5px; color: var(--fg); }
+  .content-line p { font-size: 13px; line-height: 1.7; color: var(--fg-subtle); }
+  .content-line .checkbox { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .content-line .checkbox input { accent-color: var(--primary); }
+  .add-comment-btn { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; border-radius: 50%; background: var(--primary); color: white; border: none; font-size: 12px; cursor: pointer; opacity: 0; transition: opacity 0.15s; display: flex; align-items: center; justify-content: center; }
+
+  .line-comment { margin: 3px 0 8px 16px; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; }
+  .line-comment.agent-comment { border-left: 3px solid var(--warning); }
+  .line-comment.user-comment { border-left: 3px solid var(--primary); }
+  .line-comment-header { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+  .line-comment-author { font-size: 10px; font-weight: 600; }
+  .line-comment-author.agent { color: var(--warning); }
+  .line-comment-author.user { color: var(--primary); }
+  .line-comment-sev { font-size: 9px; padding: 1px 4px; border-radius: 3px; }
+  .sev-suggestion { background: var(--info-dim); color: var(--info); }
+  .sev-issue { background: var(--danger-dim); color: var(--danger); }
+  .sev-question { background: var(--warning-dim); color: var(--warning); }
+  .line-comment-text { font-size: 12px; line-height: 1.4; color: var(--fg); }
+
+  /* Review Box */
+  .review-box { border-top: 1px solid var(--border); background: var(--bg); }
+  .review-box-header { padding: 8px 14px 4px; display: flex; align-items: center; justify-content: space-between; }
+  .review-box-title { font-size: 12px; font-weight: 600; }
+  .review-box-count { font-size: 10px; color: var(--fg-subtle); }
+  .review-box-chips { display: flex; flex-wrap: wrap; gap: 3px; padding: 0 14px 6px; }
+  .chip { font-size: 10px; padding: 2px 7px; border-radius: 3px; background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(99,102,241,0.15); max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .chip:hover { background: rgba(99,102,241,0.2); }
+  .review-box-input { padding: 0 14px 6px; }
+  .review-box-input textarea { width: 100%; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 6px; color: var(--fg); font-size: 12px; font-family: var(--font); padding: 7px 10px; resize: none; outline: none; min-height: 32px; }
+  .review-box-input textarea:focus { border-color: var(--primary); }
+  .review-box-input textarea::placeholder { color: var(--fg-subtle); opacity: 0.4; }
+  .review-box-actions { padding: 0 14px 10px; display: flex; gap: 6px; align-items: center; }
+  .btn { padding: 5px 12px; border-radius: 6px; border: none; font-size: 11px; font-weight: 500; cursor: pointer; font-family: var(--font); }
+  .btn-submit { background: var(--primary); color: white; }
+  .btn-submit:hover { filter: brightness(1.1); }
+  .btn-approve { background: var(--success); color: white; }
+  .btn-approve:hover { filter: brightness(1.1); }
+  .btn-reject { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239,68,68,0.2); }
+  .review-hint { font-size: 9px; color: var(--fg-subtle); margin-left: auto; }
+
+  /* Prompt Preview */
+  .prompt-preview { border-top: 1px solid var(--border); padding: 6px 14px 8px; background: var(--bg-dim); max-height: 100px; overflow-y: auto; }
+  .prompt-preview-label { font-size: 9px; color: var(--fg-subtle); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .prompt-preview-text { font-size: 10px; color: var(--fg); line-height: 1.5; font-family: var(--mono); white-space: pre-wrap; }
+
+  /* Artifact List */
+  .artifact-list { border-top: 1px solid var(--border); padding: 5px 14px 6px; }
+  .artifact-list-label { font-size: 9px; color: var(--fg-subtle); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .artifact-list-item { padding: 3px 7px; border-radius: 4px; cursor: pointer; font-size: 11px; font-family: var(--mono); color: var(--fg-subtle); display: flex; align-items: center; gap: 5px; }
+  .artifact-list-item:hover { background: var(--bg-subtle); color: var(--fg); }
+  .artifact-list-item.active { background: var(--primary-dim); color: var(--primary); }
+  .dot { width: 5px; height: 5px; border-radius: 50%; }
+  .dot-md { background: var(--success); }
+  .dot-html { background: var(--info); }
+  .dot-json { background: var(--warning); }
+
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Mode label */
+  .mode-label { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px; font-size: 11px; color: var(--fg-subtle); z-index: 100; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+  .mode-label.show { opacity: 1; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-logo">W</div>
+    <span class="topbar-title">Workforce</span>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-mode">
+      <button class="active" id="btnSplit" onclick="setMode('split')">Split</button>
+      <button id="btnFocused" onclick="setMode('focused')">Focused</button>
+    </div>
+  </div>
+
+  <div class="main" id="mainLayout">
+    <div class="sessions" id="sessionsPanel">
+      <div class="sessions-header">Sessions</div>
+      <div class="sessions-list">
+        <div class="date-group">Today</div>
+        <div class="session-item active"><div class="session-title">Plan: V2 API Migration</div><div class="session-meta"><span class="badge badge-plan">Plan</span><span class="session-time">3m</span></div></div>
+        <div class="session-item"><div class="session-title">Fix auth bug in login</div><div class="session-meta"><span class="badge badge-claude">Claude</span><span class="session-time">1h</span></div></div>
+        <div class="session-item"><div class="session-title">CC Session Sync</div><div class="session-meta"><span class="badge badge-claude">Claude</span><span class="session-time">5h</span></div></div>
+        <div class="date-group">Mar 15</div>
+        <div class="session-item"><div class="session-title">Journal v0.3.0</div><div class="session-meta"><span class="session-time">1d</span></div></div>
+      </div>
+    </div>
+
+    <div class="chat" id="chatPanel">
+      <div class="chat-header">Chat</div>
+      <div class="chat-messages">
+        <div class="message"><div class="message-user"><div class="message-role">You</div><div class="message-content">Create a detailed migration plan for our V2 API.</div></div></div>
+        <div class="message"><div class="message-assistant"><div class="message-role">Assistant</div><div class="message-content">I'll create a comprehensive plan and write it to an artifact so we can review it together.</div><div class="message-tool">&#10003; Write v2-api-plan.md</div></div></div>
+        <div class="message"><div class="message-user"><div class="message-review"><div class="message-review-title">Review submitted (3 comments)</div><div class="message-review-item">Phase 1: Use PKCE with S256</div><div class="message-review-item">Phase 2: Add WebSocket endpoint</div><div class="message-review-item">Phase 3: Extend dual-write to 60d</div></div></div></div>
+        <div class="message"><div class="message-assistant"><div class="message-role">Assistant</div><div class="message-content">Updated the plan addressing all review comments.</div><div class="message-tool">&#10003; Edit v2-api-plan.md</div></div></div>
+      </div>
+      <div class="chat-input-area"><div class="chat-input"><textarea class="chat-textarea" placeholder="Ask Workforce anything..." rows="2"></textarea></div></div>
+    </div>
+
+    <div class="artifact" id="artifactPanel">
+      <div class="artifact-header">
+        <span class="artifact-filename">v2-api-plan.md</span>
+        <span class="artifact-status">Reviewing</span>
+        <span class="artifact-close" onclick="setMode('split')">&times;</span>
+      </div>
+      <div class="artifact-content">
+        <div class="content-line"><h1>V2 API Migration Plan</h1></div>
+        <div class="content-line"><h2>Phase 1: Authentication</h2><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><div class="checkbox"><input type="checkbox"> <span>Replace JWT with OAuth2 + PKCE (S256)</span></div><button class="add-comment-btn">+</button></div>
+        <div class="line-comment agent-comment"><div class="line-comment-header"><span class="line-comment-author agent">Agent</span><span class="line-comment-sev sev-question">question</span></div><div class="line-comment-text">Older clients may not support S256. Fall back to plain?</div></div>
+        <div class="content-line"><div class="checkbox"><input type="checkbox"> <span>Refresh token rotation</span></div><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><div class="checkbox"><input type="checkbox" checked> <span>Rate limiting (100 req/min)</span></div><button class="add-comment-btn">+</button></div>
+        <div class="line-comment user-comment"><div class="line-comment-header"><span class="line-comment-author user">You</span><span class="line-comment-sev sev-suggestion">suggestion</span></div><div class="line-comment-text">200/min authenticated, 50/min anonymous</div></div>
+        <div class="content-line"><div class="checkbox"><input type="checkbox"> <span>Migrate existing sessions</span></div><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><h2>Phase 2: Endpoints</h2><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><p>&#8226; /api/v2/users &#8212; CRUD + pagination</p><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><p>&#8226; /api/v2/sessions &#8212; WebSocket + REST</p><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><p>&#8226; /api/v2/artifacts &#8212; new resource</p><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><h2>Phase 3: Data Migration</h2><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><p>&#8226; Dual-write v1+v2 (60 days)</p><button class="add-comment-btn">+</button></div>
+        <div class="line-comment user-comment"><div class="line-comment-header"><span class="line-comment-author user">You</span><span class="line-comment-sev sev-issue">issue</span></div><div class="line-comment-text">Need rollback strategy for data inconsistencies</div></div>
+        <div class="content-line"><p>&#8226; Backfill historical data</p><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><p>&#8226; Validate v1 vs v2 responses</p><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><h2>Phase 4: Deprecation</h2><button class="add-comment-btn">+</button></div>
+        <div class="content-line"><p>&#8226; Sunset headers, 90-day window</p><button class="add-comment-btn">+</button></div>
+      </div>
+
+      <div class="review-box">
+        <div class="review-box-header"><span class="review-box-title">Your Review</span><span class="review-box-count">2 comments</span></div>
+        <div class="review-box-chips">
+          <span class="chip">Rate limit: 200/50 split</span>
+          <span class="chip">Rollback strategy needed</span>
+        </div>
+        <div class="review-box-input"><textarea placeholder="General feedback or instructions..." rows="2" id="generalComment" oninput="updatePrompt()"></textarea></div>
+        <div class="review-box-actions">
+          <button class="btn btn-submit">Submit Review</button>
+          <button class="btn btn-approve">Approve</button>
+          <button class="btn btn-reject">Request Changes</button>
+          <span class="review-hint">Sends as next prompt</span>
+        </div>
+      </div>
+
+      <div class="prompt-preview">
+        <div class="prompt-preview-label">Generated prompt</div>
+        <div class="prompt-preview-text" id="promptText">Review of v2-api-plan.md:
+
+1. [suggestion] Rate limit: 200/min auth, 50/min anon
+2. [issue] Need rollback strategy for inconsistencies</div>
+      </div>
+
+      <div class="artifact-list">
+        <div class="artifact-list-label">Artifacts</div>
+        <div class="artifact-list-item active"><span class="dot dot-md"></span>v2-api-plan.md</div>
+        <div class="artifact-list-item"><span class="dot dot-html"></span>auth-flow.html</div>
+        <div class="artifact-list-item"><span class="dot dot-json"></span>openapi-v2.json</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-label" id="modeLabel"></div>
+
+<script>
+  function setMode(mode) {
+    var sessions = document.getElementById('sessionsPanel');
+    var chat = document.getElementById('chatPanel');
+    var artifact = document.getElementById('artifactPanel');
+    var btnSplit = document.getElementById('btnSplit');
+    var btnFocused = document.getElementById('btnFocused');
+    var label = document.getElementById('modeLabel');
+
+    if (mode === 'focused') {
+      sessions.classList.add('collapsed');
+      chat.classList.add('mini');
+      artifact.classList.add('expanded');
+      btnSplit.classList.remove('active');
+      btnFocused.classList.add('active');
+      label.textContent = 'Focused Mode — Artifact expanded, chat minimized';
+    } else {
+      sessions.classList.remove('collapsed');
+      chat.classList.remove('mini');
+      artifact.classList.remove('expanded');
+      btnSplit.classList.add('active');
+      btnFocused.classList.remove('active');
+      label.textContent = 'Split Mode — Side by side';
+    }
+    label.classList.add('show');
+    setTimeout(function() { label.classList.remove('show'); }, 1500);
+  }
+
+  function updatePrompt() {
+    var general = document.getElementById('generalComment').value.trim();
+    var base = 'Review of v2-api-plan.md:\n\n1. [suggestion] Rate limit: 200/min auth, 50/min anon\n2. [issue] Need rollback strategy for inconsistencies';
+    if (general) base += '\n\nGeneral: ' + general;
+    document.getElementById('promptText').textContent = base;
+  }
+</script>
+</body>
+</html>

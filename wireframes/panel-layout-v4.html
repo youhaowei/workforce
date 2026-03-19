@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workforce — Two-Panel Layout with Tabs</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #1a1a2e; --bg-dim: #14142a; --bg-subtle: #222240; --border: #2a2a4a;
+    --fg: #e5e5ec; --fg-subtle: #8888a0; --fg-dim: #555570;
+    --primary: #6366f1; --primary-dim: rgba(99,102,241,0.12);
+    --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+    --info: #4a9eed; --claude: #D97757;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', monospace;
+    --rail-width: 44px;
+  }
+  body { font-family: var(--font); background: #0e0e1a; color: var(--fg); height: 100vh; display: flex; overflow: hidden; font-size: 13px; }
+
+  /* Shell */
+  .shell { width: 100%; height: 100%; display: flex; }
+  .shell-right-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .shell-content { flex: 1; display: flex; min-height: 0; }
+
+  /* App Bar */
+  .appbar { height: 38px; background: var(--bg-dim); border-bottom: 1px solid var(--border); display: flex; align-items: center; flex-shrink: 0; }
+  .appbar-tabs { display: flex; align-items: end; gap: 1px; flex: 1; overflow-x: auto; padding: 0 4px; height: 100%; }
+  .appbar-tabs::-webkit-scrollbar { display: none; }
+  .tab { padding: 0 14px; height: 32px; margin-top: auto; display: flex; align-items: center; gap: 6px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 11px; color: var(--fg-subtle); background: transparent; transition: all 0.12s; white-space: nowrap; max-width: 200px; border: none; font-family: var(--font); }
+  .tab:hover { color: var(--fg); background: var(--bg-subtle); }
+  .tab.active { color: var(--fg); background: var(--bg); }
+  .tab-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .tab-title { overflow: hidden; text-overflow: ellipsis; }
+  .tab-close { width: 16px; height: 16px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--fg-dim); cursor: pointer; opacity: 0; transition: opacity 0.1s; flex-shrink: 0; border: none; background: none; font-family: var(--font); }
+  .tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+  .tab-close:hover { background: var(--bg-subtle); color: var(--fg); }
+  .appbar-actions { display: flex; align-items: center; gap: 2px; padding: 0 6px; }
+  .appbar-btn { width: 28px; height: 28px; border-radius: 5px; border: none; background: transparent; color: var(--fg-subtle); cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; font-family: var(--font); }
+  .appbar-btn:hover { background: var(--bg-subtle); color: var(--fg); }
+  .appbar-btn.toggled { color: var(--primary); }
+
+  /* Left: Rail + Side Panel */
+  .left { display: flex; flex-shrink: 0; height: 100%; transition: width 0.2s ease; overflow: hidden; }
+  .left.hidden { width: 0 !important; }
+  .rail { width: var(--rail-width); background: var(--bg-dim); display: flex; flex-direction: column; align-items: center; padding: 6px 0; gap: 2px; flex-shrink: 0; border-right: 1px solid var(--border); }
+  .rail-logo { width: 28px; height: 28px; background: var(--primary); border-radius: 7px; font-size: 11px; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; margin-bottom: 8px; cursor: pointer; }
+  .rail-btn { width: 34px; height: 34px; border-radius: 6px; border: none; background: transparent; color: var(--fg-dim); cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: all 0.12s; position: relative; font-family: var(--font); }
+  .rail-btn:hover { color: var(--fg-subtle); background: var(--bg-subtle); }
+  .rail-btn.active { color: var(--fg); }
+  .rail-btn.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 0 2px 2px 0; background: var(--primary); }
+  .rail-spacer { flex: 1; }
+  .sidepanel { width: 0; background: var(--bg-dim); border-right: 1px solid var(--border); overflow: hidden; transition: width 0.2s ease; display: flex; flex-direction: column; }
+  .sidepanel.open { width: 220px; }
+  .sidepanel-header { height: 36px; display: flex; align-items: center; padding: 0 12px; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .sidepanel-content { flex: 1; overflow-y: auto; padding: 4px; }
+
+  /* Main: Two-panel split */
+  .main { flex: 1; display: flex; min-width: 0; overflow: hidden; background: var(--bg); }
+
+  /* Content panels */
+  .content-panel { display: flex; flex-direction: column; overflow: hidden; min-width: 200px; }
+  .content-panel.chat-panel { flex: 1; min-width: 280px; }
+  .content-panel.artifact-pane { width: 440px; flex-shrink: 0; border-left: 1px solid var(--border); }
+
+  /* Panel tabs (inside artifact pane) */
+  .panel-tabs { height: 32px; display: flex; align-items: end; padding: 0 4px; border-bottom: 1px solid var(--border); flex-shrink: 0; overflow-x: auto; background: var(--bg-dim); }
+  .panel-tabs::-webkit-scrollbar { display: none; }
+  .ptab { padding: 0 10px; height: 26px; margin-top: auto; display: flex; align-items: center; gap: 5px; border-radius: 5px 5px 0 0; cursor: pointer; font-size: 10px; color: var(--fg-dim); background: transparent; transition: all 0.12s; white-space: nowrap; border: none; font-family: var(--mono); }
+  .ptab:hover { color: var(--fg-subtle); background: var(--bg-subtle); }
+  .ptab.active { color: var(--fg); background: var(--bg); }
+  .ptab-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .ptab-close { width: 14px; height: 14px; border-radius: 2px; display: none; align-items: center; justify-content: center; font-size: 9px; color: var(--fg-dim); cursor: pointer; border: none; background: none; font-family: var(--font); }
+  .ptab:hover .ptab-close, .ptab.active .ptab-close { display: flex; }
+  .ptab-close:hover { background: var(--bg-subtle); color: var(--fg); }
+  .ptab-status { font-size: 8px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+
+  .panel-header { height: 32px; display: flex; align-items: center; padding: 0 12px; gap: 6px; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--fg-subtle); border-bottom: 1px solid var(--border); }
+  .panel-body { flex: 1; overflow-y: auto; padding: 12px; }
+
+  /* Resize handle */
+  .split-resize { width: 4px; cursor: col-resize; flex-shrink: 0; position: relative; z-index: 2; }
+  .split-resize:hover, .split-resize.dragging { background: var(--primary); }
+
+  /* Right info */
+  .right-panel { width: 0; background: var(--bg-dim); border-left: 1px solid var(--border); overflow: hidden; transition: width 0.2s ease; display: flex; flex-direction: column; flex-shrink: 0; }
+  .right-panel.open { width: 220px; }
+  .right-panel-header { height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .right-panel-close { border: none; background: none; color: var(--fg-dim); cursor: pointer; font-size: 14px; font-family: var(--font); }
+  .right-panel-close:hover { color: var(--fg); }
+  .right-panel-content { flex: 1; overflow-y: auto; padding: 8px 12px; }
+
+  /* Mock content */
+  .mock-session { padding: 5px 8px; border-radius: 4px; margin-bottom: 1px; cursor: pointer; }
+  .mock-session:hover { background: var(--bg-subtle); }
+  .mock-session.active { background: rgba(99,102,241,0.08); }
+  .s-title { font-size: 11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .s-meta { font-size: 9px; color: var(--fg-dim); margin-top: 1px; display: flex; gap: 4px; align-items: center; }
+  .s-badge { font-size: 8px; padding: 0 4px; border-radius: 3px; font-weight: 600; }
+  .s-badge.plan { background: rgba(245,158,11,0.15); color: var(--warning); }
+  .s-badge.claude { background: rgba(217,119,87,0.12); color: var(--claude); }
+
+  .mock-msg { margin-bottom: 12px; }
+  .mock-msg.user { max-width: 80%; margin-left: auto; }
+  .bubble { padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.55; }
+  .mock-msg.user .bubble { background: var(--bg-subtle); border: 1px solid var(--border); }
+  .mock-msg.assistant .bubble { padding: 8px 0; }
+  .role { font-size: 9px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; font-weight: 600; }
+  .tool-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--success); background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.12); border-radius: 4px; padding: 2px 8px; margin-top: 6px; }
+
+  .mock-md h3 { font-size: 15px; font-weight: 600; margin: 0 0 10px; }
+  .mock-md h4 { font-size: 12px; font-weight: 600; color: var(--fg-subtle); margin: 14px 0 5px; }
+  .mock-md p { font-size: 11px; color: var(--fg-subtle); line-height: 1.7; margin-bottom: 4px; }
+  .checklist { font-size: 11px; }
+  .checklist div { padding: 3px 0; display: flex; align-items: center; gap: 6px; }
+  .checklist input { accent-color: var(--primary); pointer-events: none; }
+  .line-hover { padding: 2px 4px; margin: -2px -4px; border-radius: 3px; position: relative; }
+  .line-hover:hover { background: rgba(99,102,241,0.04); }
+  .line-hover:hover .add-cmt { opacity: 1; }
+  .add-cmt { position: absolute; right: 2px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; border-radius: 50%; background: var(--primary); color: white; font-size: 10px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.12s; cursor: pointer; border: none; font-family: var(--font); }
+  .line-comment { margin: 3px 0 6px 16px; padding: 5px 8px; border-radius: 4px; border-left: 3px solid var(--primary); background: var(--bg-subtle); font-size: 10px; }
+  .line-comment .lc-header { display: flex; gap: 4px; align-items: center; margin-bottom: 2px; }
+  .line-comment .lc-author { font-size: 9px; font-weight: 600; color: var(--primary); }
+  .line-comment .lc-sev { font-size: 8px; padding: 0 4px; border-radius: 2px; background: var(--info); background: rgba(74,158,237,0.15); color: var(--info); }
+
+  .chat-input-area { padding: 8px 12px; border-top: 1px solid var(--border); }
+  .chat-input { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .chat-input-text { font-size: 12px; color: var(--fg-dim); margin-bottom: 6px; }
+  .chat-input-meta { font-size: 9px; color: var(--fg-dim); display: flex; gap: 8px; }
+
+  .review-box { border-top: 1px solid var(--border); padding: 8px 12px; background: var(--bg-dim); }
+  .review-header { font-size: 10px; font-weight: 600; color: var(--fg-subtle); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .review-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 6px; }
+  .review-chip { font-size: 9px; padding: 2px 6px; border-radius: 3px; background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(99,102,241,0.15); }
+  .review-textarea { width: 100%; background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 5px; padding: 6px 8px; font-size: 11px; color: var(--fg-dim); resize: none; outline: none; font-family: var(--font); }
+  .review-actions { display: flex; gap: 4px; margin-top: 6px; align-items: center; }
+  .review-btn { padding: 4px 10px; border-radius: 5px; border: none; font-size: 10px; font-weight: 500; cursor: pointer; font-family: var(--font); }
+  .review-btn.primary { background: var(--primary); color: white; }
+  .review-btn.success { background: var(--success); color: white; }
+  .review-btn.ghost { background: rgba(239,68,68,0.1); color: var(--danger); border: 1px solid rgba(239,68,68,0.15); }
+  .review-hint { font-size: 9px; color: var(--fg-dim); margin-left: auto; }
+
+  .info-section-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--fg-dim); margin: 10px 0 4px; font-weight: 600; }
+  .info-section-label:first-child { margin-top: 0; }
+  .info-row { font-size: 10px; color: var(--fg-subtle); padding: 2px 0; display: flex; justify-content: space-between; }
+  .info-val { color: var(--fg); font-family: var(--mono); font-size: 10px; }
+  .info-artifact { font-size: 10px; padding: 5px 8px; border-radius: 4px; background: var(--bg-subtle); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .info-artifact:hover { background: var(--border); }
+  .info-artifact .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .info-artifact .name { font-family: var(--mono); color: var(--fg-subtle); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .info-artifact .status { font-size: 8px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+
+  /* Empty state for artifact pane */
+  .empty-pane { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--fg-dim); gap: 8px; }
+  .empty-pane-icon { font-size: 28px; opacity: 0.3; }
+  .empty-pane-text { font-size: 11px; }
+
+  /* Controls overlay */
+  .controls-toggle { position: fixed; bottom: 16px; right: 16px; z-index: 100; padding: 6px 14px; border-radius: 6px; background: var(--primary); color: white; border: none; font-size: 11px; cursor: pointer; font-family: var(--font); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .controls-panel { position: fixed; bottom: 52px; right: 16px; z-index: 100; width: 280px; max-height: 50vh; background: var(--bg-dim); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-y: auto; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .controls-panel.open { display: block; }
+  .controls-panel h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+  .ctrl-section { margin-bottom: 10px; }
+  .ctrl-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--fg-subtle); margin-bottom: 4px; font-weight: 600; }
+  .ctrl-row { margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .ctrl-row label { font-size: 11px; color: var(--fg); flex: 1; }
+  .ctrl-row input[type="range"] { width: 100px; accent-color: var(--primary); }
+  .ctrl-row input[type="checkbox"] { accent-color: var(--primary); }
+  .ctrl-row .val { font-size: 10px; color: var(--fg-dim); font-family: var(--mono); min-width: 32px; text-align: right; }
+
+  ::-webkit-scrollbar { width: 4px; height: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="left" id="leftSide">
+    <div class="rail" id="rail"></div>
+    <div class="sidepanel" id="sidepanel">
+      <div class="sidepanel-header" id="sidepanelHeader">Sessions</div>
+      <div class="sidepanel-content" id="sidepanelContent"></div>
+    </div>
+  </div>
+  <div class="shell-right-area">
+    <div class="appbar">
+      <div class="appbar-tabs" id="appbarTabs"></div>
+      <div class="appbar-actions">
+        <button class="appbar-btn" id="sideToggle" title="Toggle sidebar" onclick="toggleLeft()">\u2630</button>
+        <button class="appbar-btn" id="infoToggle" title="Toggle info" onclick="toggleRight()">i</button>
+        <button class="appbar-btn" title="New session" onclick="addTab()">+</button>
+      </div>
+    </div>
+    <div class="shell-content">
+      <div class="main" id="mainArea"></div>
+      <div class="right-panel" id="rightPanel">
+        <div class="right-panel-header"><span>Info</span><button class="right-panel-close" onclick="toggleRight()">\u00d7</button></div>
+        <div class="right-panel-content" id="rightContent"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="controls-toggle" onclick="toggleControls()">Controls</button>
+<div class="controls-panel" id="controlsPanel">
+  <h3>Layout Controls</h3>
+  <div class="ctrl-section">
+    <div class="ctrl-label">Artifact Width</div>
+    <div class="ctrl-row"><input type="range" id="ctrlArtW" min="280" max="700" value="440" oninput="onCtrl()"><span class="val" id="ctrlArtWVal">440</span></div>
+  </div>
+  <div class="ctrl-section">
+    <div class="ctrl-label">Panels</div>
+    <div class="ctrl-row"><input type="checkbox" id="ctrlShowLeft" checked onchange="onCtrl()"><label for="ctrlShowLeft">Left sidebar</label></div>
+    <div class="ctrl-row"><input type="checkbox" id="ctrlShowArt" checked onchange="onCtrl()"><label for="ctrlShowArt">Artifact pane</label></div>
+    <div class="ctrl-row"><input type="checkbox" id="ctrlShowInfo" checked onchange="onCtrl()"><label for="ctrlShowInfo">Info panel</label></div>
+    <div class="ctrl-row"><input type="checkbox" id="ctrlShowReview" checked onchange="onCtrl()"><label for="ctrlShowReview">Review box</label></div>
+    <div class="ctrl-row"><input type="checkbox" id="ctrlShowComments" checked onchange="onCtrl()"><label for="ctrlShowComments">Inline comments</label></div>
+  </div>
+</div>
+
+<script>
+var config = {
+  artifactWidth: 440,
+  showLeft: true, showArtifact: true, showInfo: true, showReview: true, showComments: true,
+  sideOpen: true, activeRail: 'sessions', activeTab: 0, activeArtifactTab: 0
+};
+
+var sessionTabs = [
+  { title: 'V2 API Migration', color: 'var(--warning)', artifacts: [
+    { name: 'v2-api-plan.md', type: 'md', status: 'Review', statusColor: 'rgba(245,158,11,0.15)', statusText: 'var(--warning)' },
+    { name: 'api-spec.json', type: 'json', status: 'Draft', statusColor: 'rgba(136,136,160,0.15)', statusText: 'var(--fg-dim)' },
+  ]},
+  { title: 'Fix auth bug', color: 'var(--claude)', artifacts: [] },
+  { title: 'CC Session Sync', color: 'var(--info)', artifacts: [
+    { name: 'sync-plan.md', type: 'md', status: 'Approved', statusColor: 'rgba(34,197,94,0.15)', statusText: 'var(--success)' },
+  ]},
+];
+
+var sessions = [
+  { title:'V2 API Migration', meta:'3m', badge:'Plan', badgeClass:'plan' },
+  { title:'Fix auth bug in login', meta:'1h', badge:'Claude', badgeClass:'claude' },
+  { title:'CC Session Sync', meta:'5h', badge:'Claude', badgeClass:'claude' },
+  { title:'Journal v0.3.0', meta:'1d' },
+  { title:'Artifact system types', meta:'2d' },
+  { title:'Add worktree support', meta:'3d' },
+];
+
+var railItems = [
+  { id:'sessions', icon:'\u2630', label:'Sessions' },
+  { id:'projects', icon:'\u25a3', label:'Projects' },
+  { id:'search', icon:'\u2315', label:'Search' },
+];
+
+var MIME_DOT = { md: 'var(--success)', json: 'var(--warning)', html: 'var(--info)' };
+
+function buildRail() {
+  var rail = document.getElementById('rail');
+  while (rail.firstChild) rail.removeChild(rail.firstChild);
+  var logo = document.createElement('div'); logo.className = 'rail-logo'; logo.textContent = 'W';
+  rail.appendChild(logo);
+  railItems.forEach(function(item) {
+    var btn = document.createElement('button');
+    btn.className = 'rail-btn' + (config.activeRail === item.id && config.sideOpen ? ' active' : '');
+    btn.textContent = item.icon; btn.title = item.label;
+    btn.onclick = function() {
+      if (config.activeRail === item.id) config.sideOpen = !config.sideOpen;
+      else { config.activeRail = item.id; config.sideOpen = true; }
+      renderAll();
+    };
+    rail.appendChild(btn);
+  });
+  var spacer = document.createElement('div'); spacer.style.flex = '1'; rail.appendChild(spacer);
+  var gear = document.createElement('button'); gear.className = 'rail-btn'; gear.textContent = '\u2699'; gear.title = 'Settings';
+  rail.appendChild(gear);
+}
+
+function buildAppTabs() {
+  var container = document.getElementById('appbarTabs');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  sessionTabs.forEach(function(tab, i) {
+    var el = document.createElement('button');
+    el.className = 'tab' + (i === config.activeTab ? ' active' : '');
+    var dot = document.createElement('span'); dot.className = 'tab-dot'; dot.style.background = tab.color;
+    var title = document.createElement('span'); title.className = 'tab-title'; title.textContent = tab.title;
+    var close = document.createElement('button'); close.className = 'tab-close'; close.textContent = '\u00d7';
+    close.onclick = function(e) { e.stopPropagation(); if (sessionTabs.length > 1) { sessionTabs.splice(i, 1); if (config.activeTab >= sessionTabs.length) config.activeTab--; renderAll(); } };
+    el.appendChild(dot); el.appendChild(title); el.appendChild(close);
+    el.onclick = function() { config.activeTab = i; config.activeArtifactTab = 0; renderAll(); };
+    container.appendChild(el);
+  });
+}
+
+function buildSidePanel() {
+  var left = document.getElementById('leftSide');
+  left.classList.toggle('hidden', !config.showLeft);
+  var panel = document.getElementById('sidepanel');
+  panel.className = 'sidepanel' + (config.sideOpen ? ' open' : '');
+  var header = document.getElementById('sidepanelHeader');
+  var content = document.getElementById('sidepanelContent');
+  var active = railItems.find(function(r) { return r.id === config.activeRail; });
+  header.textContent = active ? active.label : '';
+  while (content.firstChild) content.removeChild(content.firstChild);
+  if (config.activeRail === 'sessions') {
+    sessions.forEach(function(s, i) {
+      var el = document.createElement('div');
+      el.className = 'mock-session' + (i === config.activeTab ? ' active' : '');
+      var t = document.createElement('div'); t.className = 's-title'; t.textContent = s.title;
+      var m = document.createElement('div'); m.className = 's-meta';
+      if (s.badge) { var b = document.createElement('span'); b.className = 's-badge ' + s.badgeClass; b.textContent = s.badge; m.appendChild(b); }
+      var time = document.createElement('span'); time.textContent = s.meta; m.appendChild(time);
+      el.appendChild(t); el.appendChild(m);
+      el.onclick = function() { if (i < sessionTabs.length) { config.activeTab = i; config.activeArtifactTab = 0; renderAll(); } };
+      content.appendChild(el);
+    });
+  }
+  document.getElementById('sideToggle').classList.toggle('toggled', config.showLeft);
+}
+
+function buildMain() {
+  var main = document.getElementById('mainArea');
+  while (main.firstChild) main.removeChild(main.firstChild);
+  var tab = sessionTabs[config.activeTab];
+  if (!tab) return;
+
+  // Chat panel (flex: 1)
+  var chat = document.createElement('div'); chat.className = 'content-panel chat-panel';
+  var chatHeader = document.createElement('div'); chatHeader.className = 'panel-header'; chatHeader.textContent = 'Chat';
+  chat.appendChild(chatHeader);
+  var chatBody = document.createElement('div'); chatBody.className = 'panel-body';
+  var msgs = [
+    { role:'You', text:'Create a detailed migration plan for our V2 API.', isUser:true },
+    { role:'Assistant', text:'I\'ll create a comprehensive plan and write it to an artifact so we can review it together.', isUser:false, tool:'Write v2-api-plan.md' },
+    { role:'You', text:'Add WebSocket support to Phase 2 and extend dual-write to 60 days.', isUser:true },
+    { role:'Assistant', text:'Updated the plan addressing your feedback. Phase 2 now includes WS endpoints.', isUser:false, tool:'Edit v2-api-plan.md' },
+  ];
+  msgs.forEach(function(msg) {
+    var el = document.createElement('div'); el.className = 'mock-msg' + (msg.isUser ? ' user' : ' assistant');
+    var r = document.createElement('div'); r.className = 'role'; r.textContent = msg.role;
+    var b = document.createElement('div'); b.className = 'bubble'; b.textContent = msg.text;
+    el.appendChild(r); el.appendChild(b);
+    if (msg.tool) { var t = document.createElement('div'); t.className = 'tool-badge'; t.textContent = '\u2713 ' + msg.tool; el.appendChild(t); }
+    chatBody.appendChild(el);
+  });
+  chat.appendChild(chatBody);
+  var inputArea = document.createElement('div'); inputArea.className = 'chat-input-area';
+  var input = document.createElement('div'); input.className = 'chat-input';
+  var iText = document.createElement('div'); iText.className = 'chat-input-text'; iText.textContent = 'Ask Workforce anything...';
+  var iMeta = document.createElement('div'); iMeta.className = 'chat-input-meta'; iMeta.textContent = 'Sonnet \u00b7 Auto \u00b7 Ask';
+  input.appendChild(iText); input.appendChild(iMeta); inputArea.appendChild(input); chat.appendChild(inputArea);
+  main.appendChild(chat);
+
+  // Artifact pane
+  if (config.showArtifact && tab.artifacts.length > 0) {
+    var handle = document.createElement('div'); handle.className = 'split-resize';
+    handle.addEventListener('mousedown', function(e) { startResize(e); });
+    main.appendChild(handle);
+
+    var art = document.createElement('div'); art.className = 'content-panel artifact-pane'; art.id = 'artifactPane';
+    art.style.width = config.artifactWidth + 'px';
+
+    // Panel tabs
+    var ptabs = document.createElement('div'); ptabs.className = 'panel-tabs';
+    tab.artifacts.forEach(function(a, ai) {
+      var pt = document.createElement('button'); pt.className = 'ptab' + (ai === config.activeArtifactTab ? ' active' : '');
+      var dot = document.createElement('span'); dot.className = 'ptab-dot'; dot.style.background = MIME_DOT[a.type] || 'var(--fg-dim)';
+      var name = document.createElement('span'); name.textContent = a.name;
+      var status = document.createElement('span'); status.className = 'ptab-status'; status.textContent = a.status;
+      status.style.background = a.statusColor; status.style.color = a.statusText;
+      var close = document.createElement('button'); close.className = 'ptab-close'; close.textContent = '\u00d7';
+      pt.appendChild(dot); pt.appendChild(name); pt.appendChild(status); pt.appendChild(close);
+      pt.onclick = function() { config.activeArtifactTab = ai; renderAll(); };
+      ptabs.appendChild(pt);
+    });
+    art.appendChild(ptabs);
+
+    var artBody = document.createElement('div'); artBody.className = 'panel-body';
+    var activeArt = tab.artifacts[config.activeArtifactTab];
+    if (activeArt && activeArt.type === 'md') {
+      var md = document.createElement('div'); md.className = 'mock-md';
+      var h = document.createElement('h3'); h.textContent = 'V2 API Migration Plan'; md.appendChild(h);
+      var sections = [
+        { heading:'Phase 1: Authentication', items:['Replace JWT with OAuth2 + PKCE (S256)','Refresh token rotation','Rate limiting (200/50)','Migrate existing sessions'], commentIdx:2 },
+        { heading:'Phase 2: Endpoints', lines:['/api/v2/users \u2014 CRUD + pagination','/api/v2/sessions \u2014 WebSocket + REST','/api/v2/artifacts \u2014 new resource'] },
+        { heading:'Phase 3: Data Migration', lines:['Dual-write v1+v2 (60 days)','Backfill historical data','Validate v1 vs v2 responses'], commentIdx:0 },
+      ];
+      sections.forEach(function(s) {
+        var sh = document.createElement('h4'); sh.textContent = s.heading; md.appendChild(sh);
+        if (s.items) {
+          var cl = document.createElement('div'); cl.className = 'checklist';
+          s.items.forEach(function(item, idx) {
+            var wrap = document.createElement('div'); wrap.className = 'line-hover';
+            var row = document.createElement('div'); row.style.display = 'flex'; row.style.alignItems = 'center'; row.style.gap = '6px';
+            var cb = document.createElement('input'); cb.type = 'checkbox'; cb.disabled = true;
+            if (idx === 0 || idx === 2) cb.checked = true;
+            var sp = document.createElement('span'); sp.textContent = item;
+            var addBtn = document.createElement('button'); addBtn.className = 'add-cmt'; addBtn.textContent = '+';
+            row.appendChild(cb); row.appendChild(sp); wrap.appendChild(row); wrap.appendChild(addBtn); cl.appendChild(wrap);
+            if (config.showComments && s.commentIdx === idx) {
+              var cmt = document.createElement('div'); cmt.className = 'line-comment';
+              var hdr = document.createElement('div'); hdr.className = 'lc-header';
+              var author = document.createElement('span'); author.className = 'lc-author'; author.textContent = 'You';
+              var sev = document.createElement('span'); sev.className = 'lc-sev'; sev.textContent = 'suggestion';
+              hdr.appendChild(author); hdr.appendChild(sev); cmt.appendChild(hdr);
+              var txt = document.createElement('div'); txt.textContent = idx === 2 ? '200/min auth, 50/min anon' : 'Need rollback strategy for data inconsistencies';
+              cmt.appendChild(txt); cl.appendChild(cmt);
+            }
+          });
+          md.appendChild(cl);
+        }
+        if (s.lines) {
+          s.lines.forEach(function(line, idx) {
+            var wrap = document.createElement('div'); wrap.className = 'line-hover';
+            var p = document.createElement('p'); p.textContent = '\u2022 ' + line; p.style.margin = '0';
+            var addBtn = document.createElement('button'); addBtn.className = 'add-cmt'; addBtn.textContent = '+';
+            wrap.appendChild(p); wrap.appendChild(addBtn); md.appendChild(wrap);
+            if (config.showComments && s.commentIdx === idx) {
+              var cmt = document.createElement('div'); cmt.className = 'line-comment';
+              var hdr = document.createElement('div'); hdr.className = 'lc-header';
+              var author = document.createElement('span'); author.className = 'lc-author'; author.textContent = 'You';
+              var sev = document.createElement('span'); sev.className = 'lc-sev'; sev.textContent = 'issue';
+              sev.style.background = 'rgba(239,68,68,0.12)'; sev.style.color = 'var(--danger)';
+              hdr.appendChild(author); hdr.appendChild(sev); cmt.appendChild(hdr);
+              var txt = document.createElement('div'); txt.textContent = 'Need rollback strategy for data inconsistencies';
+              cmt.appendChild(txt); md.appendChild(cmt);
+            }
+          });
+        }
+      });
+      artBody.appendChild(md);
+    } else if (activeArt && activeArt.type === 'json') {
+      var pre = document.createElement('pre');
+      pre.style.cssText = 'font-family:var(--mono);font-size:11px;color:var(--fg-subtle);line-height:1.6;white-space:pre-wrap;';
+      pre.textContent = '{\n  "openapi": "3.1.0",\n  "info": {\n    "title": "Workforce V2 API",\n    "version": "2.0.0"\n  },\n  "paths": {\n    "/api/v2/users": { ... },\n    "/api/v2/sessions": { ... },\n    "/api/v2/artifacts": { ... }\n  }\n}';
+      artBody.appendChild(pre);
+    }
+    art.appendChild(artBody);
+
+    // Review box
+    if (config.showReview && activeArt && activeArt.status === 'Review') {
+      var review = document.createElement('div'); review.className = 'review-box';
+      var rHeader = document.createElement('div'); rHeader.className = 'review-header';
+      var rTitle = document.createElement('span'); rTitle.textContent = 'Your Review';
+      var rCount = document.createElement('span'); rCount.textContent = '2 comments'; rCount.style.color = 'var(--fg-dim)'; rCount.style.fontWeight = '400';
+      rHeader.appendChild(rTitle); rHeader.appendChild(rCount); review.appendChild(rHeader);
+
+      var chips = document.createElement('div'); chips.className = 'review-chips';
+      var c1 = document.createElement('span'); c1.className = 'review-chip'; c1.textContent = 'Rate limit: 200/50 split';
+      var c2 = document.createElement('span'); c2.className = 'review-chip'; c2.textContent = 'Rollback strategy needed';
+      chips.appendChild(c1); chips.appendChild(c2); review.appendChild(chips);
+
+      var ta = document.createElement('textarea'); ta.className = 'review-textarea'; ta.placeholder = 'General feedback...'; ta.rows = 2;
+      review.appendChild(ta);
+
+      var actions = document.createElement('div'); actions.className = 'review-actions';
+      var b1 = document.createElement('button'); b1.className = 'review-btn primary'; b1.textContent = 'Submit Review';
+      var b2 = document.createElement('button'); b2.className = 'review-btn success'; b2.textContent = 'Approve';
+      var b3 = document.createElement('button'); b3.className = 'review-btn ghost'; b3.textContent = 'Request Changes';
+      var hint = document.createElement('span'); hint.className = 'review-hint'; hint.textContent = 'Sends as next prompt';
+      actions.appendChild(b1); actions.appendChild(b2); actions.appendChild(b3); actions.appendChild(hint);
+      review.appendChild(actions);
+      art.appendChild(review);
+    }
+
+    main.appendChild(art);
+  } else if (config.showArtifact && tab.artifacts.length === 0) {
+    // Empty artifact pane
+    var empty = document.createElement('div'); empty.className = 'content-panel artifact-pane';
+    empty.style.width = config.artifactWidth + 'px'; empty.style.borderLeft = '1px solid var(--border)';
+    var emptyInner = document.createElement('div'); emptyInner.className = 'empty-pane';
+    var emptyIcon = document.createElement('div'); emptyIcon.className = 'empty-pane-icon'; emptyIcon.textContent = '\ud83d\udcc4';
+    var emptyText = document.createElement('div'); emptyText.className = 'empty-pane-text'; emptyText.textContent = 'No artifacts in this session';
+    emptyInner.appendChild(emptyIcon); emptyInner.appendChild(emptyText); empty.appendChild(emptyInner);
+    main.appendChild(empty);
+  }
+}
+
+function buildRightPanel() {
+  var panel = document.getElementById('rightPanel');
+  panel.className = 'right-panel' + (config.showInfo ? ' open' : '');
+  var content = document.getElementById('rightContent');
+  while (content.firstChild) content.removeChild(content.firstChild);
+  var tab = sessionTabs[config.activeTab]; if (!tab) return;
+  document.getElementById('infoToggle').classList.toggle('toggled', config.showInfo);
+
+  var data = [
+    { label:'Session', value: tab.title, isTitle: true },
+    { label:'Model', rows:[{k:'Provider',v:'claude-4-opus'}] },
+    { label:'Usage', rows:[{k:'Input',v:'12.4K'},{k:'Output',v:'3.2K'},{k:'Cost',v:'$0.18'}] },
+    { label:'Artifacts (' + tab.artifacts.length + ')', artifacts: tab.artifacts },
+  ];
+  data.forEach(function(section) {
+    var lbl = document.createElement('div'); lbl.className = 'info-section-label'; lbl.textContent = section.label;
+    content.appendChild(lbl);
+    if (section.isTitle) {
+      var t = document.createElement('div'); t.style.cssText = 'font-size:12px;font-weight:500;padding:2px 0;';
+      t.textContent = section.value; content.appendChild(t);
+    }
+    if (section.rows) {
+      section.rows.forEach(function(row) {
+        var r = document.createElement('div'); r.className = 'info-row';
+        var k = document.createElement('span'); k.textContent = row.k;
+        var v = document.createElement('span'); v.className = 'info-val'; v.textContent = row.v;
+        r.appendChild(k); r.appendChild(v); content.appendChild(r);
+      });
+    }
+    if (section.artifacts) {
+      if (section.artifacts.length === 0) {
+        var none = document.createElement('div'); none.style.cssText = 'font-size:10px;color:var(--fg-dim);padding:2px 0;';
+        none.textContent = 'None'; content.appendChild(none);
+      }
+      section.artifacts.forEach(function(a, ai) {
+        var el = document.createElement('div'); el.className = 'info-artifact';
+        var dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = MIME_DOT[a.type] || 'var(--fg-dim)';
+        var name = document.createElement('span'); name.className = 'name'; name.textContent = a.name;
+        var status = document.createElement('span'); status.className = 'status'; status.textContent = a.status;
+        status.style.background = a.statusColor; status.style.color = a.statusText;
+        el.appendChild(dot); el.appendChild(name); el.appendChild(status);
+        el.onclick = function() { config.showArtifact = true; config.activeArtifactTab = ai; document.getElementById('ctrlShowArt').checked = true; renderAll(); };
+        content.appendChild(el);
+      });
+    }
+  });
+}
+
+function startResize(e) {
+  e.preventDefault();
+  var pane = document.getElementById('artifactPane'); if (!pane) return;
+  var handle = e.target; handle.classList.add('dragging');
+  var startX = e.clientX, startW = pane.offsetWidth;
+  function onMove(ev) {
+    var w = Math.max(250, startW - (ev.clientX - startX));
+    pane.style.width = w + 'px'; config.artifactWidth = w;
+    document.getElementById('ctrlArtW').value = w;
+    document.getElementById('ctrlArtWVal').textContent = w;
+  }
+  function onUp() { handle.classList.remove('dragging'); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function toggleLeft() { config.showLeft = !config.showLeft; document.getElementById('ctrlShowLeft').checked = config.showLeft; renderAll(); }
+function toggleRight() { config.showInfo = !config.showInfo; document.getElementById('ctrlShowInfo').checked = config.showInfo; renderAll(); }
+function toggleControls() { document.getElementById('controlsPanel').classList.toggle('open'); }
+function addTab() { sessionTabs.push({ title:'New Session', color:'var(--fg-dim)', artifacts:[] }); config.activeTab = sessionTabs.length - 1; config.activeArtifactTab = 0; renderAll(); }
+
+function onCtrl() {
+  config.artifactWidth = +document.getElementById('ctrlArtW').value;
+  config.showLeft = document.getElementById('ctrlShowLeft').checked;
+  config.showArtifact = document.getElementById('ctrlShowArt').checked;
+  config.showInfo = document.getElementById('ctrlShowInfo').checked;
+  config.showReview = document.getElementById('ctrlShowReview').checked;
+  config.showComments = document.getElementById('ctrlShowComments').checked;
+  document.getElementById('ctrlArtWVal').textContent = config.artifactWidth;
+  renderAll();
+}
+
+function renderAll() { buildRail(); buildAppTabs(); buildSidePanel(); buildMain(); buildRightPanel(); }
+renderAll();
+</script>
+</body>
+</html>

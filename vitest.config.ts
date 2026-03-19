@@ -10,6 +10,12 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       'tracey': path.resolve(__dirname, './lib/tracey/src'),
       'unifai': path.resolve(__dirname, './lib/unifai/src'),
+      '@wystack/types': path.resolve(__dirname, './lib/wystack/packages/types/src'),
+      '@wystack/version': path.resolve(__dirname, './lib/wystack/packages/version/src'),
+      '@wystack/db': path.resolve(__dirname, './lib/wystack/packages/db/src'),
+      '@wystack/server': path.resolve(__dirname, './lib/wystack/packages/server/src'),
+      '@wystack/client': path.resolve(__dirname, './lib/wystack/packages/client/src'),
+      '@wystack/start': path.resolve(__dirname, './lib/wystack/packages/start/src'),
     },
   },
   test: {

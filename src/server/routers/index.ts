@@ -12,6 +12,7 @@ import { auditRouter } from './audit';
 import { worktreeRouter } from './worktree';
 import { taskRouter } from './task';
 import { agentRouter } from './agent';
+import { artifactRouter } from './artifact';
 import { eventsRouter } from './events';
 
 export const appRouter = router({
@@ -28,6 +29,7 @@ export const appRouter = router({
   worktree: worktreeRouter,
   task: taskRouter,
   agent: agentRouter,
+  artifact: artifactRouter,
   events: eventsRouter,
 });
 

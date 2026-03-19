@@ -8,7 +8,8 @@
 import { stat } from 'fs/promises';
 import type { Session, JournalMeta, JournalRecord } from './types';
 import { readCCSession } from './cc-reader';
-import { replaySession, SeqAllocator, JSONL_VERSION, writeRecords as journalWriteRecords } from './session-journal';
+import { SeqAllocator, JSONL_VERSION, writeRecords as journalWriteRecords } from './session-journal';
+import { loadSession } from './session-upgrade';
 import { getEventBus } from '@/shared/event-bus';
 import { createLogger } from 'tracey';
 
@@ -71,18 +72,19 @@ async function doImportCCSession(deps: CCSyncDeps, ccFilePath: string, orgId?: s
   };
   await journalWriteRecords(deps.sessionsDir, session.id, [header, ...result.records]);
 
-  const replayed = await replaySession(deps.sessionsDir, session.id);
-  if (replayed) {
-    deps.sessions.set(session.id, replayed.session);
-    deps.seqAllocators.set(session.id, new SeqAllocator(replayed.maxSeq + 1));
+  // loadSession handles replay + version upgrades (incl. plan artifact extraction)
+  const loaded = await loadSession(deps.sessionsDir, session.id);
+  if (loaded) {
+    deps.sessions.set(session.id, loaded.session);
+    deps.seqAllocators.set(session.id, new SeqAllocator(loaded.maxSeq + 1));
 
     // Auto-title from first user message if no title exists
-    if (!replayed.session.title) {
-      const firstUserMsg = replayed.session.messages.find((m) => m.role === 'user');
+    if (!loaded.session.title) {
+      const firstUserMsg = loaded.session.messages.find((m: { role: string }) => m.role === 'user');
       if (firstUserMsg?.content) {
         const autoTitle = firstUserMsg.content.slice(0, 100).split('\n')[0];
         if (autoTitle && autoTitle !== 'No prompt') {
-          replayed.session.title = autoTitle;
+          loaded.session.title = autoTitle;
           await deps.writeRecords(session.id, [{
             t: 'meta', seq: 0, ts: now, patch: { title: autoTitle },
           } satisfies JournalMeta]);
@@ -93,7 +95,7 @@ async function doImportCCSession(deps: CCSyncDeps, ccFilePath: string, orgId?: s
 
   log.info({ sessionId: session.id, ccSessionId: result.header.id, records: result.stats.mappedRecords }, 'Imported CC session');
   getEventBus().emit({ type: 'SessionChange', sessionId: session.id, action: 'created', timestamp: now });
-  return replayed?.session ?? session;
+  return loaded?.session ?? session;
 }
 
 export async function checkCCSync(deps: CCSyncDeps, sessionId: string): Promise<{ inSync: boolean }> {
@@ -142,8 +144,8 @@ async function doSyncCCSession(deps: CCSyncDeps, sessionId: string): Promise<Ses
     session.metadata.ccLastSyncedAt = now;
     session.metadata.ccLastSyncedLines = newLineCount;
     await deps.writeRecords(sessionId, [{ t: 'meta', seq: 0, ts: now, patch: { ccLastSyncedAt: now, ccLastSyncedLines: newLineCount } } satisfies JournalMeta]);
-    const replayed = await replaySession(deps.sessionsDir, sessionId);
-    if (replayed) { deps.sessions.set(sessionId, replayed.session); deps.seqAllocators.set(sessionId, new SeqAllocator(replayed.maxSeq + 1)); }
+    const loaded = await loadSession(deps.sessionsDir, sessionId);
+    if (loaded) { deps.sessions.set(sessionId, loaded.session); deps.seqAllocators.set(sessionId, new SeqAllocator(loaded.maxSeq + 1)); }
     deps.scheduleConsolidation(sessionId);
     log.info({ sessionId, newRecords: result.stats.mappedRecords, totalLines: newLineCount }, 'Synced CC session (incremental)');
   } else {

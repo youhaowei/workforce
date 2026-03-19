@@ -120,44 +120,46 @@ describe('MessageList scroll behavior', () => {
     expect(mockScrollToIndex).not.toHaveBeenCalled();
   });
 
-  it('should show jump-to-bottom button immediately on wheel-up during streaming', () => {
+  it('should notify parent with jump handler on wheel-up during streaming', () => {
     mockStoreIsStreaming = true;
     const messages = makeMessages(10, true);
+    const onJumpToBottom = vi.fn();
 
-    render(<MessageList messages={messages} isStreaming={true} />);
+    render(<MessageList messages={messages} isStreaming={true} onJumpToBottom={onJumpToBottom} />);
 
-    // Initially at bottom — no button
+    // Initially at bottom — handler should be null
     act(() => capturedAtBottomStateChange?.(true));
-    expect(screen.queryByText('Jump to bottom')).toBeNull();
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(null);
 
-    // User scrolls up — button should appear immediately on the wheel event,
-    // WITHOUT waiting for Virtuoso's async atBottomStateChange callback.
+    // User scrolls up — handler should be a function
     const scroller = screen.getByTestId('virtuoso-scroller');
     fireEvent.wheel(scroller, { deltaY: -100 });
 
-    expect(screen.getByText('Jump to bottom')).toBeInTheDocument();
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(expect.any(Function));
   });
 
-  it('should show jump-to-bottom button on wheel-up when NOT streaming', () => {
+  it('should notify parent with jump handler on wheel-up when NOT streaming', () => {
     mockStoreIsStreaming = false;
     const messages = makeMessages(10, false);
+    const onJumpToBottom = vi.fn();
 
-    render(<MessageList messages={messages} isStreaming={false} />);
+    render(<MessageList messages={messages} isStreaming={false} onJumpToBottom={onJumpToBottom} />);
 
     act(() => capturedAtBottomStateChange?.(true));
-    expect(screen.queryByText('Jump to bottom')).toBeNull();
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(null);
 
     const scroller = screen.getByTestId('virtuoso-scroller');
     fireEvent.wheel(scroller, { deltaY: -100 });
 
-    expect(screen.getByText('Jump to bottom')).toBeInTheDocument();
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(expect.any(Function));
   });
 
-  it('should clear scroll-up state when user returns to bottom', () => {
+  it('should clear jump handler when user returns to bottom', () => {
     mockStoreIsStreaming = true;
     const messages = makeMessages(10, true);
+    const onJumpToBottom = vi.fn();
 
-    render(<MessageList messages={messages} isStreaming={true} />);
+    render(<MessageList messages={messages} isStreaming={true} onJumpToBottom={onJumpToBottom} />);
 
     // Start at bottom, then scroll up
     act(() => capturedAtBottomStateChange?.(true));
@@ -165,37 +167,39 @@ describe('MessageList scroll behavior', () => {
     fireEvent.wheel(scroller, { deltaY: -100 });
     act(() => capturedAtBottomStateChange?.(false));
 
-    // Jump button should be visible
-    expect(screen.getByText('Jump to bottom')).toBeInTheDocument();
+    // Handler should be a function
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(expect.any(Function));
 
-    // User clicks jump to bottom — clears the scroll-up intent
-    fireEvent.click(screen.getByText('Jump to bottom'));
+    // Invoke the handler (simulates clicking jump-to-bottom externally)
+    const handler = onJumpToBottom.mock.calls[onJumpToBottom.mock.calls.length - 1]?.[0];
+    handler?.();
     act(() => capturedAtBottomStateChange?.(true));
 
-    // Button should disappear — back at bottom, auto-scroll re-engaged
-    expect(screen.queryByText('Jump to bottom')).toBeNull();
+    // Handler should be null again
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(null);
 
-    // Scroll up again — should be able to disengage again (not stuck)
+    // Scroll up again — should be able to disengage again
     fireEvent.wheel(scroller, { deltaY: -100 });
     act(() => capturedAtBottomStateChange?.(false));
-    expect(screen.getByText('Jump to bottom')).toBeInTheDocument();
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(expect.any(Function));
   });
 
-  it('should reset scroll state when session changes', async () => {
+  it('should reset jump handler when session changes', async () => {
     mockActiveSessionId = 'session-a';
     const messagesA = makeMessages(10);
+    const onJumpToBottom = vi.fn();
 
     const { rerender } = render(
-      <MessageList messages={messagesA} isStreaming={false} />,
+      <MessageList messages={messagesA} isStreaming={false} onJumpToBottom={onJumpToBottom} />,
     );
 
     // Simulate user scrolling up in session A
     const scroller = screen.getByTestId('virtuoso-scroller');
     fireEvent.wheel(scroller, { deltaY: -100 });
     act(() => capturedAtBottomStateChange?.(false));
-    expect(screen.getByText('Jump to bottom')).toBeInTheDocument();
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(expect.any(Function));
 
-    // Switch to session B — session-change effect resets scroll state
+    // Switch to session B
     mockActiveSessionId = 'session-b';
     const messagesB = Array.from({ length: 5 }, (_, i) => ({
       id: `session-b-msg-${i}`,
@@ -204,23 +208,24 @@ describe('MessageList scroll behavior', () => {
       timestamp: Date.now(),
       isStreaming: false,
     }));
-    rerender(<MessageList messages={messagesB} isStreaming={false} />);
+    rerender(<MessageList messages={messagesB} isStreaming={false} onJumpToBottom={onJumpToBottom} />);
 
-    // Jump button should be hidden — session switch resets scroll state
-    expect(screen.queryByText('Jump to bottom')).toBeNull();
+    // Handler should be null after session switch
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(null);
   });
 
-  it('should show jump-to-bottom button even with only 2 messages', () => {
+  it('should notify with jump handler even with only 2 messages', () => {
     const messages = makeMessages(2, false);
+    const onJumpToBottom = vi.fn();
 
-    render(<MessageList messages={messages} isStreaming={false} />);
+    render(<MessageList messages={messages} isStreaming={false} onJumpToBottom={onJumpToBottom} />);
 
     act(() => capturedAtBottomStateChange?.(true));
-    expect(screen.queryByText('Jump to bottom')).toBeNull();
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(null);
 
     const scroller = screen.getByTestId('virtuoso-scroller');
     fireEvent.wheel(scroller, { deltaY: -100 });
 
-    expect(screen.getByText('Jump to bottom')).toBeInTheDocument();
+    expect(onJumpToBottom).toHaveBeenLastCalledWith(expect.any(Function));
   });
 });

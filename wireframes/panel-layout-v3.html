@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workforce — Tab-Based Layout Explorer</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #1a1a2e; --bg-dim: #14142a; --bg-subtle: #222240; --border: #2a2a4a; --border-light: #333355;
+    --fg: #e5e5ec; --fg-subtle: #8888a0; --fg-dim: #555570;
+    --primary: #6366f1; --primary-dim: rgba(99,102,241,0.12);
+    --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+    --info: #4a9eed; --claude: #D97757;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', monospace;
+    --rail-width: 44px;
+  }
+  body { font-family: var(--font); background: #0e0e1a; color: var(--fg); height: 100vh; display: flex; overflow: hidden; font-size: 13px; }
+
+  /* ─── Layout ─── */
+  .shell { width: 100%; height: 100%; display: flex; }
+  .shell-right-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .shell-content { flex: 1; display: flex; min-height: 0; }
+
+  /* ─── App Bar (tabs) ─── */
+  .appbar { height: 38px; background: var(--bg-dim); border-bottom: 1px solid var(--border); display: flex; align-items: center; flex-shrink: 0; -webkit-app-region: drag; }
+  .appbar-tabs { display: flex; align-items: end; gap: 1px; flex: 1; overflow-x: auto; padding: 0 4px; height: 100%; -webkit-app-region: no-drag; }
+  .tab { padding: 0 14px; height: 32px; margin-top: auto; display: flex; align-items: center; gap: 6px; border-radius: 6px 6px 0 0; cursor: pointer; font-size: 11px; color: var(--fg-subtle); background: transparent; transition: all 0.15s; white-space: nowrap; max-width: 180px; border: none; font-family: var(--font); position: relative; }
+  .tab:hover { color: var(--fg); background: var(--bg-subtle); }
+  .tab.active { color: var(--fg); background: var(--bg); }
+  .tab-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .tab-title { overflow: hidden; text-overflow: ellipsis; }
+  .tab-close { width: 16px; height: 16px; border-radius: 3px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--fg-dim); cursor: pointer; opacity: 0; transition: opacity 0.1s; flex-shrink: 0; border: none; background: none; font-family: var(--font); }
+  .tab:hover .tab-close, .tab.active .tab-close { opacity: 1; }
+  .tab-close:hover { background: var(--bg-subtle); color: var(--fg); }
+  .appbar-actions { display: flex; align-items: center; gap: 4px; padding: 0 8px; -webkit-app-region: no-drag; }
+  .appbar-btn { width: 28px; height: 28px; border-radius: 5px; border: none; background: transparent; color: var(--fg-subtle); cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; font-family: var(--font); }
+  .appbar-btn:hover { background: var(--bg-subtle); color: var(--fg); }
+
+  /* ─── Left: Rail + Side Panel ─── */
+  .left { display: flex; flex-shrink: 0; height: 100%; }
+  .rail { width: var(--rail-width); background: var(--bg-dim); display: flex; flex-direction: column; align-items: center; padding: 6px 0; gap: 2px; flex-shrink: 0; border-right: 1px solid var(--border); }
+  .rail-logo { width: 28px; height: 28px; background: var(--primary); border-radius: 7px; font-size: 11px; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; margin-bottom: 8px; }
+  .rail-btn { width: 34px; height: 34px; border-radius: 6px; border: none; background: transparent; color: var(--fg-dim); cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; position: relative; font-family: var(--font); }
+  .rail-btn:hover { color: var(--fg-subtle); background: var(--bg-subtle); }
+  .rail-btn.active { color: var(--fg); }
+  .rail-btn.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 0 2px 2px 0; background: var(--primary); }
+  .rail-spacer { flex: 1; }
+
+  .sidepanel { width: 0; background: var(--bg-dim); border-right: 1px solid var(--border); overflow: hidden; transition: width 0.2s ease; display: flex; flex-direction: column; }
+  .sidepanel.open { width: 220px; }
+  .sidepanel-header { height: 36px; display: flex; align-items: center; padding: 0 12px; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .sidepanel-content { flex: 1; overflow-y: auto; padding: 4px; }
+
+  /* ─── Main: Tab Content (horizontal scroll) ─── */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; background: var(--bg); }
+  .main-scroll { flex: 1; display: flex; overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; }
+  .main-scroll::-webkit-scrollbar { height: 3px; }
+  .main-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* ─── Content Panels ─── */
+  .content-panel { flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; border-right: 1px solid var(--border); position: relative; }
+  .content-panel:last-child { border-right: none; }
+  .content-panel-header { height: 32px; display: flex; align-items: center; padding: 0 12px; gap: 6px; flex-shrink: 0; font-size: 11px; font-weight: 600; color: var(--fg-subtle); border-bottom: 1px solid var(--border); }
+  .content-panel-body { flex: 1; overflow-y: auto; padding: 10px; }
+
+  /* Resize handle between content panels */
+  .panel-resize { width: 4px; cursor: col-resize; flex-shrink: 0; position: relative; z-index: 2; }
+  .panel-resize::after { content: ''; position: absolute; inset: 0 -2px; }
+  .panel-resize:hover, .panel-resize.active { background: var(--primary); }
+
+  /* ─── Right: Info Panel ─── */
+  .right-panel { width: 0; background: var(--bg-dim); border-left: 1px solid var(--border); overflow: hidden; transition: width 0.2s ease; display: flex; flex-direction: column; flex-shrink: 0; }
+  .right-panel.open { width: 220px; }
+  .right-panel-header { height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .right-panel-close { border: none; background: none; color: var(--fg-dim); cursor: pointer; font-size: 14px; font-family: var(--font); }
+  .right-panel-close:hover { color: var(--fg); }
+  .right-panel-content { flex: 1; overflow-y: auto; padding: 8px 12px; }
+
+  /* ─── Mock Content ─── */
+  .mock-session { padding: 5px 8px; border-radius: 4px; margin-bottom: 1px; cursor: pointer; }
+  .mock-session:hover { background: var(--bg-subtle); }
+  .mock-session.active { background: rgba(99,102,241,0.08); }
+  .s-title { font-size: 11px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .s-meta { font-size: 9px; color: var(--fg-dim); margin-top: 1px; display: flex; gap: 4px; align-items: center; }
+  .s-badge { font-size: 8px; padding: 0 4px; border-radius: 3px; font-weight: 600; }
+  .s-badge.plan { background: rgba(245,158,11,0.15); color: var(--warning); }
+  .s-badge.claude { background: rgba(217,119,87,0.12); color: var(--claude); }
+
+  .mock-msg { margin-bottom: 10px; }
+  .mock-msg.user { max-width: 80%; margin-left: auto; }
+  .bubble { padding: 8px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5; }
+  .mock-msg.user .bubble { background: var(--bg-subtle); border: 1px solid var(--border); }
+  .mock-msg.assistant .bubble { padding: 8px 0; }
+  .role { font-size: 9px; color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; font-weight: 600; }
+  .tool-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--success); background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.12); border-radius: 4px; padding: 2px 8px; margin-top: 6px; }
+
+  .mock-md h3 { font-size: 14px; font-weight: 600; margin: 0 0 8px; }
+  .mock-md h4 { font-size: 12px; font-weight: 600; color: var(--fg-subtle); margin: 12px 0 4px; }
+  .mock-md p { font-size: 11px; color: var(--fg-subtle); line-height: 1.7; margin-bottom: 6px; }
+  .checklist { font-size: 11px; }
+  .checklist div { padding: 3px 0; display: flex; align-items: center; gap: 6px; }
+  .checklist input { accent-color: var(--primary); pointer-events: none; }
+  .line-comment { margin: 2px 0 6px 16px; padding: 5px 8px; border-radius: 4px; border-left: 3px solid var(--primary); background: var(--bg-subtle); font-size: 10px; }
+  .line-comment .lc-author { font-size: 9px; font-weight: 600; color: var(--primary); margin-bottom: 2px; }
+
+  .info-section-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--fg-dim); margin: 10px 0 4px; font-weight: 600; }
+  .info-section-label:first-child { margin-top: 0; }
+  .info-row { font-size: 10px; color: var(--fg-subtle); padding: 2px 0; display: flex; justify-content: space-between; }
+  .info-val { color: var(--fg); font-family: var(--mono); font-size: 10px; }
+  .info-artifact { font-size: 10px; padding: 5px 8px; border-radius: 4px; background: var(--bg-subtle); margin-bottom: 3px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .info-artifact:hover { background: var(--border); }
+  .info-artifact .dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .info-artifact .name { font-family: var(--mono); color: var(--fg-subtle); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .info-artifact .status { font-size: 8px; padding: 1px 5px; border-radius: 3px; font-weight: 600; background: rgba(245,158,11,0.15); color: var(--warning); }
+
+  .chat-input-area { padding: 8px 12px; border-top: 1px solid var(--border); }
+  .chat-input { background: var(--bg-subtle); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; display: flex; align-items: center; gap: 8px; }
+  .chat-input-text { flex: 1; font-size: 12px; color: var(--fg-dim); }
+  .chat-input-meta { font-size: 9px; color: var(--fg-dim); display: flex; gap: 8px; }
+
+  .scroll-indicator { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; border-radius: 50%; background: var(--bg-subtle); border: 1px solid var(--border); color: var(--fg-dim); display: flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; opacity: 0; transition: opacity 0.2s; z-index: 3; }
+  .main-scroll:hover .scroll-indicator { opacity: 0.7; }
+  .scroll-indicator:hover { opacity: 1 !important; background: var(--primary); color: white; border-color: var(--primary); }
+
+  /* ─── Controls overlay ─── */
+  .controls-toggle { position: fixed; bottom: 16px; right: 16px; z-index: 100; padding: 6px 14px; border-radius: 6px; background: var(--primary); color: white; border: none; font-size: 11px; cursor: pointer; font-family: var(--font); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+  .controls-panel { position: fixed; bottom: 52px; right: 16px; z-index: 100; width: 300px; max-height: 60vh; background: var(--bg-dim); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-y: auto; display: none; box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .controls-panel.open { display: block; }
+  .controls-panel h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+  .ctrl-section { margin-bottom: 12px; }
+  .ctrl-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--fg-subtle); margin-bottom: 6px; font-weight: 600; }
+  .ctrl-row { margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .ctrl-row label { font-size: 11px; color: var(--fg); flex: 1; }
+  .ctrl-row input[type="range"] { width: 120px; accent-color: var(--primary); }
+  .ctrl-row input[type="checkbox"] { accent-color: var(--primary); }
+  .ctrl-row .val { font-size: 10px; color: var(--fg-dim); font-family: var(--mono); min-width: 36px; text-align: right; }
+  .ctrl-presets { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+  .ctrl-preset { padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); background: none; color: var(--fg-subtle); font-size: 10px; cursor: pointer; font-family: var(--font); }
+  .ctrl-preset:hover { border-color: var(--primary); color: var(--fg); }
+  .ctrl-preset.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+  ::-webkit-scrollbar { width: 4px; height: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="shell" id="shell">
+  <div class="left">
+    <div class="rail" id="rail"></div>
+    <div class="sidepanel" id="sidepanel">
+      <div class="sidepanel-header" id="sidepanelHeader">Sessions</div>
+      <div class="sidepanel-content" id="sidepanelContent"></div>
+    </div>
+  </div>
+  <div class="shell-right-area">
+    <div class="appbar">
+      <div class="appbar-tabs" id="appbarTabs"></div>
+      <div class="appbar-actions">
+        <button class="appbar-btn" title="Toggle info" onclick="toggleRight()">i</button>
+        <button class="appbar-btn" title="New tab" onclick="addTab()">+</button>
+      </div>
+    </div>
+    <div class="shell-content">
+      <div class="main">
+        <div class="main-scroll" id="mainScroll"></div>
+      </div>
+      <div class="right-panel" id="rightPanel">
+        <div class="right-panel-header"><span>Info</span><button class="right-panel-close" onclick="toggleRight()">\u00d7</button></div>
+        <div class="right-panel-content" id="rightContent"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<button class="controls-toggle" onclick="toggleControls()">Controls</button>
+<div class="controls-panel" id="controlsPanel">
+  <h3>Layout Controls</h3>
+  <div class="ctrl-presets" id="ctrlPresets"></div>
+  <div class="ctrl-section">
+    <div class="ctrl-label">Panel Widths</div>
+    <div class="ctrl-row"><label>Chat</label><input type="range" id="ctrlChatW" min="300" max="700" value="480" oninput="onCtrl()"><span class="val" id="ctrlChatWVal">480</span></div>
+    <div class="ctrl-row"><label>Artifact</label><input type="range" id="ctrlArtW" min="300" max="700" value="440" oninput="onCtrl()"><span class="val" id="ctrlArtWVal">440</span></div>
+    <div class="ctrl-row"><label>Side panel</label><input type="range" id="ctrlSideW" min="160" max="320" value="220" oninput="onCtrl()"><span class="val" id="ctrlSideWVal">220</span></div>
+    <div class="ctrl-row"><label>Info panel</label><input type="range" id="ctrlInfoW" min="160" max="320" value="220" oninput="onCtrl()"><span class="val" id="ctrlInfoWVal">220</span></div>
+  </div>
+  <div class="ctrl-section">
+    <div class="ctrl-label">Visibility</div>
+    <div class="ctrl-row"><input type="checkbox" id="ctrlShowArt" checked onchange="onCtrl()"><label for="ctrlShowArt">Artifact panel</label></div>
+    <div class="ctrl-row"><input type="checkbox" id="ctrlShowInfo" checked onchange="onCtrl()"><label for="ctrlShowInfo">Info panel</label></div>
+    <div class="ctrl-row"><input type="checkbox" id="ctrlShowSide" checked onchange="onCtrl()"><label for="ctrlShowSide">Side panel</label></div>
+    <div class="ctrl-row"><input type="checkbox" id="ctrlComments" checked onchange="onCtrl()"><label for="ctrlComments">Inline comments</label></div>
+  </div>
+</div>
+
+<script>
+var config = {
+  chatWidth: 480, artifactWidth: 440, sideWidth: 220, infoWidth: 220,
+  showArtifact: true, showInfo: true, showSide: true, showComments: true,
+  activeRail: 'sessions', activeTab: 0
+};
+
+var PRESETS = [
+  { name: 'Default', chatWidth:480, artifactWidth:440, sideWidth:220, infoWidth:220, showArtifact:true, showInfo:true, showSide:true, showComments:true },
+  { name: 'Wide Chat', chatWidth:640, artifactWidth:400, sideWidth:180, infoWidth:200, showArtifact:true, showInfo:true, showSide:true, showComments:true },
+  { name: 'Focus Review', chatWidth:360, artifactWidth:600, sideWidth:220, infoWidth:220, showArtifact:true, showInfo:true, showSide:false, showComments:true },
+  { name: 'Chat Only', chatWidth:600, artifactWidth:440, sideWidth:220, infoWidth:220, showArtifact:false, showInfo:false, showSide:true, showComments:false },
+  { name: 'Compact', chatWidth:380, artifactWidth:360, sideWidth:180, infoWidth:180, showArtifact:true, showInfo:true, showSide:true, showComments:false },
+];
+
+var tabs = [
+  { title: 'V2 API Migration', color: 'var(--warning)', hasArtifact: true },
+  { title: 'Fix auth bug', color: 'var(--claude)', hasArtifact: false },
+  { title: 'CC Session Sync', color: 'var(--info)', hasArtifact: true },
+];
+
+var sessions = [
+  { title:'Plan: V2 API Migration', meta:'3m', badge:'Plan', badgeClass:'plan', active:true },
+  { title:'Fix auth bug in login', meta:'1h', badge:'Claude', badgeClass:'claude' },
+  { title:'CC Session Sync', meta:'5h', badge:'Claude', badgeClass:'claude' },
+  { title:'Journal v0.3.0', meta:'1d' },
+  { title:'Artifact system types', meta:'2d' },
+  { title:'Add worktree support', meta:'3d' },
+  { title:'Permission work in harness', meta:'5d' },
+  { title:'SDK model refresh', meta:'6d' },
+];
+
+var railItems = [
+  { id:'sessions', icon:'\u2630', label:'Sessions' },
+  { id:'projects', icon:'\u25a3', label:'Projects' },
+  { id:'search', icon:'\u26b2', label:'Search' },
+];
+
+function buildRail() {
+  var rail = document.getElementById('rail');
+  while (rail.firstChild) rail.removeChild(rail.firstChild);
+  var logo = document.createElement('div'); logo.className = 'rail-logo'; logo.textContent = 'W';
+  rail.appendChild(logo);
+  railItems.forEach(function(item) {
+    var btn = document.createElement('button');
+    btn.className = 'rail-btn' + (config.activeRail === item.id ? ' active' : '');
+    btn.textContent = item.icon;
+    btn.title = item.label;
+    btn.onclick = function() {
+      if (config.activeRail === item.id) { config.showSide = !config.showSide; }
+      else { config.activeRail = item.id; config.showSide = true; }
+      document.getElementById('ctrlShowSide').checked = config.showSide;
+      renderAll();
+    };
+    rail.appendChild(btn);
+  });
+  var spacer = document.createElement('div'); spacer.style.flex = '1'; rail.appendChild(spacer);
+  var settingsBtn = document.createElement('button');
+  settingsBtn.className = 'rail-btn'; settingsBtn.textContent = '\u2699'; settingsBtn.title = 'Settings';
+  rail.appendChild(settingsBtn);
+}
+
+function buildTabs() {
+  var container = document.getElementById('appbarTabs');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  tabs.forEach(function(tab, i) {
+    var el = document.createElement('button');
+    el.className = 'tab' + (i === config.activeTab ? ' active' : '');
+    var dot = document.createElement('span'); dot.className = 'tab-dot'; dot.style.background = tab.color;
+    var title = document.createElement('span'); title.className = 'tab-title'; title.textContent = tab.title;
+    var close = document.createElement('button'); close.className = 'tab-close'; close.textContent = '\u00d7';
+    close.onclick = function(e) { e.stopPropagation(); removeTab(i); };
+    el.appendChild(dot); el.appendChild(title); el.appendChild(close);
+    el.onclick = function() { config.activeTab = i; renderAll(); };
+    container.appendChild(el);
+  });
+}
+
+function buildSidePanel() {
+  var panel = document.getElementById('sidepanel');
+  var header = document.getElementById('sidepanelHeader');
+  var content = document.getElementById('sidepanelContent');
+  panel.className = 'sidepanel' + (config.showSide ? ' open' : '');
+  panel.style.width = config.showSide ? config.sideWidth + 'px' : '0';
+
+  var active = railItems.find(function(r) { return r.id === config.activeRail; });
+  header.textContent = active ? active.label : '';
+  while (content.firstChild) content.removeChild(content.firstChild);
+
+  if (config.activeRail === 'sessions') {
+    sessions.forEach(function(s, i) {
+      var el = document.createElement('div');
+      el.className = 'mock-session' + (i === config.activeTab ? ' active' : '');
+      var t = document.createElement('div'); t.className = 's-title'; t.textContent = s.title;
+      var m = document.createElement('div'); m.className = 's-meta';
+      if (s.badge) {
+        var badge = document.createElement('span'); badge.className = 's-badge ' + s.badgeClass; badge.textContent = s.badge;
+        m.appendChild(badge);
+      }
+      var time = document.createElement('span'); time.textContent = s.meta;
+      m.appendChild(time);
+      el.appendChild(t); el.appendChild(m);
+      el.onclick = function() { if (i < tabs.length) { config.activeTab = i; renderAll(); } };
+      content.appendChild(el);
+    });
+  } else if (config.activeRail === 'projects') {
+    var items = ['Workforce', 'WorkHub', 'DashFrame'];
+    items.forEach(function(name) {
+      var el = document.createElement('div'); el.className = 'mock-session';
+      var t = document.createElement('div'); t.className = 's-title'; t.textContent = name;
+      el.appendChild(t); content.appendChild(el);
+    });
+  } else {
+    var el = document.createElement('div'); el.style.cssText = 'padding:12px;font-size:11px;color:var(--fg-dim);';
+    el.textContent = 'Search across sessions...'; content.appendChild(el);
+  }
+}
+
+function buildMainContent() {
+  var scroll = document.getElementById('mainScroll');
+  while (scroll.firstChild) scroll.removeChild(scroll.firstChild);
+  var tab = tabs[config.activeTab];
+  if (!tab) return;
+
+  // Chat panel
+  var chat = document.createElement('div');
+  chat.className = 'content-panel';
+  chat.style.width = config.chatWidth + 'px';
+  chat.style.minWidth = config.chatWidth + 'px';
+
+  var chatHeader = document.createElement('div'); chatHeader.className = 'content-panel-header';
+  chatHeader.textContent = '\ud83d\udcac Chat';
+  chat.appendChild(chatHeader);
+
+  var chatBody = document.createElement('div'); chatBody.className = 'content-panel-body';
+  var msgs = [
+    { role:'You', text:'Create a detailed migration plan for our V2 API.', isUser:true },
+    { role:'Assistant', text:'I\'ll create a comprehensive plan and write it to an artifact so we can review it together.', isUser:false, tool:'Write v2-api-plan.md' },
+    { role:'You', text:'Add WebSocket support to Phase 2 and extend dual-write to 60 days.', isUser:true },
+    { role:'Assistant', text:'Updated the plan. Phase 2 now includes WS endpoints and the dual-write window is extended to 60 days.', isUser:false, tool:'Edit v2-api-plan.md' },
+  ];
+  msgs.forEach(function(msg) {
+    var el = document.createElement('div'); el.className = 'mock-msg' + (msg.isUser ? ' user' : ' assistant');
+    var r = document.createElement('div'); r.className = 'role'; r.textContent = msg.role;
+    var b = document.createElement('div'); b.className = 'bubble'; b.textContent = msg.text;
+    el.appendChild(r); el.appendChild(b);
+    if (msg.tool) {
+      var t = document.createElement('div'); t.className = 'tool-badge'; t.textContent = '\u2713 ' + msg.tool;
+      el.appendChild(t);
+    }
+    chatBody.appendChild(el);
+  });
+  chat.appendChild(chatBody);
+
+  var inputArea = document.createElement('div'); inputArea.className = 'chat-input-area';
+  var input = document.createElement('div'); input.className = 'chat-input';
+  var inputText = document.createElement('div'); inputText.className = 'chat-input-text'; inputText.textContent = 'Ask Workforce anything...';
+  var inputMeta = document.createElement('div'); inputMeta.className = 'chat-input-meta';
+  inputMeta.textContent = 'Sonnet \u00b7 Auto \u00b7 Ask';
+  input.appendChild(inputText); input.appendChild(inputMeta);
+  inputArea.appendChild(input); chat.appendChild(inputArea);
+
+  scroll.appendChild(chat);
+
+  // Resize handle
+  if (config.showArtifact && tab.hasArtifact) {
+    var handle = document.createElement('div'); handle.className = 'panel-resize';
+    handle.addEventListener('mousedown', function(e) { startPanelResize(e, chat, 'chatWidth'); });
+    scroll.appendChild(handle);
+  }
+
+  // Artifact panel
+  if (config.showArtifact && tab.hasArtifact) {
+    var art = document.createElement('div');
+    art.className = 'content-panel';
+    art.style.width = config.artifactWidth + 'px';
+    art.style.minWidth = config.artifactWidth + 'px';
+
+    var artHeader = document.createElement('div'); artHeader.className = 'content-panel-header';
+    artHeader.textContent = '\ud83d\udcc4 v2-api-plan.md';
+    var statusBadge = document.createElement('span');
+    statusBadge.style.cssText = 'margin-left:auto;font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(245,158,11,0.15);color:var(--warning);font-weight:600;';
+    statusBadge.textContent = 'Review';
+    artHeader.appendChild(statusBadge);
+    art.appendChild(artHeader);
+
+    var artBody = document.createElement('div'); artBody.className = 'content-panel-body';
+    var md = document.createElement('div'); md.className = 'mock-md';
+    var h = document.createElement('h3'); h.textContent = 'V2 API Migration Plan'; md.appendChild(h);
+
+    var sections = [
+      { heading:'Phase 1: Authentication', items:['Replace JWT with OAuth2 + PKCE (S256)','Refresh token rotation','Rate limiting (200/50)','Migrate existing sessions'], commentAfter:2 },
+      { heading:'Phase 2: Endpoints', lines:['/api/v2/users \u2014 CRUD + pagination','/api/v2/sessions \u2014 WebSocket + REST','/api/v2/artifacts \u2014 new resource'] },
+      { heading:'Phase 3: Data Migration', lines:['Dual-write v1+v2 (60 days)','Backfill historical data','Validate v1 vs v2 responses'] },
+    ];
+    sections.forEach(function(s) {
+      var sh = document.createElement('h4'); sh.textContent = s.heading; md.appendChild(sh);
+      if (s.items) {
+        var cl = document.createElement('div'); cl.className = 'checklist';
+        s.items.forEach(function(item, idx) {
+          var row = document.createElement('div');
+          var cb = document.createElement('input'); cb.type = 'checkbox'; cb.disabled = true;
+          if (idx === 0 || idx === 2) cb.checked = true;
+          var sp = document.createElement('span'); sp.textContent = item;
+          row.appendChild(cb); row.appendChild(sp); cl.appendChild(row);
+          if (config.showComments && s.commentAfter === idx) {
+            var cmt = document.createElement('div'); cmt.className = 'line-comment';
+            var author = document.createElement('div'); author.className = 'lc-author'; author.textContent = 'You \u00b7 suggestion';
+            var text = document.createElement('div'); text.textContent = '200/min authenticated, 50/min anonymous';
+            cmt.appendChild(author); cmt.appendChild(text); cl.appendChild(cmt);
+          }
+        });
+        md.appendChild(cl);
+      }
+      if (s.lines) {
+        s.lines.forEach(function(line) {
+          var p = document.createElement('p'); p.textContent = '\u2022 ' + line; md.appendChild(p);
+        });
+      }
+    });
+    artBody.appendChild(md);
+    art.appendChild(artBody);
+    scroll.appendChild(art);
+  }
+}
+
+function buildRightPanel() {
+  var panel = document.getElementById('rightPanel');
+  panel.className = 'right-panel' + (config.showInfo ? ' open' : '');
+  panel.style.width = config.showInfo ? config.infoWidth + 'px' : '0';
+
+  var content = document.getElementById('rightContent');
+  while (content.firstChild) content.removeChild(content.firstChild);
+
+  var tab = tabs[config.activeTab];
+  if (!tab) return;
+
+  var data = [
+    { label:'Name', value: tab.title, isTitle: true },
+    { label:'Model', rows:[{k:'Provider',v:'claude-4-opus'}] },
+    { label:'Usage', rows:[{k:'Input',v:'12.4K'},{k:'Output',v:'3.2K'},{k:'Cost',v:'$0.18'}] },
+    { label:'Artifacts', artifacts: tab.hasArtifact ? [{name:'v2-api-plan.md', status:'Review'}] : [] },
+  ];
+
+  data.forEach(function(section) {
+    var lbl = document.createElement('div'); lbl.className = 'info-section-label'; lbl.textContent = section.label;
+    content.appendChild(lbl);
+    if (section.isTitle) {
+      var t = document.createElement('div'); t.style.cssText = 'font-size:12px;font-weight:500;padding:2px 0;';
+      t.textContent = section.value; content.appendChild(t);
+    }
+    if (section.rows) {
+      section.rows.forEach(function(row) {
+        var r = document.createElement('div'); r.className = 'info-row';
+        var k = document.createElement('span'); k.textContent = row.k;
+        var v = document.createElement('span'); v.className = 'info-val'; v.textContent = row.v;
+        r.appendChild(k); r.appendChild(v); content.appendChild(r);
+      });
+    }
+    if (section.artifacts) {
+      if (section.artifacts.length === 0) {
+        var none = document.createElement('div'); none.style.cssText = 'font-size:10px;color:var(--fg-dim);padding:2px 0;';
+        none.textContent = 'No artifacts'; content.appendChild(none);
+      }
+      section.artifacts.forEach(function(a) {
+        var el = document.createElement('div'); el.className = 'info-artifact';
+        var dot = document.createElement('span'); dot.className = 'dot'; dot.style.background = 'var(--success)';
+        var name = document.createElement('span'); name.className = 'name'; name.textContent = a.name;
+        var status = document.createElement('span'); status.className = 'status'; status.textContent = a.status;
+        el.appendChild(dot); el.appendChild(name); el.appendChild(status);
+        content.appendChild(el);
+      });
+    }
+  });
+}
+
+function startPanelResize(e, panelEl, configKey) {
+  e.preventDefault();
+  var startX = e.clientX;
+  var startW = panelEl.offsetWidth;
+  var handle = e.target;
+  handle.classList.add('active');
+  function onMove(ev) {
+    var w = Math.max(200, startW + (ev.clientX - startX));
+    panelEl.style.width = w + 'px';
+    panelEl.style.minWidth = w + 'px';
+    config[configKey] = w;
+    document.getElementById('ctrl' + (configKey === 'chatWidth' ? 'ChatW' : 'ArtW')).value = w;
+    document.getElementById('ctrl' + (configKey === 'chatWidth' ? 'ChatW' : 'ArtW') + 'Val').textContent = w;
+  }
+  function onUp() {
+    handle.classList.remove('active');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function toggleRight() {
+  config.showInfo = !config.showInfo;
+  document.getElementById('ctrlShowInfo').checked = config.showInfo;
+  renderAll();
+}
+
+function toggleControls() {
+  document.getElementById('controlsPanel').classList.toggle('open');
+}
+
+function addTab() {
+  tabs.push({ title:'New Session', color:'var(--fg-dim)', hasArtifact:false });
+  config.activeTab = tabs.length - 1;
+  renderAll();
+}
+
+function removeTab(i) {
+  if (tabs.length <= 1) return;
+  tabs.splice(i, 1);
+  if (config.activeTab >= tabs.length) config.activeTab = tabs.length - 1;
+  renderAll();
+}
+
+function onCtrl() {
+  config.chatWidth = +document.getElementById('ctrlChatW').value;
+  config.artifactWidth = +document.getElementById('ctrlArtW').value;
+  config.sideWidth = +document.getElementById('ctrlSideW').value;
+  config.infoWidth = +document.getElementById('ctrlInfoW').value;
+  config.showArtifact = document.getElementById('ctrlShowArt').checked;
+  config.showInfo = document.getElementById('ctrlShowInfo').checked;
+  config.showSide = document.getElementById('ctrlShowSide').checked;
+  config.showComments = document.getElementById('ctrlComments').checked;
+  document.getElementById('ctrlChatWVal').textContent = config.chatWidth;
+  document.getElementById('ctrlArtWVal').textContent = config.artifactWidth;
+  document.getElementById('ctrlSideWVal').textContent = config.sideWidth;
+  document.getElementById('ctrlInfoWVal').textContent = config.infoWidth;
+  renderAll();
+}
+
+function applyPreset(name) {
+  var p = PRESETS.find(function(pr) { return pr.name === name; });
+  if (!p) return;
+  Object.assign(config, p);
+  document.getElementById('ctrlChatW').value = config.chatWidth;
+  document.getElementById('ctrlArtW').value = config.artifactWidth;
+  document.getElementById('ctrlSideW').value = config.sideWidth;
+  document.getElementById('ctrlInfoW').value = config.infoWidth;
+  document.getElementById('ctrlShowArt').checked = config.showArtifact;
+  document.getElementById('ctrlShowInfo').checked = config.showInfo;
+  document.getElementById('ctrlShowSide').checked = config.showSide;
+  document.getElementById('ctrlComments').checked = config.showComments;
+  document.getElementById('ctrlChatWVal').textContent = config.chatWidth;
+  document.getElementById('ctrlArtWVal').textContent = config.artifactWidth;
+  document.getElementById('ctrlSideWVal').textContent = config.sideWidth;
+  document.getElementById('ctrlInfoWVal').textContent = config.infoWidth;
+  renderAll();
+  document.querySelectorAll('.ctrl-preset').forEach(function(btn) {
+    btn.classList.toggle('active', btn.textContent === name);
+  });
+}
+
+function renderAll() {
+  buildRail();
+  buildTabs();
+  buildSidePanel();
+  buildMainContent();
+  buildRightPanel();
+}
+
+// Init presets
+var presetsEl = document.getElementById('ctrlPresets');
+PRESETS.forEach(function(p) {
+  var btn = document.createElement('button');
+  btn.className = 'ctrl-preset' + (p.name === 'Default' ? ' active' : '');
+  btn.textContent = p.name;
+  btn.onclick = function() { applyPreset(p.name); };
+  presetsEl.appendChild(btn);
+});
+
+renderAll();
+</script>
+</body>
+</html>

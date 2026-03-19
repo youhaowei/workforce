@@ -10,7 +10,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTRPC } from '@/bridge/react';
 import { useSdkStore } from '@/ui/stores/useSdkStore';
 import { useMessagesStore, type MessageState } from '@/ui/stores/useMessagesStore';
-import type { PlanArtifact } from '@/services/types';
+import type { ArtifactStatus } from '@/services/types';
+import { MIME_DOT_COLOR, ARTIFACT_STATUS_STYLES, ARTIFACT_STATUS_LABELS } from '@/ui/lib/artifact-utils';
+import { trpc as trpcClient } from '@/bridge/trpc';
 import { FileText, Clock, Cpu, DollarSign, Pencil } from 'lucide-react';
 
 // =============================================================================
@@ -64,11 +66,10 @@ function shortenPath(path: string) {
 export interface ChatInfoPanelProps {
   isOpen: boolean;
   sessionId: string | null;
-  planArtifact: PlanArtifact | null;
-  onOpenPlan?: () => void;
+  onOpenArtifact?: (artifactId: string) => void;
 }
 
-export function ChatInfoPanel({ isOpen, sessionId, planArtifact, onOpenPlan }: ChatInfoPanelProps) {
+export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPanelProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -252,18 +253,11 @@ export function ChatInfoPanel({ isOpen, sessionId, planArtifact, onOpenPlan }: C
         )}
 
         {/* Artifacts */}
-        {planArtifact && (
-          <Section label="Artifacts">
-            <button
-              className="w-full text-left text-xs bg-neutral-bg-dim/50 rounded px-2 py-1.5 hover:bg-neutral-bg-dim flex items-center gap-1.5"
-              onClick={onOpenPlan}
-            >
-              <span className="text-blue-500 flex-shrink-0">&#128203;</span>
-              <span className="truncate flex-1">{planArtifact.title}</span>
-              <StatusBadge status={planArtifact.status} />
-            </button>
-          </Section>
-        )}
+        <ArtifactsSection
+          sessionId={sessionId}
+          isOpen={isOpen}
+          onOpenArtifact={onOpenArtifact}
+        />
       </div>
     </div>
   );
@@ -294,22 +288,53 @@ function StatRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function StatusBadge({ status }: { status: PlanArtifact['status'] }) {
-  const styles = {
-    pending_review: 'bg-amber-500/20 text-amber-500',
-    approved: 'bg-green-500/20 text-green-500',
-    rejected: 'bg-red-500/20 text-red-500',
-    executing: 'bg-blue-500/20 text-blue-500',
-  };
-  const labels = {
-    pending_review: 'Review',
-    approved: 'Approved',
-    rejected: 'Rejected',
-    executing: 'Executing',
-  };
+
+
+function StatusBadge({ status }: { status: string }) {
+  const s = status as ArtifactStatus;
   return (
-    <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${styles[status]}`}>
-      {labels[status]}
+    <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${ARTIFACT_STATUS_STYLES[s] ?? ''}`}>
+      {ARTIFACT_STATUS_LABELS[s] ?? status}
     </span>
+  );
+}
+
+function ArtifactsSection({
+  sessionId,
+  isOpen,
+  onOpenArtifact,
+}: {
+  sessionId: string | null;
+  isOpen: boolean;
+  onOpenArtifact?: (artifactId: string) => void;
+}) {
+  const { data: artifacts = [] } = useQuery({
+    queryKey: ['artifact', 'list', sessionId],
+    queryFn: () => trpcClient.artifact.list.query({ sessionId: sessionId! }),
+    enabled: isOpen && !!sessionId,
+    staleTime: 30_000,
+  });
+
+  if (artifacts.length === 0) return null;
+
+  return (
+    <Section label={`Artifacts (${artifacts.length})`}>
+      <div className="space-y-1">
+        {artifacts.map((a) => {
+          const filename = a.filePath.split('/').pop() ?? a.title;
+          return (
+            <button
+              key={a.id}
+              className="w-full text-left text-xs bg-neutral-bg-dim/50 rounded px-2 py-1.5 hover:bg-neutral-bg-dim flex items-center gap-1.5"
+              onClick={() => onOpenArtifact?.(a.id)}
+            >
+              <span className={`w-[5px] h-[5px] rounded-full flex-shrink-0 ${MIME_DOT_COLOR[a.mimeType] ?? 'bg-neutral-fg-subtle'}`} />
+              <span className="truncate flex-1 font-mono">{filename}</span>
+              <StatusBadge status={a.status} />
+            </button>
+          );
+        })}
+      </div>
+    </Section>
   );
 }

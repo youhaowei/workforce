@@ -4,6 +4,7 @@
  */
 
 import { Button } from '@/components/ui/button';
+import { Alert } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -11,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { RefreshCcw, Loader2 } from 'lucide-react';
+import { RefreshCcw, Loader2, ArrowDown } from 'lucide-react';
+import { useState, useCallback } from 'react';
 import type { Project } from '@/services/types';
 import { MessageList, MessageInput } from '../Messages';
 import { useCCSyncBanner } from '@/ui/hooks/useCCSyncBanner';
@@ -66,6 +68,10 @@ export function SessionsView({
 }: SessionsViewProps) {
   const { hasUpdate, isSyncing, handleSync } = useCCSyncBanner(sessionId ?? undefined);
   const hasMessages = messages.length > 0 || isStreaming;
+  const [jumpToBottom, setJumpToBottom] = useState<(() => void) | null>(null);
+  const handleJumpToBottom = useCallback((handler: (() => void) | null) => {
+    setJumpToBottom(() => handler);
+  }, []);
 
   // Messages exist: standard chat layout (message list + input at bottom)
   if (hasMessages) {
@@ -80,26 +86,11 @@ export function SessionsView({
           onRewind={onRewind}
           onFork={onFork}
           onSelectSession={onSelectSession}
+          onJumpToBottom={handleJumpToBottom}
         />
         <div className="absolute bottom-0 left-0 z-10 pointer-events-none chat-input-fade" />
         <div className="absolute bottom-0 left-0 right-0 z-20 pointer-events-none">
           <div className="pointer-events-auto">
-            {hasUpdate && (
-              <div role="alert" className="flex items-center gap-2 max-w-3xl mx-auto w-full px-3 py-2 mb-2 rounded-lg bg-amber-500/10 backdrop-blur-xl border border-amber-500/20 text-xs text-amber-700">
-                <RefreshCcw className="h-3.5 w-3.5 shrink-0" />
-                <span className="flex-1">This session has new activity from Claude Code</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-500/10"
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                >
-                  {isSyncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                  {isSyncing ? 'Syncing...' : 'Sync Now'}
-                </Button>
-              </div>
-            )}
             <MessageInput
               onSubmit={onSubmit}
               onCancel={onCancel}
@@ -108,6 +99,32 @@ export function SessionsView({
               disabledMessage="Sync required — this session has new activity from Claude Code"
               sessionId={sessionId}
               messages={messages}
+              banner={<>
+                {jumpToBottom && (
+                  <div className="flex justify-end mb-2">
+                    <Button size="sm" onClick={jumpToBottom} className="rounded-full shadow-lg">
+                      <ArrowDown className="h-3.5 w-3.5 mr-1.5" />
+                      Jump to bottom
+                    </Button>
+                  </div>
+                )}
+                {hasUpdate && (
+                  <Alert variant="warning" className="flex items-center gap-2 mb-2">
+                    <RefreshCcw className="h-3.5 w-3.5 shrink-0 !static !translate-y-0" />
+                    <span className="flex-1 truncate !pl-0">New activity from Claude Code</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs text-palette-warning hover:opacity-80 hover:bg-palette-warning/10 shrink-0"
+                      onClick={handleSync}
+                      disabled={isSyncing}
+                    >
+                      {isSyncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                      {isSyncing ? 'Syncing...' : 'Sync'}
+                    </Button>
+                  </Alert>
+                )}
+              </>}
             />
           </div>
         </div>

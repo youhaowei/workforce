@@ -3,15 +3,6 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { mkdirSync, writeFileSync, rmSync, readFileSync } from 'fs';
 
-// Mock unifai before imports
-vi.mock('unifai', () => ({
-  getSupportedModels: vi.fn(),
-}));
-
-vi.mock('./agent-instance', () => ({
-  buildSdkEnv: () => ({ HOME: '/tmp' }),
-}));
-
 // Mock data-dir to use a temp directory per test
 let testDir = '';
 vi.mock('./data-dir', () => ({
@@ -19,9 +10,16 @@ vi.mock('./data-dir', () => ({
 }));
 
 import { readLastUsedModelSync, writeLastUsedModel, ModelCache } from './agent-models';
-import { getSupportedModels } from 'unifai';
 
-const mockGetSupportedModels = vi.mocked(getSupportedModels);
+const mockFetch = vi.fn();
+vi.stubGlobal('fetch', mockFetch);
+
+function mockModelsResponse(models: Array<{ id: string; display_name: string }>) {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({ data: models }),
+  });
+}
 
 function createTestDir(): string {
   const dir = join(tmpdir(), `workforce-agent-models-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -37,6 +35,7 @@ describe('agent-models', () => {
 
   afterEach(() => {
     rmSync(testDir, { recursive: true, force: true });
+    delete process.env.ANTHROPIC_API_KEY;
   });
 
   describe('readLastUsedModelSync', () => {
@@ -96,22 +95,24 @@ describe('agent-models', () => {
   });
 
   describe('ModelCache', () => {
-    it('returns SDK models on cold start (no disk cache)', async () => {
-      const sdkModels = [
-        { id: 'opus', displayName: 'Opus', description: 'Best' },
-        { id: 'sonnet', displayName: 'Sonnet', description: 'Fast' },
-      ];
-      mockGetSupportedModels.mockResolvedValueOnce(sdkModels);
+    it('returns API models on cold start (no disk cache)', async () => {
+      process.env.ANTHROPIC_API_KEY = 'test-key';
+      mockModelsResponse([
+        { id: 'opus', display_name: 'Opus' },
+        { id: 'sonnet', display_name: 'Sonnet' },
+      ]);
 
       const cache = new ModelCache();
       const models = await cache.getSupportedModels();
 
-      expect(models).toEqual(sdkModels);
-      expect(mockGetSupportedModels).toHaveBeenCalledOnce();
+      expect(models).toEqual([
+        { id: 'opus', displayName: 'Opus', description: '' },
+        { id: 'sonnet', displayName: 'Sonnet', description: '' },
+      ]);
+      expect(mockFetch).toHaveBeenCalledOnce();
     });
 
     it('hydrates from disk cache and returns immediately', async () => {
-      // Pre-populate disk cache
       const diskModels = [{ id: 'cached', displayName: 'Cached', description: 'From disk' }];
       const cacheDir = join(testDir, 'cache');
       mkdirSync(cacheDir, { recursive: true });
@@ -120,46 +121,64 @@ describe('agent-models', () => {
         cachedAt: Date.now(),
       }));
 
-      // SDK call will hang — but we should get disk cache instantly
-      mockGetSupportedModels.mockImplementation(() => new Promise(() => {}));
+      // API call will hang — but we should get disk cache instantly
+      mockFetch.mockImplementation(() => new Promise(() => {}));
 
       const cache = new ModelCache();
       const models = await cache.getSupportedModels();
       expect(models).toEqual(diskModels);
     });
 
-    it('returns fallback models when SDK fails and no disk cache', async () => {
-      mockGetSupportedModels.mockRejectedValueOnce(new Error('auth failure'));
+    it('returns fallback models when API fails and no disk cache', async () => {
+      process.env.ANTHROPIC_API_KEY = 'test-key';
+      mockFetch.mockRejectedValueOnce(new Error('network error'));
 
       const cache = new ModelCache();
       const models = await cache.getSupportedModels();
 
-      // Should get the hardcoded fallback models
       expect(models.length).toBeGreaterThanOrEqual(3);
       expect(models.some((m) => m.id.includes('opus'))).toBe(true);
     });
 
     it('deduplicates concurrent getSupportedModels calls', async () => {
-      let resolveCall!: (v: { id: string; displayName: string; description: string }[]) => void;
-      mockGetSupportedModels.mockImplementation(() => new Promise((r) => { resolveCall = r; }));
+      process.env.ANTHROPIC_API_KEY = 'test-key';
+      let resolveCall!: (v: Response) => void;
+      mockFetch.mockImplementation(() => new Promise((r) => { resolveCall = r; }));
 
       const cache = new ModelCache();
-
-      // Call twice concurrently (plus the constructor call = one shared inflight)
       const p1 = cache.getSupportedModels();
       const p2 = cache.getSupportedModels();
 
-      resolveCall([{ id: 'opus', displayName: 'Opus', description: 'Best' }]);
+      resolveCall({
+        ok: true,
+        json: async () => ({ data: [{ id: 'opus', display_name: 'Opus' }] }),
+      } as Response);
 
       const [r1, r2] = await Promise.all([p1, p2]);
       expect(r1).toEqual(r2);
-      // Only 1 SDK call (from constructor), not 3
-      expect(mockGetSupportedModels).toHaveBeenCalledOnce();
+      expect(mockFetch).toHaveBeenCalledOnce();
     });
 
-    // Note: writeDiskModelCache has a write race (two concurrent writeFile calls
-    // can interleave, producing corrupted JSON). This is a known issue — the
-    // cache is best-effort and self-heals on next SDK refresh. Disk persistence
-    // is verified indirectly by the "hydrates from disk cache" test above.
+    it('paginates when has_more is true', async () => {
+      process.env.ANTHROPIC_API_KEY = 'test-key';
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [{ id: 'page1', display_name: 'Page1' }], has_more: true, last_id: 'page1' }),
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ data: [{ id: 'page2', display_name: 'Page2' }], has_more: false }),
+        });
+
+      const cache = new ModelCache();
+      const models = await cache.getSupportedModels();
+
+      expect(models).toEqual([
+        { id: 'page1', displayName: 'Page1', description: '' },
+        { id: 'page2', displayName: 'Page2', description: '' },
+      ]);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
   });
 });

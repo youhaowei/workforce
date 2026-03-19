@@ -4,12 +4,10 @@
  * Extracted from agent.ts to keep file sizes manageable.
  */
 
-import { getSupportedModels } from 'unifai';
 import { readFileSync } from 'fs';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import type { AgentModelInfo } from './types';
-import { buildSdkEnv } from './agent-instance';
 import { createLogger } from 'tracey';
 import { getDataDir } from './data-dir';
 
@@ -147,22 +145,62 @@ export class ModelCache {
     }
   }
 
-  /** Fetch fresh models from the Claude SDK subprocess and update both caches. */
+  /** Fetch fresh models from the Anthropic API directly (no CLI subprocess). */
   private async refreshFromSdk(): Promise<AgentModelInfo[]> {
     try {
-      const models = await getSupportedModels('claude', { cwd: process.cwd(), env: buildSdkEnv() });
-      const normalized: AgentModelInfo[] = models.map((m) => ({
+      const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_AUTH_TOKEN;
+      if (!apiKey) {
+        log.debug('No API key available for model refresh, using cache/fallbacks');
+        return this.cache ?? FALLBACK_MODELS;
+      }
+
+      // The /v1/models endpoint paginates (default limit=20, max=1000).
+      // Use limit=1000 to minimize round-trips, then follow `has_more` / `last_id`
+      // cursor pagination to collect all models.
+      const allModels: Array<{ id: string; display_name: string; created_at?: string }> = [];
+      let afterId: string | undefined;
+
+      do {
+        const url = new URL('https://api.anthropic.com/v1/models');
+        url.searchParams.set('limit', '1000');
+        if (afterId) url.searchParams.set('after_id', afterId);
+
+        const res = await fetch(url.toString(), {
+          headers: {
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+          },
+          signal: AbortSignal.timeout(10_000),
+        });
+        if (!res.ok) throw new Error(`API returned ${res.status}`);
+
+        const page = await res.json() as {
+          data: Array<{ id: string; display_name: string; created_at?: string }>;
+          has_more: boolean;
+          last_id: string | null;
+        };
+
+        allModels.push(...page.data);
+
+        if (page.has_more && page.last_id) {
+          afterId = page.last_id;
+        } else {
+          break;
+        }
+      } while (afterId);
+
+      const normalized: AgentModelInfo[] = allModels.map((m) => ({
         id: m.id,
-        displayName: m.displayName,
-        description: m.description,
+        displayName: m.display_name,
+        description: '',
       }));
       this.cache = normalized;
       this.cacheAt = Date.now();
       writeDiskModelCache(normalized).catch(() => {});
-      log.info({ count: normalized.length }, `SDK model refresh complete: ${normalized.length} models`);
+      log.info({ count: normalized.length }, `Model refresh complete: ${normalized.length} models`);
       return normalized;
     } catch (err) {
-      log.error({ error: err instanceof Error ? err.message : String(err) }, 'SDK model refresh failed');
+      log.error({ error: err instanceof Error ? err.message : String(err) }, 'Model refresh failed');
       return this.cache ?? FALLBACK_MODELS;
     }
   }

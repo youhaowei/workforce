@@ -34,6 +34,8 @@ interface MessageInputProps {
     role: 'user' | 'assistant' | 'system';
     agentConfig?: AgentConfig;
   }>;
+  /** Optional banner rendered above the input card, inside the same max-width container. */
+  banner?: React.ReactNode;
 }
 
 function getInitialConfig(
@@ -73,6 +75,7 @@ export default function MessageInput({
   placeholder,
   sessionId,
   messages,
+  banner,
 }: MessageInputProps) {
   const trpc = useTRPC();
   const currentTool = useMessagesStore((s) => s.currentTool);
@@ -241,6 +244,7 @@ export default function MessageInput({
   return (
     <div className="shrink-0 px-6 pb-5 pt-2">
       <div className="max-w-3xl mx-auto">
+        {banner}
         <Card className="bg-neutral-bg/80 backdrop-blur-xl saturate-[1.2] rounded-(--surface-radius) shadow-[var(--shadow-lg),0_0_12px_var(--neutral-ring-glow)] border-0 transition-shadow focus-within:shadow-[var(--shadow-lg),0_0_0_1px_var(--neutral-ring),0_0_20px_var(--neutral-ring-glow)]">
           {/* Textarea area */}
           <div className="px-6 pt-[18px] pb-2">
