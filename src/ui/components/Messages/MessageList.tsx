@@ -232,6 +232,8 @@ export default function MessageList({
         ref={virtuosoRef}
         scrollerRef={(ref) => { scrollerRef.current = ref as HTMLElement; }}
         data={messages}
+        computeItemKey={(_, message) => message.id}
+        defaultItemHeight={96}
         initialTopMostItemIndex={Math.max(0, messages.length - 1)}
         atBottomThreshold={100}
         atBottomStateChange={handleAtBottomStateChange}
@@ -240,7 +242,9 @@ export default function MessageList({
         // Streaming uses the RAF loop above (intra-message growth, no new items).
         // Session switch uses totalListHeightChanged (bulk load with layout sync).
         followOutput="smooth"
-        overscan={200}
+        increaseViewportBy={{ top: 800, bottom: 400 }}
+        minOverscanItemCount={8}
+        overscan={{ main: 400, reverse: 800 }}
         components={virtuosoComponents}
         itemContent={renderItem}
         className="flex-1"

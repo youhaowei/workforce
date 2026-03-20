@@ -7,9 +7,11 @@ const mockScrollToIndex = vi.fn();
 
 // Capture Virtuoso callbacks so tests can simulate scroll state changes
 let capturedAtBottomStateChange: ((atBottom: boolean) => void) | null = null;
+let lastVirtuosoProps: Record<string, unknown> | null = null;
 
 vi.mock('react-virtuoso', () => ({
   Virtuoso: React.forwardRef((props: Record<string, unknown>, ref: React.Ref<unknown>) => {
+    lastVirtuosoProps = props;
     capturedAtBottomStateChange = props.atBottomStateChange as typeof capturedAtBottomStateChange;
     const scrollerRefCb = props.scrollerRef as ((el: HTMLElement | null) => void) | undefined;
 
@@ -65,6 +67,7 @@ describe('MessageList scroll behavior', () => {
     mockActiveSessionId = null;
     mockScrollToIndex.mockClear();
     capturedAtBottomStateChange = null;
+    lastVirtuosoProps = null;
   });
 
   afterEach(() => {
@@ -227,5 +230,17 @@ describe('MessageList scroll behavior', () => {
     fireEvent.wheel(scroller, { deltaY: -100 });
 
     expect(onJumpToBottom).toHaveBeenLastCalledWith(expect.any(Function));
+  });
+
+  it('should configure Virtuoso to pre-render enough rows for long scrollback', () => {
+    const messages = makeMessages(200, false);
+
+    render(<MessageList messages={messages} isStreaming={false} />);
+
+    expect(lastVirtuosoProps?.computeItemKey).toBeTypeOf('function');
+    expect(lastVirtuosoProps?.defaultItemHeight).toBe(96);
+    expect(lastVirtuosoProps?.increaseViewportBy).toEqual({ top: 800, bottom: 400 });
+    expect(lastVirtuosoProps?.minOverscanItemCount).toBe(8);
+    expect(lastVirtuosoProps?.overscan).toEqual({ main: 400, reverse: 800 });
   });
 });

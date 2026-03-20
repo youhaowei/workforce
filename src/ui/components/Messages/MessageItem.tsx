@@ -6,7 +6,7 @@
  * Task tools rendered as collapsible group headers within activity segments.
  */
 
-import { useState, useMemo, type MouseEvent } from 'react';
+import { memo, useState, useMemo, useCallback, type MouseEvent } from 'react';
 import { History, GitBranch, ChevronRight, Loader2, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -163,8 +163,18 @@ function groupActivities(blocks: ContentBlock[]): GroupedItem[] {
 // ─── useMessageSegments hook ─────────────────────────────────────────────────
 
 function useMessageSegments(message: MessageItemProps['message']) {
-  const streamingContent = useMessagesStore((s) => s.streamingContent);
-  const streamingBlocks = useMessagesStore((s) => s.streamingBlocks);
+  const streamingContent = useMessagesStore(
+    useCallback(
+      (s) => (message.isStreaming && s.streamingMessageId === message.id ? s.streamingContent : ''),
+      [message.id, message.isStreaming],
+    ),
+  );
+  const streamingBlocks = useMessagesStore(
+    useCallback(
+      (s) => (message.isStreaming && s.streamingMessageId === message.id ? s.streamingBlocks : EMPTY_BLOCKS),
+      [message.id, message.isStreaming],
+    ),
+  );
 
   const displayContent = useMemo(
     () => (message.isStreaming ? streamingContent : message.content),
@@ -180,6 +190,8 @@ function useMessageSegments(message: MessageItemProps['message']) {
 
   return { segments, displayContent, allBlocks };
 }
+
+const EMPTY_BLOCKS: ContentBlock[] = [];
 
 // ─── Status Icons ────────────────────────────────────────────────────────────
 
@@ -501,7 +513,7 @@ function AssistantTurn({ message }: {
 
 // ─── Root Component ──────────────────────────────────────────────────────────
 
-export default function MessageItem({
+function MessageItem({
   message, messageIndex, forks, onRewind, onFork, onSelectSession,
 }: MessageItemProps) {
   const isUser = message.role === 'user';
@@ -527,3 +539,38 @@ export default function MessageItem({
     </div>
   );
 }
+
+function areForksEqual(a?: ForkInfo[], b?: ForkInfo[]) {
+  if (a === b) return true;
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i]?.sessionId !== b[i]?.sessionId || a[i]?.title !== b[i]?.title) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function areMessagePropsEqual(prev: MessageItemProps, next: MessageItemProps) {
+  return (
+    prev.message === next.message ||
+    (
+      prev.message.id === next.message.id &&
+      prev.message.role === next.message.role &&
+      prev.message.content === next.message.content &&
+      prev.message.timestamp === next.message.timestamp &&
+      prev.message.isStreaming === next.message.isStreaming &&
+      prev.message.toolCalls === next.message.toolCalls &&
+      prev.message.toolResults === next.message.toolResults &&
+      prev.message.toolActivities === next.message.toolActivities &&
+      prev.message.contentBlocks === next.message.contentBlocks
+    )
+  ) &&
+    prev.messageIndex === next.messageIndex &&
+    areForksEqual(prev.forks, next.forks) &&
+    prev.onRewind === next.onRewind &&
+    prev.onFork === next.onFork &&
+    prev.onSelectSession === next.onSelectSession;
+}
+
+export default memo(MessageItem, areMessagePropsEqual);
