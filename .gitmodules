@@ -7,3 +7,6 @@
 [submodule "lib/wystack"]
 	path = lib/wystack
 	url = git@github.com:youhaowei/wystack.git
+[submodule "lib/stdui"]
+	path = lib/stdui
+	url = git@github.com:youhaowei/stdui.git

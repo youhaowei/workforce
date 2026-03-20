@@ -25,7 +25,9 @@
       "@wystack/db": ["lib/wystack/packages/db/src/index.ts"],
       "@wystack/server": ["lib/wystack/packages/server/src/index.ts"],
       "@wystack/client": ["lib/wystack/packages/client/src/index.ts"],
-      "@wystack/start": ["lib/wystack/packages/start/src/index.ts"]
+      "@wystack/start": ["lib/wystack/packages/start/src/index.ts"],
+      "@stdui/react": ["lib/stdui/packages/ui/src/index.ts"],
+      "@stdui/react/*": ["lib/stdui/packages/ui/src/*"]
     },
     "types": ["vitest/globals", "vite/client", "bun"]
   },

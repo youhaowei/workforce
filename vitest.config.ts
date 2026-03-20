@@ -16,6 +16,7 @@ export default defineConfig({
       '@wystack/server': path.resolve(__dirname, './lib/wystack/packages/server/src'),
       '@wystack/client': path.resolve(__dirname, './lib/wystack/packages/client/src'),
       '@wystack/start': path.resolve(__dirname, './lib/wystack/packages/start/src'),
+      '@stdui/react': path.resolve(__dirname, './lib/stdui/packages/ui/src'),
     },
   },
   test: {

@@ -79,6 +79,7 @@ export default defineConfig(({command}) => ({
             "@wystack/server": resolve(__dirname, "lib/wystack/packages/server/src"),
             "@wystack/client": resolve(__dirname, "lib/wystack/packages/client/src"),
             "@wystack/start": resolve(__dirname, "lib/wystack/packages/start/src"),
+            "@stdui/react": resolve(__dirname, "lib/stdui/packages/ui/src"),
         },
     },
     // Prevent vite from obscuring Rust errors
