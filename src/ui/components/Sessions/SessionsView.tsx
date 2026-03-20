@@ -109,13 +109,13 @@ export function SessionsView({
                   </div>
                 )}
                 {hasUpdate && (
-                  <Alert variant="warning" className="flex items-center gap-2 mb-2">
-                    <RefreshCcw className="h-3.5 w-3.5 shrink-0 !static !translate-y-0" />
-                    <span className="flex-1 truncate !pl-0">New activity from Claude Code</span>
+                  <Alert color="warning" surface="glass" className="flex items-center gap-2 mb-2">
+                    <span><RefreshCcw className="h-3.5 w-3.5 shrink-0" /></span>
+                    <span className="flex-1 truncate">New activity from Claude Code</span>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 px-2 text-xs text-palette-warning hover:opacity-80 hover:bg-palette-warning/10 shrink-0"
+                      className="h-6 px-2 text-xs text-[var(--alert-color)] hover:opacity-80 hover:bg-[var(--alert-color)]/10 shrink-0"
                       onClick={handleSync}
                       disabled={isSyncing}
                     >
