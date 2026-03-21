@@ -39,7 +39,8 @@ function PanelHeader({ onRefresh, isRefreshing }: { onRefresh: () => void; isRef
 }
 
 /** Convert a CC session summary to SessionSummary shape for unified list rendering. */
-function ccToSessionSummary(cc: CCSessionSummary): SessionSummary {
+function ccToSessionSummary(cc: CCSessionSummary, cwdToProjectId?: Map<string, string>): SessionSummary {
+  const projectId = cc.cwd ? cwdToProjectId?.get(cc.cwd) : undefined;
   return {
     id: `cc:${cc.sessionId}`,
     title: cc.title,
@@ -52,6 +53,7 @@ function ccToSessionSummary(cc: CCSessionSummary): SessionSummary {
       gitBranch: cc.gitBranch,
       cwd: cc.cwd,
       imported: false,
+      ...(projectId && { projectId }),
     },
     messageCount: 0,
     lastMessagePreview: cc.firstPrompt,
@@ -130,6 +132,12 @@ export function SessionsPanel({
     [projects],
   );
 
+  // Reverse lookup: rootPath → projectId for auto-matching CC sessions to projects
+  const cwdToProjectId = useMemo(
+    () => new Map(projects.map((p: Project) => [p.rootPath, p.id])),
+    [projects],
+  );
+
   // Build set of already-imported CC session IDs + their WF session IDs
   const importedCCIds = useMemo(
     () => new Set(
@@ -156,9 +164,9 @@ export function SessionsPanel({
   const mergedSessions = useMemo(() => {
     const unimportedCC = ccSessions
       .filter((cc) => !importedCCIds.has(cc.sessionId) && !hiddenCCIds.has(cc.sessionId))
-      .map(ccToSessionSummary);
+      .map((cc) => ccToSessionSummary(cc, cwdToProjectId));
     return [...wfSessions, ...unimportedCC];
-  }, [wfSessions, ccSessions, importedCCIds, hiddenCCIds]);
+  }, [wfSessions, ccSessions, importedCCIds, hiddenCCIds, cwdToProjectId]);
 
   const importMutation = useMutation(
     trpc.session.importCC.mutationOptions({

@@ -9,7 +9,7 @@
  */
 
 import { useMemo, type MouseEvent } from 'react';
-import { Trash2, EyeOff, RefreshCcw, Link2, Unlink, Loader2 } from 'lucide-react';
+import { Trash2, EyeOff, RefreshCcw, Link2, Unlink, Loader2, Folder } from 'lucide-react';
 import { ClaudeIcon } from '@/ui/components/icons/ClaudeIcon';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -83,6 +83,10 @@ export interface SessionItemProps {
   session: SessionSummary;
   isActive?: boolean;
   projectName?: string;
+  /** Hex color for the project dot (from Project.color) */
+  projectColor?: string;
+  /** True when projectName is derived from session cwd rather than a matched project */
+  isCwdFolder?: boolean;
   isOutOfSync?: boolean;
   isImporting?: boolean;
   /** Which timestamp to show as time-ago (matches groupBy mode) */
@@ -97,6 +101,8 @@ export function SessionItem({
   session,
   isActive,
   projectName: projectNameProp,
+  projectColor,
+  isCwdFolder,
   isOutOfSync,
   isImporting,
   timeField = 'updatedAt',
@@ -176,16 +182,34 @@ export function SessionItem({
         </div>
       </div>
 
-      {/* Row 2: badges + delete */}
+      {/* Row 2: project / folder */}
+      {projectName && (
+        <div className="flex items-center mt-0.5 pl-5">
+          {isCwdFolder ? (
+            <span className="inline-flex items-center gap-1 text-[11px] text-neutral-fg-subtle/40 truncate">
+              <Folder className="h-2.5 w-2.5 shrink-0" />
+              {projectName}
+            </span>
+          ) : (
+            <Badge
+              variant="soft"
+              className="h-[18px] px-1.5 py-0 text-[10px] rounded font-medium truncate max-w-[160px]"
+              style={projectColor ? {
+                backgroundColor: `${projectColor}18`,
+                color: projectColor,
+              } : undefined}
+            >
+              {projectName}
+            </Badge>
+          )}
+        </div>
+      )}
+
+      {/* Row 3: badges + delete */}
       <div className="flex items-center gap-1 mt-1 pl-4">
         {typeLabel && (
           <Badge variant="soft" color={TYPE_BADGE_COLOR[sessionType]} className="h-[18px] px-1.5 py-0 text-[10px] rounded">
             {typeLabel}
-          </Badge>
-        )}
-        {projectName && (
-          <Badge variant="outline" className="h-[18px] px-1.5 py-0 text-[10px] rounded truncate max-w-[120px]">
-            {projectName}
           </Badge>
         )}
         {isCC && (

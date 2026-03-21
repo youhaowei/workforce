@@ -101,7 +101,7 @@ function groupByTimestamp(sessions: SessionSummary[], field: 'createdAt' | 'upda
     .map(([key, items]) => ({
       key,
       label: formatDateGroupLabel(new Date(items[0][field])),
-      sessions: items,
+      sessions: items.sort((a, b) => mul * (b[field] - a[field])),
     }));
 }
 

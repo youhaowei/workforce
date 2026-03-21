@@ -382,14 +382,16 @@ export function SessionList({
     const session = item.session;
     const projectId = session.metadata?.projectId as string | undefined;
     const project = projectId ? projectMap?.get(projectId) : undefined;
-    const cwdFolder = session.metadata?.cwd
-      ? (session.metadata.cwd as string).split('/').pop()
+    const cwdPath = !project && session.metadata?.cwd
+      ? session.metadata.cwd as string
       : undefined;
     return (
       <SessionItem
         session={session}
         isActive={session.id === activeSessionId || importingId === session.id}
-        projectName={project?.name || cwdFolder}
+        projectName={project?.name || cwdPath}
+        projectColor={project?.color}
+        isCwdFolder={!project && !!cwdPath}
         isOutOfSync={syncStatus?.[session.id] === false}
         isImporting={importingId === session.id}
         timeField={groupBy === 'date' ? 'createdAt' : 'updatedAt'}
