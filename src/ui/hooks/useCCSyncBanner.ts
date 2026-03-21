@@ -30,6 +30,14 @@ export function useCCSyncBanner(activeSessionId?: string) {
     setDismissed(false);
   }, [activeSessionId]);
 
+  // Clear liveUpdate when server confirms session is in sync
+  // (handles syncs triggered externally, e.g. SessionsPanel auto-sync)
+  useEffect(() => {
+    if (syncStatus?.inSync) {
+      setLiveUpdate(false);
+    }
+  }, [syncStatus?.inSync]);
+
   // Listen for live cc_source_changed events
   useEffect(() => {
     if (!activeSessionId) return;
