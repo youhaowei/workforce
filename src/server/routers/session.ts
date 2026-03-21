@@ -295,7 +295,7 @@ export const sessionRouter = router({
     .input(z.object({
       projectPath: z.string().optional(),
     }).optional())
-    .query(({ input }) => discoverCCSessions(input?.projectPath ?? process.cwd())),
+    .query(({ input }) => discoverCCSessions(input?.projectPath)),
 
   importCC: publicProcedure
     .input(z.object({ ccFilePath: z.string(), orgId: z.string().optional() }))

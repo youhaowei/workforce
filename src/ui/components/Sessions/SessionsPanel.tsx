@@ -50,6 +50,7 @@ function ccToSessionSummary(cc: CCSessionSummary): SessionSummary {
       ccSessionId: cc.sessionId,
       ccFullPath: cc.fullPath,
       gitBranch: cc.gitBranch,
+      cwd: cc.cwd,
       imported: false,
     },
     messageCount: 0,
@@ -148,7 +149,7 @@ export function SessionsPanel({
   const { data: syncStatus = {} } = useQuery({
     ...trpc.session.checkCCSyncBatch.queryOptions({ sessionIds: importedSessionIds }),
     enabled: importedSessionIds.length > 0,
-    staleTime: 30_000,
+    staleTime: 10_000,
   });
 
   // Merge: WF sessions + CC sessions (excluding already-imported ones)
@@ -173,6 +174,8 @@ export function SessionsPanel({
       onSettled: () => {
         void queryClient.invalidateQueries({ queryKey: listQueryKey });
         void queryClient.invalidateQueries({ queryKey: trpc.session.checkCCSyncBatch.queryKey() });
+        // Also invalidate individual checkCCSync so the chat banner (useCCSyncBanner) updates
+        void queryClient.invalidateQueries({ queryKey: trpc.session.checkCCSync.queryKey() });
       },
     }),
   );

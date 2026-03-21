@@ -40,29 +40,32 @@ function cleanTitle(summary: string, firstPrompt?: string): string {
  * Returns sessions with proper auto-generated titles.
  */
 export async function discoverCCSessions(projectPath?: string): Promise<CCSessionSummary[]> {
-  if (!projectPath) return discoverFromIndex(projectPath);
-
   try {
     const { listSessions } = await import('@anthropic-ai/claude-agent-sdk');
-    const sdkSessions = await listSessions({ dir: projectPath });
+    const sdkSessions = await listSessions(projectPath ? { dir: projectPath } : undefined);
 
     const ccProjectsDir = join(homedir(), '.claude', 'projects');
-    const slug = projectPathToSlug(projectPath);
 
     return sdkSessions
       .filter((s) => s.fileSize > 500) // skip near-empty sessions
-      .map((s) => ({
-      sessionId: s.sessionId,
-      title: s.customTitle
-        || cleanTitle(s.summary, s.firstPrompt)
-        || (s.gitBranch && s.gitBranch !== 'master' && s.gitBranch !== 'main' ? s.gitBranch : ''),
-      firstPrompt: s.firstPrompt,
-      lastModified: s.lastModified,
-      fileSize: s.fileSize,
-      gitBranch: s.gitBranch,
-      cwd: s.cwd ?? projectPath,
-      fullPath: join(ccProjectsDir, slug, `${s.sessionId}.jsonl`),
-    }));
+      .map((s) => {
+        const cwd = s.cwd ?? projectPath;
+        const slug = cwd ? projectPathToSlug(cwd) : '';
+        return {
+          sessionId: s.sessionId,
+          title: s.customTitle
+            || cleanTitle(s.summary, s.firstPrompt)
+            || (s.gitBranch && s.gitBranch !== 'master' && s.gitBranch !== 'main' ? s.gitBranch : ''),
+          firstPrompt: s.firstPrompt,
+          lastModified: s.lastModified,
+          fileSize: s.fileSize,
+          gitBranch: s.gitBranch,
+          cwd,
+          fullPath: slug
+            ? join(ccProjectsDir, slug, `${s.sessionId}.jsonl`)
+            : join(ccProjectsDir, `${s.sessionId}.jsonl`),
+        };
+      });
   } catch {
     // SDK not available — fall back to sessions-index.json
     return discoverFromIndex(projectPath);
