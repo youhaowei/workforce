@@ -77,6 +77,13 @@ export const HOTKEYS = {
     description: 'New chat session (Ctrl)',
     global: true,
   },
+
+  // App
+  refresh: {
+    keys: ['Meta', 'r'],
+    description: 'Refresh app',
+    global: true,
+  },
 } as const;
 
 export type HotkeyName = keyof typeof HOTKEYS;

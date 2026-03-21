@@ -5,7 +5,17 @@ import {TanStackRouterVite} from "@tanstack/router-plugin/vite";
 import {visualizer} from "rollup-plugin-visualizer";
 import {resolve} from "path";
 import {readFileSync, writeFileSync, unlinkSync} from "fs";
+import {execFileSync} from "child_process";
 import {DEFAULT_SERVER_PORT, DEFAULT_VITE_PORT} from "./src/shared/ports";
+
+/** Read current git branch name (best-effort, returns undefined on failure). */
+function discoverGitBranch(): string | undefined {
+    try {
+        return execFileSync("git", ["branch", "--show-current"], { encoding: "utf-8" }).trim() || undefined;
+    } catch {
+        return undefined;
+    }
+}
 
 /** Read the server's actual port from .dev-port (written by server on startup). */
 function discoverApiPort(): string | undefined {
@@ -86,7 +96,7 @@ export default defineConfig(({command}) => ({
     clearScreen: false,
     server: {
         port: DEFAULT_VITE_PORT,
-        strictPort: true,
+        strictPort: false,
         host: host || false,
         hmr: host ? {protocol: "ws", host, port: DEFAULT_VITE_PORT + 1} : undefined,
         watch: {
@@ -102,6 +112,10 @@ export default defineConfig(({command}) => ({
             process.env.VITE_API_PORT ||
             (command === "serve" ? discoverApiPort() : undefined) ||
             String(DEFAULT_SERVER_PORT),
+        ),
+        // Dev-only: inject git branch for multi-instance identification in document.title.
+        "import.meta.env.VITE_GIT_BRANCH": JSON.stringify(
+            command === "serve" ? discoverGitBranch() : undefined,
         ),
     },
     build: {

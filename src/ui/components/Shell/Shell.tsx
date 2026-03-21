@@ -120,6 +120,15 @@ export default function Shell() {
 
   const showSessionsView = pathname.startsWith('/sessions');
 
+  // Dev mode: include git branch + port in document.title for multi-instance debugging
+  useEffect(() => {
+    const branch = import.meta.env.VITE_GIT_BRANCH;
+    const port = import.meta.env.VITE_API_PORT;
+    const devPrefix = branch ? `[${branch}${port ? ` :${port}` : ""}] ` : "";
+    const pageTitle = activeSessionTitle || "Workforce - Agentic Orchestrator";
+    document.title = devPrefix + pageTitle;
+  }, [activeSessionTitle]);
+
   useEffect(() => {
     setSelectedProjectId(null);
     setNewSessionProjectId(null);
@@ -250,6 +259,7 @@ export default function Shell() {
   useHotkey("toggleHistory", toggleSessionsPanel);
   useHotkey("toggleTasks", () => setThemePanelOpen(!themePanelOpen));
   useHotkey("cancelStream", handleCancel, isStreaming);
+  useHotkey("refresh", () => window.location.reload());
 
   useEffect(() => () => { cancelStreamRef.current?.(); }, []);
 
@@ -454,37 +464,40 @@ export default function Shell() {
               />
             )}
 
-            <MainContentColumn
-              serverConnected={serverConnected}
-              showFloatingPill={showSessionsView}
-              sessionTitle={activeSessionTitle}
-              sessionsPanelOpen={!sessionsPanelCollapsed}
-              infoPanelOpen={showChatInfo}
-              onToggleSessions={toggleSessionsPanel}
-              onToggleInfo={toggleInfoPanel}
-            >
-              <Outlet />
-            </MainContentColumn>
+            {/* Stage: chat + artifact grouped so sessions resize pushes both */}
+            <div className="flex-1 flex min-w-0 overflow-hidden">
+              <MainContentColumn
+                serverConnected={serverConnected}
+                showFloatingPill={showSessionsView}
+                sessionTitle={activeSessionTitle}
+                sessionsPanelOpen={!sessionsPanelCollapsed}
+                infoPanelOpen={showChatInfo}
+                onToggleSessions={toggleSessionsPanel}
+                onToggleInfo={toggleInfoPanel}
+              >
+                <Outlet />
+              </MainContentColumn>
 
-            <ArtifactPanel
-              isOpen={planPanelOpen || artifactPanel.panelOpen}
-              isPlanMode={isPlanMode}
-              isPlanArtifact={!!planArtifactId && !artifactPanel.panelOpen}
-              title={artifactPanel.artifact?.title ?? planTitle}
-              filePath={artifactPanel.artifact?.filePath ?? planFilePath}
-              status={artifactPanel.artifact?.status ?? planStatus}
-              content={artifactPanel.panelOpen ? (artifactPanel.artifact?.content ?? '') : (artifactPanel.artifact?.content ?? planContent)}
-              loadError={planLoadError}
-              comments={artifactPanel.pendingComments}
-              sessionArtifacts={artifactPanel.sessionArtifacts}
-              activeArtifactId={artifactPanel.activeArtifactId}
-              onAddComment={artifactPanel.addComment}
-              onSubmitReview={artifactPanel.submitReview}
-              onApprove={artifactPanel.handleApprove}
-              onReject={artifactPanel.handleReject}
-              onClose={artifactPanel.panelOpen ? artifactPanel.closePanel : handlePlanClose}
-              onSelectArtifact={artifactPanel.openArtifact}
-            />
+              <ArtifactPanel
+                isOpen={planPanelOpen || artifactPanel.panelOpen}
+                isPlanMode={isPlanMode}
+                isPlanArtifact={!!planArtifactId && !artifactPanel.panelOpen}
+                title={artifactPanel.artifact?.title ?? planTitle}
+                filePath={artifactPanel.artifact?.filePath ?? planFilePath}
+                status={artifactPanel.artifact?.status ?? planStatus}
+                content={artifactPanel.panelOpen ? (artifactPanel.artifact?.content ?? '') : (artifactPanel.artifact?.content ?? planContent)}
+                loadError={planLoadError}
+                comments={artifactPanel.pendingComments}
+                sessionArtifacts={artifactPanel.sessionArtifacts}
+                activeArtifactId={artifactPanel.activeArtifactId}
+                onAddComment={artifactPanel.addComment}
+                onSubmitReview={artifactPanel.submitReview}
+                onApprove={artifactPanel.handleApprove}
+                onReject={artifactPanel.handleReject}
+                onClose={artifactPanel.panelOpen ? artifactPanel.closePanel : handlePlanClose}
+                onSelectArtifact={artifactPanel.openArtifact}
+              />
+            </div>
 
             <ChatInfoPanel
               isOpen={showChatInfo}

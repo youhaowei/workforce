@@ -16,7 +16,7 @@ import { ArtifactReviewBox } from './ArtifactReviewBox';
 
 const STORAGE_KEY = 'workforce:artifact-panel-width';
 const DEFAULT_WIDTH = 480;
-const MIN_WIDTH = 200;
+const MIN_WIDTH = 320;
 const MAX_WIDTH = 1200;
 
 export interface ArtifactPanelProps {
@@ -148,7 +148,7 @@ export function ArtifactPanel({ isOpen, ...rest }: ArtifactPanelProps) {
 
     function onMove(ev: MouseEvent) {
       const w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startW - (ev.clientX - startX)));
-      el!.style.width = w + 'px';
+      el!.style.flexBasis = w + 'px';
     }
     function onUp() {
       document.removeEventListener('mousemove', onMove);
@@ -167,10 +167,10 @@ export function ArtifactPanel({ isOpen, ...rest }: ArtifactPanelProps) {
   return (
     <div
       ref={panelRef}
-      className={`flex-shrink-0 flex overflow-hidden select-none ${
+      className={`shrink flex overflow-hidden select-none ${
         dragging ? '' : 'transition-[width,margin] duration-200 ease-in-out'
       } ${isOpen ? '' : 'w-0 !m-0'}`}
-      style={isOpen ? { width: `${width}px` } : undefined}
+      style={isOpen ? { flexBasis: `${width}px`, minWidth: `${MIN_WIDTH}px` } : undefined}
       aria-hidden={!isOpen}
       inert={!isOpen ? true : undefined}
     >
