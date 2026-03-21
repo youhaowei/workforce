@@ -4,27 +4,40 @@ import React from 'react';
 
 // Track scrollToIndex calls through the Virtuoso ref
 const mockScrollToIndex = vi.fn();
+let latestScrollerElement: HTMLElement | null = null;
+const mockScrollTo = vi.fn(({ top }: { top?: number }) => {
+  if (latestScrollerElement && typeof top === 'number') {
+    latestScrollerElement.scrollTop = top;
+  }
+});
+const mockAutoscrollToBottom = vi.fn();
 
 // Capture Virtuoso callbacks so tests can simulate scroll state changes
 let capturedAtBottomStateChange: ((atBottom: boolean) => void) | null = null;
+let capturedTotalListHeightChanged: (() => void) | null = null;
 let lastVirtuosoProps: Record<string, unknown> | null = null;
 
 vi.mock('react-virtuoso', () => ({
   Virtuoso: React.forwardRef((props: Record<string, unknown>, ref: React.Ref<unknown>) => {
     lastVirtuosoProps = props;
     capturedAtBottomStateChange = props.atBottomStateChange as typeof capturedAtBottomStateChange;
+    capturedTotalListHeightChanged = props.totalListHeightChanged as typeof capturedTotalListHeightChanged;
     const scrollerRefCb = props.scrollerRef as ((el: HTMLElement | null) => void) | undefined;
 
     // Expose scrollToIndex on the forwarded ref so MessageList's useEffect can call it
     React.useImperativeHandle(ref, () => ({
       scrollToIndex: mockScrollToIndex,
-      scrollTo: vi.fn(),
+      scrollTo: mockScrollTo,
+      autoscrollToBottom: mockAutoscrollToBottom,
     }));
 
     return (
       <div
         data-testid="virtuoso-scroller"
-        ref={(el: HTMLElement | null) => scrollerRefCb?.(el)}
+        ref={(el: HTMLElement | null) => {
+          latestScrollerElement = el;
+          scrollerRefCb?.(el);
+        }}
       >
         {(props.data as Array<{ id: string }>)?.map((msg, i) => (
           <div key={msg.id} data-testid={`message-${i}`}>{msg.id}</div>
@@ -65,8 +78,12 @@ describe('MessageList scroll behavior', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mockStoreIsStreaming = false;
     mockActiveSessionId = null;
+    latestScrollerElement = null;
     mockScrollToIndex.mockClear();
+    mockScrollTo.mockClear();
+    mockAutoscrollToBottom.mockClear();
     capturedAtBottomStateChange = null;
+    capturedTotalListHeightChanged = null;
     lastVirtuosoProps = null;
   });
 
@@ -231,6 +248,10 @@ describe('MessageList scroll behavior', () => {
 
     expect(onJumpToBottom).toHaveBeenLastCalledWith(expect.any(Function));
   });
+
+  // Scroll-to-bottom behavior (RAF loop, re-mount, settle detection) is tested
+  // via visual/E2E tests — unit tests with mocked Virtuoso can't verify real
+  // scroll behavior because they test mock behavior, not actual DOM scrolling.
 
   it('should configure Virtuoso to pre-render enough rows for long scrollback', () => {
     const messages = makeMessages(200, false);
