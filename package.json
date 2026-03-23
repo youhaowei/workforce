@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tauri dev",
-    "dev:web": "bun run server:watch & bun run vite",
+    "dev:web": "bash scripts/dev-preview.sh",
     "server": "bun --tsconfig-override tsconfig.json src/server/index.ts",
     "server:watch": "PORT=${PORT:-19675} bun --tsconfig-override tsconfig.json --watch src/server/index.ts",
     "build": "tauri build",

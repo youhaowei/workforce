@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Find free port pair and start dev server.
-# Used by .claude/launch.json so preview_start connects to the right instance.
+# Start dev server + Vite with auto port discovery.
 # Server gets port N, Vite gets port N+1.
+#
+# If PORT/VITE_PORT are already set, uses those (e.g. Tauri's beforeDevCommand).
+# Otherwise, finds a free port pair and updates .claude/launch.json.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -24,22 +26,27 @@ find_free_port_pair() {
   exit 1
 }
 
-BASE_PORT=$(find_free_port_pair)
-VITE_PORT=$((BASE_PORT + 1))
+if [ -z "${PORT:-}" ]; then
+  BASE_PORT=$(find_free_port_pair)
+  export PORT=$BASE_PORT
+  export VITE_PORT=$((BASE_PORT + 1))
 
-# Update launch.json so preview_start connects to the Vite port.
-LAUNCH_JSON=".claude/launch.json"
-if [ -f "$LAUNCH_JSON" ]; then
-  node -e "
-    const fs = require('fs');
-    const j = JSON.parse(fs.readFileSync('$LAUNCH_JSON', 'utf8'));
-    j.configurations[0].port = $VITE_PORT;
-    fs.writeFileSync('$LAUNCH_JSON', JSON.stringify(j, null, 2) + '\n');
-  "
+  # Update launch.json so preview_start connects to the right Vite instance.
+  LAUNCH_JSON=".claude/launch.json"
+  if [ -f "$LAUNCH_JSON" ]; then
+    node -e "
+      const fs = require('fs');
+      const j = JSON.parse(fs.readFileSync('$LAUNCH_JSON', 'utf8'));
+      if (j.configurations?.[0]) {
+        j.configurations[0].port = $VITE_PORT;
+        fs.writeFileSync('$LAUNCH_JSON', JSON.stringify(j, null, 2) + '\n');
+      }
+    "
+  fi
 fi
 
-echo "[dev-preview] Server :$BASE_PORT  Vite :$VITE_PORT"
+# Tell Vite where the API server lives so the client bundle gets the right port.
+export VITE_API_PORT=$PORT
 
-export PORT=$BASE_PORT
-export VITE_PORT=$VITE_PORT
-exec bun run dev:web
+echo "[dev] Server :$PORT  Vite :${VITE_PORT:-auto}"
+exec bash -c 'PORT=$PORT bun --tsconfig-override tsconfig.json --watch src/server/index.ts & bun run vite; wait'

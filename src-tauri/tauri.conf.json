@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.workforce.app",
   "build": {
-    "beforeDevCommand": "bun run dev:web",
+    "beforeDevCommand": "PORT=19675 VITE_PORT=19676 bun run dev:web",
     "beforeBuildCommand": "bun run vite:build",
     "devUrl": "http://localhost:19676",
     "frontendDist": "../dist"

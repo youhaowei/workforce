@@ -7,7 +7,7 @@
       "runtimeArgs": [
         "scripts/dev-preview.sh"
       ],
-      "port": 19680
+      "port": 19679
     }
   ]
 }
