@@ -1,52 +1,46 @@
 #!/usr/bin/env bash
 # Start dev server + Vite with auto port discovery.
-# Server gets port N, Vite gets port N+1.
 #
-# If PORT/VITE_PORT are already set, uses those (e.g. Tauri's beforeDevCommand).
-# Otherwise, finds a free port pair and updates .claude/launch.json.
+# PORT env var = Vite port (set by autoPort in launch.json, or manually).
+# Server port is discovered independently.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-DEFAULT_PORT=19675
+DEFAULT_SERVER_PORT=19675
+DEFAULT_VITE_PORT=19676
 
-# Find a pair of consecutive free ports starting from DEFAULT_PORT.
-find_free_port_pair() {
-  local port=$DEFAULT_PORT
+is_port_free() {
+  ! lsof -iTCP:"$1" -sTCP:LISTEN -t >/dev/null 2>&1
+}
+
+find_free_port() {
+  local port=$1
   local max=$((port + 20))
   while [ $port -lt $max ]; do
-    if ! lsof -iTCP:"$port" -sTCP:LISTEN -t >/dev/null 2>&1 &&
-       ! lsof -iTCP:"$((port + 1))" -sTCP:LISTEN -t >/dev/null 2>&1; then
+    if is_port_free "$port"; then
       echo "$port"
       return
     fi
-    port=$((port + 2))
+    port=$((port + 1))
   done
-  echo >&2 "No free port pair found in range $DEFAULT_PORT–$max"
+  echo >&2 "No free port found from $1"
   exit 1
 }
 
-if [ -z "${PORT:-}" ]; then
-  BASE_PORT=$(find_free_port_pair)
-  export PORT=$BASE_PORT
-  export VITE_PORT=$((BASE_PORT + 1))
+# Vite port: from PORT env (autoPort) or find a free one.
+export VITE_PORT="${PORT:-$(find_free_port $DEFAULT_VITE_PORT)}"
 
-  # Update launch.json so preview_start connects to the right Vite instance.
-  LAUNCH_JSON=".claude/launch.json"
-  if [ -f "$LAUNCH_JSON" ]; then
-    node -e "
-      const fs = require('fs');
-      const j = JSON.parse(fs.readFileSync('$LAUNCH_JSON', 'utf8'));
-      if (j.configurations?.[0]) {
-        j.configurations[0].port = $VITE_PORT;
-        fs.writeFileSync('$LAUNCH_JSON', JSON.stringify(j, null, 2) + '\n');
-      }
-    "
-  fi
+# Server port: always auto-discover independently.
+SERVER_PORT=$(find_free_port $DEFAULT_SERVER_PORT)
+# Skip Vite port if collision.
+if [ "$SERVER_PORT" = "$VITE_PORT" ]; then
+  SERVER_PORT=$(find_free_port $((VITE_PORT + 1)))
 fi
 
-# Tell Vite where the API server lives so the client bundle gets the right port.
-export VITE_API_PORT=$PORT
+# Tell Vite where the API server lives.
+export PORT=$SERVER_PORT
+export VITE_API_PORT=$SERVER_PORT
 
-echo "[dev] Server :$PORT  Vite :${VITE_PORT:-auto}"
+echo "[dev] Server :$SERVER_PORT  Vite :$VITE_PORT"
 exec bash -c 'PORT=$PORT bun --tsconfig-override tsconfig.json --watch src/server/index.ts & bun run vite; wait'

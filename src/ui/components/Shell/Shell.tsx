@@ -120,12 +120,12 @@ export default function Shell() {
 
   const showSessionsView = pathname.startsWith('/sessions');
 
-  // Dev mode: include git branch + port in document.title for multi-instance debugging
+  // Dev mode: include git branch + port in document.title for multi-instance debugging.
   useEffect(() => {
     const branch = import.meta.env.VITE_GIT_BRANCH;
     const port = import.meta.env.VITE_API_PORT;
     const devPrefix = branch ? `[${branch}${port ? ` :${port}` : ""}] ` : "";
-    const pageTitle = activeSessionTitle || "Workforce - Agentic Orchestrator";
+    const pageTitle = activeSessionTitle || "Workforce";
     document.title = devPrefix + pageTitle;
   }, [activeSessionTitle]);
 
