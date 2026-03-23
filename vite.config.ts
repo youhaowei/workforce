@@ -27,8 +27,25 @@ function discoverApiPort(): string | undefined {
 }
 
 const VITE_PORT_FILE = resolve(__dirname, ".vite-port");
+const LAUNCH_JSON = resolve(__dirname, ".claude/launch.json");
 
-/** Write .vite-port on dev server start so consumers can discover the Vite port. */
+/** Update .claude/launch.json port field to match the actual Vite port.
+ *  Enables preview_start to connect to the right instance in worktrees. */
+function updateLaunchJsonPort(port: number) {
+    try {
+        const raw = readFileSync(LAUNCH_JSON, "utf-8");
+        const json = JSON.parse(raw);
+        if (json.configurations?.[0]?.port !== port) {
+            json.configurations[0].port = port;
+            writeFileSync(LAUNCH_JSON, JSON.stringify(json, null, 2) + "\n");
+        }
+    } catch {
+        /* launch.json missing or malformed — skip */
+    }
+}
+
+/** Write .vite-port on dev server start so consumers can discover the Vite port.
+ *  Also updates .claude/launch.json so preview_start connects to the right instance. */
 function vitePortFile(): Plugin {
     return {
         name: "vite-port-file",
@@ -37,6 +54,7 @@ function vitePortFile(): Plugin {
                 const addr = server.httpServer!.address();
                 if (addr && typeof addr === "object") {
                     writeFileSync(VITE_PORT_FILE, String(addr.port));
+                    updateLaunchJsonPort(addr.port);
                 }
             });
             const cleanup = () => {
@@ -95,7 +113,7 @@ export default defineConfig(({command}) => ({
     // Prevent vite from obscuring Rust errors
     clearScreen: false,
     server: {
-        port: DEFAULT_VITE_PORT,
+        port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)),
         strictPort: false,
         host: host || false,
         hmr: host ? {protocol: "ws", host, port: DEFAULT_VITE_PORT + 1} : undefined,

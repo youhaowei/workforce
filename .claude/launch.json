@@ -3,9 +3,11 @@
   "configurations": [
     {
       "name": "workforce",
-      "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "dev:web"],
-      "port": 19676
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "scripts/dev-preview.sh"
+      ],
+      "port": 19680
     }
   ]
 }

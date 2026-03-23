@@ -7,7 +7,7 @@
     "dev": "tauri dev",
     "dev:web": "bun run server:watch & bun run vite",
     "server": "bun --tsconfig-override tsconfig.json src/server/index.ts",
-    "server:watch": "PORT=19675 bun --tsconfig-override tsconfig.json --watch src/server/index.ts",
+    "server:watch": "PORT=${PORT:-19675} bun --tsconfig-override tsconfig.json --watch src/server/index.ts",
     "build": "tauri build",
     "release": "tauri build",
     "clean": "rm -rf dist src-tauri/target",
