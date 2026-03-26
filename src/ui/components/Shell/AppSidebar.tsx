@@ -10,6 +10,7 @@ import {
   History,
   PanelLeftClose,
   PanelLeftOpen,
+  GitBranch,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlatform } from "@/ui/context/PlatformProvider";
@@ -166,6 +167,41 @@ export default function AppSidebar({
               <span className="text-xs">Collapse</span>
             </button>
           )}
+        </div>
+      )}
+
+      {/* Dev mode indicator — only visible when VITE_GIT_BRANCH is set */}
+      {import.meta.env.VITE_GIT_BRANCH && (
+        <div className="pointer-events-auto px-2 pb-2">
+          <div className={`rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 ${isCollapsed ? "px-1.5 py-1.5 flex justify-center" : "px-2.5 py-1.5"}`}>
+            {isCollapsed ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild>
+                  <GitBranch className="h-3.5 w-3.5" />
+                </TooltipTrigger>
+                <TooltipContent side="right" sideOffset={8}>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="font-medium">{import.meta.env.VITE_GIT_BRANCH}</span>
+                    {import.meta.env.VITE_API_PORT && (
+                      <span className="opacity-60">API :{import.meta.env.VITE_API_PORT}</span>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <GitBranch className="h-3 w-3 shrink-0" />
+                  <span className="text-[10px] font-medium truncate">
+                    {import.meta.env.VITE_GIT_BRANCH}
+                  </span>
+                </div>
+                {import.meta.env.VITE_API_PORT && (
+                  <span className="text-[10px] opacity-50 pl-[18px]">API :{import.meta.env.VITE_API_PORT}</span>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </nav>
