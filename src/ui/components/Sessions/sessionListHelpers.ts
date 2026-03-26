@@ -95,14 +95,17 @@ function groupByTimestamp(sessions: SessionSummary[], field: 'createdAt' | 'upda
     arr.push(session);
     grouped.set(key, arr);
   }
-  const mul = dir === 'desc' ? 1 : -1;
+  const mul = dir === 'desc' ? -1 : 1;
   return [...grouped.entries()]
-    .sort(([a], [b]) => mul * b.localeCompare(a))
-    .map(([key, items]) => ({
-      key,
-      label: formatDateGroupLabel(new Date(items[0][field])),
-      sessions: items.sort((a, b) => mul * (b[field] - a[field])),
-    }));
+    .sort(([a], [b]) => mul * a.localeCompare(b))
+    .map(([key, items]) => {
+      const sorted = items.sort((a, b) => mul * (a[field] - b[field]));
+      return {
+        key,
+        label: formatDateGroupLabel(new Date(sorted[0][field])),
+        sessions: sorted,
+      };
+    });
 }
 
 export function groupSessions(
@@ -111,7 +114,9 @@ export function groupSessions(
   projectMap?: Map<string, Project>,
   sortDir: SortDirection = 'desc',
 ): SessionGroup[] | null {
-  if (groupBy === 'none') return null;
+  if (groupBy === 'none') {
+    return null;
+  }
 
   if (groupBy === 'date' || groupBy === 'active') {
     return groupByTimestamp(filteredSessions, groupBy === 'date' ? 'createdAt' : 'updatedAt', sortDir);

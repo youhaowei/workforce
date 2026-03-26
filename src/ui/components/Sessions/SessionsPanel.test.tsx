@@ -23,8 +23,6 @@ vi.mock('@/bridge/react', () => ({
       delete: { mutationOptions: vi.fn(() => ({})) },
       discoverCC: { queryOptions: vi.fn(() => ({})) },
       importCC: { mutationOptions: vi.fn(() => ({})) },
-      checkCCSyncBatch: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ['session', 'checkCCSyncBatch']) },
-      syncCC: { mutationOptions: vi.fn(() => ({})) },
     },
     project: {
       list: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ['project', 'list']) },

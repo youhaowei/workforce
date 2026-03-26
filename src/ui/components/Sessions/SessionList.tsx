@@ -17,11 +17,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Search, Plus, X, ChevronDown, ChevronRight, FolderGit2, MessageSquare, SlidersHorizontal, Calendar, Clock, Folder, Activity, Shapes, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Search, Plus, X, ChevronDown, ChevronRight, FolderGit2, Activity, Shapes, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Clock, Folder } from 'lucide-react';
 import type { Project, SessionSummary } from '@/services/types';
 import { SessionItem } from './SessionItem';
 import { filterSessions, groupSessions } from './sessionListHelpers';
 import type { GroupByMode, SortDirection, SessionGroup } from './sessionListHelpers';
+import { FilterDropdown } from './SessionListUIHelpers';
+import { renderEmptyState } from './renderEmptyState';
+
 
 const GROUP_BY_STORAGE_KEY = 'workforce:sessions-group-by';
 
@@ -67,127 +70,37 @@ type StatusFilter = 'all' | 'active' | 'completed' | 'failed';
 type TypeFilterMode = 'all' | 'chat' | 'workagent' | 'external';
 
 const FILTERS_STORAGE_KEY = 'workforce:sessions-filters';
+const SORT_STORAGE_KEY = 'workforce:sessions-sort';
+
+const VALID_STATUS = new Set<StatusFilter>(['all', 'active', 'completed', 'failed']);
+const VALID_TYPE = new Set<TypeFilterMode>(['all', 'chat', 'workagent', 'external']);
+const VALID_SORT_FIELDS = new Set<SortField>(['default', 'created', 'active', 'title', 'messages']);
+const VALID_SORT_DIRS = new Set<SortDirection>(['asc', 'desc']);
 
 function getInitialFilters(): { status: StatusFilter; type: TypeFilterMode } {
   try {
-    const stored = localStorage.getItem(FILTERS_STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
+    const parsed = JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) ?? '');
+    if (parsed && typeof parsed === 'object') {
+      return {
+        status: VALID_STATUS.has(parsed.status) ? parsed.status : 'all',
+        type: VALID_TYPE.has(parsed.type) ? parsed.type : 'all',
+      };
+    }
   } catch { /* ignore */ }
   return { status: 'all', type: 'all' };
 }
 
-// =============================================================================
-// Small Filter Dropdown
-// =============================================================================
-
-function FilterDropdown<T extends string>({
-  label,
-  icon: Icon,
-  value,
-  options,
-  onChange,
-}: {
-  label: string;
-  icon: typeof Calendar;
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (value: T) => void;
-}) {
-  const active = value !== 'all';
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className={`flex items-center gap-1 h-6 px-1.5 rounded text-[11px] transition-colors ${
-          active
-            ? 'bg-palette-primary/10 text-palette-primary font-medium'
-            : 'text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-dim/50'
-        }`}>
-          <Icon className="h-3 w-3" />
-          {active ? options.find((o) => o.value === value)?.label : label}
-          <ChevronDown className="h-2.5 w-2.5" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[100px]">
-        <DropdownMenuRadioGroup value={value} onValueChange={(v) => onChange(v as T)}>
-          {options.map((opt) => (
-            <DropdownMenuRadioItem key={opt.value} value={opt.value} className="text-xs">
-              {opt.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-// =============================================================================
-// Empty States
-// =============================================================================
-
-function EmptyState({
-  icon,
-  heading,
-  subtext,
-  action,
-}: {
-  icon: React.ReactNode;
-  heading: string;
-  subtext: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
-      <div className="h-10 w-10 rounded-full bg-neutral-bg-dim flex items-center justify-center mb-3">
-        {icon}
-      </div>
-      <p className="text-sm font-medium mb-1">{heading}</p>
-      <p className="text-xs text-neutral-fg-subtle mb-4">{subtext}</p>
-      {action}
-    </div>
-  );
-}
-
-function renderEmptyState(
-  filteredCount: number,
-  totalCount: number,
-  query: string,
-  onCreate?: () => void,
-): React.ReactNode {
-  if (filteredCount > 0) return null;
-
-  if (query) {
-    return (
-      <EmptyState
-        icon={<Search className="h-5 w-5 text-neutral-fg-subtle" />}
-        heading="No results"
-        subtext={`No sessions match \u201c${query}\u201d`}
-      />
-    );
-  }
-
-  if (totalCount > 0) {
-    return (
-      <EmptyState
-        icon={<SlidersHorizontal className="h-5 w-5 text-neutral-fg-subtle" />}
-        heading="No matching sessions"
-        subtext="Try adjusting your filters"
-      />
-    );
-  }
-
-  return (
-    <EmptyState
-      icon={<MessageSquare className="h-5 w-5 text-neutral-fg-subtle" />}
-      heading="No sessions yet"
-      subtext="Start a conversation to begin"
-      action={
-        <Button variant="outline" size="sm" onClick={onCreate}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          New session
-        </Button>
-      }
-    />
-  );
+function getInitialSort(): { dir: SortDirection; secondary: { field: SortField; dir: SortDirection } } {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) ?? '');
+    if (parsed && typeof parsed === 'object') {
+      const dir = VALID_SORT_DIRS.has(parsed.dir) ? parsed.dir : 'desc';
+      const secField = VALID_SORT_FIELDS.has(parsed.secondary?.field) ? parsed.secondary.field : 'default';
+      const secDir = VALID_SORT_DIRS.has(parsed.secondary?.dir) ? parsed.secondary.dir : 'desc';
+      return { dir, secondary: { field: secField, dir: secDir } };
+    }
+  } catch { /* ignore */ }
+  return { dir: 'desc', secondary: { field: 'default', dir: 'desc' } };
 }
 
 // =============================================================================
@@ -214,11 +127,13 @@ function compareByField(a: SessionSummary, b: SessionSummary, field: SortField, 
 }
 
 function flattenGroups(
-  groups: SessionGroup[],
+  groups: SessionGroup[] | null,
   groupBy: GroupByMode,
   collapsedGroups: Set<string>,
   secondary?: { field: SortField; dir: SortDirection },
 ): FlatItem[] {
+  if (!groups) return [];
+
   const items: FlatItem[] = [];
   const collapsible = groupBy !== 'date';
 
@@ -248,15 +163,9 @@ export interface SessionListProps {
   stateFilter?: string;
   groupBy?: GroupByMode;
   projectMap?: Map<string, Project>;
-  /** Map of sessionId → inSync status for imported CC sessions */
-  syncStatus?: Record<string, boolean>;
-  /** Session ID currently being imported (shows loading state) */
-  importingId?: string | null;
   onSelect?: (sessionId: string) => void;
   onDelete?: (sessionId: string) => void;
-  onHide?: (sessionId: string) => void;
   onCreate?: () => void;
-  onSync?: (sessionId: string) => void;
 }
 
 export function SessionList({
@@ -266,13 +175,9 @@ export function SessionList({
   stateFilter = 'all',
   groupBy: groupByProp = 'date',
   projectMap,
-  syncStatus,
   onSelect,
   onDelete,
-  onHide,
   onCreate,
-  onSync,
-  importingId,
 }: SessionListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -280,8 +185,13 @@ export function SessionList({
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [groupBy, setGroupBy] = useState<GroupByMode>(() => getInitialGroupBy(groupByProp));
   const [filters, setFilters] = useState(getInitialFilters);
-  const [sortDir, setSortDir] = useState<SortDirection>('desc');
-  const [secondarySort, setSecondarySort] = useState<{ field: SortField; dir: SortDirection }>({ field: 'default', dir: 'desc' });
+  const [{ dir: initialDir, secondary: initialSecondary }] = useState(getInitialSort);
+  const [sortDir, setSortDir] = useState<SortDirection>(initialDir);
+  const [secondarySort, setSecondarySort] = useState<{ field: SortField; dir: SortDirection }>(initialSecondary);
+
+  const persistSort = useCallback((dir: SortDirection, secondary: { field: SortField; dir: SortDirection }) => {
+    localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify({ dir, secondary }));
+  }, []);
 
   const handleGroupByChange = useCallback((mode: string) => {
     if (!VALID_GROUP_BY_MODES.has(mode as GroupByMode)) return;
@@ -318,7 +228,7 @@ export function SessionList({
     }
     if (filters.type !== 'all') {
       result = result.filter((s) => {
-        if (filters.type === 'external') return s.id.startsWith('cc:');
+        if (filters.type === 'external') return s.metadata?.source === 'claude-code';
         const sessionType = (s.metadata?.type as string) ?? 'chat';
         return sessionType === filters.type;
       });
@@ -333,20 +243,24 @@ export function SessionList({
   );
 
   const flatItems = useMemo(
-    () => groups
-      ? flattenGroups(groups, groupBy, collapsedGroups, secondarySort)
-      : filteredSessions.map((s): FlatItem => ({ kind: 'session', session: s })),
-    [groups, groupBy, collapsedGroups, filteredSessions, secondarySort],
+    () => flattenGroups(groups, groupBy, collapsedGroups, secondarySort.field !== 'default' ? secondarySort : undefined),
+    [groups, groupBy, collapsedGroups, secondarySort],
   );
 
-  const toggleGroup = (key: string) => {
+  // Build rootPath → Project index once for O(1) cwd lookups in renderItem.
+  const cwdToProject = useMemo(() => {
+    if (!projectMap) return new Map<string, Project>();
+    return new Map([...projectMap.values()].map((p) => [p.rootPath, p]));
+  }, [projectMap]);
+
+  const toggleGroup = useCallback((key: string) => {
     setCollapsedGroups((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
       return next;
     });
-  };
+  }, []);
 
   const clearSearch = () => {
     setSearchQuery('');
@@ -357,14 +271,12 @@ export function SessionList({
   const renderItem = useCallback((_index: number, item: FlatItem) => {
     if (item.kind === 'header') {
       if (!item.collapsible) {
-        // Date group header — small, muted
         return (
           <div className="px-3 py-2 text-[11px] font-medium text-neutral-fg-subtle/60 tracking-wider select-none">
             {item.label}
           </div>
         );
       }
-      // Collapsible group header
       return (
         <button
           onClick={() => toggleGroup(item.key)}
@@ -381,27 +293,23 @@ export function SessionList({
 
     const session = item.session;
     const projectId = session.metadata?.projectId as string | undefined;
-    const project = projectId ? projectMap?.get(projectId) : undefined;
-    const cwdPath = !project && session.metadata?.cwd
-      ? session.metadata.cwd as string
-      : undefined;
+    const cwd = session.metadata?.cwd as string | undefined;
+    const project = (projectId ? projectMap?.get(projectId) : undefined)
+      ?? (cwd ? cwdToProject.get(cwd) : undefined);
+    const cwdPath = !project && cwd ? cwd : undefined;
     return (
       <SessionItem
         session={session}
-        isActive={session.id === activeSessionId || importingId === session.id}
+        isActive={session.id === activeSessionId}
         projectName={project?.name || cwdPath}
         projectColor={project?.color}
         isCwdFolder={!project && !!cwdPath}
-        isOutOfSync={syncStatus?.[session.id] === false}
-        isImporting={importingId === session.id}
         timeField={groupBy === 'date' ? 'createdAt' : 'updatedAt'}
         onSelect={onSelect}
         onDelete={onDelete}
-        onHide={onHide}
-        onSync={onSync}
       />
     );
-  }, [activeSessionId, groupBy, projectMap, syncStatus, importingId, onSelect, onDelete, onHide, onSync]);
+  }, [activeSessionId, groupBy, projectMap, cwdToProject, onSelect, onDelete, toggleGroup]);
 
   const emptyState = renderEmptyState(filteredSessions.length, sessions.length, debouncedQuery, onCreate);
 
@@ -466,12 +374,11 @@ export function SessionList({
             </button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-56 p-2 space-y-2">
-            {/* Primary direction */}
             <div>
               <p className="text-[10px] text-neutral-fg-subtle mb-1">Group order</p>
               <div className="flex gap-1">
                 <button
-                  onClick={() => setSortDir('desc')}
+                  onClick={() => { setSortDir('desc'); persistSort('desc', secondarySort); }}
                   className={`flex-1 flex items-center justify-center gap-1 h-7 rounded text-xs transition-colors ${
                     sortDir === 'desc' ? 'bg-neutral-bg-subtle text-neutral-fg font-medium' : 'text-neutral-fg-subtle hover:bg-neutral-bg-dim/50'
                   }`}
@@ -479,7 +386,7 @@ export function SessionList({
                   <ArrowDown className="h-3 w-3" /> Newest
                 </button>
                 <button
-                  onClick={() => setSortDir('asc')}
+                  onClick={() => { setSortDir('asc'); persistSort('asc', secondarySort); }}
                   className={`flex-1 flex items-center justify-center gap-1 h-7 rounded text-xs transition-colors ${
                     sortDir === 'asc' ? 'bg-neutral-bg-subtle text-neutral-fg font-medium' : 'text-neutral-fg-subtle hover:bg-neutral-bg-dim/50'
                   }`}
@@ -488,13 +395,12 @@ export function SessionList({
                 </button>
               </div>
             </div>
-            {/* Secondary sort */}
             <div>
               <p className="text-[10px] text-neutral-fg-subtle mb-1">Then sort by</p>
               <div className="flex gap-1">
                 <select
                   value={secondarySort.field}
-                  onChange={(e) => setSecondarySort((prev) => ({ ...prev, field: e.target.value as SortField }))}
+                  onChange={(e) => { const next = { ...secondarySort, field: e.target.value as SortField }; setSecondarySort(next); persistSort(sortDir, next); }}
                   className="flex-1 h-7 rounded border border-neutral-border bg-transparent text-xs px-1.5"
                 >
                   {SORT_FIELD_OPTIONS.map((opt) => (
@@ -502,7 +408,7 @@ export function SessionList({
                   ))}
                 </select>
                 <button
-                  onClick={() => setSecondarySort((prev) => ({ ...prev, dir: prev.dir === 'desc' ? 'asc' : 'desc' }))}
+                  onClick={() => { const next = { ...secondarySort, dir: (secondarySort.dir === 'desc' ? 'asc' : 'desc') as SortDirection }; setSecondarySort(next); persistSort(sortDir, next); }}
                   className="h-7 w-7 flex items-center justify-center rounded text-neutral-fg-subtle hover:bg-neutral-bg-dim/50 transition-colors"
                 >
                   {secondarySort.dir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
