@@ -3,7 +3,10 @@ version = 1
 name = "workforce"
 
 [setup]
-script = ""
+script = '''
+cd "$CODEX_WORKTREE_PATH"
+bun install
+'''
 
 [[actions]]
 name = "Run"

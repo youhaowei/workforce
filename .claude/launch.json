@@ -2,10 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "workforce",
-      "runtimeExecutable": "bun",
-      "runtimeArgs": ["run", "dev:web"],
-      "port": 19676
+      "name": "workforce-competent-northcutt",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "scripts/dev-preview.sh"
+      ],
+      "autoPort": true,
+      "port": 19678
     }
   ]
 }
