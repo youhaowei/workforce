@@ -13,7 +13,7 @@ const IS_BUN = typeof globalThis.Bun !== "undefined";
 import {DEFAULT_SERVER_PORT} from "@/shared/ports";
 import {getDataDir} from "@/services/data-dir";
 
-initTracey({
+await initTracey({
     file: {dir: join(getDataDir(), "logs"), prefix: "workforce", flushOnCrash: true},
     ringBuffer: 1000,
 });
