@@ -20,7 +20,8 @@ src/ui/routeTree.gen.ts
 src-tauri/target/
 src-tauri/binaries/
 
-# Electron Forge (legacy)
+# Electron
+dist-electron/
 out/
 .vite/
 

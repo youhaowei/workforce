@@ -1,6 +1,5 @@
 import {Hono} from "hono";
 import {cors} from "hono/cors";
-import {serveStatic} from "hono/bun";
 import {existsSync, readFileSync, writeFileSync, unlinkSync} from "fs";
 import {createServer} from "net";
 import {homedir} from "os";
@@ -8,6 +7,9 @@ import {join, dirname, resolve} from "path";
 import {fileURLToPath} from "url";
 import {createLogger, initTracey, getRecentLogs} from "tracey";
 import {getAgentService} from "@/services/agent";
+
+/** Runtime detection — true when running under Bun, false for Node/tsx/Electron. */
+const IS_BUN = typeof globalThis.Bun !== "undefined";
 import {DEFAULT_SERVER_PORT} from "@/shared/ports";
 import {getDataDir} from "@/services/data-dir";
 
@@ -150,10 +152,20 @@ app.get("/auth-check", async (c) => {
 
 // Serve Vite build output in production (same-origin, no CORS needed).
 // In dev standalone or Tauri sidecar: __dirname = <project>/src/server/ → ../../dist
+// NOTE: Dynamic imports are deferred to setupStaticServing() to avoid top-level await,
+// which conflicts with Node's module format detection when submodules use require().
 const distCandidates = [join(__dirname, "../dist"), join(__dirname, "../../dist")];
 const distPath = distCandidates.find((p) => existsSync(p));
-if (distPath) {
-    app.use("*", serveStatic({root: distPath}));
+
+async function setupStaticServing() {
+    if (!distPath) return;
+    if (IS_BUN) {
+        const {serveStatic} = await import("hono/bun");
+        app.use("*", serveStatic({root: distPath}));
+    } else {
+        const {serveStatic} = await import("@hono/node-server/serve-static");
+        app.use("*", serveStatic({root: distPath}));
+    }
     // SPA fallback: serve index.html for non-API paths that don't match a static file
     const indexPath = join(distPath, "index.html");
     if (existsSync(indexPath)) {
@@ -178,6 +190,7 @@ function isPortAvailable(port: number): Promise<boolean> {
 const MAX_PORT_RETRIES = 10;
 
 export async function startServer(overrides?: {port?: number}): Promise<{port: number}> {
+    await setupStaticServing();
     const basePort = overrides?.port ?? parseInt(process.env.PORT || String(DEFAULT_SERVER_PORT));
 
     // Find an available port starting from basePort
@@ -195,13 +208,23 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
         }
     }
 
-    Bun.serve({
-        fetch: app.fetch,
-        port,
-        hostname: "localhost",
-        // SSE connections are long-lived; allow up to 2 min idle
-        idleTimeout: 120,
-    });
+    if (IS_BUN) {
+        Bun.serve({
+            fetch: app.fetch,
+            port,
+            hostname: "localhost",
+            // SSE connections are long-lived; allow up to 2 min idle
+            idleTimeout: 120,
+        });
+    } else {
+        const {serve} = await import("@hono/node-server");
+        serve({fetch: app.fetch, port, hostname: "localhost"});
+    }
+
+    // IPC: notify parent process (Electron main) that we're ready
+    if (process.send) {
+        process.send({type: "server-ready", port});
+    }
 
     // Write actual port so vite can discover it
     if (isMainModule) {

@@ -32,5 +32,5 @@
     "types": ["vitest/globals", "vite/client", "bun"]
   },
   "include": ["src", "lib/tracey/src", "lib/unifai/src", "lib/wystack/packages/types/src", "lib/wystack/packages/version/src"],
-  "exclude": ["node_modules", "dist", "build", "src-tauri", "lib/wystack/packages/*/src/__tests__"]
+  "exclude": ["node_modules", "dist", "dist-electron", "build", "src-tauri", "src-electron", "lib/wystack/packages/*/src/__tests__"]
 }

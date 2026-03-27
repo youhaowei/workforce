@@ -23,17 +23,31 @@ export function getTrpcUrl(): string {
 }
 
 /**
- * In Tauri, invoke get_server_port to learn the actual port the sidecar bound to.
+ * In desktop mode (Tauri or Electron), discover the actual server port.
  * Call once at app startup before any API requests are made. No-op in web/E2E mode.
  */
 export async function initServerUrl(): Promise<void> {
   if (typeof window === "undefined") return;
-  if (!("__TAURI__" in window || "__TAURI_INTERNALS__" in window)) return;
-  try {
-    const { invoke } = await import("@tauri-apps/api/core");
-    const port: number = await invoke("get_server_port");
-    resolvedPort = String(port);
-  } catch {
-    // Not critical — fall back to baked-in port
+
+  // Electron: query via contextBridge
+  if (window.electronAPI) {
+    try {
+      const port = await window.electronAPI.getServerPort();
+      resolvedPort = String(port);
+      return;
+    } catch {
+      // Fall back to baked-in port
+    }
+  }
+
+  // Tauri: query via invoke
+  if ("__TAURI__" in window || "__TAURI_INTERNALS__" in window) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const port: number = await invoke("get_server_port");
+      resolvedPort = String(port);
+    } catch {
+      // Fall back to baked-in port
+    }
   }
 }

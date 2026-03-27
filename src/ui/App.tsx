@@ -23,7 +23,8 @@ import { useEventBusInit } from './hooks/useEventBusInit';
 import { useServerEventInvalidation } from './hooks/useServerEventInvalidation';
 import { SetupGate } from './components/SetupGate';
 
-// Detect desktop mode: Tauri v1/v2 inject __TAURI__ or __TAURI_INTERNALS__ on the window.
+// Detect desktop mode: Tauri v1/v2 inject __TAURI__ or __TAURI_INTERNALS__,
+// Electron exposes electronAPI via contextBridge preload.
 function detectTauri(): boolean {
   return (
     typeof window !== 'undefined' &&
@@ -31,9 +32,14 @@ function detectTauri(): boolean {
   );
 }
 
+function detectElectron(): boolean {
+  return typeof window !== 'undefined' && !!window.electronAPI;
+}
+
 function useDesktopDetection() {
   const [isTauri, setIsTauri] = useState(detectTauri);
-  const isDesktop = isTauri;
+  const [isElectron] = useState(detectElectron);
+  const isDesktop = isTauri || isElectron;
 
   useEffect(() => {
     if (isDesktop && typeof document !== 'undefined') {
@@ -41,7 +47,7 @@ function useDesktopDetection() {
     } else if (typeof document !== 'undefined') {
       delete document.documentElement.dataset.desktop;
     }
-  }, [isDesktop, isTauri]);
+  }, [isDesktop]);
 
   // Tauri may inject __TAURI__ after first paint; re-check on next tick and on tauriReady
   useEffect(() => {
@@ -57,11 +63,24 @@ function useDesktopDetection() {
     };
   }, [isTauri]);
 
-  return { isDesktop, isTauri };
+  return { isDesktop, isTauri, isElectron };
 }
 
-// Wire platform actions — Tauri commands via invoke
-function createPlatformActions(isDesktop: boolean, isTauri: boolean): PlatformActions {
+// Wire platform actions — Tauri commands via invoke, Electron via contextBridge
+function createPlatformActions(
+  isDesktop: boolean,
+  isTauri: boolean,
+  isElectron: boolean,
+): PlatformActions {
+  if (isElectron && window.electronAPI) {
+    const api = window.electronAPI;
+    return {
+      isDesktop,
+      openDirectory: (startingFolder?: string) => api.openDirectory(startingFolder),
+      onOpenUrl: (url: string) => { api.openExternal(url); },
+    };
+  }
+
   return {
     isDesktop,
     openDirectory: isTauri
@@ -91,10 +110,10 @@ function AppInner({ router }: { router: Router<any, any, any, any> }) {
 }
 
 export default function App({ router }: { router: Router<any, any, any, any> }) {
-  const { isDesktop, isTauri } = useDesktopDetection();
+  const { isDesktop, isTauri, isElectron } = useDesktopDetection();
   const platformActions = useMemo(
-    () => createPlatformActions(isDesktop, isTauri),
-    [isDesktop, isTauri],
+    () => createPlatformActions(isDesktop, isTauri, isElectron),
+    [isDesktop, isTauri, isElectron],
   );
 
   // In Tauri, discover the actual sidecar port once at startup.
