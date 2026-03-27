@@ -17,7 +17,14 @@ rm -f .dev-port .vite-port
 trap 'kill $(jobs -p) 2>/dev/null' EXIT
 
 is_port_free() {
-  ! lsof -iTCP:"$1" -sTCP:LISTEN -t >/dev/null 2>&1
+  if command -v lsof >/dev/null 2>&1; then
+    ! lsof -iTCP:"$1" -sTCP:LISTEN -t >/dev/null 2>&1
+  elif command -v ss >/dev/null 2>&1; then
+    ! ss -tlnH "sport = :$1" 2>/dev/null | grep -q .
+  else
+    echo >&2 "Neither lsof nor ss found — cannot probe ports"
+    exit 1
+  fi
 }
 
 find_free_port() {
