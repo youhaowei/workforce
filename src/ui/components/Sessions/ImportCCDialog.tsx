@@ -231,11 +231,10 @@ export function ImportCCDialog({ open, onOpenChange, orgId, onImported }: Import
             Discovering sessions...
           </div>
         )}
-        {!discovering && allImported && (
-          <CommandEmpty>All discovered sessions are already imported.</CommandEmpty>
-        )}
-        {!discovering && !allImported && (
-          <CommandEmpty>No external sessions found.</CommandEmpty>
+        {!discovering && (
+          <CommandEmpty>
+            {allImported ? 'All discovered sessions are already imported.' : 'No matching sessions found.'}
+          </CommandEmpty>
         )}
         {!discovering && candidates.length > 0 && (
           <CommandGroup heading="Claude Code Sessions">

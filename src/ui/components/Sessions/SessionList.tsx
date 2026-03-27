@@ -243,8 +243,10 @@ export function SessionList({
   );
 
   const flatItems = useMemo(
-    () => flattenGroups(groups, groupBy, collapsedGroups, secondarySort.field !== 'default' ? secondarySort : undefined),
-    [groups, groupBy, collapsedGroups, secondarySort],
+    () => groups !== null
+      ? flattenGroups(groups, groupBy, collapsedGroups, secondarySort.field !== 'default' ? secondarySort : undefined)
+      : filteredSessions.map((s): FlatItem => ({ kind: 'session', session: s })),
+    [groups, groupBy, collapsedGroups, filteredSessions, secondarySort],
   );
 
   // Build rootPath → Project index once for O(1) cwd lookups in renderItem.
