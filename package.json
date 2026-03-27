@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "High-performance desktop agentic orchestrator with Claude Code parity",
   "type": "module",
+  "workspaces": ["lib/tracey", "lib/unifai", "lib/stdui", "lib/wystack", "lib/wystack/packages/*"],
   "scripts": {
     "dev": "tauri dev",
     "dev:web": "bash scripts/dev-preview.sh",
