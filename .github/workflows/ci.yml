@@ -16,7 +16,16 @@ jobs:
               with:
                   bun-version: latest
 
-            - run: bun install --frozen-lockfile
+            # SSH→HTTPS rewrite for public submodules, then shared setup script
+            - name: Setup
+              run: |
+                  git config --global url."https://github.com/".insteadOf "git@github.com:"
+                  git submodule update --init --recursive --depth=1
+                  bun install
+
+            # TanStack Router route tree (needed for type-check)
+            - name: Generate route tree
+              run: bunx @tanstack/router-cli generate
 
             - name: Type check
               run: bun run type-check

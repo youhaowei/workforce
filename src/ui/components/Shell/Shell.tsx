@@ -120,12 +120,12 @@ export default function Shell() {
 
   const showSessionsView = pathname.startsWith('/sessions');
 
-  // Dev mode: include git branch + port in document.title for multi-instance debugging
+  // Dev mode: include git branch + port in document.title for multi-instance debugging.
   useEffect(() => {
     const branch = import.meta.env.VITE_GIT_BRANCH;
     const port = import.meta.env.VITE_API_PORT;
     const devPrefix = branch ? `[${branch}${port ? ` :${port}` : ""}] ` : "";
-    const pageTitle = activeSessionTitle || "Workforce - Agentic Orchestrator";
+    const pageTitle = activeSessionTitle || "Workforce";
     document.title = devPrefix + pageTitle;
   }, [activeSessionTitle]);
 
@@ -181,12 +181,18 @@ export default function Shell() {
     setProjectsPanelCollapsed((prev) => !prev);
   }, []);
 
+  // TECH DEBT: useAgentStream is called twice because setActiveSession is needed
+  // before restoredMessages is available (hooks can't be conditional). The first
+  // call's effects are no-ops because restoredMessages is null. The second call's
+  // effects overwrite the first's sendMessage registration. This is safe because
+  // React processes effects in order, but fragile. TODO: split useAgentStream into
+  // useActiveSession() + useAgentStream() to eliminate the double-call.
   const { setActiveSession } = useAgentStream({
     selectedSessionId,
     orgId,
     newSessionProjectId,
     isStreaming,
-    restoredMessages: null, // set below after useQuery
+    restoredMessages: null,
     cancelStreamRef,
     activeSessionRef,
     planReadyRef,

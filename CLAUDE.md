@@ -71,7 +71,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **Surface variant determines bg** — `<Surface variant="main">` provides the frosted glass bg. Don't add manual `bg-*` classes on top.
 - **OKLCH in CSS vars** — Token values are OKLCH strings. Use `src/ui/lib/oklch.ts` for conversion. The `/` opacity syntax works with OKLCH (e.g., `bg-palette-primary/90`).
 - **Theme overrides are inline styles** — `useThemeStore` sets overrides on `document.documentElement.style`. These take precedence over `:root` definitions in CSS.
-- **Panel consistency** — Panels (ChatInfo, Sessions, Theme) share: header `h-10 px-3 gap-2`, title `text-sm font-semibold text-neutral-fg`, content `p-3 space-y-4 text-sm`, section labels `text-xs font-medium text-neutral-fg-subtle`.
+- **Panel consistency** — read existing panel (ChatInfo, Sessions, Theme) for shared header/content/label patterns.
 
 ## Gotchas
 
@@ -125,33 +125,13 @@ cd lib/tracey && bun install         # Install tracey's deps (pino, pino-pretty)
 
 ### Logging (tracey)
 
-- **`createLogger(name)`** — Creates a named child logger. Used in every service/router.
-- **`initTracey(config)`** — Called once in `src/server/index.ts` with file transport + ring buffer.
-- **`getRecentLogs()`** — Ring buffer of recent log entries (used by health router + `/debug-log` endpoint).
-- **Redaction** — API keys, tokens, passwords auto-redacted by tracey's formatters.
-- **No `debugLog`** — The old `src/shared/debug-log.ts` is deleted. All logging goes through tracey.
+- All logging via tracey (`createLogger(name)`). No `debugLog` — it's deleted.
+- API keys, tokens, passwords auto-redacted.
 
 ## Recipes
 
-**Add a new tRPC router:**
-
-1. Create `src/server/routers/{name}.ts` — export a `{name}Router` using `router()` + `publicProcedure`
-2. Add to `src/server/routers/index.ts` `appRouter` merge
-3. Access service via `getXxxService()` from `src/server/routers/_services.ts`
-
-**Add a new service:**
-
-1. Create `src/services/{name}.ts` — class with `ensureInitialized()`, `dispose()`, lazy singleton getter
-2. Export `get{Name}Service()` and `reset{Name}Service()` from `src/services/index.ts`
-3. Add to `src/server/routers/_services.ts` for router access
-
-**Add a new UI primitive:**
-
-1. Create `src/components/ui/{name}.tsx` — CVA variants, token classes, `forwardRef`
-2. Follow Button/Surface pattern: variant × color compound variants, token classes (not raw colors)
-
-**Add a new feature component:**
-
-1. Create `src/ui/components/{Name}/` directory with `index.ts` barrel
-2. Use primitives from `@/components/ui/*`, stores from `@/ui/stores/*`
-3. Data via `trpc.{domain}.{method}.useQuery()` from `@/bridge/react`
+When adding new routers, services, or components — **read an existing neighbor first** and follow the same pattern. Key entry points:
+- **tRPC router**: `src/server/routers/` — check any existing router for the pattern
+- **Service**: `src/services/` — lazy singleton with `ensureInitialized()`, `dispose()`
+- **UI primitive**: `src/components/ui/` — CVA + token classes
+- **Feature component**: `src/ui/components/` — compose primitives, data via tRPC hooks

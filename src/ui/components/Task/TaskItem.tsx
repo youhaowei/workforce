@@ -6,6 +6,7 @@ import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Play, Check, XCircle, Trash2, Circle, CircleDot, CheckCircle } from 'lucide-react';
 import type { Task, TaskStatus } from '../../../services/types';
+import { timeAgo } from '@/ui/lib/time';
 
 export interface TaskItemProps {
   task: Task;
@@ -29,16 +30,10 @@ const STATUS_ICON: Record<TaskStatus, typeof Circle> = {
 export function TaskItem({ task, onStatusChange, onDelete }: TaskItemProps) {
   const StatusIcon = STATUS_ICON[task.status];
 
-  const timeAgo = useMemo(() => {
-    const diff = Date.now() - task.updatedAt;
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return 'just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours}h ago`;
-    const days = Math.floor(hours / 24);
-    return `${days}d ago`;
-  }, [task.updatedAt]);
+  const timeAgoLabel = useMemo(
+    () => timeAgo(task.updatedAt, 'verbose'),
+    [task.updatedAt],
+  );
 
   const canStart = task.status === 'pending';
   const canComplete = task.status === 'pending' || task.status === 'in_progress';
@@ -64,7 +59,7 @@ export function TaskItem({ task, onStatusChange, onDelete }: TaskItemProps) {
         {task.description && (
           <div className="text-xs text-neutral-fg-subtle truncate">{task.description}</div>
         )}
-        <div className="text-xs text-neutral-fg-subtle mt-0.5">{timeAgo}</div>
+        <div className="text-xs text-neutral-fg-subtle mt-0.5">{timeAgoLabel}</div>
       </div>
 
       {/* Actions - visible on hover */}

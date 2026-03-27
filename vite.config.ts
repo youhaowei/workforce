@@ -28,7 +28,8 @@ function discoverApiPort(): string | undefined {
 
 const VITE_PORT_FILE = resolve(__dirname, ".vite-port");
 
-/** Write .vite-port on dev server start so consumers can discover the Vite port. */
+/** Write .vite-port on dev server start so consumers can discover the Vite port.
+ *  launch.json uses autoPort for preview_start — no need to mutate it at runtime. */
 function vitePortFile(): Plugin {
     return {
         name: "vite-port-file",
@@ -95,10 +96,10 @@ export default defineConfig(({command}) => ({
     // Prevent vite from obscuring Rust errors
     clearScreen: false,
     server: {
-        port: DEFAULT_VITE_PORT,
+        port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)),
         strictPort: false,
         host: host || false,
-        hmr: host ? {protocol: "ws", host, port: DEFAULT_VITE_PORT + 1} : undefined,
+        hmr: host ? {protocol: "ws", host, port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)) + 1} : undefined,
         watch: {
             // Tell vite to ignore watching src-tauri
             ignored: ["**/src-tauri/**"],
