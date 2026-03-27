@@ -14,7 +14,7 @@
     "build": "tauri build",
     "release": "tauri build",
     "dev:electron": "bash scripts/dev-electron.sh",
-    "build:electron": "tsdown --config tsdown.electron.ts && vite build && electron-builder --config electron-builder.yml",
+    "build:electron": "tsdown --config tsdown.electron.ts && tsdown --config tsdown.server.ts && vite build && electron-builder --config electron-builder.yml",
     "clean": "rm -rf dist dist-electron dist-server out src-tauri/target",
     "vite": "vite",
     "vite:build": "vite build",

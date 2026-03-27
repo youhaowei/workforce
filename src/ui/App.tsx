@@ -16,44 +16,33 @@ import { TRPCProvider } from '@/bridge/react';
 import { trpc } from '@/bridge/trpc';
 import { initServerUrl } from '@/bridge/config';
 import { refreshTrpcClient } from '@/bridge/trpc';
-import { PlatformProvider, type PlatformActions } from './context/PlatformProvider';
+import { PlatformProvider, type PlatformActions, type PlatformType } from './context/PlatformProvider';
 import { HotkeyProvider } from './hotkeys/HotkeyProvider';
 import { AppContextMenu } from './components/Shell/AppContextMenu';
 import { useEventBusInit } from './hooks/useEventBusInit';
 import { useServerEventInvalidation } from './hooks/useServerEventInvalidation';
 import { SetupGate } from './components/SetupGate';
 
-// Detect desktop mode: Tauri v1/v2 inject __TAURI__ or __TAURI_INTERNALS__,
-// Electron exposes electronAPI via contextBridge preload.
-function detectTauri(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    ('__TAURI__' in window || '__TAURI_INTERNALS__' in window)
-  );
+// ---------------------------------------------------------------------------
+// Platform detection — runs once at startup
+// ---------------------------------------------------------------------------
+
+function detectPlatformType(): PlatformType {
+  if (typeof window === 'undefined') return 'web';
+  if (window.electronAPI) return 'electron';
+  if ('__TAURI__' in window || '__TAURI_INTERNALS__' in window) return 'tauri';
+  return 'web';
 }
 
-function detectElectron(): boolean {
-  return typeof window !== 'undefined' && !!window.electronAPI;
-}
-
-function useDesktopDetection() {
-  const [isTauri, setIsTauri] = useState(detectTauri);
-  const [isElectron] = useState(detectElectron);
-  const isDesktop = isTauri || isElectron;
-
-  useEffect(() => {
-    if (isDesktop && typeof document !== 'undefined') {
-      document.documentElement.dataset.desktop = '';
-    } else if (typeof document !== 'undefined') {
-      delete document.documentElement.dataset.desktop;
-    }
-  }, [isDesktop]);
+function usePlatformDetection() {
+  const [platformType, setPlatformType] = useState<PlatformType>(detectPlatformType);
 
   // Tauri may inject __TAURI__ after first paint; re-check on next tick and on tauriReady
   useEffect(() => {
-    if (isTauri) return;
+    if (platformType !== 'web') return;
     const check = () => {
-      if (detectTauri()) setIsTauri(true);
+      const detected = detectPlatformType();
+      if (detected !== 'web') setPlatformType(detected);
     };
     const t = setTimeout(check, 50);
     window.addEventListener?.('tauriReady', check);
@@ -61,42 +50,45 @@ function useDesktopDetection() {
       clearTimeout(t);
       window.removeEventListener?.('tauriReady', check);
     };
-  }, [isTauri]);
+  }, [platformType]);
 
-  return { isDesktop, isTauri, isElectron };
+  return platformType;
 }
 
-// Wire platform actions — Tauri commands via invoke, Electron via contextBridge
-function createPlatformActions(
-  isDesktop: boolean,
-  isTauri: boolean,
-  isElectron: boolean,
-): PlatformActions {
-  if (isElectron && window.electronAPI) {
+// ---------------------------------------------------------------------------
+// Platform actions — Tauri via invoke(), Electron via contextBridge
+// ---------------------------------------------------------------------------
+
+function createPlatformActions(platformType: PlatformType): PlatformActions {
+  const isDesktop = platformType !== 'web';
+
+  if (platformType === 'electron' && window.electronAPI) {
     const api = window.electronAPI;
     return {
+      platformType,
       isDesktop,
       openDirectory: (startingFolder?: string) => api.openDirectory(startingFolder),
       onOpenUrl: (url: string) => { api.openExternal(url); },
     };
   }
 
-  return {
-    isDesktop,
-    openDirectory: isTauri
-      ? async (startingFolder?: string) => {
-          const { invoke } = await import('@tauri-apps/api/core');
-          return invoke<string | null>('open_directory', { startingFolder });
-        }
-      : undefined,
-    onOpenUrl: isTauri
-      ? (url: string) => {
-          import('@tauri-apps/api/core').then(({ invoke }) =>
-            invoke('open_external', { url }),
-          );
-        }
-      : undefined,
-  };
+  if (platformType === 'tauri') {
+    return {
+      platformType,
+      isDesktop,
+      openDirectory: async (startingFolder?: string) => {
+        const { invoke } = await import('@tauri-apps/api/core');
+        return invoke<string | null>('open_directory', { startingFolder });
+      },
+      onOpenUrl: (url: string) => {
+        import('@tauri-apps/api/core').then(({ invoke }) =>
+          invoke('open_external', { url }),
+        );
+      },
+    };
+  }
+
+  return { platformType, isDesktop };
 }
 
 function AppInner({ router }: { router: Router<any, any, any, any> }) {
@@ -110,10 +102,10 @@ function AppInner({ router }: { router: Router<any, any, any, any> }) {
 }
 
 export default function App({ router }: { router: Router<any, any, any, any> }) {
-  const { isDesktop, isTauri, isElectron } = useDesktopDetection();
+  const platformType = usePlatformDetection();
   const platformActions = useMemo(
-    () => createPlatformActions(isDesktop, isTauri, isElectron),
-    [isDesktop, isTauri, isElectron],
+    () => createPlatformActions(platformType),
+    [platformType],
   );
 
   // In Tauri, discover the actual sidecar port once at startup.

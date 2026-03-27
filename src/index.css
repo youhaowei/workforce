@@ -349,12 +349,12 @@
     .shell-ground {
         background: var(--shell-bg);
     }
-    .shell-ground[data-desktop] {
+    html[data-desktop] .shell-ground {
         background: var(--shell-bg-vibrancy);
     }
     /* Vibrancy mismatch: app theme ≠ system theme → vibrancy tint is wrong color.
      Fall back to solid gradient so light/dark appearance is correct. */
-    html[data-vibrancy-mismatch] .shell-ground[data-desktop] {
+    html[data-vibrancy-mismatch] .shell-ground {
         background: var(--shell-bg);
     }
 }
@@ -375,6 +375,10 @@ html[data-vibrancy-mismatch] body {
         user-select: none;
         -webkit-user-select: none;
         @apply flex items-center shrink-0 gap-3;
+    }
+    /* Electron: pad left for traffic light buttons (hiddenInset titlebar) */
+    html[data-electron] .shell-topbar {
+        padding-left: 72px;
     }
 }
 

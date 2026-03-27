@@ -16,7 +16,7 @@ import {
   shell,
   type BrowserWindowConstructorOptions,
 } from "electron";
-import { fork, type ChildProcess } from "child_process";
+import { execFileSync, fork, spawn, type ChildProcess } from "child_process";
 import { join, dirname } from "path";
 import { existsSync, readFileSync } from "fs";
 import { fileURLToPath } from "url";
@@ -42,7 +42,6 @@ const HEALTH_POLL_MS = 250;
 function repairPath() {
   if (process.platform !== "darwin") return;
   try {
-    const { execFileSync } = require("child_process");
     const shellPath = process.env.SHELL || "/bin/zsh";
     const out = execFileSync(shellPath, ["-ilc", "echo $PATH"], {
       encoding: "utf-8",
@@ -84,7 +83,6 @@ function spawnServer(): Promise<number> {
     if (IS_DEV) {
       // Dev: use tsx to run TypeScript directly with tsconfig-paths for alias resolution
       const tsxBin = join(__dirname, "../node_modules/.bin/tsx");
-      const { spawn } = require("child_process");
       serverProcess = spawn(
         tsxBin,
         ["--tsconfig", "tsconfig.json", entry],
@@ -199,9 +197,9 @@ function createWindow(port: number) {
     // Open DevTools in dev — one of the spike evaluation criteria
     mainWindow.webContents.openDevTools({ mode: "detach" });
   } else {
-    // Production: serve from bundled dist
-    const distIndex = join(__dirname, "../dist/index.html");
-    mainWindow.loadFile(distIndex);
+    // Production: load from the server's static serving (same-origin with API).
+    // Using file:// would give a null origin, blocked by the CORS allowlist.
+    mainWindow.loadURL(`http://localhost:${port}`);
   }
 
   mainWindow.once("ready-to-show", () => {

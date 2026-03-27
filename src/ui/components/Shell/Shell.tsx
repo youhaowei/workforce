@@ -17,7 +17,6 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { AgentQuestionDialog } from "./AgentQuestionDialog";
 import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
 import { useHotkey } from "@/ui/hotkeys";
-import { usePlatform } from "@/ui/context/PlatformProvider";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
 import { useTRPC } from "@/bridge/react";
@@ -56,7 +55,6 @@ export type SidebarMode = "expanded" | "collapsed";
 
 // eslint-disable-next-line complexity
 export default function Shell() {
-  const { isDesktop } = usePlatform();
   const location = useLocation();
   const navigate = useNavigate();
   const currentView = useCurrentView();
@@ -416,11 +414,7 @@ export default function Shell() {
       <TooltipProvider>
       <div
         className="h-screen flex overflow-hidden shell-ground"
-        data-desktop={isDesktop || undefined}
       >
-        {/* Tauri: window dragging handled by data-tauri-drag-region on AppHeader.
-            No overlay div needed — Tauri intercepts drag at the native WKWebView level.
-            (The old z-40 overlay with -webkit-app-region: drag was Chromium/Electron-only.) */}
 
         <AppSidebar
           mode={sidebarMode}
