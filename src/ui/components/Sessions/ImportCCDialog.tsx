@@ -83,6 +83,10 @@ interface CCCandidateItemProps {
   onSelect: (fullPath: string) => void;
 }
 
+function buildSearchValue(cc: CCCandidateItemProps['cc'], project?: Project, folder?: string, worktree?: string, branch?: string) {
+  return [cc.title, cc.firstPrompt, project?.name, folder, worktree, branch].filter(Boolean).join(' ');
+}
+
 function CCCandidateItem({ cc, importing, disabled, cwdToProject, onSelect }: CCCandidateItemProps) {
   const { folder, worktree } = folderInfo(cc.cwd);
   const branch = cc.gitBranch && cc.gitBranch !== 'HEAD' ? cc.gitBranch : undefined;
@@ -90,7 +94,7 @@ function CCCandidateItem({ cc, importing, disabled, cwdToProject, onSelect }: CC
 
   return (
     <CommandItem
-      value={`${cc.title} ${cc.firstPrompt ?? ''} ${folder ?? ''} ${branch ?? ''}`}
+      value={buildSearchValue(cc, project, folder, worktree, branch)}
       onSelect={() => onSelect(cc.fullPath)}
       disabled={disabled}
       className="flex flex-col items-start gap-1 py-2 [&_svg]:!h-3 [&_svg]:!w-3"

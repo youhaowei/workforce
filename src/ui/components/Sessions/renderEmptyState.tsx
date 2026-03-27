@@ -59,12 +59,12 @@ export function renderEmptyState(
       icon={<MessageSquare className="h-5 w-5 text-neutral-fg-subtle" />}
       heading="No sessions yet"
       subtext="Start a conversation to begin"
-      action={
+      action={onCreate ? (
         <Button variant="outline" size="sm" onClick={onCreate}>
           <Plus className="h-3.5 w-3.5 mr-1.5" />
           New session
         </Button>
-      }
+      ) : undefined}
     />
   );
 }

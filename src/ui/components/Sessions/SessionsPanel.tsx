@@ -145,6 +145,7 @@ export function SessionsPanel({
 
   const resume = resumeMutation.mutate;
   const handleSelect = useCallback((sessionId: string) => {
+    activeSessionRef.current = sessionId;
     if (sessionId !== activeSessionId) {
       resume({ sessionId });
     }

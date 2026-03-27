@@ -99,7 +99,7 @@ export default defineConfig(({command}) => ({
         port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)),
         strictPort: false,
         host: host || false,
-        hmr: host ? {protocol: "ws", host, port: DEFAULT_VITE_PORT + 1} : undefined,
+        hmr: host ? {protocol: "ws", host, port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)) + 1} : undefined,
         watch: {
             // Tell vite to ignore watching src-tauri
             ignored: ["**/src-tauri/**"],

@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "workforce-competent-northcutt",
+      "name": "workforce-dev",
       "runtimeExecutable": "bash",
       "runtimeArgs": [
         "scripts/dev-preview.sh"
