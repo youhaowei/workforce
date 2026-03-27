@@ -25,12 +25,13 @@ jobs:
 
             - run: bun install --frozen-lockfile
 
-            # Submodule deps not in root lockfile
+            # Submodule deps not in root lockfile.
+            # stdui is excluded — its own @types/react conflicts with root's.
+            # TS resolves stdui via path aliases using root types.
             - name: Install submodule dependencies
               run: |
                   cd lib/tracey && bun install
                   cd ../unifai && bun install
-                  cd ../stdui && bun install
                   cd ../wystack && bun install
 
             # TanStack Router route tree (needed for type-check)
