@@ -11,12 +11,27 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
+              with:
+                  submodules: recursive
+                  token: ${{ secrets.GH_PAT || github.token }}
 
             - uses: oven-sh/setup-bun@v2
               with:
                   bun-version: latest
 
             - run: bun install --frozen-lockfile
+
+            # Submodule deps not in root lockfile
+            - name: Install submodule dependencies
+              run: |
+                  cd lib/tracey && bun install
+                  cd ../unifai && bun install
+                  cd ../stdui && bun install
+                  cd ../wystack && bun install
+
+            # TanStack Router route tree (needed for type-check)
+            - name: Generate route tree
+              run: bunx @tanstack/router-cli generate
 
             - name: Type check
               run: bun run type-check
