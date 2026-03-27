@@ -11,9 +11,13 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v4
-              with:
-                  submodules: recursive
-                  token: ${{ secrets.GH_PAT || github.token }}
+
+            # Submodules use SSH URLs; rewrite to HTTPS for CI.
+            # All submodule repos are public, so no token needed.
+            - name: Checkout submodules
+              run: |
+                  git config --global url."https://github.com/".insteadOf "git@github.com:"
+                  git submodule update --init --recursive --depth=1
 
             - uses: oven-sh/setup-bun@v2
               with:
