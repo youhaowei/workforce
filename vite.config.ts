@@ -59,9 +59,7 @@ function vitePortFile(): Plugin {
     };
 }
 
-// Tauri injects TAURI_DEV_HOST for mobile dev; on desktop devUrl in tauri.conf.json
-// handles the connection. Vite's host config adapts for both.
-const host = process.env.TAURI_DEV_HOST;
+const host = process.env.DEV_HOST;
 
 export default defineConfig(({command}) => ({
     plugins: [
@@ -96,19 +94,18 @@ export default defineConfig(({command}) => ({
     // Prevent vite from obscuring Rust errors
     clearScreen: false,
     server: {
-        port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)),
+        port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT), 10),
         strictPort: false,
         host: host || false,
-        hmr: host ? {protocol: "ws", host, port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)) + 1} : undefined,
+        hmr: host ? {protocol: "ws", host, port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT), 10) + 1} : undefined,
         watch: {
-            // Tell vite to ignore watching src-tauri
-            ignored: ["**/src-tauri/**"],
+            ignored: ["**/src-electron/**"],
         },
     },
     define: {
         // Always inject VITE_API_PORT so the UI finds the API server.
         // Dev: read from .dev-port (written by server on startup) or fall back to default.
-        // Production build: bake in the default port (Tauri sidecar always uses this).
+        // Production: Electron main process overrides via preload bridge.
         "import.meta.env.VITE_API_PORT": JSON.stringify(
             process.env.VITE_API_PORT ||
             (command === "serve" ? discoverApiPort() : undefined) ||
