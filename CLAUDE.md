@@ -5,29 +5,29 @@ Docs: `docs/` (high-level) + [Notion](https://www.notion.so/2ffd48ccaf5481d7bb33
 ## Commands
 
 ```bash
-bun install           # Install dependencies
-bun run test          # All unit tests (Vitest)
-bun run test -- src/services/session.test.ts  # Single test file
-bun run test:e2e      # Playwright E2E tests
-bun run lint          # Lint code
-bun run type-check    # TypeScript check
-bun run server        # Start backend server (port 19675)
-bun run server:watch  # Server with hot-reload
-bun run dev:web       # Start server + vite for web testing (port 19676)
-bun run clean         # Remove build artifacts (dist, out)
+pnpm install          # Install dependencies
+pnpm run test         # All unit tests (Vitest)
+pnpm run test -- src/services/session.test.ts  # Single test file
+pnpm run test:e2e     # Playwright E2E tests
+pnpm run lint         # Lint code
+pnpm run type-check   # TypeScript check
+pnpm run server       # Start backend server (port 19675)
+pnpm run server:watch # Server with hot-reload
+pnpm run dev:web      # Start server + vite for web testing (port 19676)
+pnpm run clean        # Remove build artifacts (dist, out)
 ```
 
 **ASK FIRST — never auto-run:**
 
 ```bash
-bun run dev   # Server + Tauri desktop app (dev loads from Vite :19676)
-bun run build # Tauri release build
+pnpm run dev   # Server + Electron desktop app (dev loads from Vite :19676)
+pnpm run build # Electron release build (electron-forge)
 ```
 
 ## Debugging Tools
 
-- **Visual/CSS** → agent-browser on dev server (localhost:19676) or Peekaboo (`peekaboo see --app Workforce`) for Tauri app
-- **Server state** → `bun run cli -- health check`, `session list --json`, `audit session <id>`
+- **Visual/CSS** → agent-browser on dev server (localhost:19676) or CDP on Electron (--remote-debugging-port=9229)
+- **Server state** → `pnpm run cli -- health check`, `session list --json`, `audit session <id>`
 - **Server logs** → `curl http://localhost:19675/debug-log`
 - **Port issues** → `lsof -ti :19675 :19676`
 - **Reproduction escalation**: agent-browser → Peekaboo → console.log + ask user → Playwright E2E
@@ -77,8 +77,8 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 ### Architecture
 
-- **Tauri commands** — Keep `src/ui/` browser-safe. Native dialogs via `invoke('open_directory')`. Rust code in `src-tauri/`.
-- **`isDesktop` detection** — `!!window.__TAURI__` or `!!window.__TAURI_INTERNALS__`. Do not use port-based detection.
+- **Electron IPC** — Keep `src/ui/` browser-safe. Native dialogs via `window.electronAPI.openDirectory()`. Electron code in `src-electron/`.
+- **`isDesktop` detection** — `!!window.electronAPI` via preload bridge. Do not use port-based detection.
 - **Singleflight for lazy init** — `this.initPromise ??= this.doInit()` prevents concurrent callers racing.
 - **SetupGate** — Wraps `Shell`, guarantees user identity + initialized org. `useRequiredOrgId()` throws if called outside.
 
