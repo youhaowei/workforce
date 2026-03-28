@@ -457,7 +457,7 @@ export function SessionList({
           <Virtuoso
             data={flatItems}
             itemContent={renderItem}
-            className="h-full"
+            className="h-full [scrollbar-gutter:stable]"
           />
         )}
       </div>

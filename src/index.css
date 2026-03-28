@@ -343,7 +343,7 @@
  * Classes: .titlebar-drag-region, .titlebar-no-drag */
 
 /* Shell — the window ground behind everything.
-   In desktop mode (Tauri vibrancy), use a semi-transparent tint so the
+   In desktop mode (Electron vibrancy), use a semi-transparent tint so the
    macOS blur-behind effect shows through. On web, keep the solid gradient. */
 @layer components {
     .shell-ground {
@@ -376,6 +376,11 @@ html[data-vibrancy-mismatch] body {
         -webkit-user-select: none;
         @apply flex items-center shrink-0 gap-3;
     }
+}
+
+/* Electron: pad left for macOS traffic light buttons (hiddenInset titlebar) */
+html[data-electron] .shell-topbar {
+    padding-left: 72px;
 }
 
 /* Message list fade overlays — don't cover the scrollbar */

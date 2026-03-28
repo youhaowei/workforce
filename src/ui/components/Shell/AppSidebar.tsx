@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlatform } from "@/ui/context/PlatformProvider";
+import { getServerPort } from "@/bridge/config";
 
 import {
   Tooltip,
@@ -74,8 +75,7 @@ export default function AppSidebar({
       <div className={`${topSpacerHeight} shrink-0 flex items-center pointer-events-auto`}>
         {isMacDesktop && (
           <div
-            data-tauri-drag-region=""
-            className="h-full w-full rounded-lg border-neutral-border-subtle flex items-center font-medium text-neutral-fg-subtle tracking-tight"
+            className="h-full w-full titlebar-drag-region rounded-lg border-neutral-border-subtle flex items-center font-medium text-neutral-fg-subtle tracking-tight"
           >
           </div>
         )}
@@ -182,8 +182,8 @@ export default function AppSidebar({
                 <TooltipContent side="right" sideOffset={8}>
                   <div className="flex flex-col gap-0.5">
                     <span className="font-medium">{import.meta.env.VITE_GIT_BRANCH}</span>
-                    {import.meta.env.VITE_API_PORT && (
-                      <span className="opacity-60">API :{import.meta.env.VITE_API_PORT}</span>
+                    {getServerPort() && (
+                      <span className="opacity-60">API :{getServerPort()}</span>
                     )}
                   </div>
                 </TooltipContent>
@@ -196,8 +196,8 @@ export default function AppSidebar({
                     {import.meta.env.VITE_GIT_BRANCH}
                   </span>
                 </div>
-                {import.meta.env.VITE_API_PORT && (
-                  <span className="text-[10px] opacity-50 pl-[18px]">API :{import.meta.env.VITE_API_PORT}</span>
+                {getServerPort() && (
+                  <span className="text-[10px] opacity-50 pl-[18px]">API :{getServerPort()}</span>
                 )}
               </div>
             )}

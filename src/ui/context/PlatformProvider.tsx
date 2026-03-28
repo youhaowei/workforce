@@ -18,6 +18,7 @@ export interface PlatformActions {
   onClose?: () => void;
   openDirectory?: (startingFolder?: string) => Promise<string | null>;
   isDesktop?: boolean;
+  platformType?: 'electron' | 'web';
 }
 
 const PlatformContext = createContext<PlatformActions>({});

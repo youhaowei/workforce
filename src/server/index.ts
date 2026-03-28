@@ -1,6 +1,7 @@
 import {Hono} from "hono";
 import {cors} from "hono/cors";
-import {serveStatic} from "hono/bun";
+import {serve, type ServerType} from "@hono/node-server";
+import {serveStatic} from "@hono/node-server/serve-static";
 import {existsSync, readFileSync, writeFileSync, unlinkSync} from "fs";
 import {createServer} from "net";
 import {homedir} from "os";
@@ -71,7 +72,7 @@ app.use(
 // tRPC endpoint — all routers available at /api/trpc/*
 app.use("/api/trpc/*", trpcServer({router: appRouter}));
 
-// Health check — also polled by Tauri Rust process at startup
+// Health check — polled by SetupGate and Electron main process at startup
 app.get("/health", (c) => c.json({ok: true}));
 
 app.get("/debug-log", async (c) => {
@@ -149,10 +150,15 @@ app.get("/auth-check", async (c) => {
 });
 
 // Serve Vite build output in production (same-origin, no CORS needed).
-// In dev standalone or Tauri sidecar: __dirname = <project>/src/server/ → ../../dist
-const distCandidates = [join(__dirname, "../dist"), join(__dirname, "../../dist")];
-const distPath = distCandidates.find((p) => existsSync(p));
-if (distPath) {
+// Candidates: relative to src/server/ (dev) or to packaged app root.
+function setupStaticServing() {
+    const distCandidates = [
+        join(__dirname, "../dist"),
+        join(__dirname, "../../dist"),
+    ];
+    const distPath = distCandidates.find((p) => existsSync(p));
+    if (!distPath) return;
+
     app.use("*", serveStatic({root: distPath}));
     // SPA fallback: serve index.html for non-API paths that don't match a static file
     const indexPath = join(distPath, "index.html");
@@ -161,6 +167,7 @@ if (distPath) {
         app.get("*", (c) => c.html(indexHtml));
     }
 }
+setupStaticServing();
 
 const DEV_PORT_FILE = join(process.cwd(), ".dev-port");
 
@@ -177,8 +184,8 @@ function isPortAvailable(port: number): Promise<boolean> {
 
 const MAX_PORT_RETRIES = 10;
 
-export async function startServer(overrides?: {port?: number}): Promise<{port: number}> {
-    const basePort = overrides?.port ?? parseInt(process.env.PORT || String(DEFAULT_SERVER_PORT));
+export async function startServer(overrides?: {port?: number}): Promise<{port: number; server: ServerType}> {
+    const basePort = overrides?.port ?? parseInt(process.env.PORT || String(DEFAULT_SERVER_PORT), 10);
 
     // Find an available port starting from basePort
     let port = basePort;
@@ -195,13 +202,15 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
         }
     }
 
-    Bun.serve({
+    const httpServer = serve({
         fetch: app.fetch,
         port,
         hostname: "localhost",
-        // SSE connections are long-lived; allow up to 2 min idle
-        idleTimeout: 120,
     });
+
+    // SSE connections are long-lived; allow up to 2 min idle (Node defaults to 5s)
+    httpServer.keepAliveTimeout = 120_000;
+    httpServer.headersTimeout = 125_000;
 
     // Write actual port so vite can discover it
     if (isMainModule) {
@@ -229,7 +238,7 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
                 log.warn({ error: err instanceof Error ? err.message : String(err) }, "Model cache warm-up failed (will retry on demand)"),
         );
 
-    return {port};
+    return {port, server: httpServer};
 }
 
 // Standalone mode (bun run src/server/index.ts)
