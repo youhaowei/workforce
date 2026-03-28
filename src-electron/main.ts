@@ -48,8 +48,8 @@ function repairPath() {
       timeout: 5000,
     }).trim();
     if (out) process.env.PATH = out;
-  } catch {
-    // Non-critical — keep existing PATH
+  } catch (err) {
+    console.warn("[main] PATH repair failed (non-critical):", err);
   }
 }
 
@@ -74,6 +74,7 @@ function getServerEntry(): string {
 
 function spawnServer(): Promise<number> {
   return new Promise((resolve, reject) => {
+    let ready = false;
     const entry = getServerEntry();
     const timeout = setTimeout(
       () => reject(new Error("Server did not report port within 30s")),
@@ -92,8 +93,6 @@ function spawnServer(): Promise<number> {
             ...process.env,
             ELECTRON_MODE: "1",
             NODE_ENV: "development",
-            // Allow require() in ESM — tracey submodule uses require("fs") in ESM context
-            NODE_OPTIONS: "--experimental-require-module",
           },
           cwd: join(__dirname, ".."),
         },
@@ -121,6 +120,7 @@ function spawnServer(): Promise<number> {
 
     serverProcess!.on("message", (msg: any) => {
       if (msg?.type === "server-ready" && typeof msg.port === "number") {
+        ready = true;
         clearTimeout(timeout);
         serverPort = msg.port;
         resolve(msg.port);
@@ -130,6 +130,10 @@ function spawnServer(): Promise<number> {
     serverProcess!.on("exit", (code) => {
       console.log(`[server] exited with code ${code}`);
       serverProcess = null;
+      if (!ready) {
+        clearTimeout(timeout);
+        reject(new Error(`Server exited with code ${code} before becoming ready`));
+      }
     });
 
     serverProcess!.on("error", (err) => {
@@ -180,7 +184,7 @@ function createWindow(port: number) {
       preload: join(__dirname, "preload.mjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false, // Needed for preload to use Node APIs
+      sandbox: true,
     },
   };
 

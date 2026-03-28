@@ -7,11 +7,13 @@ import {join, dirname, resolve} from "path";
 import {fileURLToPath} from "url";
 import {createLogger, initTracey, getRecentLogs} from "tracey";
 import {getAgentService} from "@/services/agent";
+import {DEFAULT_SERVER_PORT} from "@/shared/ports";
+import {getDataDir} from "@/services/data-dir";
+import {appRouter} from "./routers";
+import {trpcServer} from "@hono/trpc-server";
 
 /** Runtime detection — true when running under Bun, false for Node/tsx/Electron. */
 const IS_BUN = typeof globalThis.Bun !== "undefined";
-import {DEFAULT_SERVER_PORT} from "@/shared/ports";
-import {getDataDir} from "@/services/data-dir";
 
 await initTracey({
     file: {dir: join(getDataDir(), "logs"), prefix: "workforce", flushOnCrash: true},
@@ -19,8 +21,6 @@ await initTracey({
 });
 
 const log = createLogger('Server');
-import {appRouter} from "./routers";
-import {trpcServer} from "@hono/trpc-server";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

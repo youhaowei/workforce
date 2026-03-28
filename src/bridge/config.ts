@@ -35,8 +35,8 @@ export async function initServerUrl(): Promise<void> {
       const port = await window.electronAPI.getServerPort();
       resolvedPort = String(port);
       return;
-    } catch {
-      // Fall back to baked-in port
+    } catch (err) {
+      console.warn("[config] Electron getServerPort failed, using fallback:", err);
     }
   }
 
@@ -46,8 +46,8 @@ export async function initServerUrl(): Promise<void> {
       const { invoke } = await import("@tauri-apps/api/core");
       const port: number = await invoke("get_server_port");
       resolvedPort = String(port);
-    } catch {
-      // Fall back to baked-in port
+    } catch (err) {
+      console.warn("[config] Tauri get_server_port failed, using fallback:", err);
     }
   }
 }

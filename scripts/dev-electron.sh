@@ -3,7 +3,7 @@
 #
 # 1. Build main/preload with tsdown (fast, ~200ms)
 # 2. Start Vite dev server in background
-# 3. Wait for .vite-port file
+# 3. Wait for Vite to respond on its port
 # 4. Launch Electron (which spawns the server child process internally)
 #
 # The server is spawned by Electron main process using tsx, not by this script.
@@ -13,10 +13,11 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
+VITE_PORT="${VITE_PORT:-19676}"
+
 # Cleanup on exit
 cleanup() {
   [[ -n "${VITE_PID:-}" ]] && kill "$VITE_PID" 2>/dev/null || true
-  rm -f .vite-port
 }
 trap cleanup EXIT INT TERM
 
@@ -25,23 +26,28 @@ echo "[dev-electron] Building main/preload..."
 npx tsdown --config tsdown.electron.ts
 
 # 2. Start Vite dev server
-echo "[dev-electron] Starting Vite dev server..."
-PORT=${VITE_PORT:-19676} bun run vite --port "${VITE_PORT:-19676}" &
+echo "[dev-electron] Starting Vite dev server on port ${VITE_PORT}..."
+PORT=${VITE_PORT} bun run vite --port "${VITE_PORT}" &
 VITE_PID=$!
 
-# 3. Wait for Vite to be ready (poll .vite-port or just wait for port)
+# 3. Wait for Vite to be ready (poll HTTP)
 echo "[dev-electron] Waiting for Vite..."
-for i in $(seq 1 30); do
-  if [ -f .vite-port ]; then
-    break
-  fi
-  # Also check if the port is responding
-  if curl -s "http://localhost:${VITE_PORT:-19676}" >/dev/null 2>&1; then
+READY=0
+for _ in $(seq 1 30); do
+  if curl -s "http://localhost:${VITE_PORT}" >/dev/null 2>&1; then
+    READY=1
     break
   fi
   sleep 0.5
 done
 
+if [ "$READY" -ne 1 ]; then
+  echo "[dev-electron] ERROR: Vite did not become ready in time" >&2
+  exit 1
+fi
+
+echo "[dev-electron] Vite ready on port ${VITE_PORT}"
+
 # 4. Launch Electron
 echo "[dev-electron] Launching Electron..."
-npx electron dist-electron/main.mjs
+VITE_PORT=${VITE_PORT} npx electron dist-electron/main.mjs
