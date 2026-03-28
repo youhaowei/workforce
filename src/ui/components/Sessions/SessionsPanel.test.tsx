@@ -1,7 +1,27 @@
+// @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { SessionsPanel } from './SessionsPanel';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
+
+// Bun + vitest + jsdom doesn't always provide localStorage.
+// Polyfill before any module reads it (Zustand persist, SessionList initializers).
+beforeAll(() => {
+  if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localStorage.getItem !== 'function') {
+    const store: Record<string, string> = {};
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: {
+        getItem: (k: string) => store[k] ?? null,
+        setItem: (k: string, v: string) => { store[k] = v; },
+        removeItem: (k: string) => { delete store[k]; },
+        clear: () => { Object.keys(store).forEach(k => delete store[k]); },
+        get length() { return Object.keys(store).length; },
+        key: (i: number) => Object.keys(store)[i] ?? null,
+      },
+      writable: true,
+      configurable: true,
+    });
+  }
+});
 
 // Mock tRPC + React Query hooks used by SessionsPanel
 const mockQueryData = {
@@ -12,7 +32,7 @@ const mockQueryData = {
 vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn(() => mockQueryData),
   useMutation: vi.fn(() => ({ mutate: vi.fn(), isLoading: false })),
-  useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn(), setQueriesData: vi.fn() })),
+  useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn(), setQueriesData: vi.fn(), refetchQueries: vi.fn() })),
 }));
 
 vi.mock('@/bridge/react', () => ({
@@ -23,8 +43,6 @@ vi.mock('@/bridge/react', () => ({
       delete: { mutationOptions: vi.fn(() => ({})) },
       discoverCC: { queryOptions: vi.fn(() => ({})) },
       importCC: { mutationOptions: vi.fn(() => ({})) },
-      checkCCSyncBatch: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ['session', 'checkCCSyncBatch']) },
-      syncCC: { mutationOptions: vi.fn(() => ({})) },
     },
     project: {
       list: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ['project', 'list']) },
@@ -32,21 +50,29 @@ vi.mock('@/bridge/react', () => ({
   })),
 }));
 
+// Mock OrgStore to avoid Zustand persist middleware needing localStorage at import time
+vi.mock('@/ui/stores/useOrgStore', () => ({
+  useOrgStore: Object.assign(vi.fn(() => 'org_test_12345'), {
+    setState: vi.fn(),
+    getState: vi.fn(() => ({ currentOrgId: 'org_test_12345' })),
+  }),
+}));
+
+vi.mock('@/ui/hooks/useRequiredOrgId', () => ({
+  useRequiredOrgId: vi.fn(() => 'org_test_12345'),
+}));
+
 describe('SessionsPanel', () => {
   const mockOnSelectSession = vi.fn();
-  const TEST_ORG_ID = 'org_test_12345';
 
   beforeEach(() => {
     mockOnSelectSession.mockClear();
     mockQueryData.data = [];
     mockQueryData.isLoading = false;
-    // Initialize OrgStore with a test org ID
-    useOrgStore.setState({ currentOrgId: TEST_ORG_ID });
   });
 
   it('renders collapsed when collapsed prop is true', () => {
     render(<SessionsPanel collapsed={true} onSelectSession={mockOnSelectSession} />);
-    // Content is not rendered when collapsed
     expect(screen.queryByText('Sessions')).not.toBeInTheDocument();
   });
 
@@ -63,7 +89,6 @@ describe('SessionsPanel', () => {
 
   it('shows session list when loaded', () => {
     render(<SessionsPanel collapsed={false} onSelectSession={mockOnSelectSession} />);
-    // Should show "No sessions yet" since data is empty
     expect(screen.getByText('No sessions yet')).toBeInTheDocument();
   });
 });

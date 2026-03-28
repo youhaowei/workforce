@@ -2,14 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "workforce",
-      "runtimeExecutable": "bun",
+      "name": "workforce-dev",
+      "runtimeExecutable": "bash",
       "runtimeArgs": [
-        "run",
-        "dev:web"
+        "scripts/dev-preview.sh"
       ],
-      "port": 61405,
-      "autoPort": true
+      "autoPort": true,
+      "port": 19678
     }
   ]
 }
