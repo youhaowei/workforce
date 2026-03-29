@@ -6,7 +6,7 @@ import tsParser from '@typescript-eslint/parser';
 
 export default [
   {
-    ignores: ['dist', 'build', 'node_modules', 'out', 'src/components/ui', 'src/electron']
+    ignores: ['dist', 'build', 'node_modules', 'out', 'src/components/ui']
   },
   {
     files: ['src/**/*.{ts,tsx}', 'src-electron/**/*.ts', 'tooling/**/*.ts'],

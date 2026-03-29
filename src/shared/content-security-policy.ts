@@ -11,23 +11,24 @@ export function buildRendererContentSecurityPolicy({
 }: RendererCspOptions): string {
   const rendererOrigin = `http://localhost:${rendererPort}`;
   const apiOrigin = serverPort ? `http://localhost:${serverPort}` : rendererOrigin;
-  const connectSrc = new Set(["'self'", rendererOrigin, apiOrigin]);
-  const scriptSrc = new Set(["'self'"]);
 
-  if (isDev) {
-    connectSrc.add('ws://localhost:*');
-    connectSrc.add('http://localhost:*');
-    scriptSrc.add("'unsafe-eval'");
-    scriptSrc.add("'unsafe-inline'");
-  }
+  const scriptSrc = isDev
+    ? "'self' 'unsafe-eval' 'unsafe-inline'"
+    : "'self'";
+
+  const connectSrc = isDev
+    ? `'self' ${rendererOrigin} ${apiOrigin} ws://localhost:* http://localhost:*`
+    : `'self' ${rendererOrigin} ${apiOrigin}`;
 
   return [
     "default-src 'self'",
-    `script-src ${Array.from(scriptSrc).join(' ')}`,
+    `script-src ${scriptSrc}`,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: http://localhost:*",
+    isDev
+      ? "img-src 'self' data: blob: http://localhost:*"
+      : `img-src 'self' data: blob: ${rendererOrigin} ${apiOrigin}`,
     "font-src 'self' data:",
-    `connect-src ${Array.from(connectSrc).join(' ')}`,
+    `connect-src ${connectSrc}`,
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'",

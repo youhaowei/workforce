@@ -41,6 +41,19 @@ describe('bridge/config', () => {
     expect(config.getTrpcUrl()).toBe('http://localhost:19777/api/trpc');
   });
 
+  it('keeps the fallback port when Electron bridge returns null', async () => {
+    globalThis.window = {
+      electronAPI: {
+        getServerPort: vi.fn().mockResolvedValue(null),
+      },
+    } as unknown as Window & typeof globalThis;
+
+    const config = await loadConfigModule();
+    await config.initServerUrl();
+
+    expect(config.getServerPort()).toBe('19675');
+  });
+
   it('keeps the fallback port when Electron discovery fails', async () => {
     globalThis.window = {
       electronAPI: {

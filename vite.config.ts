@@ -82,7 +82,6 @@ export default defineConfig(({command}) => ({
     resolve: {
         alias: createPathAliases(__dirname),
     },
-    // Prevent vite from obscuring Rust errors
     clearScreen: false,
     server: {
         port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT), 10),

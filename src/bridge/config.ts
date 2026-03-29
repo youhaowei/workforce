@@ -32,16 +32,12 @@ export function getTrpcUrl(): string {
  * No-op in web/E2E mode.
  */
 export async function initServerUrl(): Promise<void> {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || !window.electronAPI?.getServerPort) return;
 
-  // Electron: query via preload bridge
-  if (window.electronAPI?.getServerPort) {
-    try {
-      const port = await window.electronAPI.getServerPort();
-      if (port) resolvedPort = String(port);
-    } catch (e) {
-      console.warn('initServerUrl: Electron port discovery failed, using fallback:', e);
-    }
-    return;
+  try {
+    const port = await window.electronAPI.getServerPort();
+    if (port) resolvedPort = String(port);
+  } catch (e) {
+    console.warn('initServerUrl: Electron port discovery failed, using fallback:', e);
   }
 }
