@@ -32,7 +32,7 @@ export function MainContentColumn({
           <div>
             <p className="text-sm font-medium">Server not connected</p>
             <p className="text-xs text-neutral-fg-subtle">
-              Run <code className="bg-neutral-bg-dim px-1.5 py-0.5 rounded text-xs font-mono">bun run server</code> to start
+              Run <code className="bg-neutral-bg-dim px-1.5 py-0.5 rounded text-xs font-mono">pnpm run server</code> to start
             </p>
           </div>
         </div>

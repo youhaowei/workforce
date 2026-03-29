@@ -16,20 +16,18 @@ import { TRPCProvider } from '@/bridge/react';
 import { trpc } from '@/bridge/trpc';
 import { initServerUrl } from '@/bridge/config';
 import { refreshTrpcClient } from '@/bridge/trpc';
-import { PlatformProvider, type PlatformActions } from './context/PlatformProvider';
+import {
+  createPlatformActions,
+  detectPlatformType,
+  initializeClientRuntime,
+  type PlatformType,
+} from './app-bootstrap';
+import { PlatformProvider } from './context/PlatformProvider';
 import { HotkeyProvider } from './hotkeys/HotkeyProvider';
 import { AppContextMenu } from './components/Shell/AppContextMenu';
 import { useEventBusInit } from './hooks/useEventBusInit';
 import { useServerEventInvalidation } from './hooks/useServerEventInvalidation';
 import { SetupGate } from './components/SetupGate';
-
-type PlatformType = 'electron' | 'web';
-
-function detectPlatformType(): PlatformType {
-  if (typeof window === 'undefined') return 'web';
-  if (window.electronAPI) return 'electron';
-  return 'web';
-}
 
 function usePlatformDetection() {
   const [platformType] = useState<PlatformType>(detectPlatformType);
@@ -53,19 +51,6 @@ function usePlatformDetection() {
   }, [isDesktop, platformType]);
 
   return { isDesktop, platformType };
-}
-
-function createPlatformActions(isDesktop: boolean, platformType: PlatformType): PlatformActions {
-  if (platformType === 'electron') {
-    const api = window.electronAPI!;
-    return {
-      isDesktop: true,
-      platformType,
-      openDirectory: (startingFolder?: string) => api.openDirectory(startingFolder),
-      onOpenUrl: (url: string) => { api.openExternal(url).catch((e) => console.warn('openExternal failed:', e)); },
-    };
-  }
-  return { isDesktop: false, platformType };
 }
 
 function AppInner({ router }: { router: Router<any, any, any, any> }) {
@@ -93,8 +78,7 @@ export default function App({ router }: { router: Router<any, any, any, any> }) 
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
-    initServerUrl().then(() => {
-      refreshTrpcClient();
+    initializeClientRuntime(initServerUrl, refreshTrpcClient).then(() => {
       setServerReady(true);
     });
   }, []);

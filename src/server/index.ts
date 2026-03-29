@@ -3,13 +3,13 @@ import {cors} from "hono/cors";
 import {serve, type ServerType} from "@hono/node-server";
 import {serveStatic} from "@hono/node-server/serve-static";
 import {existsSync, readFileSync, writeFileSync, unlinkSync} from "fs";
-import {createServer} from "net";
 import {homedir} from "os";
 import {join, dirname, resolve} from "path";
 import {fileURLToPath} from "url";
 import {createLogger, initTracey, getRecentLogs} from "tracey";
 import {getAgentService} from "@/services/agent";
 import {DEFAULT_SERVER_PORT} from "@/shared/ports";
+import {findAvailablePort} from "@/shared/port-utils";
 import {getDataDir} from "@/services/data-dir";
 
 initTracey({
@@ -171,42 +171,20 @@ setupStaticServing();
 
 const DEV_PORT_FILE = join(process.cwd(), ".dev-port");
 
-/** Probe whether a port is available by briefly binding and closing a TCP server. */
-function isPortAvailable(port: number): Promise<boolean> {
-    return new Promise((resolve) => {
-        const srv = createServer();
-        srv.once("error", () => resolve(false));
-        srv.listen(port, "localhost", () => {
-            srv.close(() => resolve(true));
-        });
-    });
-}
-
 const MAX_PORT_RETRIES = 10;
 
 export async function startServer(overrides?: {port?: number}): Promise<{port: number; server: ServerType}> {
     const basePort = overrides?.port ?? parseInt(process.env.PORT || String(DEFAULT_SERVER_PORT), 10);
-
-    // Find an available port starting from basePort
-    let port = basePort;
-    for (let i = 0; i <= MAX_PORT_RETRIES; i++) {
-        const candidate = basePort + i;
-        if (await isPortAvailable(candidate)) {
-            port = candidate;
-            break;
-        }
-        if (i < MAX_PORT_RETRIES) {
-            log.info(`Port ${candidate} in use, trying ${candidate + 1}`);
-        } else {
-            throw new Error(`All ports ${basePort}–${basePort + MAX_PORT_RETRIES} are in use`);
-        }
-    }
+    const port = await findAvailablePort(basePort, MAX_PORT_RETRIES);
 
     const httpServer = serve({
         fetch: app.fetch,
         port,
         hostname: "localhost",
-    });
+    }) as ServerType & {
+        keepAliveTimeout?: number;
+        headersTimeout?: number;
+    };
 
     // SSE connections are long-lived; allow up to 2 min idle (Node defaults to 5s)
     httpServer.keepAliveTimeout = 120_000;
@@ -241,6 +219,6 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
     return {port, server: httpServer};
 }
 
-// Standalone mode (bun run src/server/index.ts)
+// Standalone mode (`pnpm run server`)
 const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 if (isMainModule) startServer();

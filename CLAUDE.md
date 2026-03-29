@@ -57,7 +57,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 - **Service/router** — `router.test.ts` via `createCaller()`, or service-level with factory functions + temp dirs
 - **UI** — React Testing Library + jsdom (`src/ui/**/*.test.tsx`)
-- **E2E** — Playwright (`bun run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
+- **E2E** — Playwright (`pnpm run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
 - **Bug reproduction** — Construct JSONL journal records and replay via `replaySession()`. More reliable than mocking UI state.
 - **Co-located tests** — `Foo.test.ts` next to `Foo.ts`, not in `__tests__/` directories
 - **Environments** — Node (default) for services/routers; `jsdom` for `src/ui/**/*.test.tsx` (auto-matched in vitest.config.ts)
@@ -115,8 +115,8 @@ Both **unifai** and **tracey** are git submodules under `lib/`:
 - `lib/tracey` — Structured logging (pino-based). Imports as `"tracey"`.
 
 ```bash
-git submodule update --init          # After fresh clone
-cd lib/tracey && bun install         # Install tracey's deps (pino, pino-pretty)
+git submodule update --init --recursive  # After fresh clone
+pnpm install                             # Install workspace deps after submodules are present
 ```
 
 **Branch-per-agent for submodule changes**: When modifying a submodule, create a branch (e.g., `agent/feat-redaction`). Commit on the branch, push, then merge to main. This prevents conflicts when multiple agents work on the same submodule in parallel. The parent repo's submodule pointer should always reference a merge commit on main.

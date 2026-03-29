@@ -172,7 +172,7 @@ Total human involvement: one sentence of intent, one review gate approval, one r
 ## Key References
 
 - **Craft Agents OSS** — Config-driven workspaces, JSONL persistence, three-layer permissions, source abstraction, skill system
-- **OpenCode Desktop** — tauri-specta, event coalescing, Platform abstraction, MCP OAuth, deep linking
+- **OpenCode Desktop** — Electron desktop patterns, event coalescing, Platform abstraction, MCP OAuth, deep linking
 - **Cursor: Self-Driving Codebases** — Constraints over instructions, accept turbulence, environment engineering, design for throughput
 - **Anthropic: Building a C Compiler** — Simple coordination beats complex orchestration, tests as feedback, human = environment designer
 - **Opus 4.6 Finance** — Subagent spinning, adaptive thinking, plugins as skill bundles + connectors

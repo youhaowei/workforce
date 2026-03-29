@@ -9,7 +9,7 @@ export default [
     ignores: ['dist', 'build', 'node_modules', 'out', 'src/components/ui', 'src/electron']
   },
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'src-electron/**/*.ts', 'tooling/**/*.ts'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

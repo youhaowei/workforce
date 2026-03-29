@@ -4,10 +4,12 @@
   "description": "High-performance desktop agentic orchestrator with Claude Code parity",
   "type": "module",
   "main": ".vite/build/main.cjs",
+  "packageManager": "pnpm@10.12.1",
   "scripts": {
     "setup": "git submodule update --init --recursive && pnpm install",
-    "dev": "trap 'kill $(jobs -p) 2>/dev/null' EXIT; pnpm run server:watch & pnpm run vite & sleep 2 && electron-forge start -- --remote-debugging-port=9229",
+    "dev": "bash scripts/dev-electron.sh",
     "dev:web": "bash scripts/dev-preview.sh",
+    "routes:generate": "tsr generate",
     "server": "tsx src/server/index.ts",
     "server:watch": "PORT=${PORT:-19675} tsx --watch src/server/index.ts",
     "build": "pnpm run vite:build && electron-forge make",
@@ -23,7 +25,7 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
-    "lint": "eslint src --max-warnings 0",
+    "lint": "eslint src src-electron tooling --max-warnings 0",
     "type-check": "tsc --noEmit",
     "cli": "tsx src/cli/index.ts"
   },
@@ -67,6 +69,7 @@
     "@electron-forge/maker-zip": "^7",
     "@electron-forge/plugin-vite": "^7",
     "@playwright/test": "^1.58.1",
+    "@tanstack/router-cli": "^1.166.2",
     "@tanstack/router-plugin": "^1.166.2",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16",
@@ -95,7 +98,9 @@
     },
     "onlyBuiltDependencies": [
       "electron",
-      "esbuild"
+      "esbuild",
+      "fs-xattr",
+      "macos-alias"
     ]
   },
   "engines": {

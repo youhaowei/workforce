@@ -13,11 +13,13 @@
  *   - CDP debug:   --remote-debugging-port (passed via CLI or auto-set in dev)
  */
 
-import { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, session, shell } from 'electron';
 import { execFileSync } from 'child_process';
 import { readFileSync } from 'fs';
 import path from 'path';
 import type { ServerType } from '@hono/node-server';
+import { buildRendererContentSecurityPolicy } from '@/shared/content-security-policy';
+import { parsePort } from '@/shared/port-utils';
 
 const isDev = !app.isPackaged;
 const appName = isDev ? 'Workforce Dev' : 'Workforce';
@@ -25,6 +27,8 @@ const appName = isDev ? 'Workforce Dev' : 'Workforce';
 let mainWindow: BrowserWindow | null = null;
 let server: ServerType | null = null;
 let serverPort: number | null = null;
+let isQuitting = false;
+let hasRegisteredCsp = false;
 
 // ── PATH Repair ──────────────────────────────────────────────────────────────
 // macOS GUI-launched apps get a stripped PATH. Repair by sourcing the login shell.
@@ -56,13 +60,6 @@ function repairPath() {
 const DEFAULT_PORT = 19675;
 const DEFAULT_VITE_PORT = 19676;
 
-/** Parse a port string, returning the default if invalid. */
-function parsePort(str: string | undefined, fallback: number): number {
-  if (!str) return fallback;
-  const n = parseInt(str, 10);
-  return Number.isNaN(n) ? fallback : n;
-}
-
 /** Discover Vite dev server port: env var > .vite-port file > default. */
 function discoverVitePort(): number {
   if (process.env.VITE_PORT) return parsePort(process.env.VITE_PORT, DEFAULT_VITE_PORT);
@@ -91,6 +88,36 @@ function discoverServerPort(): number {
 const iconPath = isDev
   ? path.join(app.getAppPath(), 'icon.iconset', 'icon_512x512@2x.png')
   : path.join(process.resourcesPath, 'icon.icns');
+
+function applyContentSecurityPolicy(activePort: number) {
+  if (hasRegisteredCsp) return;
+  hasRegisteredCsp = true;
+
+  const csp = buildRendererContentSecurityPolicy({
+    isDev,
+    rendererPort: activePort,
+    serverPort,
+  });
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    try {
+      const url = new URL(details.url);
+      if (url.hostname !== 'localhost') {
+        callback({ responseHeaders: details.responseHeaders });
+        return;
+      }
+
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [csp],
+        },
+      });
+    } catch {
+      callback({ responseHeaders: details.responseHeaders });
+    }
+  });
+}
 
 function updateWindowTitle() {
   if (!mainWindow) return;
@@ -124,6 +151,10 @@ function createWindow() {
 
   const vitePort = isDev ? discoverVitePort() : null;
   const activePort = isDev ? vitePort : serverPort;
+  if (!activePort) {
+    throw new Error('Renderer port was not resolved before window creation');
+  }
+  applyContentSecurityPolicy(activePort);
   win.loadURL(`http://localhost:${activePort}`);
 
   // Security: prevent navigation away from the app origin
@@ -147,6 +178,28 @@ function createWindow() {
   });
 
   return win;
+}
+
+async function closeServerWithTimeout(timeoutMs = 5_000): Promise<void> {
+  if (!server) return;
+
+  const closingServer = server;
+  server = null;
+
+  await Promise.race([
+    new Promise<void>((resolve, reject) => {
+      closingServer.close((error) => {
+        if (error) reject(error);
+        else resolve();
+      });
+    }),
+    new Promise<void>((resolve) => {
+      setTimeout(() => {
+        console.warn(`Server shutdown exceeded ${timeoutMs}ms, forcing app exit`);
+        resolve();
+      }, timeoutMs);
+    }),
+  ]);
 }
 
 // ── Menu ─────────────────────────────────────────────────────────────────────
@@ -285,9 +338,17 @@ app.on('window-all-closed', () => {
   app.quit();
 });
 
-app.on('will-quit', () => {
-  if (server) {
-    server.close();
-    server = null;
-  }
+app.on('before-quit', (event) => {
+  if (!server || isQuitting) return;
+
+  event.preventDefault();
+  isQuitting = true;
+
+  closeServerWithTimeout()
+    .catch((error) => {
+      console.warn('Server shutdown failed:', error);
+    })
+    .finally(() => {
+      app.exit(0);
+    });
 });
