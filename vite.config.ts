@@ -60,11 +60,9 @@ function vitePortFile(): Plugin {
     };
 }
 
-// Tauri injects TAURI_DEV_HOST for mobile dev; on desktop devUrl in tauri.conf.json
-// handles the connection. Vite's host config adapts for both.
-const host = process.env.TAURI_DEV_HOST;
-
 export default defineConfig(({command}) => ({
+    // Relative base for Electron file:// and server-served production builds
+    base: './',
     plugins: [
         TanStackRouterVite({
             routesDirectory: "./src/ui/routes",
@@ -88,17 +86,14 @@ export default defineConfig(({command}) => ({
     server: {
         port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)),
         strictPort: false,
-        host: host || false,
-        hmr: host ? {protocol: "ws", host, port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)) + 1} : undefined,
         watch: {
-            // Tell vite to ignore watching src-tauri
-            ignored: ["**/src-tauri/**"],
+            ignored: ["**/src-tauri/**", "**/src-electron/**"],
         },
     },
     define: {
         // Always inject VITE_API_PORT so the UI finds the API server.
         // Dev: read from .dev-port (written by server on startup) or fall back to default.
-        // Production build: bake in the default port (Tauri sidecar always uses this).
+        // Production build: bake in the default port (Electron in-process server uses this).
         "import.meta.env.VITE_API_PORT": JSON.stringify(
             process.env.VITE_API_PORT ||
             (command === "serve" ? discoverApiPort() : undefined) ||
