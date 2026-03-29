@@ -5,9 +5,9 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 
 const config: ForgeConfig = {
   packagerConfig: {
-    name: 'Workforce',
+    name: 'Workforce Dev',
     appBundleId: 'dev.workforce.app',
-    icon: 'src-tauri/icons/icon',
+    icon: 'src-electron/icons/icon',
     ignore: (file: string) => {
       if (!file) return false;
       // Include Forge Vite output, production UI build, and node_modules

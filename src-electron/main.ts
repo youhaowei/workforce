@@ -83,7 +83,7 @@ function discoverServerPort(): number {
 // ── Window ───────────────────────────────────────────────────────────────────
 
 const iconPath = isDev
-  ? path.join(app.getAppPath(), 'src-tauri', 'icons', 'icon.iconset', 'icon_512x512@2x.png')
+  ? path.join(app.getAppPath(), 'src-electron', 'icons', '128x128@2x.png')
   : path.join(process.resourcesPath, 'icon.icns');
 
 function createWindow() {
