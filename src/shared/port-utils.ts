@@ -2,8 +2,9 @@ import { createServer } from 'net';
 
 export function parsePort(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
+  if (!/^\d+$/.test(value)) return fallback;
   const parsed = Number.parseInt(value, 10);
-  return Number.isNaN(parsed) ? fallback : parsed;
+  return Number.isNaN(parsed) || parsed < 1 || parsed > 65535 ? fallback : parsed;
 }
 
 export function isPortAvailable(port: number): Promise<boolean> {

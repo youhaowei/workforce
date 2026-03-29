@@ -15,7 +15,7 @@ export interface CCSessionSummary {
   title: string;
   firstPrompt?: string;
   lastModified: number;
-  fileSize?: number;
+  fileSize: number;
   gitBranch?: string;
   cwd?: string;
   /** Full path to the CC JSONL file (resolved from sessionId + project dir) */
@@ -58,7 +58,7 @@ export async function discoverCCSessions(projectPath?: string): Promise<CCSessio
             || (s.gitBranch && s.gitBranch !== 'master' && s.gitBranch !== 'main' ? s.gitBranch : ''),
           firstPrompt: s.firstPrompt,
           lastModified: s.lastModified,
-          fileSize: s.fileSize,
+          fileSize: s.fileSize ?? 0,
           gitBranch: s.gitBranch,
           cwd,
           fullPath: slug
@@ -124,6 +124,7 @@ async function readSessionsIndex(projectDir: string): Promise<CCSessionSummary[]
       title: e.firstPrompt && e.firstPrompt !== 'No prompt' ? e.firstPrompt : 'Claude Code Session',
       firstPrompt: e.firstPrompt,
       lastModified: new Date(e.modified).getTime(),
+      fileSize: 0,
       gitBranch: e.gitBranch,
       fullPath: e.fullPath,
     }));

@@ -63,6 +63,7 @@ function vitePortFile(): Plugin {
 const host = process.env.DEV_HOST;
 
 export default defineConfig(({command}) => ({
+    base: "./",
     plugins: [
         TanStackRouterVite({
             routesDirectory: "./src/ui/routes",

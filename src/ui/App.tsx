@@ -32,6 +32,12 @@ import { SetupGate } from './components/SetupGate';
 function usePlatformDetection() {
   const [platformType] = useState<PlatformType>(detectPlatformType);
   const isDesktop = platformType === 'electron';
+  const isMacOS =
+    typeof navigator !== 'undefined'
+    && /^Mac/i.test(
+      (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform
+        ?? navigator.platform,
+    );
 
   useEffect(() => {
     if (typeof document === 'undefined') return;
@@ -48,7 +54,13 @@ function usePlatformDetection() {
     } else {
       delete el.dataset.electron;
     }
-  }, [isDesktop, platformType]);
+
+    if (isMacOS) {
+      el.dataset.macos = '';
+    } else {
+      delete el.dataset.macos;
+    }
+  }, [isDesktop, isMacOS, platformType]);
 
   return { isDesktop, platformType };
 }
@@ -73,7 +85,7 @@ export default function App({ router }: { router: Router<any, any, any, any> }) 
   // Block rendering until server port is resolved (critical for Electron where
   // port is dynamically assigned). Without this, tRPC links would be created
   // with the stale build-time port and first queries would hit the wrong server.
-  const [serverReady, setServerReady] = useState(false);
+  const [serverReady, setServerReady] = useState(() => platformType !== 'electron');
   const initRef = useRef<boolean>(false);
   useEffect(() => {
     if (initRef.current) return;

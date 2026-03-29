@@ -379,7 +379,7 @@ html[data-vibrancy-mismatch] body {
 }
 
 /* Electron: pad left for macOS traffic light buttons (hiddenInset titlebar) */
-html[data-electron] .shell-topbar {
+html[data-electron][data-macos] .shell-topbar {
     padding-left: 72px;
 }
 

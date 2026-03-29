@@ -23,7 +23,7 @@ is_port_free() {
 find_free_port() {
   local port=$1
   local max=$((port + 20))
-  while [ $port -lt $max ]; do
+  while [ "$port" -lt "$max" ]; do
     if is_port_free "$port"; then
       echo "$port"
       return
@@ -54,7 +54,7 @@ wait_for_file() {
   local attempts=${2:-100}
   local interval=${3:-0.1}
 
-  while [ $attempts -gt 0 ]; do
+  while [ "$attempts" -gt 0 ]; do
     if [ -s "$file" ]; then
       return 0
     fi

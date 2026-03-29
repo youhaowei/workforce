@@ -6,6 +6,8 @@ describe('parsePort', () => {
   it('returns the fallback when the value is missing or invalid', () => {
     expect(parsePort(undefined, 19675)).toBe(19675);
     expect(parsePort('not-a-port', 19675)).toBe(19675);
+    expect(parsePort('-1', 19675)).toBe(19675);
+    expect(parsePort('70000', 19675)).toBe(19675);
   });
 
   it('returns the parsed port for valid input', () => {

@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom/vitest';
+import { beforeEach } from 'vitest';
 
 class MemoryStorage implements Storage {
   private store = new Map<string, string>();
@@ -30,6 +31,11 @@ class MemoryStorage implements Storage {
 
 const localStorageMock = new MemoryStorage();
 const sessionStorageMock = new MemoryStorage();
+
+beforeEach(() => {
+  localStorageMock.clear();
+  sessionStorageMock.clear();
+});
 
 Object.defineProperty(globalThis, 'localStorage', {
   value: localStorageMock,

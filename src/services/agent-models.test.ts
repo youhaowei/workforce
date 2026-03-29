@@ -33,7 +33,8 @@ describe('agent-models', () => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
     rmSync(testDir, { recursive: true, force: true });
     delete process.env.ANTHROPIC_API_KEY;
   });
