@@ -180,7 +180,7 @@ function isPortAvailable(port: number): Promise<boolean> {
 
 const MAX_PORT_RETRIES = 10;
 
-export async function startServer(overrides?: {port?: number}): Promise<{port: number}> {
+export async function startServer(overrides?: {port?: number}): Promise<{port: number; server: import("http").Server}> {
     const basePort = overrides?.port ?? parseInt(process.env.PORT || String(DEFAULT_SERVER_PORT));
 
     // Find an available port starting from basePort
@@ -198,7 +198,7 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
         }
     }
 
-    serve({
+    const server = serve({
         fetch: app.fetch,
         port,
         hostname: "localhost",
@@ -230,7 +230,7 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
                 log.warn({ error: err instanceof Error ? err.message : String(err) }, "Model cache warm-up failed (will retry on demand)"),
         );
 
-    return {port};
+    return {port, server};
 }
 
 // Standalone mode (pnpm run server)

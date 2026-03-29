@@ -15,12 +15,14 @@ import { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, shell } from 'e
 import { execFileSync } from 'child_process';
 import { readFileSync } from 'fs';
 import path from 'path';
+import type { Server } from 'http';
 
 const isDev = !app.isPackaged;
 const appName = isDev ? 'Workforce Dev' : 'Workforce';
 
 let mainWindow: BrowserWindow | null = null;
 let serverPort: number | null = null;
+let serverHandle: Server | null = null;
 
 // ── PATH Repair ──────────────────────────────────────────────────────────────
 // macOS GUI-launched apps get a stripped PATH. Repair by sourcing the login shell.
@@ -233,6 +235,7 @@ app.whenReady().then(async () => {
       const { startServer } = await import('../src/server/index');
       const result = await startServer();
       serverPort = result.port;
+      serverHandle = result.server;
     } catch (err) {
       dialog.showErrorBox(
         'Server failed to start',
@@ -260,4 +263,24 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', () => {
   app.quit();
+});
+
+// Graceful shutdown: close server, wait up to 5s for connections to drain.
+const SHUTDOWN_TIMEOUT_MS = 5_000;
+
+app.on('will-quit', (event) => {
+  if (!serverHandle) return;
+
+  event.preventDefault();
+  const handle = serverHandle;
+  serverHandle = null;
+
+  handle.close(() => {
+    app.quit();
+  });
+
+  // Force quit after timeout if connections don't drain
+  setTimeout(() => {
+    app.quit();
+  }, SHUTDOWN_TIMEOUT_MS);
 });
