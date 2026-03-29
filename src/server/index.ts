@@ -72,7 +72,7 @@ app.use(
 // tRPC endpoint — all routers available at /api/trpc/*
 app.use("/api/trpc/*", trpcServer({router: appRouter}));
 
-// Health check — also polled by Tauri Rust process at startup
+// Health check — polled by Electron main process and SetupGate at startup
 app.get("/health", (c) => c.json({ok: true}));
 
 app.get("/debug-log", async (c) => {

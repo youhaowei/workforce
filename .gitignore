@@ -16,11 +16,7 @@ build/
 # Router (auto-generated)
 src/ui/routeTree.gen.ts
 
-# Tauri
-src-tauri/target/
-src-tauri/binaries/
-
-# Electron Forge (legacy)
+# Electron Forge
 out/
 .vite/
 

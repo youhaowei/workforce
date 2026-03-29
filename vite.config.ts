@@ -87,7 +87,7 @@ export default defineConfig(({command}) => ({
         port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)),
         strictPort: false,
         watch: {
-            ignored: ["**/src-tauri/**", "**/src-electron/**"],
+            ignored: ["**/src-electron/**"],
         },
     },
     define: {

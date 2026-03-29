@@ -5,29 +5,29 @@ Docs: `docs/` (high-level) + [Notion](https://www.notion.so/2ffd48ccaf5481d7bb33
 ## Commands
 
 ```bash
-bun install           # Install dependencies
-bun run test          # All unit tests (Vitest)
-bun run test -- src/services/session.test.ts  # Single test file
-bun run test:e2e      # Playwright E2E tests
-bun run lint          # Lint code
-bun run type-check    # TypeScript check
-bun run server        # Start backend server (port 19675)
-bun run server:watch  # Server with hot-reload
-bun run dev:web       # Start server + vite for web testing (port 19676)
-bun run clean         # Remove build artifacts (dist, out)
+pnpm setup            # Install deps + init submodules
+pnpm run test         # All unit tests (Vitest)
+pnpm run test -- src/services/session.test.ts  # Single test file
+pnpm run test:e2e     # Playwright E2E tests
+pnpm run lint         # Lint code
+pnpm run type-check   # TypeScript check
+pnpm run server       # Start backend server (port 19675)
+pnpm run server:watch # Server with hot-reload
+pnpm run dev:web      # Start server + vite for web testing (port 19676)
+pnpm run clean        # Remove build artifacts (dist, out, .vite)
 ```
 
 **ASK FIRST — never auto-run:**
 
 ```bash
-bun run dev   # Server + Tauri desktop app (dev loads from Vite :19676)
-bun run build # Tauri release build
+pnpm run dev   # Server + Electron desktop app (dev loads from Vite :19676)
+pnpm run build # Electron Forge production build (.app)
 ```
 
 ## Debugging Tools
 
-- **Visual/CSS** → agent-browser on dev server (localhost:19676) or Peekaboo (`peekaboo see --app Workforce`) for Tauri app
-- **Server state** → `bun run cli -- health check`, `session list --json`, `audit session <id>`
+- **Visual/CSS** → agent-browser on dev server (localhost:19676) or Peekaboo (`peekaboo see --app "Workforce Dev"`) for Electron app
+- **Server state** → `pnpm run cli -- health check`, `session list --json`, `audit session <id>`
 - **Server logs** → `curl http://localhost:19675/debug-log`
 - **Port issues** → `lsof -ti :19675 :19676`
 - **Reproduction escalation**: agent-browser → Peekaboo → console.log + ask user → Playwright E2E
@@ -39,7 +39,7 @@ bun run build # Tauri release build
 - `src/components/ui/` — Radix-based **primitives** (Button, Surface, Card, Dialog, etc.). Styled with CVA + token classes.
 - `src/ui/components/` — **Feature** components (Shell, Sessions, Theme, Messages, etc.). Compose primitives into app-specific UI.
 
-**Path alias**: `@/*` → `src/*` (synced in tsconfig.json + vite.config.ts)
+**Path alias**: `@/*` → `src/*` (synced in tsconfig.json + vite.shared.ts)
 
 ## Conventions
 
@@ -57,7 +57,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 - **Service/router** — `router.test.ts` via `createCaller()`, or service-level with factory functions + temp dirs
 - **UI** — React Testing Library + jsdom (`src/ui/**/*.test.tsx`)
-- **E2E** — Playwright (`bun run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
+- **E2E** — Playwright (`pnpm run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
 - **Bug reproduction** — Construct JSONL journal records and replay via `replaySession()`. More reliable than mocking UI state.
 - **Co-located tests** — `Foo.test.ts` next to `Foo.ts`, not in `__tests__/` directories
 - **Environments** — Node (default) for services/routers; `jsdom` for `src/ui/**/*.test.tsx` (auto-matched in vitest.config.ts)
@@ -77,8 +77,8 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 ### Architecture
 
-- **Tauri commands** — Keep `src/ui/` browser-safe. Native dialogs via `invoke('open_directory')`. Rust code in `src-tauri/`.
-- **`isDesktop` detection** — `!!window.__TAURI__` or `!!window.__TAURI_INTERNALS__`. Do not use port-based detection.
+- **Electron IPC** — Keep `src/ui/` browser-safe. Native dialogs via `window.electronAPI.openDirectory()`. Electron main process in `src-electron/`.
+- **`isDesktop` detection** — `!!window.electronAPI`. Do not use port-based detection.
 - **Singleflight for lazy init** — `this.initPromise ??= this.doInit()` prevents concurrent callers racing.
 - **SetupGate** — Wraps `Shell`, guarantees user identity + initialized org. `useRequiredOrgId()` throws if called outside.
 
@@ -94,7 +94,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **React 19 `useRef`** — Requires initial value: `useRef<T | undefined>(undefined)`, not `useRef<T>()`.
 - **`useState` + async queries** — `useState(() => fn(queryData))` captures `undefined` at first render. Use `useEffect` + ref guard instead.
 - **Markdown** — `marked` + `dompurify`. `stripMarkdown()` regexes must use word boundaries to avoid corrupting `foo_bar_baz` identifiers.
-- **Drag region overlay** — `index.html` has a z-40 fixed div covering `--topbar-height` for window dragging. Interactive elements (`button`, `input`, `a`, `[role="button"]`) auto-opt-out via `-webkit-app-region: no-drag`. Custom interactive elements in the topbar need `role="button"` or explicit `app-region: no-drag` to be clickable. The raw `<style>` tag in `index.html` is intentional — Lightning CSS strips `-webkit-app-region`.
+- **Drag region overlay** — `index.html` has a `<style>` tag defining `.titlebar-drag-region` with `-webkit-app-region: drag`. Interactive elements (`button`, `input`, `a`, `[role="button"]`) auto-opt-out via `-webkit-app-region: no-drag`. Custom interactive elements in the topbar need `role="button"` or explicit `app-region: no-drag` to be clickable. The raw `<style>` tag is intentional — Lightning CSS strips `-webkit-app-region`.
 
 ### Testing & Build
 
@@ -115,18 +115,29 @@ Both **unifai** and **tracey** are git submodules under `lib/`:
 - `lib/tracey` — Structured logging (pino-based). Imports as `"tracey"`.
 
 ```bash
-git submodule update --init          # After fresh clone
+pnpm setup                           # Full bootstrap (submodules + deps)
+git submodule update --init          # After fresh clone (manual)
 cd lib/tracey && bun install         # Install tracey's deps (pino, pino-pretty)
 ```
 
 **Branch-per-agent for submodule changes**: When modifying a submodule, create a branch (e.g., `agent/feat-redaction`). Commit on the branch, push, then merge to main. This prevents conflicts when multiple agents work on the same submodule in parallel. The parent repo's submodule pointer should always reference a merge commit on main.
 
-**Path resolution**: tsconfig `paths` + vite `resolve.alias` + vitest `resolve.alias` all map `"tracey"` → `lib/tracey/src` and `"unifai"` → `lib/unifai/src`.
+**Path resolution**: tsconfig `paths` + `vite.shared.ts` aliases all map `"tracey"` → `lib/tracey/src` and `"unifai"` → `lib/unifai/src`. Shared aliases are imported by all 4 Vite configs.
 
 ### Logging (tracey)
 
 - All logging via tracey (`createLogger(name)`). No `debugLog` — it's deleted.
 - API keys, tokens, passwords auto-redacted.
+
+### Electron (src-electron/)
+
+- **Main process**: `src-electron/main.ts` — window management, IPC handlers, port discovery, macOS vibrancy, graceful shutdown.
+- **Preload**: `src-electron/preload.ts` — context bridge exposing `window.electronAPI` (openDirectory, openExternal, getServerPort).
+- **Build config**: `forge.config.ts` — Electron Forge with Vite plugin. Makers: ZIP + DMG (macOS).
+- **Vite configs**: `vite.main.config.ts` (main process, CJS output), `vite.preload.config.ts` (preload, CJS output).
+- **Port discovery**: env var (`SERVER_PORT`) > `.dev-port` file > default 19675. `parsePort()` helper in `src-electron/port-utils.ts`.
+- **Dev workflow**: `pnpm run dev` starts Electron + loads Vite dev server. `pnpm run dev:web` for browser-only iteration.
+- **CDP debugging**: `--remote-debugging-port=9229` for DevTools Protocol access.
 
 ## Recipes
 
