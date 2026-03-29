@@ -47,7 +47,7 @@ export async function discoverCCSessions(projectPath?: string): Promise<CCSessio
     const ccProjectsDir = join(homedir(), '.claude', 'projects');
 
     return sdkSessions
-      .filter((s) => s.fileSize > 500) // skip near-empty sessions
+      .filter((s) => (s.fileSize ?? 0) > 500) // skip near-empty sessions
       .map((s) => {
         const cwd = s.cwd ?? projectPath;
         const slug = cwd ? projectPathToSlug(cwd) : '';

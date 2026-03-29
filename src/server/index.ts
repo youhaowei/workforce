@@ -1,6 +1,6 @@
 import {Hono} from "hono";
 import {cors} from "hono/cors";
-import {serve} from "@hono/node-server";
+import {serve, type ServerType} from "@hono/node-server";
 import {serveStatic} from "@hono/node-server/serve-static";
 import {existsSync, readFileSync, writeFileSync, unlinkSync} from "fs";
 import {createServer} from "net";
@@ -180,7 +180,7 @@ function isPortAvailable(port: number): Promise<boolean> {
 
 const MAX_PORT_RETRIES = 10;
 
-export async function startServer(overrides?: {port?: number}): Promise<{port: number; server: import("http").Server}> {
+export async function startServer(overrides?: {port?: number}): Promise<{port: number; server: ServerType}> {
     const basePort = overrides?.port ?? parseInt(process.env.PORT || String(DEFAULT_SERVER_PORT));
 
     // Find an available port starting from basePort

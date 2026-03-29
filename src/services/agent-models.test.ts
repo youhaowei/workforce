@@ -33,7 +33,11 @@ describe('agent-models', () => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // The ModelCache constructor fires a background disk write
+    // (writeDiskModelCache) that may still be in-flight when the test ends.
+    // Give it a tick to settle so rmSync doesn't race with mkdir/writeFile.
+    await new Promise((r) => setTimeout(r, 50));
     rmSync(testDir, { recursive: true, force: true });
     delete process.env.ANTHROPIC_API_KEY;
   });
