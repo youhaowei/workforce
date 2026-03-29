@@ -18,6 +18,7 @@ import { execFileSync } from 'child_process';
 import { readFileSync } from 'fs';
 import path from 'path';
 import type { ServerType } from '@hono/node-server';
+import { createLogger } from 'tracey';
 import { buildRendererContentSecurityPolicy } from '@/shared/content-security-policy';
 import { parsePort } from '@/shared/port-utils';
 import { DEFAULT_SERVER_PORT, DEFAULT_VITE_PORT } from '@/shared/ports';
@@ -25,6 +26,7 @@ import { applyPackagedServerRuntimeEnv } from '@/shared/runtime-env';
 
 const isDev = !app.isPackaged;
 const appName = isDev ? 'Workforce Dev' : 'Workforce';
+const log = createLogger('electron-main');
 
 let mainWindow: BrowserWindow | null = null;
 let server: ServerType | null = null;
@@ -53,7 +55,7 @@ function repairPath() {
       }
     }
   } catch (e) {
-    console.warn('repairPath failed:', e);
+    log.warn({ error: e }, 'repairPath failed');
   }
 }
 
@@ -169,7 +171,7 @@ function createWindow() {
   // Security: open external links in system browser, deny new windows
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://') || url.startsWith('https://')) {
-      shell.openExternal(url).catch((e) => console.warn('openExternal failed:', e));
+      shell.openExternal(url).catch((error) => log.warn({ error, url }, 'openExternal failed'));
     }
     return { action: 'deny' };
   });
@@ -194,7 +196,7 @@ async function closeServerWithTimeout(timeoutMs = 5_000): Promise<void> {
     }),
     new Promise<void>((resolve) => {
       timer = setTimeout(() => {
-        console.warn(`Server shutdown exceeded ${timeoutMs}ms, forcing app exit`);
+        log.warn({ timeoutMs }, 'Server shutdown exceeded timeout, forcing app exit');
         resolve();
       }, timeoutMs);
     }),
@@ -346,7 +348,7 @@ app.on('before-quit', (event) => {
 
   closeServerWithTimeout()
     .catch((error) => {
-      console.warn('Server shutdown failed:', error);
+      log.warn({ error }, 'Server shutdown failed');
     })
     .finally(() => {
       app.exit(0);

@@ -17,15 +17,18 @@ describe('parsePort', () => {
 
 describe('findAvailablePort', () => {
   it('skips occupied ports and returns the next free port', async () => {
-    const isAvailable = vi.fn(async (_port: number) => false);
-    isAvailable.mockResolvedValueOnce(false);
-    isAvailable.mockResolvedValueOnce(true);
+    const isAvailable = vi.fn().mockResolvedValue(false);
+    isAvailable.mockResolvedValueOnce(false); // port 19690: occupied
+    isAvailable.mockResolvedValueOnce(true);  // port 19691: available
 
-    const nextPort = await findAvailablePort(19690, 2, isAvailable);
+    const onRetry = vi.fn();
+    const nextPort = await findAvailablePort(19690, 2, isAvailable, onRetry);
 
     expect(nextPort).toBe(19691);
     expect(isAvailable).toHaveBeenNthCalledWith(1, 19690);
     expect(isAvailable).toHaveBeenNthCalledWith(2, 19691);
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(onRetry).toHaveBeenCalledWith(19690, 19691);
   });
 
   it('throws when every candidate port is occupied', async () => {

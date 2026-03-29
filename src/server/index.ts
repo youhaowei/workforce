@@ -170,21 +170,33 @@ function setupStaticServing() {
 setupStaticServing();
 
 const DEV_PORT_FILE = join(process.cwd(), ".dev-port");
-
 const MAX_PORT_RETRIES = 10;
+
+// Standalone mode (`pnpm run server`) — detected before startServer so both
+// the function body and the top-level call site can reference it.
+const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 
 export async function startServer(overrides?: {port?: number}): Promise<{port: number; server: ServerType}> {
     const basePort = overrides?.port ?? parseInt(process.env.PORT || String(DEFAULT_SERVER_PORT), 10);
-    const port = await findAvailablePort(basePort, MAX_PORT_RETRIES);
+    const port = await findAvailablePort(
+        basePort,
+        MAX_PORT_RETRIES,
+        undefined,
+        (tried, next) => log.info(`Port ${tried} in use, trying ${next}`),
+    );
 
-    const httpServer = serve({
-        fetch: app.fetch,
-        port,
-        hostname: "localhost",
-    }) as ServerType & {
-        keepAliveTimeout?: number;
-        headersTimeout?: number;
-    };
+    const httpServer = await new Promise<ServerType & { keepAliveTimeout?: number; headersTimeout?: number }>((resolve, reject) => {
+        const s = serve({
+            fetch: app.fetch,
+            port,
+            hostname: "localhost",
+        }) as ServerType & { keepAliveTimeout?: number; headersTimeout?: number };
+        s.once('error', reject);
+        s.once('listening', () => {
+            s.removeListener('error', reject);
+            resolve(s);
+        });
+    });
 
     // SSE connections are long-lived; allow up to 2 min idle (Node defaults to 5s)
     httpServer.keepAliveTimeout = 120_000;
@@ -219,6 +231,4 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
     return {port, server: httpServer};
 }
 
-// Standalone mode (`pnpm run server`)
-const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 if (isMainModule) startServer();

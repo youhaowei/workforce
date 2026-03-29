@@ -119,6 +119,10 @@ git submodule update --init --recursive  # After fresh clone
 pnpm install                             # Install workspace deps after submodules are present
 ```
 
+`pnpm install` is sufficient for workspace submodules like `lib/tracey`; do not
+run a separate package-manager install inside those submodules unless you are
+working on the submodule repo in isolation.
+
 **Branch-per-agent for submodule changes**: When modifying a submodule, create a branch (e.g., `agent/feat-redaction`). Commit on the branch, push, then merge to main. This prevents conflicts when multiple agents work on the same submodule in parallel. The parent repo's submodule pointer should always reference a merge commit on main.
 
 **Path resolution**: tsconfig `paths` + vite `resolve.alias` + vitest `resolve.alias` all map `"tracey"` → `lib/tracey/src` and `"unifai"` → `lib/unifai/src`.

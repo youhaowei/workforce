@@ -37,6 +37,8 @@ beforeEach(() => {
   sessionStorageMock.clear();
 });
 
+// In jsdom window === globalThis, so a single defineProperty covers both.
+// In Node (non-jsdom), window is undefined — globalThis alone is sufficient.
 Object.defineProperty(globalThis, 'localStorage', {
   value: localStorageMock,
   configurable: true,
@@ -46,15 +48,3 @@ Object.defineProperty(globalThis, 'sessionStorage', {
   value: sessionStorageMock,
   configurable: true,
 });
-
-if (typeof window !== 'undefined') {
-  Object.defineProperty(window, 'localStorage', {
-    value: localStorageMock,
-    configurable: true,
-  });
-
-  Object.defineProperty(window, 'sessionStorage', {
-    value: sessionStorageMock,
-    configurable: true,
-  });
-}

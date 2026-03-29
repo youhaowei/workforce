@@ -23,6 +23,8 @@ const config: ForgeConfig = {
       unpack: '{dist/**,node_modules/**/*.node}',
     },
   },
+  // Current release packaging targets macOS only. Add Windows/Linux makers if
+  // desktop distribution expands beyond darwin.
   makers: [
     new MakerZIP({}, ['darwin']),
     new MakerDMG({}),

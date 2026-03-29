@@ -13,9 +13,8 @@ import { RouterProvider } from '@tanstack/react-router';
 import type { Router } from '@tanstack/react-router';
 import { queryClient } from '@/bridge/query-client';
 import { TRPCProvider } from '@/bridge/react';
-import { trpc } from '@/bridge/trpc';
+import { refreshTrpcClient, trpc } from '@/bridge/trpc';
 import { initServerUrl } from '@/bridge/config';
-import { refreshTrpcClient } from '@/bridge/trpc';
 import {
   createPlatformActions,
   detectPlatformType,
@@ -43,23 +42,16 @@ function usePlatformDetection() {
     if (typeof document === 'undefined') return;
     const el = document.documentElement;
 
-    if (isDesktop) {
-      el.dataset.desktop = '';
-    } else {
-      delete el.dataset.desktop;
-    }
-
-    if (platformType === 'electron') {
-      el.dataset.electron = '';
-    } else {
-      delete el.dataset.electron;
-    }
-
-    if (isMacOS) {
-      el.dataset.macos = '';
-    } else {
-      delete el.dataset.macos;
-    }
+    // data-desktop and data-electron are currently equivalent (Electron is the
+    // only desktop runtime). Both are kept for CSS selectors that distinguish
+    // "any desktop" vs "specifically Electron".
+    const toggle = (attr: string, on: boolean) => {
+      if (on) el.dataset[attr] = '';
+      else delete el.dataset[attr];
+    };
+    toggle('desktop', isDesktop);
+    toggle('electron', platformType === 'electron');
+    toggle('macos', isMacOS);
   }, [isDesktop, isMacOS, platformType]);
 
   return { isDesktop, platformType };
@@ -86,13 +78,13 @@ export default function App({ router }: { router: Router<any, any, any, any> }) 
   // port is dynamically assigned). Without this, tRPC links would be created
   // with the stale build-time port and first queries would hit the wrong server.
   const [serverReady, setServerReady] = useState(() => platformType !== 'electron');
-  const initRef = useRef<boolean>(false);
+  const initRef = useRef(false);
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
-    initializeClientRuntime(initServerUrl, refreshTrpcClient).then(() => {
-      setServerReady(true);
-    });
+    initializeClientRuntime(initServerUrl, refreshTrpcClient)
+      .catch((err) => console.error('Client runtime init failed, proceeding with defaults:', err))
+      .finally(() => setServerReady(true));
   }, []);
 
   if (!serverReady) return null;

@@ -26,7 +26,7 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "lint": "eslint src src-electron tooling --max-warnings 0",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.src-electron.json",
     "cli": "tsx src/cli/index.ts"
   },
   "dependencies": {
@@ -95,13 +95,7 @@
   "pnpm": {
     "overrides": {
       "@openai/codex": "0.107.0"
-    },
-    "onlyBuiltDependencies": [
-      "electron",
-      "esbuild",
-      "fs-xattr",
-      "macos-alias"
-    ]
+    }
   },
   "engines": {
     "node": ">=20"

@@ -11,9 +11,9 @@ export function detectPlatformType(targetWindow: Window | undefined = globalThis
 export function createPlatformActions(
   isDesktop: boolean,
   platformType: PlatformType,
-  targetWindow?: Window,
+  targetWindow: Window | undefined = typeof window !== 'undefined' ? window : undefined,
 ): PlatformActions {
-  const api = targetWindow?.electronAPI ?? (typeof window !== 'undefined' ? window.electronAPI : undefined);
+  const api = targetWindow?.electronAPI;
 
   if (platformType === 'electron' && api) {
     return {
@@ -21,6 +21,7 @@ export function createPlatformActions(
       platformType,
       openDirectory: (startingFolder?: string) => api.openDirectory(startingFolder),
       onOpenUrl: (url: string) => {
+        // Keep the renderer browser-safe; tracey is Node-only today.
         api.openExternal(url).catch((error) => console.warn('openExternal failed:', error));
       },
     };
