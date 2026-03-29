@@ -11,7 +11,7 @@
  *   - CDP debug:   --remote-debugging-port (CLI flag)
  */
 
-import { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, session, shell } from 'electron';
 import { execFile } from 'child_process';
 import { readFileSync } from 'fs';
 import path from 'path';
@@ -36,6 +36,8 @@ function repairPath(): Promise<void> {
     const loginShell = process.env.SHELL || '/bin/zsh';
     execFile(loginShell, ['-lc', 'printf %s "$PATH"'], { encoding: 'utf-8' }, (err, stdout) => {
       if (err) {
+        // console.warn intentional — repairPath runs before server import, so tracey is
+        // not available in the main process at this point.
         console.warn('repairPath failed:', err);
         resolve();
         return;
@@ -125,6 +127,8 @@ function createWindow() {
   // Security: open external links in system browser, deny new windows
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://') || url.startsWith('https://')) {
+      // console.warn intentional — IPC handlers register before server import, so tracey
+      // is not available in the main process at this point.
       shell.openExternal(url).catch((e) => console.warn('openExternal failed:', e));
     }
     return { action: 'deny' };
@@ -217,6 +221,22 @@ function registerIpcHandlers() {
 app.whenReady().then(async () => {
   app.setName(appName);
 
+  // CSP — only enforce in production Electron. In dev mode, Vite injects inline HMR
+  // scripts that `script-src 'self'` would block. Web dev mode (pnpm run dev:web) is
+  // unaffected since this code only runs inside Electron.
+  if (!isDev) {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; connect-src 'self' http://localhost:* ws://localhost:*; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; script-src 'self'",
+          ],
+        },
+      });
+    });
+  }
+
   if (isDev) {
     const icon = nativeImage.createFromPath(iconPath);
     if (!icon.isEmpty()) app.dock?.setIcon(icon);
@@ -279,12 +299,13 @@ app.on('will-quit', (event) => {
   const handle = serverHandle;
   serverHandle = null;
 
-  handle.close(() => {
-    app.quit();
-  });
-
   // Force quit after timeout if connections don't drain
-  setTimeout(() => {
+  const timer = setTimeout(() => {
     app.quit();
   }, SHUTDOWN_TIMEOUT_MS);
+
+  handle.close(() => {
+    clearTimeout(timer);
+    app.quit();
+  });
 });

@@ -6,7 +6,7 @@
   "main": ".vite/build/main.cjs",
   "packageManager": "pnpm@10.28.2",
   "scripts": {
-    "setup": "git submodule update --init --recursive && cd lib/tracey && bun install && cd ../.. && pnpm install",
+    "setup": "git submodule update --init --recursive && pnpm install",
     "dev": "electron-forge start",
     "dev:web": "bash scripts/dev-preview.sh",
     "server": "tsx --tsconfig tsconfig.json src/server/index.ts",

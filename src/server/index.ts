@@ -9,7 +9,7 @@ import {join, dirname, resolve} from "path";
 import {fileURLToPath} from "url";
 import {createLogger, initTracey, getRecentLogs} from "tracey";
 import {getAgentService} from "@/services/agent";
-import {DEFAULT_SERVER_PORT} from "@/shared/ports";
+import {DEFAULT_SERVER_PORT, parsePort} from "@/shared/ports";
 import {getDataDir} from "@/services/data-dir";
 
 // initTracey is async (dynamic import for fs/path). Fire-and-forget at module load —
@@ -183,7 +183,7 @@ function isPortAvailable(port: number): Promise<boolean> {
 const MAX_PORT_RETRIES = 10;
 
 export async function startServer(overrides?: {port?: number}): Promise<{port: number; server: ServerType}> {
-    const basePort = overrides?.port ?? parseInt(process.env.PORT || String(DEFAULT_SERVER_PORT));
+    const basePort = overrides?.port ?? parsePort(process.env.PORT, DEFAULT_SERVER_PORT);
 
     // Find an available port starting from basePort
     let port = basePort;
@@ -205,6 +205,9 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
         port,
         hostname: "localhost",
     });
+    // @hono/node-server's ServerType is a union including Http2Server, but serve()
+    // actually returns an http.Server which has keepAliveTimeout.
+    (server as unknown as import("http").Server).keepAliveTimeout = 120_000; // 2min for SSE idle connections
 
     // Write actual port so vite can discover it
     if (isMainModule) {

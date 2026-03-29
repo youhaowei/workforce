@@ -117,7 +117,6 @@ Both **unifai** and **tracey** are git submodules under `lib/`:
 ```bash
 pnpm setup                           # Full bootstrap (submodules + deps)
 git submodule update --init          # After fresh clone (manual)
-cd lib/tracey && bun install         # Install tracey's deps (pino, pino-pretty)
 ```
 
 **Branch-per-agent for submodule changes**: When modifying a submodule, create a branch (e.g., `agent/feat-redaction`). Commit on the branch, push, then merge to main. This prevents conflicts when multiple agents work on the same submodule in parallel. The parent repo's submodule pointer should always reference a merge commit on main.
@@ -135,7 +134,7 @@ cd lib/tracey && bun install         # Install tracey's deps (pino, pino-pretty)
 - **Preload**: `src-electron/preload.ts` — context bridge exposing `window.electronAPI` (openDirectory, openExternal, getServerPort).
 - **Build config**: `forge.config.ts` — Electron Forge with Vite plugin. Makers: ZIP + DMG (macOS).
 - **Vite configs**: `vite.main.config.ts` (main process, CJS output), `vite.preload.config.ts` (preload, CJS output).
-- **Port discovery**: env var (`SERVER_PORT`) > `.dev-port` file > default 19675. `parsePort()` helper in `src-electron/port-utils.ts`.
+- **Port discovery**: env var (`SERVER_PORT`) > `.dev-port` file > default 19675. `parsePort()` helper in `src/shared/ports.ts`.
 - **Dev workflow**: `pnpm run dev` starts Electron + loads Vite dev server. `pnpm run dev:web` for browser-only iteration.
 - **CDP debugging**: Chromium flags must precede the app path. After Forge builds, launch directly: `node_modules/electron/dist/Electron.app/Contents/MacOS/Electron --remote-debugging-port=9229 .vite/build/main.cjs`. For browser-only debugging, use `pnpm run dev:web` + agent-browser on localhost:19676.
 

@@ -5,7 +5,7 @@ import { VitePlugin } from '@electron-forge/plugin-vite';
 
 const config: ForgeConfig = {
   packagerConfig: {
-    name: 'Workforce Dev',
+    name: 'Workforce',
     appBundleId: 'dev.workforce.app',
     icon: 'src-electron/icons/icon',
     ignore: (file: string) => {

@@ -45,4 +45,8 @@ describe('parsePort', () => {
   it('accepts port 65535', () => {
     expect(parsePort('65535', 19675)).toBe(65535);
   });
+
+  it('truncates fractional port via parseInt', () => {
+    expect(parsePort('19675.5', 0)).toBe(19675);
+  });
 });

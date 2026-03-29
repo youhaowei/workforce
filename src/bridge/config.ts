@@ -32,7 +32,7 @@ export async function initServerUrl(): Promise<void> {
   try {
     const port = await window.electronAPI!.getServerPort();
     if (port != null) resolvedPort = String(port);
-  } catch {
-    // Not critical — fall back to baked-in port
+  } catch (e) {
+    console.warn('initServerUrl failed, using default port:', e);
   }
 }
