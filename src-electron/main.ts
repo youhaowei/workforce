@@ -17,6 +17,9 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import type { Server } from 'http';
 
+// CDP debugging: use direct Electron invocation with --remote-debugging-port=9229
+// before the app path. Forge's electron-forge start doesn't support Chromium flags.
+
 const isDev = !app.isPackaged;
 const appName = isDev ? 'Workforce Dev' : 'Workforce';
 

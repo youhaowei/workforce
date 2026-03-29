@@ -137,7 +137,7 @@ cd lib/tracey && bun install         # Install tracey's deps (pino, pino-pretty)
 - **Vite configs**: `vite.main.config.ts` (main process, CJS output), `vite.preload.config.ts` (preload, CJS output).
 - **Port discovery**: env var (`SERVER_PORT`) > `.dev-port` file > default 19675. `parsePort()` helper in `src-electron/port-utils.ts`.
 - **Dev workflow**: `pnpm run dev` starts Electron + loads Vite dev server. `pnpm run dev:web` for browser-only iteration.
-- **CDP debugging**: `--remote-debugging-port=9229` for DevTools Protocol access.
+- **CDP debugging**: Chromium flags must precede the app path. After Forge builds, launch directly: `node_modules/electron/dist/Electron.app/Contents/MacOS/Electron --remote-debugging-port=9229 .vite/build/main.cjs`. For browser-only debugging, use `pnpm run dev:web` + agent-browser on localhost:19676.
 
 ## Recipes
 

@@ -12,7 +12,9 @@ import {getAgentService} from "@/services/agent";
 import {DEFAULT_SERVER_PORT} from "@/shared/ports";
 import {getDataDir} from "@/services/data-dir";
 
-await initTracey({
+// initTracey is async (dynamic import for fs/path). Fire-and-forget at module load —
+// the logger proxy in tracey handles calls before initialization completes.
+initTracey({
     file: {dir: join(getDataDir(), "logs"), prefix: "workforce", flushOnCrash: true},
     ringBuffer: 1000,
 });
