@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "High-performance desktop agentic orchestrator with Claude Code parity",
   "type": "module",
+  "main": ".vite/build/main.cjs",
   "packageManager": "pnpm@10.28.2",
   "scripts": {
     "setup": "git submodule update --init --recursive && cd lib/tracey && bun install && cd ../.. && pnpm install",
