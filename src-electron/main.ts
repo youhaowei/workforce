@@ -3,7 +3,7 @@
  *
  * Architecture:
  *   - Dev: renderer loads Vite dev server. API server runs externally via `pnpm run server:watch`.
- *   - Production: server starts in-process via dynamic import of server/index.
+ *   - Production: server starts in-process (bundled into main process by Vite).
  *
  * Ports:
  *   - API server:  19675+ (discovered via .dev-port file or env var)
@@ -227,10 +227,12 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
 
   // Dev: server runs externally via `pnpm run server:watch`.
-  // Production: start in-process.
+  // Production: start in-process. Dynamic import so server side effects
+  // (initTracey, getAgentService) only execute in production.
   if (!isDev) {
     try {
-      const { startServer } = await import('../src/server/index');
+      // Vite resolves this alias at build time and code-splits into a chunk
+      const { startServer } = await import('@/server/index');
       const result = await startServer();
       serverPort = result.port;
       serverHandle = result.server;
