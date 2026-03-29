@@ -6,13 +6,12 @@
   "packageManager": "pnpm@10.28.2",
   "scripts": {
     "setup": "git submodule update --init --recursive && cd lib/tracey && bun install && cd ../.. && pnpm install",
-    "dev": "tauri dev",
+    "dev": "electron-forge start",
     "dev:web": "bash scripts/dev-preview.sh",
     "server": "tsx --tsconfig tsconfig.json src/server/index.ts",
     "server:watch": "PORT=${PORT:-19675} tsx --watch --tsconfig tsconfig.json src/server/index.ts",
-    "build": "tauri build",
-    "release": "tauri build",
-    "clean": "rm -rf dist src-tauri/target",
+    "build": "electron-forge make",
+    "clean": "rm -rf dist out .vite",
     "vite": "vite",
     "vite:build": "vite build",
     "test": "vitest run",
@@ -25,8 +24,7 @@
     "test:event-bus": "vitest run src/shared/event-bus.test.ts",
     "lint": "eslint src --max-warnings 0",
     "type-check": "tsc --noEmit",
-    "cli": "tsx src/cli/index.ts",
-    "tauri": "tauri"
+    "cli": "tsx src/cli/index.ts"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.50",
