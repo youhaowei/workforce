@@ -2,22 +2,12 @@ import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { tmpdir } from 'os';
+import { sharedAliases } from './vite.shared';
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-      'tracey': path.resolve(__dirname, './lib/tracey/src'),
-      'unifai': path.resolve(__dirname, './lib/unifai/src'),
-      '@wystack/types': path.resolve(__dirname, './lib/wystack/packages/types/src'),
-      '@wystack/version': path.resolve(__dirname, './lib/wystack/packages/version/src'),
-      '@wystack/db': path.resolve(__dirname, './lib/wystack/packages/db/src'),
-      '@wystack/server': path.resolve(__dirname, './lib/wystack/packages/server/src'),
-      '@wystack/client': path.resolve(__dirname, './lib/wystack/packages/client/src'),
-      '@wystack/start': path.resolve(__dirname, './lib/wystack/packages/start/src'),
-      '@stdui/react': path.resolve(__dirname, './lib/stdui/packages/ui/src'),
-    },
+    alias: sharedAliases(__dirname),
   },
   test: {
     globals: true,
