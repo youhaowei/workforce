@@ -9,15 +9,10 @@
 import { createContext, useContext, type ReactNode } from 'react';
 
 export interface PlatformActions {
-  onOpenFile?: (path: string) => void;
   onOpenUrl?: (url: string) => void;
-  onCopyToClipboard?: (text: string) => Promise<void>;
-  onRevealInFinder?: (path: string) => void;
-  onMinimize?: () => void;
-  onMaximize?: () => void;
-  onClose?: () => void;
   openDirectory?: (startingFolder?: string) => Promise<string | null>;
   isDesktop?: boolean;
+  isMacOS?: boolean;
   platformType?: 'electron' | 'web';
 }
 

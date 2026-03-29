@@ -10,6 +10,7 @@ export function detectPlatformType(targetWindow: Window | undefined = globalThis
 
 export function createPlatformActions(
   isDesktop: boolean,
+  isMacOS: boolean,
   platformType: PlatformType,
   targetWindow: Window | undefined = typeof window !== 'undefined' ? window : undefined,
 ): PlatformActions {
@@ -18,6 +19,7 @@ export function createPlatformActions(
   if (platformType === 'electron' && api) {
     return {
       isDesktop,
+      isMacOS,
       platformType,
       openDirectory: (startingFolder?: string) => api.openDirectory(startingFolder),
       onOpenUrl: (url: string) => {
@@ -27,7 +29,7 @@ export function createPlatformActions(
     };
   }
 
-  return { isDesktop, platformType };
+  return { isDesktop, isMacOS, platformType };
 }
 
 export async function initializeClientRuntime(

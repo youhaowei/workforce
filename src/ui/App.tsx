@@ -54,7 +54,7 @@ function usePlatformDetection() {
     toggle('macos', isMacOS);
   }, [isDesktop, isMacOS, platformType]);
 
-  return { isDesktop, platformType };
+  return { isDesktop, isMacOS, platformType };
 }
 
 function AppInner({ router }: { router: Router<any, any, any, any> }) {
@@ -68,10 +68,10 @@ function AppInner({ router }: { router: Router<any, any, any, any> }) {
 }
 
 export default function App({ router }: { router: Router<any, any, any, any> }) {
-  const { isDesktop, platformType } = usePlatformDetection();
+  const { isDesktop, isMacOS, platformType } = usePlatformDetection();
   const platformActions = useMemo(
-    () => createPlatformActions(isDesktop, platformType),
-    [isDesktop, platformType],
+    () => createPlatformActions(isDesktop, isMacOS, platformType),
+    [isDesktop, isMacOS, platformType],
   );
 
   // Block rendering until server port is resolved (critical for Electron where

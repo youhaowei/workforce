@@ -60,10 +60,8 @@ export default function AppSidebar({
   onToggleSize,
 }: AppSidebarProps) {
   const isCollapsed = mode === "collapsed";
-  const { isDesktop } = usePlatform();
-  const isMacDesktop = isDesktop && typeof navigator !== "undefined"
-    ? /^Mac/i.test((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform)
-    : false;
+  const { isDesktop, isMacOS } = usePlatform();
+  const isMacDesktop = isDesktop && isMacOS;
   const topSpacerHeight = isDesktop ? "h-10" : "h-2";
 
   return (
@@ -182,9 +180,7 @@ export default function AppSidebar({
                 <TooltipContent side="right" sideOffset={8}>
                   <div className="flex flex-col gap-0.5">
                     <span className="font-medium">{import.meta.env.VITE_GIT_BRANCH}</span>
-                    {getServerPort() && (
-                      <span className="opacity-60">API :{getServerPort()}</span>
-                    )}
+                    <span className="opacity-60">API :{getServerPort()}</span>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -196,9 +192,7 @@ export default function AppSidebar({
                     {import.meta.env.VITE_GIT_BRANCH}
                   </span>
                 </div>
-                {getServerPort() && (
-                  <span className="text-[10px] opacity-50 pl-[18px]">API :{getServerPort()}</span>
-                )}
+                <span className="text-[10px] opacity-50 pl-[18px]">API :{getServerPort()}</span>
               </div>
             )}
           </div>

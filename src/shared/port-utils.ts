@@ -10,12 +10,8 @@ export function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
     const server = createServer();
 
-    server.once('error', (error: NodeJS.ErrnoException) => {
-      if (error.code === 'EACCES' || error.code === 'EPERM') {
-        resolve(false);
-        return;
-      }
-      resolve(false);
+    server.once('error', () => {
+      server.close(() => resolve(false));
     });
     server.listen(port, 'localhost', () => {
       server.close(() => resolve(true));

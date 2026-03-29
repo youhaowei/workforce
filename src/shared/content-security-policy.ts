@@ -16,9 +16,12 @@ export function buildRendererContentSecurityPolicy({
     ? "'self' 'unsafe-eval' 'unsafe-inline'"
     : "'self'";
 
+  // Deduplicate origins (rendererOrigin === apiOrigin in single-port production mode)
+  const origins = [...new Set([rendererOrigin, apiOrigin])];
+
   const connectSrc = isDev
-    ? `'self' ${rendererOrigin} ${apiOrigin} ws://localhost:* http://localhost:*`
-    : `'self' ${rendererOrigin} ${apiOrigin}`;
+    ? `'self' ${origins.join(' ')} ws://localhost:* http://localhost:*`
+    : `'self' ${origins.join(' ')}`;
 
   return [
     "default-src 'self'",
@@ -26,9 +29,10 @@ export function buildRendererContentSecurityPolicy({
     "style-src 'self' 'unsafe-inline'",
     isDev
       ? "img-src 'self' data: blob: http://localhost:*"
-      : `img-src 'self' data: blob: ${rendererOrigin} ${apiOrigin}`,
+      : `img-src 'self' data: blob: ${origins.join(' ')}`,
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
+    "form-action 'self'",
     "object-src 'none'",
     "base-uri 'self'",
     "frame-ancestors 'none'",

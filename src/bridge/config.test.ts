@@ -38,6 +38,7 @@ describe('bridge/config', () => {
     await config.initServerUrl();
 
     expect(config.getServerPort()).toBe('19777');
+    expect(config.getServerUrl()).toBe('http://localhost:19777');
     expect(config.getTrpcUrl()).toBe('http://localhost:19777/api/trpc');
   });
 
@@ -68,5 +69,14 @@ describe('bridge/config', () => {
 
     expect(config.getServerPort()).toBe('19675');
     expect(warnSpy).toHaveBeenCalledOnce();
+  });
+
+  it('is a no-op when window exists but electronAPI is absent (web browser)', async () => {
+    globalThis.window = {} as Window & typeof globalThis;
+
+    const config = await loadConfigModule();
+    await config.initServerUrl();
+
+    expect(config.getServerPort()).toBe('19675');
   });
 });

@@ -38,9 +38,11 @@ describe('buildRendererContentSecurityPolicy', () => {
     const parsed = parseCsp(csp);
 
     expect(parsed['script-src']).toEqual(["'self'"]);
+    expect(parsed['style-src']).toContain("'unsafe-inline'");
     expect(parsed['connect-src']).toContain('http://localhost:19676');
     expect(parsed['connect-src']).toContain('http://localhost:19675');
     expect(parsed['connect-src']).not.toContain('ws://localhost:*');
+    expect(parsed['form-action']).toEqual(["'self'"]);
     // Production img-src scoped to known origins, not wildcard
     expect(parsed['img-src']).not.toContain('http://localhost:*');
     expect(parsed['img-src']).toContain('http://localhost:19676');
@@ -67,9 +69,9 @@ describe('buildRendererContentSecurityPolicy', () => {
     });
     const parsed = parseCsp(csp);
 
-    // Should not have duplicate origins
+    // Origins should be deduplicated — only one instance of the shared origin
     const origins = parsed['connect-src'].filter((v) => v === 'http://localhost:19675');
-    expect(origins.length).toBeLessThanOrEqual(2); // 'self' + up to 2 from renderer+api
+    expect(origins).toHaveLength(1);
   });
 
   it('includes all security-hardening directives', () => {
