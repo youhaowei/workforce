@@ -226,7 +226,7 @@ function applySurfaceOverrides(
 
     style.setProperty("--shell-bg", buildShellBg(tintStyle, start, mid, end));
 
-    // Semi-transparent version for Tauri vibrancy (same geometry as shell bg).
+    // Semi-transparent version for desktop vibrancy (same geometry as shell bg).
     const vibrancyAlpha = isDark ? 0.2 : 0.24;
     const vStart = formatOklch(startL, baseC, baseH, vibrancyAlpha);
     const vMid = formatOklch(midL, baseC, baseH, vibrancyAlpha);

@@ -2,7 +2,7 @@ import { resolve } from 'path';
 
 /**
  * Shared Vite resolve aliases — imported by vite.config.ts, vitest.config.ts,
- * vite.main.config.ts, and vite.preload.config.ts to prevent drift.
+ * and vite.main.config.ts to prevent drift.
  *
  * Must stay in sync with tsconfig.json "paths".
  */

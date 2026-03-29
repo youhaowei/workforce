@@ -54,7 +54,7 @@ function createPlatformActions(isDesktop: boolean, isElectron: boolean): Platfor
       : undefined,
     onOpenUrl: isElectron
       ? (url: string) => {
-          window.electronAPI!.openExternal(url);
+          window.electronAPI!.openExternal(url).catch(console.error);
         }
       : undefined,
   };

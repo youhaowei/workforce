@@ -16,7 +16,7 @@ export default defineConfig({
       // Redirect service writes to temp dir so tests don't touch ~/.workforce
       WORKFORCE_DATA_DIR: path.join(tmpdir(), `workforce-test-${process.pid}`),
     },
-    include: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src-electron/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     environmentMatchGlobs: [
       ['src/ui/**/*.test.tsx', 'jsdom'],
     ],

@@ -12,10 +12,10 @@
  */
 
 import { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, shell } from 'electron';
-import { execFileSync } from 'child_process';
+import { execFile } from 'child_process';
 import { readFileSync } from 'fs';
 import path from 'path';
-import type { Server } from 'http';
+import type { ServerType } from '@hono/node-server';
 
 // CDP debugging: use direct Electron invocation with --remote-debugging-port=9229
 // before the app path. Forge's electron-forge start doesn't support Chromium flags.
@@ -25,57 +25,58 @@ const appName = isDev ? 'Workforce Dev' : 'Workforce';
 
 let mainWindow: BrowserWindow | null = null;
 let serverPort: number | null = null;
-let serverHandle: Server | null = null;
+let serverHandle: ServerType | null = null;
 
 // ── PATH Repair ──────────────────────────────────────────────────────────────
 // macOS GUI-launched apps get a stripped PATH. Repair by sourcing the login shell.
 
-function repairPath() {
-  if (isDev) return;
-  try {
+function repairPath(): Promise<void> {
+  if (isDev) return Promise.resolve();
+  return new Promise<void>((resolve) => {
     const loginShell = process.env.SHELL || '/bin/zsh';
-    const shellPath = execFileSync(loginShell, ['-lc', 'printf %s "$PATH"'], {
-      encoding: 'utf-8',
-    }).trim();
-    if (shellPath) {
-      const existing = new Set((process.env.PATH || '').split(':'));
-      const extra = shellPath.split(':').filter((p) => p && !existing.has(p));
-      if (extra.length) {
-        process.env.PATH = `${process.env.PATH || ''}:${extra.join(':')}`;
+    execFile(loginShell, ['-lc', 'printf %s "$PATH"'], { encoding: 'utf-8' }, (err, stdout) => {
+      if (err) {
+        console.warn('repairPath failed:', err);
+        resolve();
+        return;
       }
-    }
-  } catch (e) {
-    console.warn('repairPath failed:', e);
-  }
+      const shellPath = stdout.trim();
+      if (shellPath) {
+        const existing = new Set((process.env.PATH || '').split(':'));
+        const extra = shellPath.split(':').filter((p) => p && !existing.has(p));
+        if (extra.length) {
+          process.env.PATH = `${process.env.PATH || ''}:${extra.join(':')}`;
+        }
+      }
+      resolve();
+    });
+  });
 }
 
 // ── Port Discovery ───────────────────────────────────────────────────────────
 
-const DEFAULT_PORT = 19675;
-const DEFAULT_VITE_PORT = 19676;
+import { DEFAULT_SERVER_PORT, DEFAULT_VITE_PORT, parsePort } from '@/shared/ports';
 
-import { parsePort } from './port-utils';
+/** Discover a port: env var > dot-file > fallback. */
+function discoverPort(envVar: string, fileName: string, fallback: number): number {
+  const envVal = process.env[envVar];
+  if (envVal) return parsePort(envVal, fallback);
+  try {
+    const portStr = readFileSync(path.join(app.getAppPath(), fileName), 'utf-8').trim();
+    return parsePort(portStr, fallback);
+  } catch {
+    return fallback;
+  }
+}
 
 /** Discover Vite dev server port: env var > .vite-port file > default. */
 function discoverVitePort(): number {
-  if (process.env.VITE_PORT) return parsePort(process.env.VITE_PORT, DEFAULT_VITE_PORT);
-  try {
-    const portStr = readFileSync(path.join(app.getAppPath(), '.vite-port'), 'utf-8').trim();
-    return parsePort(portStr, DEFAULT_VITE_PORT);
-  } catch {
-    return DEFAULT_VITE_PORT;
-  }
+  return discoverPort('VITE_PORT', '.vite-port', DEFAULT_VITE_PORT);
 }
 
 /** Discover API server port: env var > .dev-port file > default. */
 function discoverServerPort(): number {
-  if (process.env.SERVER_PORT) return parsePort(process.env.SERVER_PORT, DEFAULT_PORT);
-  try {
-    const portStr = readFileSync(path.join(app.getAppPath(), '.dev-port'), 'utf-8').trim();
-    return parsePort(portStr, DEFAULT_PORT);
-  } catch {
-    return DEFAULT_PORT;
-  }
+  return discoverPort('SERVER_PORT', '.dev-port', DEFAULT_SERVER_PORT);
 }
 
 // ── Window ───────────────────────────────────────────────────────────────────
@@ -222,14 +223,17 @@ app.whenReady().then(async () => {
     app.dock?.setBadge('DEV');
   }
 
-  repairPath();
   buildMenu();
   registerIpcHandlers();
 
   // Dev: server runs externally via `pnpm run server:watch`.
   // Production: start in-process. Dynamic import so server side effects
   // (initTracey, getAgentService) only execute in production.
+  // repairPath runs async so the window appears instantly; await before starting
+  // the in-process server so PATH is ready for child processes.
+  const pathReady = repairPath();
   if (!isDev) {
+    await pathReady;
     try {
       // Vite resolves this alias at build time and code-splits into a chunk
       const { startServer } = await import('@/server/index');

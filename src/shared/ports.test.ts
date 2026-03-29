@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parsePort } from './port-utils';
+import { parsePort } from '@/shared/ports';
 
 describe('parsePort', () => {
   it('returns fallback for undefined input', () => {
@@ -26,8 +26,23 @@ describe('parsePort', () => {
     expect(parsePort('0080', 19675)).toBe(80);
   });
 
-  it('handles negative port numbers', () => {
-    // parseInt will parse -1, which is technically a valid number
-    expect(parsePort('-1', 19675)).toBe(-1);
+  it('returns fallback for negative port numbers', () => {
+    expect(parsePort('-1', 19675)).toBe(19675);
+  });
+
+  it('returns fallback for port above 65535', () => {
+    expect(parsePort('70000', 19675)).toBe(19675);
+  });
+
+  it('returns fallback for port 0', () => {
+    expect(parsePort('0', 19675)).toBe(19675);
+  });
+
+  it('accepts port 1', () => {
+    expect(parsePort('1', 19675)).toBe(1);
+  });
+
+  it('accepts port 65535', () => {
+    expect(parsePort('65535', 19675)).toBe(65535);
   });
 });

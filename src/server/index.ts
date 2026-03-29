@@ -5,7 +5,7 @@ import {serveStatic} from "@hono/node-server/serve-static";
 import {existsSync, readFileSync, writeFileSync, unlinkSync} from "fs";
 import {createServer} from "net";
 import {homedir} from "os";
-import {join, dirname, resolve, relative} from "path";
+import {join, dirname, resolve} from "path";
 import {fileURLToPath} from "url";
 import {createLogger, initTracey, getRecentLogs} from "tracey";
 import {getAgentService} from "@/services/agent";
@@ -156,9 +156,9 @@ app.get("/auth-check", async (c) => {
 const distCandidates = [join(__dirname, "../dist"), join(__dirname, "../../dist")];
 const distPath = distCandidates.find((p) => existsSync(p));
 if (distPath) {
-    // @hono/node-server serveStatic root is relative to CWD, so use relative path
-    const relDistPath = relative(process.cwd(), distPath);
-    app.use("*", serveStatic({root: relDistPath}));
+    // @hono/node-server serveStatic joins root + request path via path.join(),
+    // so an absolute root works correctly regardless of CWD.
+    app.use("*", serveStatic({root: distPath}));
     // SPA fallback: serve index.html for non-API paths that don't match a static file
     const indexPath = join(distPath, "index.html");
     if (existsSync(indexPath)) {

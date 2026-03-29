@@ -1,3 +1,4 @@
+import { beforeEach } from 'vitest';
 import '@testing-library/jest-dom/vitest';
 
 // Node 22+ exposes a stub `globalThis.localStorage` that has no methods
@@ -17,3 +18,6 @@ if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localSto
     key: (index: number) => [...store.keys()][index] ?? null,
   } as Storage;
 }
+
+// Reset localStorage between tests to prevent state leakage.
+beforeEach(() => localStorage.clear());

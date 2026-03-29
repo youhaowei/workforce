@@ -81,7 +81,7 @@ export default defineConfig(({command}) => ({
     resolve: {
         alias: sharedAliases(__dirname),
     },
-    // Prevent vite from obscuring Rust errors
+    // Prevent Vite from clearing terminal output
     clearScreen: false,
     server: {
         port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)),
