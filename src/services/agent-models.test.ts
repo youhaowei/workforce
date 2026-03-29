@@ -34,7 +34,9 @@ describe('agent-models', () => {
   });
 
   afterEach(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // ModelCache/writeDiskModelCache persist in the background; give the file
+    // write a little time to settle before removing the temp directory.
+    await new Promise((resolve) => setTimeout(resolve, 200));
     rmSync(testDir, { recursive: true, force: true });
     delete process.env.ANTHROPIC_API_KEY;
   });

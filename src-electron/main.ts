@@ -51,7 +51,9 @@ function repairPath() {
       const existing = new Set((process.env.PATH || '').split(':'));
       const extra = shellPath.split(':').filter((p) => p && !existing.has(p));
       if (extra.length) {
-        process.env.PATH = `${process.env.PATH || ''}:${extra.join(':')}`;
+        process.env.PATH = process.env.PATH
+          ? `${process.env.PATH}:${extra.join(':')}`
+          : extra.join(':');
       }
     }
   } catch (e) {
@@ -170,9 +172,12 @@ function createWindow() {
 
   // Security: open external links in system browser, deny new windows
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      shell.openExternal(url).catch((error) => log.warn({ error, url }, 'openExternal failed'));
-    }
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        shell.openExternal(parsed.href).catch((error) => log.warn({ error, url }, 'openExternal failed'));
+      }
+    } catch { /* invalid URL, ignore */ }
     return { action: 'deny' };
   });
 
@@ -186,21 +191,22 @@ async function closeServerWithTimeout(timeoutMs = 5_000): Promise<void> {
   server = null;
 
   let timer: ReturnType<typeof setTimeout>;
-  await Promise.race([
-    new Promise<void>((resolve, reject) => {
-      closingServer.close((error) => {
-        clearTimeout(timer);
-        if (error) reject(error);
-        else resolve();
-      });
-    }),
-    new Promise<void>((resolve) => {
-      timer = setTimeout(() => {
-        log.warn({ timeoutMs }, 'Server shutdown exceeded timeout, forcing app exit');
-        resolve();
-      }, timeoutMs);
-    }),
-  ]);
+  const closePromise = new Promise<void>((resolve, reject) => {
+    closingServer.close((error) => {
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+  const timeoutPromise = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      log.warn({ timeoutMs }, 'Server shutdown exceeded timeout, forcing app exit');
+      resolve();
+    }, timeoutMs);
+  });
+  // Prevent unhandled rejection if close callback errors after timeout wins the race
+  closePromise.catch((err) => log.warn({ error: err }, 'Server close error after timeout'));
+  await Promise.race([closePromise, timeoutPromise]);
 }
 
 // ── Menu ─────────────────────────────────────────────────────────────────────
@@ -278,7 +284,7 @@ function registerIpcHandlers() {
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
       throw new Error(`Blocked open-external for scheme: ${parsed.protocol}`);
     }
-    await shell.openExternal(url);
+    await shell.openExternal(parsed.href);
   });
 
   // Port discovery — renderer queries this to find the API server
@@ -299,6 +305,11 @@ app.whenReady().then(async () => {
   repairPath();
   buildMenu();
   registerIpcHandlers();
+
+  // Deny all permission requests (camera, mic, geolocation, etc.) by default.
+  // The app loads http://localhost content — any XSS could silently request these.
+  session.defaultSession.setPermissionRequestHandler((_wc, _perm, callback) => callback(false));
+  session.defaultSession.setPermissionCheckHandler(() => false);
 
   // In dev, server runs externally via `pnpm run server:watch`.
   // In production, start it in-process.
@@ -337,7 +348,9 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
-  app.quit();
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
 });
 
 app.on('before-quit', (event) => {

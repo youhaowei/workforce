@@ -35,6 +35,9 @@ const config: ForgeConfig = {
         { entry: 'src-electron/main.ts', config: 'vite.main.config.ts' },
         { entry: 'src-electron/preload.ts', config: 'vite.preload.config.ts' },
       ],
+      // Renderer dev is intentionally external: scripts/dev-electron.sh starts
+      // the backend watch process and Vite dev server, then launches Electron
+      // after `.dev-port`/`.vite-port` discovery has settled.
       renderer: [],
     }),
   ],

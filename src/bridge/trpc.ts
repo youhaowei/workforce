@@ -47,10 +47,6 @@ export function refreshTrpcClient(): void {
  * Uses splitLink to route:
  *  - subscriptions → httpSubscriptionLink (SSE)
  *  - everything else → httpBatchLink (batched HTTP)
- *
- * URL is resolved once at module load from getTrpcUrl(). In Electron, App.tsx calls
- * initServerUrl() on mount to update resolvedPort; the health-check polling in
- * SetupGate uses getServerUrl() dynamically so it always hits the correct port.
  */
 export const trpc = new Proxy({} as TrpcClient, {
   get(_target, prop) {
