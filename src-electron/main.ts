@@ -51,12 +51,7 @@ function repairPath() {
 const DEFAULT_PORT = 19675;
 const DEFAULT_VITE_PORT = 19676;
 
-/** Parse a port string, returning the default if invalid. */
-export function parsePort(str: string | undefined, fallback: number): number {
-  if (!str) return fallback;
-  const n = parseInt(str, 10);
-  return Number.isNaN(n) ? fallback : n;
-}
+import { parsePort } from './port-utils';
 
 /** Discover Vite dev server port: env var > .vite-port file > default. */
 function discoverVitePort(): number {
