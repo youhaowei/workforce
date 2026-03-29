@@ -20,6 +20,8 @@ import path from 'path';
 import type { ServerType } from '@hono/node-server';
 import { buildRendererContentSecurityPolicy } from '@/shared/content-security-policy';
 import { parsePort } from '@/shared/port-utils';
+import { DEFAULT_SERVER_PORT, DEFAULT_VITE_PORT } from '@/shared/ports';
+import { applyPackagedServerRuntimeEnv } from '@/shared/runtime-env';
 
 const isDev = !app.isPackaged;
 const appName = isDev ? 'Workforce Dev' : 'Workforce';
@@ -40,6 +42,7 @@ function repairPath() {
     const loginShell = process.env.SHELL || '/bin/zsh';
     const shellPath = execFileSync(loginShell, ['-lc', 'printf %s "$PATH"'], {
       encoding: 'utf-8',
+      timeout: 3_000,
     }).trim();
     if (shellPath) {
       // Append login-shell entries not already present (don't shadow bundled tools)
@@ -56,30 +59,24 @@ function repairPath() {
 
 // ── Dev Port Discovery ───────────────────────────────────────────────────────
 
-// Keep in sync with src/shared/ports.ts (can't import — src-electron excluded from main tsconfig)
-const DEFAULT_PORT = 19675;
-const DEFAULT_VITE_PORT = 19676;
-
-/** Discover Vite dev server port: env var > .vite-port file > default. */
-function discoverVitePort(): number {
-  if (process.env.VITE_PORT) return parsePort(process.env.VITE_PORT, DEFAULT_VITE_PORT);
+/** Read a port from: env var > dot-file in app root > fallback. */
+function discoverPort(envVar: string, dotFile: string, fallback: number): number {
+  const envValue = process.env[envVar];
+  if (envValue) return parsePort(envValue, fallback);
   try {
-    const portStr = readFileSync(path.join(app.getAppPath(), '.vite-port'), 'utf-8').trim();
-    return parsePort(portStr, DEFAULT_VITE_PORT);
+    const portStr = readFileSync(path.join(app.getAppPath(), dotFile), 'utf-8').trim();
+    return parsePort(portStr, fallback);
   } catch {
-    return DEFAULT_VITE_PORT;
+    return fallback;
   }
 }
 
-/** Discover API server port: env var > .dev-port file > default. Both use app root. */
+function discoverVitePort(): number {
+  return discoverPort('VITE_PORT', '.vite-port', DEFAULT_VITE_PORT);
+}
+
 function discoverServerPort(): number {
-  if (process.env.SERVER_PORT) return parsePort(process.env.SERVER_PORT, DEFAULT_PORT);
-  try {
-    const portStr = readFileSync(path.join(app.getAppPath(), '.dev-port'), 'utf-8').trim();
-    return parsePort(portStr, DEFAULT_PORT);
-  } catch {
-    return DEFAULT_PORT;
-  }
+  return discoverPort('SERVER_PORT', '.dev-port', DEFAULT_SERVER_PORT);
 }
 
 // ── Window ───────────────────────────────────────────────────────────────────
@@ -162,7 +159,7 @@ function createWindow() {
   win.webContents.on('will-navigate', (event, url) => {
     try {
       const parsed = new URL(url);
-      const allowed = parsed.hostname === 'localhost' && parsed.port === allowedPort;
+      const allowed = parsed.protocol === 'http:' && parsed.hostname === 'localhost' && parsed.port === allowedPort;
       if (!allowed) event.preventDefault();
     } catch {
       event.preventDefault();
@@ -186,15 +183,17 @@ async function closeServerWithTimeout(timeoutMs = 5_000): Promise<void> {
   const closingServer = server;
   server = null;
 
+  let timer: ReturnType<typeof setTimeout>;
   await Promise.race([
     new Promise<void>((resolve, reject) => {
       closingServer.close((error) => {
+        clearTimeout(timer);
         if (error) reject(error);
         else resolve();
       });
     }),
     new Promise<void>((resolve) => {
-      setTimeout(() => {
+      timer = setTimeout(() => {
         console.warn(`Server shutdown exceeded ${timeoutMs}ms, forcing app exit`);
         resolve();
       }, timeoutMs);
@@ -303,6 +302,7 @@ app.whenReady().then(async () => {
   // In production, start it in-process.
   if (!isDev) {
     try {
+      applyPackagedServerRuntimeEnv(app.isPackaged);
       const { startServer } = await import('../src/server/index');
       const result = await startServer();
       server = result.server;
