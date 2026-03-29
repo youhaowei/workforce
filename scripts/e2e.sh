@@ -7,23 +7,23 @@ echo "================"
 case "${1:-run}" in
   run)
     echo "Running all E2E tests..."
-    bunx playwright test
+    pnpm exec playwright test
     ;;
   ui)
     echo "Opening Playwright UI..."
-    bunx playwright test --ui
+    pnpm exec playwright test --ui
     ;;
   headed)
     echo "Running tests in headed mode..."
-    bunx playwright test --headed
+    pnpm exec playwright test --headed
     ;;
   debug)
     echo "Running tests in debug mode..."
-    bunx playwright test --debug
+    pnpm exec playwright test --debug
     ;;
   report)
     echo "Opening last test report..."
-    bunx playwright show-report
+    pnpm exec playwright show-report
     ;;
   *)
     echo "Usage: ./scripts/e2e.sh [command]"

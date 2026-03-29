@@ -55,6 +55,6 @@ fi
 export VITE_API_PORT=$SERVER_PORT
 
 echo "[dev] Server :$SERVER_PORT  Vite :$VITE_PORT"
-PORT=$SERVER_PORT bun --tsconfig-override tsconfig.json --watch src/server/index.ts &
-bun run vite
+PORT=$SERVER_PORT pnpm tsx --watch --tsconfig tsconfig.json src/server/index.ts &
+pnpm vite
 wait

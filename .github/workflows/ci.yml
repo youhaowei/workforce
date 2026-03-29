@@ -12,26 +12,29 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
-            - uses: oven-sh/setup-bun@v2
+            - uses: pnpm/action-setup@v4
+
+            - uses: actions/setup-node@v4
               with:
-                  bun-version: latest
+                  node-version: 22
+                  cache: pnpm
 
             # SSH→HTTPS rewrite for public submodules, then shared setup script
             - name: Setup
               run: |
                   git config --global url."https://github.com/".insteadOf "git@github.com:"
                   git submodule update --init --recursive --depth=1
-                  bun install
+                  pnpm install
 
             # TanStack Router route tree (needed for type-check)
             - name: Generate route tree
-              run: bunx @tanstack/router-cli generate
+              run: pnpm dlx @tanstack/router-cli generate
 
             - name: Type check
-              run: bun run type-check
+              run: pnpm run type-check
 
             - name: Lint
-              run: bun run lint
+              run: pnpm run lint
 
             - name: Unit tests
-              run: bun run test
+              run: pnpm run test

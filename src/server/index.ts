@@ -1,10 +1,11 @@
 import {Hono} from "hono";
 import {cors} from "hono/cors";
-import {serveStatic} from "hono/bun";
+import {serve} from "@hono/node-server";
+import {serveStatic} from "@hono/node-server/serve-static";
 import {existsSync, readFileSync, writeFileSync, unlinkSync} from "fs";
 import {createServer} from "net";
 import {homedir} from "os";
-import {join, dirname, resolve} from "path";
+import {join, dirname, resolve, relative} from "path";
 import {fileURLToPath} from "url";
 import {createLogger, initTracey, getRecentLogs} from "tracey";
 import {getAgentService} from "@/services/agent";
@@ -149,11 +150,13 @@ app.get("/auth-check", async (c) => {
 });
 
 // Serve Vite build output in production (same-origin, no CORS needed).
-// In dev standalone or Tauri sidecar: __dirname = <project>/src/server/ → ../../dist
+// __dirname = <project>/src/server/ → ../../dist
 const distCandidates = [join(__dirname, "../dist"), join(__dirname, "../../dist")];
 const distPath = distCandidates.find((p) => existsSync(p));
 if (distPath) {
-    app.use("*", serveStatic({root: distPath}));
+    // @hono/node-server serveStatic root is relative to CWD, so use relative path
+    const relDistPath = relative(process.cwd(), distPath);
+    app.use("*", serveStatic({root: relDistPath}));
     // SPA fallback: serve index.html for non-API paths that don't match a static file
     const indexPath = join(distPath, "index.html");
     if (existsSync(indexPath)) {
@@ -195,12 +198,10 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
         }
     }
 
-    Bun.serve({
+    serve({
         fetch: app.fetch,
         port,
         hostname: "localhost",
-        // SSE connections are long-lived; allow up to 2 min idle
-        idleTimeout: 120,
     });
 
     // Write actual port so vite can discover it
@@ -232,6 +233,6 @@ export async function startServer(overrides?: {port?: number}): Promise<{port: n
     return {port};
 }
 
-// Standalone mode (bun run src/server/index.ts)
+// Standalone mode (pnpm run server)
 const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 if (isMainModule) startServer();

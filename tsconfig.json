@@ -29,7 +29,7 @@
       "@stdui/react": ["lib/stdui/packages/ui/src/index.ts"],
       "@stdui/react/*": ["lib/stdui/packages/ui/src/*"]
     },
-    "types": ["vitest/globals", "vite/client", "bun"]
+    "types": ["vitest/globals", "vite/client"]
   },
   "include": ["src", "lib/tracey/src", "lib/unifai/src", "lib/wystack/packages/types/src", "lib/wystack/packages/version/src"],
   "exclude": ["node_modules", "dist", "build", "src-tauri", "lib/wystack/packages/*/src/__tests__"]

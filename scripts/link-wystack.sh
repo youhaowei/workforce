@@ -1,9 +1,9 @@
 #!/bin/bash
 # Symlink @wystack packages from the submodule into node_modules.
-# This allows bun's runtime resolver to find them (it doesn't use tsconfig paths
+# This allows the runtime resolver to find them (it doesn't use tsconfig paths
 # for imports originating from within submodules with their own tsconfig).
 #
-# Run after `bun install` or `git submodule update`.
+# Run after `pnpm install` or `git submodule update`.
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

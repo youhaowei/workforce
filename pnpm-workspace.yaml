@@ -1,0 +1,6 @@
+packages:
+  - lib/tracey
+  - lib/unifai
+  - lib/stdui
+  - lib/wystack
+  - lib/wystack/packages/*
