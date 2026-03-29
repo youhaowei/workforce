@@ -74,8 +74,7 @@ export default function AppSidebar({
       <div className={`${topSpacerHeight} shrink-0 flex items-center pointer-events-auto`}>
         {isMacDesktop && (
           <div
-            data-tauri-drag-region=""
-            className="h-full w-full rounded-lg border-neutral-border-subtle flex items-center font-medium text-neutral-fg-subtle tracking-tight"
+            className="h-full w-full rounded-lg border-neutral-border-subtle flex items-center font-medium text-neutral-fg-subtle tracking-tight titlebar-drag-region"
           >
           </div>
         )}

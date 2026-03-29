@@ -418,9 +418,8 @@ export default function Shell() {
         className="h-screen flex overflow-hidden shell-ground"
         data-desktop={isDesktop || undefined}
       >
-        {/* Tauri: window dragging handled by data-tauri-drag-region on AppHeader.
-            No overlay div needed — Tauri intercepts drag at the native WKWebView level.
-            (The old z-40 overlay with -webkit-app-region: drag was Chromium/Electron-only.) */}
+        {/* Electron: window dragging handled by CSS -webkit-app-region: drag
+            on elements with .titlebar-drag-region class (defined in index.html). */}
 
         <AppSidebar
           mode={sidebarMode}

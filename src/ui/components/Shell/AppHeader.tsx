@@ -64,11 +64,10 @@ export default function TopBar({
     <header
       className="shell-topbar relative z-50"
     >
-      {/* Drag overlay — fills the entire header for Tauri window dragging + dblclick zoom.
-          acceptFirstMouse in tauri.conf.json fixes the "only works once" issue (#11605). */}
+      {/* Drag overlay — fills the entire header for desktop window dragging + dblclick zoom.
+          Electron: CSS -webkit-app-region: drag handles this (defined in index.html). */}
       <div
-        className="absolute inset-0 z-0"
-        data-tauri-drag-region=""
+        className="absolute inset-0 z-0 titlebar-drag-region"
       />
 
       {/* Left — pointer-events-none lets empty space fall through to drag overlay */}

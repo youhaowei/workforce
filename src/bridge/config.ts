@@ -3,7 +3,7 @@
  *
  * Port resolution:
  *  - VITE_API_PORT injected at build time (dev: from .dev-port, prod: DEFAULT_SERVER_PORT).
- *  - In Tauri desktop, initServerUrl() queries the `get_server_port` command to get the
+ *  - In Electron desktop, initServerUrl() queries get-server-port via IPC to get the
  *    actual bound port (port scanning may have moved it off the default). Call this once
  *    at app startup before any API requests. The tRPC client uses getTrpcUrl() lazily so
  *    it picks up the update.
@@ -23,16 +23,15 @@ export function getTrpcUrl(): string {
 }
 
 /**
- * In Tauri, invoke get_server_port to learn the actual port the sidecar bound to.
+ * In Electron, invoke get-server-port via IPC to learn the actual port.
  * Call once at app startup before any API requests are made. No-op in web/E2E mode.
  */
 export async function initServerUrl(): Promise<void> {
   if (typeof window === "undefined") return;
-  if (!("__TAURI__" in window || "__TAURI_INTERNALS__" in window)) return;
+  if (!("electronAPI" in window)) return;
   try {
-    const { invoke } = await import("@tauri-apps/api/core");
-    const port: number = await invoke("get_server_port");
-    resolvedPort = String(port);
+    const port = await window.electronAPI!.getServerPort();
+    if (port != null) resolvedPort = String(port);
   } catch {
     // Not critical — fall back to baked-in port
   }

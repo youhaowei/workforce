@@ -7,7 +7,7 @@
  * EventBus → Zustand wiring is initialized via useEventBusInit().
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import type { Router } from '@tanstack/react-router';
@@ -23,17 +23,14 @@ import { useEventBusInit } from './hooks/useEventBusInit';
 import { useServerEventInvalidation } from './hooks/useServerEventInvalidation';
 import { SetupGate } from './components/SetupGate';
 
-// Detect desktop mode: Tauri v1/v2 inject __TAURI__ or __TAURI_INTERNALS__ on the window.
-function detectTauri(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    ('__TAURI__' in window || '__TAURI_INTERNALS__' in window)
-  );
+/** Detect Electron: preload script exposes window.electronAPI. */
+function detectElectron(): boolean {
+  return typeof window !== 'undefined' && 'electronAPI' in window;
 }
 
 function useDesktopDetection() {
-  const [isTauri, setIsTauri] = useState(detectTauri);
-  const isDesktop = isTauri;
+  const isElectron = detectElectron();
+  const isDesktop = isElectron;
 
   useEffect(() => {
     if (isDesktop && typeof document !== 'undefined') {
@@ -41,40 +38,23 @@ function useDesktopDetection() {
     } else if (typeof document !== 'undefined') {
       delete document.documentElement.dataset.desktop;
     }
-  }, [isDesktop, isTauri]);
+  }, [isDesktop]);
 
-  // Tauri may inject __TAURI__ after first paint; re-check on next tick and on tauriReady
-  useEffect(() => {
-    if (isTauri) return;
-    const check = () => {
-      if (detectTauri()) setIsTauri(true);
-    };
-    const t = setTimeout(check, 50);
-    window.addEventListener?.('tauriReady', check);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener?.('tauriReady', check);
-    };
-  }, [isTauri]);
-
-  return { isDesktop, isTauri };
+  return { isDesktop, isElectron };
 }
 
-// Wire platform actions — Tauri commands via invoke
-function createPlatformActions(isDesktop: boolean, isTauri: boolean): PlatformActions {
+/** Wire platform actions — Electron IPC via preload bridge. */
+function createPlatformActions(isDesktop: boolean, isElectron: boolean): PlatformActions {
   return {
     isDesktop,
-    openDirectory: isTauri
+    openDirectory: isElectron
       ? async (startingFolder?: string) => {
-          const { invoke } = await import('@tauri-apps/api/core');
-          return invoke<string | null>('open_directory', { startingFolder });
+          return window.electronAPI!.openDirectory(startingFolder);
         }
       : undefined,
-    onOpenUrl: isTauri
+    onOpenUrl: isElectron
       ? (url: string) => {
-          import('@tauri-apps/api/core').then(({ invoke }) =>
-            invoke('open_external', { url }),
-          );
+          window.electronAPI!.openExternal(url);
         }
       : undefined,
   };
@@ -91,13 +71,13 @@ function AppInner({ router }: { router: Router<any, any, any, any> }) {
 }
 
 export default function App({ router }: { router: Router<any, any, any, any> }) {
-  const { isDesktop, isTauri } = useDesktopDetection();
+  const { isDesktop, isElectron } = useDesktopDetection();
   const platformActions = useMemo(
-    () => createPlatformActions(isDesktop, isTauri),
-    [isDesktop, isTauri],
+    () => createPlatformActions(isDesktop, isElectron),
+    [isDesktop, isElectron],
   );
 
-  // In Tauri, discover the actual sidecar port once at startup.
+  // In Electron, discover the server port via IPC once at startup.
   // initServerUrl() updates resolvedPort in bridge/config; refreshTrpcClient()
   // ensures the lazy tRPC singleton is (re-)created with the correct URL.
   useEffect(() => {

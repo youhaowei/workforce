@@ -343,7 +343,7 @@
  * Classes: .titlebar-drag-region, .titlebar-no-drag */
 
 /* Shell — the window ground behind everything.
-   In desktop mode (Tauri vibrancy), use a semi-transparent tint so the
+   In desktop mode (Electron vibrancy), use a semi-transparent tint so the
    macOS blur-behind effect shows through. On web, keep the solid gradient. */
 @layer components {
     .shell-ground {
