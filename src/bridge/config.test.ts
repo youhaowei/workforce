@@ -48,6 +48,14 @@ describe('initServerUrl', () => {
     await expect(configModule.initServerUrl()).resolves.toBeUndefined();
   });
 
+  it('keeps default port when getServerPort returns undefined', async () => {
+    (window as any).electronAPI = {
+      getServerPort: vi.fn().mockResolvedValue(undefined),
+    };
+    await configModule.initServerUrl();
+    expect(configModule.getServerUrl()).toMatch(/^http:\/\/localhost:\d+$/);
+  });
+
   it('is a no-op when electronAPI is not present', async () => {
     const url = configModule.getServerUrl();
     await configModule.initServerUrl();

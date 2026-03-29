@@ -24,13 +24,14 @@ Last updated: 2026-02-17
     - template portability: workspace-local in MVP
 14. **Effect library deferred** — POC evaluated Effect for session persistence error handling. Typed errors are valuable but the paradigm overhead isn't justified yet. Instead: adopt typed error classes + `Result<T, E>` without Effect. Revisit when retry policies, resource scoping, or structured concurrency become needed.
 15. **Error handling strategy** — Use typed domain error classes + discriminated `Result<T, E>` unions at service boundaries. Tracing via structured LogService fields. No new library dependencies until complexity warrants it.
-16. **~~Sidecar server architecture~~ → ~~Electrobun direct-call~~ → ~~Electron subprocess~~ → Tauri sidecar architecture** — Originally Tauri sidecar (~300 lines Rust). Migrated to Electrobun, then Electron. This worktree returns to Tauri for smaller footprint and native vibrancy.
+16. **~~Sidecar server architecture~~ → ~~Electrobun direct-call~~ → ~~Electron subprocess~~ → ~~Tauri sidecar~~ → Electron in-process architecture** — Originally Tauri sidecar (~300 lines Rust). Migrated to Electrobun, then Electron, briefly back to Tauri, now settled on Electron for richer Node.js integration and in-process server.
 
-    **Current architecture (Tauri)**:
-    - `src-tauri/` — Rust main process: repairs PATH for sidecar, applies window vibrancy, spawns Bun sidecar
-    - `src-tauri/sidecar.rs` — Spawns Bun server (`src/server/index.ts`) as sidecar, waits for health before showing window
-    - `src/server/index.ts` — Hono HTTP server (Bun). Runs as sidecar in desktop, standalone for dev:web
-    - `tauri.conf.json` — `devUrl: localhost:5173` (Vite); `transparent: true` for macOS vibrancy
-    - Native dialogs via Tauri commands: `invoke('open_directory')`, `invoke('open_external')`
-    - `isDesktop` detected via `!!window.__TAURI__` or `!!window.__TAURI_INTERNALS__`. Do not use port-based detection.
-    - Tauri 2 + `@tauri-apps/api` handles build and packaging
+    **Historical (Tauri)**: `src-tauri/` Rust main process, Bun sidecar via `sidecar.rs`, `invoke()` for native dialogs, `!!window.__TAURI__` for desktop detection.
+
+    **Current architecture (Electron)**:
+    - `src-electron/` — Electron main process (`main.ts`): spawns in-process Hono server via `@hono/node-server`, manages BrowserWindow lifecycle
+    - `src-electron/preload.ts` — Context bridge exposing `window.electronAPI` (e.g., `getServerPort`, `openDirectory`, `openExternal`)
+    - `src/server/index.ts` — Hono HTTP server (`@hono/node-server`). Runs in-process in Electron, standalone for dev:web
+    - Electron Forge + Vite plugin handles build and packaging (`forge.config.ts`, `vite.main.config.ts`, `vite.preload.config.ts`)
+    - Native dialogs via `window.electronAPI.openDirectory()`, `window.electronAPI.openExternal()`
+    - `isDesktop` detected via `!!window.electronAPI`. Do not use port-based detection.

@@ -7,7 +7,7 @@ import {resolve} from "path";
 import {sharedAliases} from "./vite.shared";
 import {readFileSync, writeFileSync, unlinkSync} from "fs";
 import {execFileSync} from "child_process";
-import {DEFAULT_SERVER_PORT, DEFAULT_VITE_PORT} from "./src/shared/ports";
+import {DEFAULT_SERVER_PORT, DEFAULT_VITE_PORT, parsePort} from "./src/shared/ports";
 
 /** Read current git branch name (best-effort, returns undefined on failure). */
 function discoverGitBranch(): string | undefined {
@@ -84,7 +84,7 @@ export default defineConfig(({command}) => ({
     // Prevent Vite from clearing terminal output
     clearScreen: false,
     server: {
-        port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)),
+        port: parsePort(process.env.VITE_PORT, DEFAULT_VITE_PORT),
         strictPort: false,
         watch: {
             ignored: ["**/src-electron/**"],
