@@ -14,6 +14,7 @@ import { taskRouter } from './task';
 import { agentRouter } from './agent';
 import { artifactRouter } from './artifact';
 import { eventsRouter } from './events';
+import { gitRouter } from './git';
 
 export const appRouter = router({
   health: healthRouter,
@@ -31,6 +32,7 @@ export const appRouter = router({
   agent: agentRouter,
   artifact: artifactRouter,
   events: eventsRouter,
+  git: gitRouter,
 });
 
 export type AppRouter = typeof appRouter;
