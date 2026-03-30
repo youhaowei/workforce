@@ -9,6 +9,7 @@ import { resetUserService } from '@/services/user';
 import { resetTaskService } from '@/services/task';
 import { resetTemplateService } from '@/services/template';
 import { getWorktreeService, resetWorktreeService } from '@/services/worktree';
+import { disposeGitService } from '@/services/git';
 import { execFileNoThrow } from '@/utils/execFileNoThrow';
 
 /**
@@ -32,6 +33,7 @@ describe('tRPC Routers', () => {
     resetTaskService();
     resetTemplateService();
     resetWorktreeService();
+    disposeGitService();
     resetRouterServices();
   });
 
@@ -42,6 +44,7 @@ describe('tRPC Routers', () => {
     resetTaskService();
     resetTemplateService();
     resetWorktreeService();
+    disposeGitService();
     resetRouterServices();
   });
 
@@ -440,6 +443,88 @@ describe('tRPC Routers', () => {
       // Cleanup
       await caller.session.delete({ sessionId: session.id });
       await rm(testDir, { recursive: true, force: true });
+    });
+  });
+
+  describe('git', () => {
+    let gitTestDir: string;
+
+    beforeEach(async () => {
+      gitTestDir = join(tmpdir(), 'workforce-git-router-test-' + Date.now());
+      await mkdir(gitTestDir, { recursive: true });
+      await execFileNoThrow('git', ['init'], { cwd: gitTestDir });
+      await execFileNoThrow('git', ['config', 'user.email', 'test@test.com'], { cwd: gitTestDir });
+      await execFileNoThrow('git', ['config', 'user.name', 'Test'], { cwd: gitTestDir });
+      await writeFile(join(gitTestDir, 'README.md'), '# Test\n');
+      await execFileNoThrow('git', ['add', '.'], { cwd: gitTestDir });
+      await execFileNoThrow('git', ['commit', '-m', 'init'], { cwd: gitTestDir });
+
+      // Point git service at the test repo
+      disposeGitService();
+      const { getGitService } = await import('@/services/git');
+      getGitService({ cwd: gitTestDir });
+    });
+
+    afterEach(async () => {
+      disposeGitService();
+      await rm(gitTestDir, { recursive: true, force: true });
+    });
+
+    it('status returns git status for repo', async () => {
+      const status = await caller.git.status();
+      expect(status).not.toBeNull();
+      expect(status!.branch).toBe('master');
+      expect(status!.isClean).toBe(true);
+    });
+
+    it('status with forceRefresh bypasses cache', async () => {
+      const status = await caller.git.status({ forceRefresh: true });
+      expect(status).not.toBeNull();
+      expect(status!.branch).toBe('master');
+    });
+
+    it('branches returns branch list', async () => {
+      const branches = await caller.git.branches();
+      expect(Array.isArray(branches)).toBe(true);
+      expect(branches.some((b) => b.isCurrent)).toBe(true);
+    });
+
+    it('log returns recent commits', async () => {
+      const commits = await caller.git.log();
+      expect(commits.length).toBeGreaterThanOrEqual(1);
+      expect(commits[0].subject).toBe('init');
+    });
+
+    it('diff returns empty string for clean repo', async () => {
+      const diff = await caller.git.diff();
+      expect(diff).toBe('');
+    });
+
+    it('stage and commit flow', async () => {
+      await writeFile(join(gitTestDir, 'new.txt'), 'hello');
+      await caller.git.stage({ files: ['new.txt'] });
+
+      const statusAfterStage = await caller.git.status({ forceRefresh: true });
+      expect(statusAfterStage!.staged.length).toBe(1);
+
+      const result = await caller.git.commit({ message: 'add new.txt' });
+      expect(result.success).toBe(true);
+      expect(result.hash).toBeTruthy();
+    });
+
+    it('unstage removes file from staging', async () => {
+      await writeFile(join(gitTestDir, 'unstage.txt'), 'test');
+      await execFileNoThrow('git', ['add', 'unstage.txt'], { cwd: gitTestDir });
+      await caller.git.unstage({ files: ['unstage.txt'] });
+
+      const status = await caller.git.status({ forceRefresh: true });
+      expect(status!.staged.some((f) => f.path === 'unstage.txt')).toBe(false);
+      expect(status!.untracked).toContain('unstage.txt');
+    });
+
+    it('remotes returns array', async () => {
+      const remotes = await caller.git.remotes();
+      expect(Array.isArray(remotes)).toBe(true);
     });
   });
 
