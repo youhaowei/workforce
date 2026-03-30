@@ -48,8 +48,8 @@ interface NeutralTokenDef {
 const NEUTRAL_TOKENS: Record<string, NeutralTokenDef> = {
     fg: {light: {l: 0.145}, dark: {l: 0.985}},
     "fg-subtle": {light: {l: 0.556}, dark: {l: 0.708}},
-    bg: {light: {l: 1.0}, dark: {l: 0.145}},
-    "bg-subtle": {light: {l: 0.98}, dark: {l: 0.17}},
+    bg: {light: {l: 0.985}, dark: {l: 0.145}},
+    "bg-subtle": {light: {l: 0.97}, dark: {l: 0.17}},
     "bg-muted": {light: {l: 0.96}, dark: {l: 0.19}},
     "bg-emphasis": {light: {l: 0.94}, dark: {l: 0.22}},
     "bg-bold": {light: {l: 0.92}, dark: {l: 0.24}},
@@ -187,6 +187,8 @@ function applySurfaceOverrides(
 ) {
     if (!surfaceBase) {
         style.removeProperty("--surface-base");
+        style.removeProperty("--surface-main-bg");
+        style.removeProperty("--surface-main-bg-glass");
         style.removeProperty("--shell-bg");
         style.removeProperty("--shell-bg-vibrancy");
         return;
@@ -226,8 +228,13 @@ function applySurfaceOverrides(
 
     style.setProperty("--shell-bg", buildShellBg(tintStyle, start, mid, end));
 
+    // Surface main background — uses surface-base color instead of neutral-bg
+    // so it never falls back to near-white when glass/vibrancy is off.
+    style.setProperty("--surface-main-bg", formatOklch(midL, baseC, baseH, 0.45));
+    style.setProperty("--surface-main-bg-glass", formatOklch(midL, baseC, baseH, 0.4));
+
     // Semi-transparent version for desktop vibrancy (same geometry as shell bg).
-    const vibrancyAlpha = isDark ? 0.2 : 0.24;
+    const vibrancyAlpha = isDark ? 0.55 : 0.65;
     const vStart = formatOklch(startL, baseC, baseH, vibrancyAlpha);
     const vMid = formatOklch(midL, baseC, baseH, vibrancyAlpha);
     const vEnd = formatOklch(endL, baseC, baseH, vibrancyAlpha);
@@ -274,6 +281,8 @@ function clearAllOverrideStyles() {
     }
     style.removeProperty("--neutral-ring-glow");
     style.removeProperty("--surface-base");
+    style.removeProperty("--surface-main-bg");
+    style.removeProperty("--surface-main-bg-glass");
     style.removeProperty("--shell-bg");
     style.removeProperty("--shell-bg-vibrancy");
 }

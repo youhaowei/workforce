@@ -81,8 +81,8 @@
     --neutral-fg: oklch(0.145 0 0);
     --neutral-fg-subtle: oklch(0.556 0 0);
     /* Surface scale (M3-inspired: 7 tonal levels, white → dim) */
-    --neutral-bg: oklch(1 0 0); /* Container Lowest — page bg, card bg */
-    --neutral-bg-subtle: oklch(0.98 0 0); /* Surface — hover, focus states */
+    --neutral-bg: oklch(0.985 0 0); /* Container Lowest — page bg, card bg */
+    --neutral-bg-subtle: oklch(0.97 0 0); /* Surface — hover, focus states */
     --neutral-bg-muted: oklch(0.96 0 0); /* Container Low — code blocks, table headers */
     --neutral-bg-emphasis: oklch(0.94 0 0); /* Container — input fills, active states */
     --neutral-bg-bold: oklch(0.92 0 0); /* Container High — strong container fills */
@@ -97,6 +97,8 @@
 
     /* ── Surfaces ────────────────────────────────────────────────────────── */
     --surface-base: oklch(0.95 0.006 70);
+    --surface-main-bg: oklch(0.95 0.006 70 / 45%);
+    --surface-main-bg-glass: oklch(0.95 0.006 70 / 40%);
 
     /* ── Typography ──────────────────────────────────────────────────────── */
     --text-display-size: 24px;
@@ -163,7 +165,7 @@
     --titlebar-height: env(titlebar-area-height, 0px);
     --topbar-height: 40px;
     --shell-bg: oklch(0.95 0.006 70);
-    --shell-bg-vibrancy: oklch(0.98 0.003 70 / 22%);
+    --shell-bg-vibrancy: oklch(0.98 0.003 70 / 65%);
 
     /* ── Utility ─────────────────────────────────────────────────────────── */
     --scrollbar: oklch(0.5 0 0);
@@ -214,6 +216,8 @@
 
     /* ── Surfaces (dark) ─────────────────────────────────────────────────── */
     --surface-base: oklch(0.2 0.005 250);
+    --surface-main-bg: oklch(0.2 0.005 250 / 45%);
+    --surface-main-bg-glass: oklch(0.2 0.005 250 / 40%);
 
     /* ── Shadows (dark) ──────────────────────────────────────────────────── */
     --shadow-xs: 0 1px 2px oklch(0 0 0 / 30%);
@@ -228,7 +232,7 @@
 
     /* ── Layout (dark) ───────────────────────────────────────────────────── */
     --shell-bg: oklch(0.2 0.005 250);
-    --shell-bg-vibrancy: oklch(0.2 0.005 250 / 22%);
+    --shell-bg-vibrancy: oklch(0.2 0.005 250 / 55%);
 
     /* ── Utility (dark) ──────────────────────────────────────────────────── */
     --scrollbar: oklch(0.5 0 0);
@@ -325,9 +329,9 @@
 /* Nav glass pill — active state for sidebar items */
 @layer components {
     .nav-glass-active {
-        background: oklch(1 0 0 / 45%);
+        background: oklch(0.985 0 0 / 45%);
         box-shadow:
-            0 0 0 1px oklch(1 0 0 / 40%),
+            0 0 0 1px oklch(0.985 0 0 / 40%),
             0 1px 2px oklch(0 0 0 / 4%);
     }
     .dark .nav-glass-active {
@@ -371,17 +375,13 @@ html[data-vibrancy-mismatch] body {
 @layer components {
     .shell-topbar {
         height: var(--topbar-height);
-        padding: 0 var(--surface-inset) 0 8px;
+        padding: 0 var(--surface-inset) 0 0;
         user-select: none;
         -webkit-user-select: none;
         @apply flex items-center shrink-0 gap-3;
     }
 }
 
-/* Electron: pad left for macOS traffic light buttons (hiddenInset titlebar) */
-html[data-electron][data-macos] .shell-topbar {
-    padding-left: 72px;
-}
 
 /* Message list fade overlays — don't cover the scrollbar */
 @layer components {
