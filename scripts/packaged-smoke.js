@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
 import { access } from 'fs/promises';
 import path from 'path';
 import { setTimeout as delay } from 'timers/promises';
@@ -9,32 +9,44 @@ const repoRoot = path.resolve(scriptDir, '..');
 const smokePorts = Array.from({ length: 21 }, (_, index) => 19675 + index);
 const launchArgs = ['--remote-debugging-port=9333'];
 
-async function getCandidateBinaries() {
+async function getCandidateBundles() {
   const suffix = process.arch;
   const candidates = [];
 
   if (process.platform === 'darwin') {
     candidates.push(
-      path.join(repoRoot, 'out', `Workforce-darwin-${suffix}`, 'Workforce.app', 'Contents', 'MacOS', 'Workforce'),
+      {
+        appPath: path.join(repoRoot, 'out', `Workforce-darwin-${suffix}`, 'Workforce.app'),
+        binaryPath: path.join(repoRoot, 'out', `Workforce-darwin-${suffix}`, 'Workforce.app', 'Contents', 'MacOS', 'Workforce'),
+      },
     );
   } else if (process.platform === 'linux') {
     candidates.push(
-      path.join(repoRoot, 'out', `Workforce-linux-${suffix}`, 'Workforce'),
-      path.join(repoRoot, 'out', `workforce-linux-${suffix}`, 'workforce'),
+      {
+        appPath: path.join(repoRoot, 'out', `Workforce-linux-${suffix}`),
+        binaryPath: path.join(repoRoot, 'out', `Workforce-linux-${suffix}`, 'Workforce'),
+      },
+      {
+        appPath: path.join(repoRoot, 'out', `workforce-linux-${suffix}`),
+        binaryPath: path.join(repoRoot, 'out', `workforce-linux-${suffix}`, 'workforce'),
+      },
     );
   } else if (process.platform === 'win32') {
     candidates.push(
-      path.join(repoRoot, 'out', `Workforce-win32-${suffix}`, 'Workforce.exe'),
+      {
+        appPath: path.join(repoRoot, 'out', `Workforce-win32-${suffix}`),
+        binaryPath: path.join(repoRoot, 'out', `Workforce-win32-${suffix}`, 'Workforce.exe'),
+      },
     );
   }
 
   return candidates;
 }
 
-async function resolveBinary() {
-  for (const candidate of await getCandidateBinaries()) {
+async function resolveBundle() {
+  for (const candidate of await getCandidateBundles()) {
     try {
-      await access(candidate);
+      await access(candidate.binaryPath);
       return candidate;
     } catch {
       // Try the next packaged location.
@@ -45,7 +57,7 @@ async function resolveBinary() {
 }
 
 async function pollHealth() {
-  const deadline = Date.now() + 15_000;
+  const deadline = Date.now() + 30_000;
 
   while (Date.now() < deadline) {
     for (const port of smokePorts) {
@@ -67,15 +79,24 @@ async function pollHealth() {
 }
 
 async function main() {
-  const binary = await resolveBinary();
-  const child = spawn(binary, launchArgs, {
-    cwd: repoRoot,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: {
-      ...process.env,
-      ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
-    },
-  });
+  const { appPath, binaryPath } = await resolveBundle();
+  const child = process.platform === 'darwin'
+    ? spawn('open', ['-na', appPath, '--args', ...launchArgs], {
+        cwd: repoRoot,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
+        },
+      })
+    : spawn(binaryPath, launchArgs, {
+        cwd: repoRoot,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: {
+          ...process.env,
+          ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
+        },
+      });
 
   let stdout = '';
   let stderr = '';
@@ -90,9 +111,17 @@ async function main() {
     const { port, payload } = await pollHealth();
     console.log(`Packaged smoke OK: http://localhost:${port}/health -> ${JSON.stringify(payload)}`);
   } catch (error) {
-    child.kill('SIGTERM');
-    await delay(1_000);
-    if (!child.killed) child.kill('SIGKILL');
+    if (process.platform === 'darwin') {
+      try {
+        execFileSync('pkill', ['-f', binaryPath]);
+      } catch {
+        // Best-effort cleanup.
+      }
+    } else {
+      child.kill('SIGTERM');
+      await delay(1_000);
+      if (!child.killed) child.kill('SIGKILL');
+    }
     throw new Error([
       error instanceof Error ? error.message : String(error),
       stdout && `stdout:\n${stdout.trim()}`,
@@ -100,9 +129,17 @@ async function main() {
     ].filter(Boolean).join('\n\n'));
   }
 
-  child.kill('SIGTERM');
-  await delay(1_000);
-  if (!child.killed) child.kill('SIGKILL');
+  if (process.platform === 'darwin') {
+    try {
+      execFileSync('pkill', ['-f', binaryPath]);
+    } catch {
+      // Best-effort cleanup.
+    }
+  } else {
+    child.kill('SIGTERM');
+    await delay(1_000);
+    if (!child.killed) child.kill('SIGKILL');
+  }
 }
 
 await main();
