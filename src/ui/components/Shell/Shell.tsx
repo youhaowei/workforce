@@ -30,6 +30,7 @@ import TopBar from "./AppHeader";
 import { MainContentColumn } from "./MainContentColumn";
 import { Surface } from "@/components/ui/surface";
 import { useActiveSessionTitle } from "./useActiveSessionTitle";
+import { useSessionProjectPath } from "@/ui/hooks/useSessionProjectPath";
 import { useForkActions } from "./useForkActions";
 import { useAgentStream } from "./useAgentStream";
 import { usePlanMode } from "@/ui/hooks/usePlanMode";
@@ -115,6 +116,13 @@ export default function Shell() {
   const activeSessionTitle = useActiveSessionTitle({
     orgId,
     selectedSessionId,
+    serverConnected,
+  });
+
+  const projectRootPath = useSessionProjectPath({
+    orgId,
+    sessionId: selectedSessionId,
+    projects: projects as Project[],
     serverConnected,
   });
 
@@ -478,8 +486,10 @@ export default function Shell() {
                 sessionTitle={activeSessionTitle}
                 sessionsPanelOpen={!sessionsPanelCollapsed}
                 infoPanelOpen={showChatInfo}
+                projectRootPath={projectRootPath}
                 onToggleSessions={toggleSessionsPanel}
                 onToggleInfo={toggleInfoPanel}
+                onGitClick={() => { if (infoPanelCollapsed) toggleInfoPanel(); }}
               >
                 <Outlet />
               </MainContentColumn>
@@ -508,6 +518,7 @@ export default function Shell() {
             <ChatInfoPanel
               isOpen={showChatInfo}
               sessionId={selectedSessionId}
+              projectRootPath={projectRootPath}
               onOpenArtifact={artifactPanel.openArtifact}
             />
           </Surface>

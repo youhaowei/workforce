@@ -9,8 +9,12 @@ interface MainContentColumnProps {
   sessionTitle?: string;
   sessionsPanelOpen?: boolean;
   infoPanelOpen?: boolean;
+  /** Project rootPath for git status badge. */
+  projectRootPath?: string | null;
   onToggleSessions?: () => void;
   onToggleInfo?: () => void;
+  /** Called when user clicks the git status badge. */
+  onGitClick?: () => void;
   children: ReactNode;
 }
 
@@ -20,8 +24,10 @@ export function MainContentColumn({
   sessionTitle,
   sessionsPanelOpen = false,
   infoPanelOpen = false,
+  projectRootPath,
   onToggleSessions,
   onToggleInfo,
+  onGitClick,
   children,
 }: MainContentColumnProps) {
   return (
@@ -43,8 +49,10 @@ export function MainContentColumn({
           sessionTitle={sessionTitle}
           sessionsPanelOpen={sessionsPanelOpen}
           infoPanelOpen={infoPanelOpen}
+          projectRootPath={projectRootPath}
           onToggleSessions={onToggleSessions}
           onToggleInfo={onToggleInfo}
+          onGitClick={onGitClick}
         />
       )}
 

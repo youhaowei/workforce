@@ -13,7 +13,7 @@ import { useMessagesStore, type MessageState } from '@/ui/stores/useMessagesStor
 import type { ArtifactStatus } from '@/services/types';
 import { MIME_DOT_COLOR, ARTIFACT_STATUS_STYLES, ARTIFACT_STATUS_LABELS } from '@/ui/lib/artifact-utils';
 import { trpc as trpcClient } from '@/bridge/trpc';
-import { FileText, Clock, Cpu, DollarSign, Pencil } from 'lucide-react';
+import { FileText, Clock, Cpu, DollarSign, Pencil, GitBranch } from 'lucide-react';
 
 // =============================================================================
 // Helpers
@@ -66,10 +66,12 @@ function shortenPath(path: string) {
 export interface ChatInfoPanelProps {
   isOpen: boolean;
   sessionId: string | null;
+  /** Project rootPath for git status section. Null = no git section. */
+  projectRootPath?: string | null;
   onOpenArtifact?: (artifactId: string) => void;
 }
 
-export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPanelProps) {
+export function ChatInfoPanel({ isOpen, sessionId, projectRootPath, onOpenArtifact }: ChatInfoPanelProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -252,6 +254,10 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
           </Section>
         )}
 
+        {projectRootPath && (
+          <GitSection cwd={projectRootPath} isOpen={isOpen} />
+        )}
+
         {/* Artifacts */}
         <ArtifactsSection
           sessionId={sessionId}
@@ -296,6 +302,134 @@ function StatusBadge({ status }: { status: string }) {
     <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${ARTIFACT_STATUS_STYLES[s] ?? ''}`}>
       {ARTIFACT_STATUS_LABELS[s] ?? status}
     </span>
+  );
+}
+
+function gitStatusColor(isStaged: boolean, area: string): string {
+  if (isStaged) return 'text-palette-success';
+  if (area === 'untracked') return 'text-neutral-fg-subtle';
+  return 'text-palette-warning';
+}
+
+const STATUS_CHAR: Record<string, string> = {
+  added: 'A',
+  modified: 'M',
+  deleted: 'D',
+  renamed: 'R',
+  copied: 'C',
+  unmerged: 'U',
+};
+
+function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+
+  const { data: status } = useQuery(
+    trpc.git.status.queryOptions(
+      { cwd },
+      { enabled: isOpen, staleTime: 5_000, refetchInterval: 10_000 },
+    ),
+  );
+
+  const [commitMsg, setCommitMsg] = useState('');
+  const [commitError, setCommitError] = useState<string | null>(null);
+  const [committing, setCommitting] = useState(false);
+
+  if (!status) return null;
+
+  const allChanges = [
+    ...status.staged.map((f) => ({ ...f, area: 'staged' as const })),
+    ...status.unstaged.map((f) => ({ ...f, area: 'unstaged' as const })),
+    ...status.untracked.map((p) => ({ path: p, status: 'added' as const, area: 'untracked' as const })),
+  ];
+
+  const handleStage = async (file: string) => {
+    await trpcClient.git.stage.mutate({ cwd, files: [file] });
+    queryClient.invalidateQueries({ queryKey: trpc.git.status.queryKey({ cwd }) });
+  };
+
+  const handleUnstage = async (file: string) => {
+    await trpcClient.git.unstage.mutate({ cwd, files: [file] });
+    queryClient.invalidateQueries({ queryKey: trpc.git.status.queryKey({ cwd }) });
+  };
+
+  const handleCommit = async () => {
+    if (!commitMsg.trim() || status.staged.length === 0) return;
+    setCommitting(true);
+    setCommitError(null);
+    try {
+      const result = await trpcClient.git.commit.mutate({ cwd, message: commitMsg.trim() });
+      if (result.success) {
+        setCommitMsg('');
+        queryClient.invalidateQueries({ queryKey: trpc.git.status.queryKey({ cwd }) });
+      } else {
+        setCommitError(result.error ?? 'Commit failed');
+      }
+    } catch (err) {
+      setCommitError(err instanceof Error ? err.message : 'Commit failed');
+    } finally {
+      setCommitting(false);
+    }
+  };
+
+  return (
+    <Section label={`Git (${status.branch})`} icon={<GitBranch className="h-3 w-3" />}>
+      <div className="space-y-2">
+        {status.isClean ? (
+          <p className="text-xs text-neutral-fg-subtle">Working tree clean</p>
+        ) : (
+          <>
+            <div className="space-y-0.5 max-h-40 overflow-y-auto">
+              {allChanges.map((f) => {
+                const filename = f.path.split('/').pop() ?? f.path;
+                const isStaged = f.area === 'staged';
+                return (
+                  <button
+                    key={`${f.area}-${f.path}`}
+                    className="w-full text-left text-xs rounded px-1.5 py-0.5 hover:bg-neutral-bg-dim/50 flex items-center gap-1 group"
+                    onClick={() => isStaged ? handleUnstage(f.path) : handleStage(f.path)}
+                    title={`${f.path} (${f.area}) - click to ${isStaged ? 'unstage' : 'stage'}`}
+                  >
+                    <span className={`font-mono w-3 shrink-0 text-center ${
+                      gitStatusColor(isStaged, f.area)
+                    }`}>
+                      {f.area === 'untracked' ? '?' : STATUS_CHAR[f.status] ?? '?'}
+                    </span>
+                    <span className="font-mono text-neutral-fg-subtle truncate flex-1">{filename}</span>
+                    <span className="text-[10px] text-neutral-fg-subtle/50 opacity-0 group-hover:opacity-100">
+                      {isStaged ? 'unstage' : 'stage'}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {status.staged.length > 0 && (
+              <div className="space-y-1">
+                <input
+                  value={commitMsg}
+                  onChange={(e) => setCommitMsg(e.currentTarget.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleCommit(); } }}
+                  placeholder="Commit message..."
+                  className="w-full bg-neutral-bg-dim/50 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-neutral-ring placeholder:text-neutral-fg-subtle/50"
+                  disabled={committing}
+                />
+                <button
+                  onClick={handleCommit}
+                  disabled={!commitMsg.trim() || committing}
+                  className="w-full text-xs bg-palette-primary/90 text-white rounded px-2 py-1 hover:bg-palette-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {committing ? 'Committing...' : `Commit ${status.staged.length} file${status.staged.length !== 1 ? 's' : ''}`}
+                </button>
+                {commitError && (
+                  <p className="text-xs text-palette-danger">{commitError}</p>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Section>
   );
 }
 
