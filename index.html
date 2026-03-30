@@ -9,7 +9,10 @@
     <!-- Drag regions — must be in a raw <style> tag, NOT processed by
          Tailwind/Lightning CSS which strips -webkit-app-region as unknown. -->
     <style>
-      .titlebar-drag-region { -webkit-app-region: drag; app-region: drag; }
+      /* Only enable drag in desktop windowed mode — not on web, not in fullscreen */
+      html[data-electron]:not([data-fullscreen]) .titlebar-drag-region {
+        -webkit-app-region: drag; app-region: drag;
+      }
       .titlebar-no-drag { -webkit-app-region: no-drag; app-region: no-drag; }
       /* All interactive elements opt out of drag so they remain clickable
          above the drag-region overlay. */

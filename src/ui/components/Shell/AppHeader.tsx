@@ -62,16 +62,11 @@ export default function TopBar({
 
   return (
     <header
-      className="shell-topbar relative z-50"
+      className="shell-topbar relative"
     >
-      {/* Drag overlay — fills the entire header for desktop window dragging + dblclick maximize.
-          CSS class `titlebar-drag-region` applies -webkit-app-region: drag for Electron. */}
-      <div
-        className="absolute inset-0 z-0 titlebar-drag-region"
-      />
+      <div className="absolute inset-0 titlebar-drag-region" />
 
-      {/* Left — pointer-events-none lets empty space fall through to drag overlay */}
-      <div className="flex items-center gap-2 min-w-0 flex-1 relative z-10 pointer-events-none [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_a]:pointer-events-auto">
+      <div className="flex items-center gap-2 min-w-0 flex-1 relative">
         {sessionsPanelCollapsed && currentView === 'sessions' && (
           <Tooltip>
             <TooltipTrigger asChild>
@@ -116,7 +111,7 @@ export default function TopBar({
 
       {/* Center — view-specific controls */}
       {currentView === 'board' && (
-        <div className="relative z-10 pointer-events-auto">
+        <div className="relative">
           <BoardFilters
             keyword={boardKeyword}
             onKeywordChange={onBoardKeywordChange}
@@ -127,7 +122,7 @@ export default function TopBar({
       )}
 
       {/* Right — global actions */}
-      <div className="flex items-center gap-0.5 shrink-0 relative z-10 pointer-events-none [&_button]:pointer-events-auto">
+      <div className="flex items-center gap-0.5 shrink-0 relative">
         <Button
           variant="ghost" size="xs"
           onClick={onQuickCreate}

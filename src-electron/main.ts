@@ -132,6 +132,16 @@ function createWindow() {
   applyContentSecurityPolicy(activePort);
   win.loadURL(`http://localhost:${activePort}`);
 
+  // Signal fullscreen state so drag regions are disabled in fullscreen
+  const syncFullscreen = () => {
+    const js = win.isFullScreen()
+      ? 'document.documentElement.dataset.fullscreen = ""'
+      : 'delete document.documentElement.dataset.fullscreen';
+    win.webContents.executeJavaScript(js).catch(() => {});
+  };
+  win.on('enter-full-screen', syncFullscreen);
+  win.on('leave-full-screen', syncFullscreen);
+
   return win;
 }
 
@@ -173,7 +183,18 @@ function buildMenu() {
           ? [
               { role: 'reload' } as const,
               { role: 'forceReload' } as const,
-              { role: 'toggleDevTools' } as const,
+              {
+                label: 'Toggle Developer Tools',
+                accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
+                click: () => {
+                  if (!mainWindow) return;
+                  if (mainWindow.webContents.isDevToolsOpened()) {
+                    mainWindow.webContents.closeDevTools();
+                  } else {
+                    mainWindow.webContents.openDevTools({ mode: 'detach' });
+                  }
+                },
+              },
               { type: 'separator' } as const,
             ]
           : []),
