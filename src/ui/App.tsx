@@ -7,18 +7,15 @@
  * EventBus → Zustand wiring is initialized via useEventBusInit().
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
 import type { Router } from '@tanstack/react-router';
 import { queryClient } from '@/bridge/query-client';
 import { TRPCProvider } from '@/bridge/react';
-import { refreshTrpcClient, trpc } from '@/bridge/trpc';
-import { initServerUrl } from '@/bridge/config';
 import {
   createPlatformActions,
   detectPlatformType,
-  initializeClientRuntime,
   type PlatformType,
 } from './app-bootstrap';
 import { PlatformProvider } from './context/PlatformProvider';
@@ -27,6 +24,8 @@ import { AppContextMenu } from './components/Shell/AppContextMenu';
 import { useEventBusInit } from './hooks/useEventBusInit';
 import { useServerEventInvalidation } from './hooks/useServerEventInvalidation';
 import { SetupGate } from './components/SetupGate';
+import { useElectronBootstrap } from './useElectronBootstrap';
+import { trpc } from '@/bridge/trpc';
 
 function usePlatformDetection() {
   const [platformType] = useState<PlatformType>(detectPlatformType);
@@ -107,43 +106,17 @@ export default function App({ router }: { router: Router<any, any, any, any> }) 
     () => createPlatformActions(isMacOS, platformType),
     [isMacOS, platformType],
   );
-
-  // Block rendering until server port is resolved (critical for Electron where
-  // port is dynamically assigned). Without this, tRPC links would be created
-  // with the stale build-time port and first queries would hit the wrong server.
-  const [serverReady, setServerReady] = useState(() => platformType !== 'electron');
-  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
-  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
-  const initRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (platformType !== 'electron') return;
-    if (initRef.current === bootstrapAttempt) return;
-
-    initRef.current = bootstrapAttempt;
-    let cancelled = false;
-    setServerReady(false);
-    setBootstrapError(null);
-
-    void initializeClientRuntime(initServerUrl, refreshTrpcClient)
-      .then(() => {
-        if (!cancelled) setServerReady(true);
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        console.error('Client runtime init failed, keeping Electron gate closed:', error);
-        setBootstrapError(error instanceof Error ? error.message : String(error));
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [bootstrapAttempt, platformType]);
+  const {
+    serverReady,
+    bootstrapError,
+    retryBootstrap,
+  } = useElectronBootstrap(platformType);
 
   if (bootstrapError) {
     return (
       <RuntimeBootstrapError
         message={bootstrapError}
-        onRetry={() => setBootstrapAttempt((attempt) => attempt + 1)}
+        onRetry={retryBootstrap}
       />
     );
   }
