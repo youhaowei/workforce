@@ -78,68 +78,60 @@ async function pollHealth() {
   throw new Error(`Timed out waiting for /health on ports ${smokePorts[0]}-${smokePorts.at(-1)}`);
 }
 
+async function terminateApp(child, binaryPath) {
+  child.kill('SIGTERM');
+  await delay(1_000);
+  if (!child.killed) child.kill('SIGKILL');
+
+  if (process.platform === 'darwin') {
+    try {
+      execFileSync('pkill', ['-f', binaryPath]);
+    } catch {
+      // Best-effort cleanup for Electron helper processes.
+    }
+  }
+}
+
 async function main() {
   const { appPath, binaryPath } = await resolveBundle();
-  const child = process.platform === 'darwin'
-    ? spawn('open', ['-na', appPath, '--args', ...launchArgs], {
-        cwd: repoRoot,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: {
-          ...process.env,
-          ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
-        },
-      })
-    : spawn(binaryPath, launchArgs, {
-        cwd: repoRoot,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: {
-          ...process.env,
-          ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
-        },
-      });
+  const child = spawn(binaryPath, launchArgs, {
+    cwd: repoRoot,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
+    },
+  });
 
   let stdout = '';
   let stderr = '';
+  let exitDetail = null;
   child.stdout.on('data', (chunk) => {
     stdout += chunk.toString();
   });
   child.stderr.on('data', (chunk) => {
     stderr += chunk.toString();
   });
+  child.on('exit', (code, signal) => {
+    exitDetail = { code, signal };
+  });
 
   try {
     const { port, payload } = await pollHealth();
     console.log(`Packaged smoke OK: http://localhost:${port}/health -> ${JSON.stringify(payload)}`);
   } catch (error) {
-    if (process.platform === 'darwin') {
-      try {
-        execFileSync('pkill', ['-f', binaryPath]);
-      } catch {
-        // Best-effort cleanup.
-      }
-    } else {
-      child.kill('SIGTERM');
-      await delay(1_000);
-      if (!child.killed) child.kill('SIGKILL');
-    }
+    await terminateApp(child, binaryPath);
     throw new Error([
       error instanceof Error ? error.message : String(error),
+      exitDetail && `process exit: ${JSON.stringify(exitDetail)}`,
+      `launch target: ${binaryPath}`,
+      process.platform === 'darwin' && `app bundle: ${appPath}`,
       stdout && `stdout:\n${stdout.trim()}`,
       stderr && `stderr:\n${stderr.trim()}`,
     ].filter(Boolean).join('\n\n'));
   }
 
-  if (process.platform === 'darwin') {
-    try {
-      execFileSync('pkill', ['-f', binaryPath]);
-    } catch {
-      // Best-effort cleanup.
-    }
-  } else {
-    child.kill('SIGTERM');
-    await delay(1_000);
-    if (!child.killed) child.kill('SIGKILL');
-  }
+  await terminateApp(child, binaryPath);
 }
 
 await main();
