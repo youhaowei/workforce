@@ -22,6 +22,7 @@ import { AppContextMenu } from './components/Shell/AppContextMenu';
 import { useEventBusInit } from './hooks/useEventBusInit';
 import { useServerEventInvalidation } from './hooks/useServerEventInvalidation';
 import { SetupGate } from './components/SetupGate';
+import { DiffWorkerPool } from './components/DiffViewer/DiffWorkerPool';
 
 // Detect desktop mode: Tauri v1/v2 inject __TAURI__ or __TAURI_INTERNALS__ on the window.
 function detectTauri(): boolean {
@@ -109,9 +110,11 @@ export default function App({ router }: { router: Router<any, any, any, any> }) 
       <TRPCProvider trpcClient={trpc} queryClient={queryClient}>
         <PlatformProvider actions={platformActions}>
           <HotkeyProvider>
-            <AppContextMenu>
-              <AppInner router={router} />
-            </AppContextMenu>
+            <DiffWorkerPool>
+              <AppContextMenu>
+                <AppInner router={router} />
+              </AppContextMenu>
+            </DiffWorkerPool>
           </HotkeyProvider>
         </PlatformProvider>
       </TRPCProvider>

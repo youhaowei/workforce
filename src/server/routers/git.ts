@@ -21,6 +21,10 @@ export const gitRouter = router({
     }).optional())
     .query(({ input }) => getGitService().getDiff(input?.file, input?.staged)),
 
+  branchDiff: publicProcedure
+    .input(z.object({ base: z.string().optional() }).optional())
+    .query(({ input }) => getGitService().getBranchDiff(input?.base)),
+
   remotes: publicProcedure
     .query(() => getGitService().getRemotes()),
 

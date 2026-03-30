@@ -34,6 +34,8 @@ import { useForkActions } from "./useForkActions";
 import { useAgentStream } from "./useAgentStream";
 import { usePlanMode } from "@/ui/hooks/usePlanMode";
 import { useArtifactPanel } from "@/ui/hooks/useArtifactPanel";
+import { useBranchDiff } from "@/ui/hooks/useBranchDiff";
+import { BranchDiffPanel } from "../DiffViewer/BranchDiffPanel";
 import {
   SESSIONS_PANEL_STORAGE_KEY,
   VIEW_STORAGE_KEY,
@@ -365,6 +367,9 @@ export default function Shell() {
     onReject: handlePlanReject,
   });
 
+  // Branch diff panel
+  const branchDiff = useBranchDiff();
+
   const handleProjectDialogOpenChange = useCallback((open: boolean) => {
     setCreateProjectDialog(open, open ? createProjectDialogSource : null);
   }, [createProjectDialogSource, setCreateProjectDialog]);
@@ -485,7 +490,7 @@ export default function Shell() {
               </MainContentColumn>
 
               <ArtifactPanel
-                isOpen={planPanelOpen || artifactPanel.panelOpen}
+                isOpen={(planPanelOpen || artifactPanel.panelOpen) && !branchDiff.panelOpen}
                 isPlanMode={isPlanMode}
                 isPlanArtifact={!!planArtifactId && !artifactPanel.panelOpen}
                 title={artifactPanel.artifact?.title ?? planTitle}
@@ -503,12 +508,27 @@ export default function Shell() {
                 onClose={artifactPanel.panelOpen ? artifactPanel.closePanel : handlePlanClose}
                 onSelectArtifact={artifactPanel.openArtifact}
               />
+
+              <BranchDiffPanel
+                isOpen={branchDiff.panelOpen}
+                patch={branchDiff.patch}
+                branch={branchDiff.branch}
+                baseBranch={branchDiff.baseBranch}
+                fileCount={branchDiff.files.length}
+                isLoading={branchDiff.isLoading}
+                focusFile={branchDiff.focusFile}
+                onClose={branchDiff.closeDiffPanel}
+              />
             </div>
 
             <ChatInfoPanel
               isOpen={showChatInfo}
               sessionId={selectedSessionId}
               onOpenArtifact={artifactPanel.openArtifact}
+              branchDiffFiles={branchDiff.files}
+              branchDiffActiveFile={branchDiff.focusFile}
+              onOpenBranchDiff={branchDiff.openDiffPanel}
+              onSelectDiffFile={branchDiff.selectFile}
             />
           </Surface>
 

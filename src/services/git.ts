@@ -53,6 +53,12 @@ export interface GitRemote {
   pushUrl: string;
 }
 
+export interface BranchDiffFile {
+  path: string;
+  additions: number;
+  deletions: number;
+}
+
 export interface PullRequest {
   number: number;
   title: string;
@@ -304,6 +310,56 @@ export class GitService {
 
     const result = await this.git(...args);
     return result.status === 'success' ? result.stdout : '';
+  }
+
+  /**
+   * Get the diff between the current branch and a base ref (branch/tag/commit).
+   * Uses merge-base to find the common ancestor, so it shows only what the
+   * current branch added — not changes on the base branch.
+   */
+  async getBranchDiff(base?: string): Promise<{ patch: string; files: BranchDiffFile[] }> {
+    // Default base: origin/main, origin/master, main, master — first that resolves
+    const resolvedBase = base ?? await this.resolveDefaultBase();
+    if (!resolvedBase) return { patch: '', files: [] };
+
+    // Find merge-base so we only see what the branch added
+    const mergeBaseResult = await this.git('merge-base', resolvedBase, 'HEAD');
+    const mergeBase = mergeBaseResult.status === 'success'
+      ? mergeBaseResult.stdout.trim()
+      : resolvedBase;
+
+    // Full unified diff
+    const diffResult = await this.git('diff', mergeBase, 'HEAD');
+    const patch = diffResult.status === 'success' ? diffResult.stdout : '';
+
+    // Per-file summary (numstat)
+    const statResult = await this.git('diff', '--numstat', mergeBase, 'HEAD');
+    const files: BranchDiffFile[] = [];
+    if (statResult.status === 'success') {
+      for (const line of statResult.stdout.trim().split('\n')) {
+        if (!line) continue;
+        const [addStr, delStr, ...pathParts] = line.split('\t');
+        const path = pathParts.join('\t'); // handle paths with tabs (rename)
+        files.push({
+          path,
+          additions: addStr === '-' ? 0 : parseInt(addStr, 10) || 0,
+          deletions: delStr === '-' ? 0 : parseInt(delStr, 10) || 0,
+        });
+      }
+    }
+
+    return { patch, files };
+  }
+
+  /**
+   * Resolve the default base branch (origin/main, origin/master, main, master).
+   */
+  private async resolveDefaultBase(): Promise<string | null> {
+    for (const candidate of ['origin/main', 'origin/master', 'main', 'master']) {
+      const result = await this.git('rev-parse', '--verify', candidate);
+      if (result.status === 'success') return candidate;
+    }
+    return null;
   }
 
   /**

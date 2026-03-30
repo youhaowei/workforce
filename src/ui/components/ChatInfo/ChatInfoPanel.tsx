@@ -13,7 +13,9 @@ import { useMessagesStore, type MessageState } from '@/ui/stores/useMessagesStor
 import type { ArtifactStatus } from '@/services/types';
 import { MIME_DOT_COLOR, ARTIFACT_STATUS_STYLES, ARTIFACT_STATUS_LABELS } from '@/ui/lib/artifact-utils';
 import { trpc as trpcClient } from '@/bridge/trpc';
-import { FileText, Clock, Cpu, DollarSign, Pencil } from 'lucide-react';
+import { FileText, Clock, Cpu, DollarSign, Pencil, GitBranch } from 'lucide-react';
+import { DiffFileList } from '@/ui/components/DiffViewer/DiffFileList';
+import type { BranchDiffFile } from '@/services/git';
 
 // =============================================================================
 // Helpers
@@ -67,9 +69,16 @@ export interface ChatInfoPanelProps {
   isOpen: boolean;
   sessionId: string | null;
   onOpenArtifact?: (artifactId: string) => void;
+  branchDiffFiles?: BranchDiffFile[];
+  branchDiffActiveFile?: string | null;
+  onOpenBranchDiff?: (file?: string) => void;
+  onSelectDiffFile?: (file: string) => void;
 }
 
-export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPanelProps) {
+export function ChatInfoPanel({
+  isOpen, sessionId, onOpenArtifact,
+  branchDiffFiles, branchDiffActiveFile, onOpenBranchDiff, onSelectDiffFile,
+}: ChatInfoPanelProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -248,6 +257,25 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
                   {shortenPath(path)}
                 </div>
               ))}
+            </div>
+          </Section>
+        )}
+
+        {/* Branch Diff */}
+        {branchDiffFiles && branchDiffFiles.length > 0 && (
+          <Section label="Branch Diff" icon={<GitBranch className="h-3 w-3" />}>
+            <div className="space-y-1">
+              <button
+                onClick={() => onOpenBranchDiff?.()}
+                className="w-full text-left text-[10px] text-palette-info hover:underline mb-1"
+              >
+                View full diff
+              </button>
+              <DiffFileList
+                files={branchDiffFiles}
+                activeFile={branchDiffActiveFile}
+                onSelectFile={(f) => onSelectDiffFile?.(f)}
+              />
             </div>
           </Section>
         )}
