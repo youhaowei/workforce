@@ -1,5 +1,5 @@
-import { createSession } from 'unifai';
-import type { AgentEvent } from 'unifai';
+import { query as sdkQuery } from '@anthropic-ai/claude-agent-sdk';
+import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { homedir } from 'os';
 import type { StreamResult, AgentStreamEvent } from './types';
 import { getEventBus } from '@/shared/event-bus';
@@ -70,6 +70,25 @@ export interface AgentInstanceOptions {
   allowedTools?: string[];
 }
 
+// Inline event mapping for the simpler AgentInstance use case.
+// Reuses the same SDK message structure as agent.ts but only maps the
+// events that AgentInstance needs (a subset of the full mapping).
+
+/** Extract tool_result events from SDK "user" messages (tool responses). */
+function* extractToolResults(msg: SDKMessage, pendingTools: Map<string, string>): Generator<AgentStreamEvent> {
+  const content = (msg as SDKMessage & { message?: { content?: unknown[] } }).message?.content;
+  if (!Array.isArray(content)) return;
+  for (const block of content) {
+    const b = block as { type?: string; tool_use_id?: string; content?: unknown; is_error?: boolean };
+    if (b.type === 'tool_result' && b.tool_use_id) {
+      const toolUseId = String(b.tool_use_id);
+      const toolName = pendingTools.get(toolUseId) ?? '';
+      pendingTools.delete(toolUseId);
+      yield { type: 'tool_result', toolUseId, toolName, result: b.content, isError: !!b.is_error };
+    }
+  }
+}
+
 /**
  * An individual agent instance tied to a specific session.
  * Each instance has its own AbortController and working directory,
@@ -86,6 +105,7 @@ export class AgentInstance {
     this.abortController = new AbortController();
   }
 
+  // eslint-disable-next-line complexity, max-depth
   async *run(prompt: string): StreamResult<AgentStreamEvent> {
     if (this.runInProgress) {
       throw new AgentError('Query already in progress for this instance', 'UNKNOWN');
@@ -101,24 +121,44 @@ export class AgentInstance {
         ? `${this.options.systemPrompt}\n\n${prompt}`
         : prompt;
 
-      const session = createSession('claude', {
-        model: 'sonnet',
+      const sdkOptions = {
+        model: 'sonnet' as const,
         cwd: this.options.cwd,
         env: this.options.env ?? buildSdkEnv(),
         pathToClaudeCodeExecutable: resolveClaudeCliPath(),
         abortController: this.abortController,
         includePartialMessages: true,
-        includeRawEvents: true,
         ...(this.options.allowedTools?.length ? { allowedTools: this.options.allowedTools } : {}),
-      });
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const stream = sdkQuery({ prompt: fullPrompt, options: sdkOptions as any });
+
+      // Track pending tools for result synthesis
+      const pendingTools = new Map<string, string>();
 
       try {
-        for await (const event of session.send(fullPrompt)) {
-          yield* this.handleEvent(event, bus, tokenIndex);
-          if (event.type === 'text_delta') tokenIndex++;
+        for await (const msg of stream) {
+          // Extract tool_result from SDK "user" messages
+          if (msg.type === 'user') {
+            yield* extractToolResults(msg, pendingTools);
+          }
+
+          yield* this.handleSdkMessage(msg, bus, tokenIndex, pendingTools);
+          // Count text deltas from stream events
+          if (msg.type !== 'stream_event') continue;
+          const se = msg as SDKMessage & { event?: { type?: string; delta?: { type?: string } } };
+          if (se.event?.type === 'content_block_delta' && se.event?.delta?.type === 'text_delta') {
+            tokenIndex++;
+          }
+        }
+
+        // Complete remaining tools at stream end
+        for (const [toolUseId, toolName] of pendingTools) {
+          yield { type: 'tool_result', toolUseId, toolName, result: undefined, isError: false };
         }
       } finally {
-        session.close();
+        stream.close();
       }
     } catch (err) {
       if (this.abortController.signal.aborted) {
@@ -135,81 +175,96 @@ export class AgentInstance {
     }
   }
 
-  private *handleEvent(event: AgentEvent, bus: ReturnType<typeof getEventBus>, _tokenIndex: number): Generator<AgentStreamEvent> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, complexity
+  private *handleSdkMessage(msg: any, bus: ReturnType<typeof getEventBus>, _tokenIndex: number, pendingTools: Map<string, string>): Generator<AgentStreamEvent> {
     const now = Date.now();
 
     // Pass through raw SDK messages for advanced consumers
-    if (event.type === 'raw') {
-      bus.emit({
-        type: 'RawSdkMessage',
-        sdkMessageType: event.eventType,
-        payload: event.data,
-        timestamp: now,
-      });
+    if (msg.type !== 'stream_event' && msg.type !== 'assistant' && msg.type !== 'result' && msg.type !== 'user') {
+      bus.emit({ type: 'RawSdkMessage', sdkMessageType: msg.type, payload: msg, timestamp: now });
+    }
+
+    // Handle stream events (text deltas, content blocks)
+    if (msg.type === 'stream_event') {
+      const event = msg.event;
+      if (!event) return;
+
+      if (event.type === 'content_block_delta') {
+        const delta = event.delta;
+        if (delta?.type === 'text_delta' && typeof delta.text === 'string') {
+          yield { type: 'token', token: delta.text };
+          return;
+        }
+      }
+
+      if (event.type === 'content_block_start') {
+        const block = event.content_block;
+        if (block) {
+          yield { type: 'content_block_start', index: Number(event.index ?? 0), blockType: block.type, id: block.id, name: block.name };
+        }
+      }
+
+      if (event.type === 'content_block_stop') {
+        yield { type: 'content_block_stop', index: Number(event.index ?? 0) };
+      }
       return;
     }
 
-    if (event.type === 'text_delta') {
-      yield { type: 'token', token: event.text };
-      return;
+    // Handle assistant messages (extract tool_start events)
+    if (msg.type === 'assistant') {
+      const m = msg.message;
+      if (!m || !Array.isArray(m.content)) return;
+
+      for (const block of m.content) {
+        if (block.type === 'tool_use') {
+          const toolUseId = String(block.id ?? '');
+          const toolName = String(block.name ?? '');
+          pendingTools.set(toolUseId, toolName);
+          yield { type: 'tool_start', name: toolName, input: formatToolInput(toolName, block.input), toolUseId, inputRaw: block.input };
+        }
+      }
     }
 
-    if (event.type === 'tool_start') {
-      yield { type: 'tool_start', name: event.toolName, input: formatToolInput(event.toolName, event.input), toolUseId: event.toolUseId, inputRaw: event.input };
-    }
-
-    if (event.type === 'tool_result') {
-      yield { type: 'tool_result', toolUseId: event.toolUseId, toolName: event.toolName, result: event.result, isError: event.isError };
-    }
-
-    if (event.type === 'content_block_start') {
-      yield { type: 'content_block_start', index: event.index, blockType: event.blockType, id: event.id, name: event.name };
-    }
-
-    if (event.type === 'content_block_stop') {
-      yield { type: 'content_block_stop', index: event.index };
-    }
-
-    if (event.type === 'status') {
-      yield { type: 'status', message: event.message };
-    }
-
-    if (event.type === 'session_complete') {
+    // Handle result messages
+    if (msg.type === 'result') {
       bus.emit({
         type: 'QueryResult',
-        subtype: (event.subtype ?? 'success') as 'success',
-        durationMs: event.durationMs,
-        durationApiMs: event.durationApiMs ?? 0,
-        numTurns: event.numTurns,
-        totalCostUsd: event.costUsd ?? 0,
-        result: event.result,
-        structuredOutput: event.structuredOutput,
+        subtype: (msg.subtype ?? 'success') as 'success',
+        durationMs: Number(msg.duration_ms ?? 0),
+        durationApiMs: Number(msg.duration_api_ms ?? 0),
+        numTurns: Number(msg.num_turns ?? 0),
+        totalCostUsd: Number(msg.total_cost_usd ?? 0),
+        result: msg.result != null ? String(msg.result) : undefined,
+        structuredOutput: msg.structured_output,
         usage: {
-          inputTokens: event.usage.inputTokens,
-          outputTokens: event.usage.outputTokens,
-          cacheReadInputTokens: event.usage.cacheReadTokens ?? 0,
-          cacheCreationInputTokens: event.usage.cacheCreationTokens ?? 0,
+          inputTokens: Number(msg.usage?.input_tokens ?? 0),
+          outputTokens: Number(msg.usage?.output_tokens ?? 0),
+          cacheReadInputTokens: Number(msg.usage?.cache_read_input_tokens ?? 0),
+          cacheCreationInputTokens: Number(msg.usage?.cache_creation_input_tokens ?? 0),
         },
-        modelUsage: event.modelUsage
+        modelUsage: msg.modelUsage
           ? Object.fromEntries(
-              Object.entries(event.modelUsage).map(([model, mu]) => [
-                model,
-                {
-                  inputTokens: mu.inputTokens,
-                  outputTokens: mu.outputTokens,
-                  cacheReadInputTokens: mu.cacheReadTokens,
-                  cacheCreationInputTokens: mu.cacheCreationTokens,
-                  webSearchRequests: mu.webSearchRequests ?? 0,
-                  costUSD: mu.costUsd ?? 0,
-                  contextWindow: mu.contextWindow ?? 0,
-                  maxOutputTokens: mu.maxOutputTokens ?? 0,
-                },
-              ])
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              Object.entries(msg.modelUsage).map(([model, mu]: [string, any]) => [model, {
+                inputTokens: Number(mu.inputTokens ?? 0),
+                outputTokens: Number(mu.outputTokens ?? 0),
+                cacheReadInputTokens: Number(mu.cacheReadInputTokens ?? 0),
+                cacheCreationInputTokens: Number(mu.cacheCreationInputTokens ?? 0),
+                webSearchRequests: Number(mu.webSearchRequests ?? 0),
+                costUSD: Number(mu.costUSD ?? 0),
+                contextWindow: Number(mu.contextWindow ?? 0),
+                maxOutputTokens: Number(mu.maxOutputTokens ?? 0),
+              }])
             )
           : {},
-        errors: event.errors,
+        errors: Array.isArray(msg.errors) ? msg.errors : undefined,
         timestamp: now,
       });
+    }
+
+    // Handle status messages
+    if (msg.type === 'system' && msg.subtype === 'status') {
+      yield { type: 'status', message: msg.status ? String(msg.status) : 'status update' };
     }
   }
 

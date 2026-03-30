@@ -139,7 +139,8 @@ export type SSEEvent =
   | { type: 'status'; data: string }
   | { type: 'plan_ready'; path: string }
   | { type: 'agent_question'; requestId: string; questions: AgentQuestion[] }
-  | { type: 'snapshot'; blocks: ContentBlock[]; fullText: string; activities: ToolActivity[]; pendingQuestion?: { requestId: string; questions: AgentQuestion[] } }
+  | { type: 'approval_request'; requestId: string; toolName: string; input: unknown; description: string }
+  | { type: 'snapshot'; blocks: ContentBlock[]; fullText: string; activities: ToolActivity[]; pendingQuestion?: { requestId: string; questions: AgentQuestion[] }; pendingApproval?: { requestId: string; toolName: string; input: unknown; description: string } }
   | { type: 'done'; data: string }
   | { type: 'error'; data: string };
 
@@ -188,6 +189,10 @@ export function* processEvent(
     case 'agent_question':
       streamLog.info({ requestId: event.requestId, questionCount: event.questions.length }, 'agent question');
       yield { type: 'agent_question', requestId: event.requestId, questions: event.questions };
+      break;
+    case 'approval_request':
+      streamLog.info({ requestId: event.requestId, toolName: event.toolName }, 'approval request');
+      yield { type: 'approval_request', requestId: event.requestId, toolName: event.toolName, input: event.input, description: event.description };
       break;
   }
 }
@@ -247,7 +252,8 @@ class AgentRunnerImpl {
     prompt: string;
     model?: string;
     maxThinkingTokens?: number;
-    permissionMode?: 'plan' | 'default' | 'acceptEdits' | 'bypassPermissions';
+    permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions';
+    planMode?: boolean;
     sessionId?: string;
     messageId?: string;
   }): void {
@@ -289,14 +295,16 @@ class AgentRunnerImpl {
       return;
     }
 
-    // Yield a snapshot of current accumulated state (including any pending question)
+    // Yield a snapshot of current accumulated state (including any pending question/approval)
     const pendingQ = getAgentService().getPendingQuestion() ?? undefined;
+    const pendingA = getAgentService().getPendingApproval() ?? undefined;
     yield {
       type: 'snapshot',
       blocks: structuredClone(run.acc.blocks),
       fullText: run.fullText,
       activities: [...run.acc.activities],
       pendingQuestion: pendingQ,
+      pendingApproval: pendingA,
     };
 
     // Then yield live events via a listener
@@ -342,6 +350,10 @@ class AgentRunnerImpl {
     this.snapshotBlocks(run);
   }
 
+  recordApprovalDecision(requestId: string, decision: 'approve' | 'approve_session' | 'deny' | 'cancel'): void {
+    getAgentService().submitApproval(requestId, decision);
+  }
+
   // ─── Private ────────────────────────────────────────────────────────
 
   private broadcast(run: ActiveRun, event: SSEEvent): void {
@@ -360,7 +372,7 @@ class AgentRunnerImpl {
 
   private async executeRun(
     run: ActiveRun,
-    input: { prompt: string; model?: string; maxThinkingTokens?: number; permissionMode?: string; sessionId?: string; messageId?: string },
+    input: { prompt: string; model?: string; maxThinkingTokens?: number; permissionMode?: 'default' | 'acceptEdits' | 'bypassPermissions'; planMode?: boolean; sessionId?: string; messageId?: string },
   ): Promise<void> {
     log.info({
       prompt: input.prompt.slice(0, 100),
@@ -380,7 +392,8 @@ class AgentRunnerImpl {
       for await (const event of agent.run(input.prompt, {
         model: input.model,
         maxThinkingTokens: input.maxThinkingTokens,
-        permissionMode: input.permissionMode as 'plan' | 'default' | 'acceptEdits' | 'bypassPermissions' | undefined,
+        permissionMode: input.permissionMode,
+        planMode: input.planMode,
       })) {
         // Process event → accumulate blocks + generate SSE events
         for (const sseEvent of processEvent(event, run.acc, () => this.snapshotBlocks(run))) {

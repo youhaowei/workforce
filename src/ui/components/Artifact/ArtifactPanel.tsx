@@ -9,7 +9,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { FileText, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Surface } from '@/components/ui/surface';
-import type { ArtifactStatus, ArtifactComment, Artifact, AgentPermissionMode } from '@/services/types';
+import type { ArtifactStatus, ArtifactComment, Artifact } from '@/services/types';
 import { ArtifactHeader } from './ArtifactHeader';
 import { ArtifactContent } from './ArtifactContent';
 import { ArtifactReviewBox } from './ArtifactReviewBox';
@@ -33,7 +33,7 @@ export interface ArtifactPanelProps {
   activeArtifactId: string | null;
   onAddComment: (line: number, text: string, severity: ArtifactComment['severity']) => void;
   onSubmitReview: (summary: string) => void;
-  onApprove: (permission: AgentPermissionMode) => void;
+  onApprove: () => void;
   onReject: () => void;
   onClose: () => void;
   onSelectArtifact: (id: string) => void;

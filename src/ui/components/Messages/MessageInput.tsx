@@ -60,6 +60,7 @@ function getInitialConfig(
       model: orgDefaults.model,
       thinkingLevel: orgDefaults.thinkingLevel,
       permissionMode: DEFAULT_AGENT_CONFIG.permissionMode,
+      planMode: false,
     };
   }
   // Priority 4: hardcoded defaults
@@ -96,6 +97,7 @@ export default function MessageInput({
   const [model, setModel] = useState(initialConfig.model);
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(initialConfig.thinkingLevel);
   const [permissionMode, setPermissionMode] = useState<AgentPermissionMode>(initialConfig.permissionMode);
+  const [planMode, setPlanMode] = useState(initialConfig.planMode ?? false);
 
   // Apply org defaults once they resolve, but only if no higher-priority config was set.
   // orgDefaults intentionally NOT in the restore effect deps — this one-shot effect handles
@@ -164,6 +166,7 @@ export default function MessageInput({
       setModel(validModel);
       setThinkingLevel(cfg.thinkingLevel);
       setPermissionMode(cfg.permissionMode);
+      setPlanMode(cfg.planMode ?? false);
     } else if (!prev.appliedWithMessages && hasMessages) {
       // Same session: messages just loaded — re-apply to pick up session-specific agentConfig
       sessionConfigRef.current = { ...prev, appliedWithMessages: true };
@@ -174,6 +177,7 @@ export default function MessageInput({
       setModel(validModel);
       setThinkingLevel(cfg.thinkingLevel);
       setPermissionMode(cfg.permissionMode);
+      setPlanMode(cfg.planMode ?? false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, messages, models]);
@@ -205,7 +209,7 @@ export default function MessageInput({
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim();
     if (trimmed && !isStreaming) {
-      const agentConfig: AgentConfig = { model, thinkingLevel, permissionMode };
+      const agentConfig: AgentConfig = { model, thinkingLevel, permissionMode, planMode };
       try {
         localStorage.setItem(AGENT_CONFIG_LAST_KEY, JSON.stringify(agentConfig));
       } catch {
@@ -217,7 +221,7 @@ export default function MessageInput({
         textareaRef.current.style.height = 'auto';
       }
     }
-  }, [value, isStreaming, model, thinkingLevel, permissionMode, onSubmit]);
+  }, [value, isStreaming, model, thinkingLevel, permissionMode, planMode, onSubmit]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -267,10 +271,12 @@ export default function MessageInput({
                 model={model}
                 thinkingLevel={thinkingLevel}
                 permissionMode={permissionMode}
+                planMode={planMode}
                 models={models}
                 onModelChange={setModel}
                 onThinkingChange={setThinkingLevel}
                 onPermissionChange={setPermissionMode}
+                onPlanModeChange={setPlanMode}
                 disabled={isStreaming}
               />
               {isStreaming && (

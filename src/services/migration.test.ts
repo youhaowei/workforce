@@ -12,6 +12,7 @@ import { tmpdir } from 'os';
 import {
   runMigrations,
   registerMigration,
+  resetTestMigrations,
   readLedger,
   writeLedger,
   migrateSessionsJsonToJsonl,
@@ -55,6 +56,7 @@ describe('Migration Framework', () => {
   });
 
   afterEach(async () => {
+    resetTestMigrations();
     await rm(TEST_ROOT, { recursive: true, force: true }).catch(() => {});
   });
 

@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { getEventBus } from '@/shared/event-bus';
 
-// Mock unifai before importing
-vi.mock('unifai', () => ({
-  createSession: vi.fn(),
+// Mock the SDK before importing
+vi.mock('@anthropic-ai/claude-agent-sdk', () => ({
+  query: vi.fn(),
 }));
 
 vi.mock('./agent-cli-path', () => ({
@@ -15,9 +15,22 @@ vi.mock('./agent', () => ({
 }));
 
 import { buildSdkEnv, isAuthError, AgentError, AgentInstance } from './agent-instance';
-import { createSession } from 'unifai';
+import { query } from '@anthropic-ai/claude-agent-sdk';
 
-const mockCreateSession = vi.mocked(createSession);
+const mockQuery = vi.mocked(query);
+
+/**
+ * Helper: create a mock Query (async generator with close()).
+ * The SDK's query() returns an AsyncGenerator with a .close() method.
+ */
+function mockStream(events: Array<Record<string, unknown>>) {
+  const gen = (async function* () {
+    for (const e of events) yield e;
+  })();
+  // Add close() method that Query has
+  (gen as any).close = vi.fn();
+  return gen;
+}
 
 describe('agent-instance', () => {
   afterEach(() => {
@@ -95,41 +108,32 @@ describe('agent-instance', () => {
   describe('AgentInstance', () => {
     it('throws if run is called while already running', async () => {
       let resolveHang!: () => void;
-      const mockSession = {
-        send: vi.fn(() => (async function* () {
-          yield { type: 'text_delta', text: 'hi' };
-          // Hang so the run stays in progress
-          await new Promise<void>((r) => { resolveHang = r; });
-        })()),
-        close: vi.fn(),
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
+      const stream = (async function* () {
+        yield { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'hi' } } };
+        await new Promise<void>((r) => { resolveHang = r; });
+      })();
+      (stream as any).close = vi.fn();
+      mockQuery.mockReturnValue(stream as any);
 
       const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
 
-      // Start first run and consume the first token
       const gen = instance.run('first prompt');
-      await gen.next(); // yields 'hi'
+      await gen.next(); // yields 'hi' token
 
-      // Second run should throw
       const gen2 = instance.run('second prompt');
       await expect(gen2.next()).rejects.toThrow('Query already in progress');
 
-      // Cleanup: cancel the first run
       instance.cancel();
       resolveHang?.();
       try { await gen.return(undefined); } catch { /* cleanup */ }
     });
 
-    it('yields token events from text_delta', async () => {
-      const mockSession = {
-        send: vi.fn(() => (async function* () {
-          yield { type: 'text_delta', text: 'hello ' };
-          yield { type: 'text_delta', text: 'world' };
-        })()),
-        close: vi.fn(),
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
+    it('yields token events from stream text_delta', async () => {
+      const stream = mockStream([
+        { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'hello ' } } },
+        { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'world' } } },
+      ]);
+      mockQuery.mockReturnValue(stream as any);
 
       const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
       const events: unknown[] = [];
@@ -143,15 +147,12 @@ describe('agent-instance', () => {
       ]);
     });
 
-    it('yields tool_start and tool_result events', async () => {
-      const mockSession = {
-        send: vi.fn(() => (async function* () {
-          yield { type: 'tool_start', toolName: 'search', input: { q: 'test' }, toolUseId: 'tu-1' };
-          yield { type: 'tool_result', toolUseId: 'tu-1', toolName: 'search', result: 'found', isError: false };
-        })()),
-        close: vi.fn(),
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
+    it('yields tool_start from assistant messages and tool_result from user messages', async () => {
+      const stream = mockStream([
+        { type: 'assistant', message: { content: [{ type: 'tool_use', id: 'tu-1', name: 'search', input: { q: 'test' } }] } },
+        { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: 'tu-1', content: 'found', is_error: false }] } },
+      ]);
+      mockQuery.mockReturnValue(stream as any);
 
       const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
       const events: unknown[] = [];
@@ -164,41 +165,15 @@ describe('agent-instance', () => {
       expect(events[1]).toMatchObject({ type: 'tool_result', toolUseId: 'tu-1', result: 'found' });
     });
 
-    it('emits RawSdkMessage for raw events', async () => {
-      const bus = getEventBus();
-      const rawEvents: unknown[] = [];
-      bus.on('RawSdkMessage', (e) => rawEvents.push(e));
-
-      const mockSession = {
-        send: vi.fn(() => (async function* () {
-          yield { type: 'raw', eventType: 'content_block_start', data: { index: 0 } };
-        })()),
-        close: vi.fn(),
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
-
-      const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
-      for await (const _ of instance.run('test')) { /* consume */ }
-
-      expect(rawEvents).toHaveLength(1);
-      expect(rawEvents[0]).toMatchObject({
-        type: 'RawSdkMessage',
-        sdkMessageType: 'content_block_start',
-      });
-    });
-
     it('yields cancelled token when aborted mid-stream', async () => {
       const instanceRef: { current?: AgentInstance } = {};
-      const mockSession = {
-        send: vi.fn(() => (async function* () {
-          yield { type: 'text_delta', text: 'start' };
-          // Cancel mid-stream, then throw like the SDK would
-          instanceRef.current!.cancel();
-          throw new Error('The operation was aborted');
-        })()),
-        close: vi.fn(),
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
+      const stream = (async function* () {
+        yield { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'start' } } };
+        instanceRef.current!.cancel();
+        throw new Error('The operation was aborted');
+      })();
+      (stream as any).close = vi.fn();
+      mockQuery.mockReturnValue(stream as any);
 
       const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
       instanceRef.current = instance;
@@ -215,13 +190,11 @@ describe('agent-instance', () => {
     });
 
     it('throws AgentError with AUTH_ERROR code for auth errors', async () => {
-      const mockSession = {
-        send: vi.fn(() => (async function* () {
-          throw new Error('authentication failed');
-        })()),
-        close: vi.fn(),
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
+      const stream = (async function* () {
+        throw new Error('authentication failed');
+      })();
+      (stream as any).close = vi.fn();
+      mockQuery.mockReturnValue(stream as any);
 
       const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
 
@@ -235,13 +208,11 @@ describe('agent-instance', () => {
     });
 
     it('throws AgentError with STREAM_FAILED for non-auth errors', async () => {
-      const mockSession = {
-        send: vi.fn(() => (async function* () {
-          throw new Error('network timeout');
-        })()),
-        close: vi.fn(),
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
+      const stream = (async function* () {
+        throw new Error('network timeout');
+      })();
+      (stream as any).close = vi.fn();
+      mockQuery.mockReturnValue(stream as any);
 
       const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
 
@@ -255,13 +226,10 @@ describe('agent-instance', () => {
     });
 
     it('resets runInProgress after completion', async () => {
-      const mockSession = {
-        send: vi.fn(() => (async function* () {
-          yield { type: 'text_delta', text: 'done' };
-        })()),
-        close: vi.fn(),
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
+      const stream = mockStream([
+        { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'done' } } },
+      ]);
+      mockQuery.mockReturnValue(stream as any);
 
       const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
       for await (const _ of instance.run('test')) { /* consume */ }
@@ -269,28 +237,21 @@ describe('agent-instance', () => {
       expect(instance.isRunning()).toBe(false);
     });
 
-    it('calls session.close() in finally block', async () => {
-      const closeFn = vi.fn();
-      const mockSession = {
-        send: vi.fn(() => (async function* () {
-          yield { type: 'text_delta', text: 'x' };
-        })()),
-        close: closeFn,
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
+    it('calls stream.close() in finally block', async () => {
+      const stream = mockStream([
+        { type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'x' } } },
+      ]);
+      mockQuery.mockReturnValue(stream as any);
 
       const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
       for await (const _ of instance.run('test')) { /* consume */ }
 
-      expect(closeFn).toHaveBeenCalledOnce();
+      expect((stream as any).close).toHaveBeenCalledOnce();
     });
 
     it('prepends systemPrompt to the prompt', async () => {
-      const mockSession = {
-        send: vi.fn(() => (async function* () { /* empty */ })()),
-        close: vi.fn(),
-      };
-      mockCreateSession.mockReturnValue(mockSession as any);
+      const stream = mockStream([]);
+      mockQuery.mockReturnValue(stream as any);
 
       const instance = new AgentInstance('sess-1', {
         cwd: '/tmp',
@@ -298,20 +259,22 @@ describe('agent-instance', () => {
       });
       for await (const _ of instance.run('do thing')) { /* consume */ }
 
-      expect(mockSession.send).toHaveBeenCalledWith('You are helpful.\n\ndo thing');
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          prompt: 'You are helpful.\n\ndo thing',
+        }),
+      );
     });
 
     describe('cancel / dispose', () => {
       it('cancel sets abort signal', () => {
         const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
         instance.cancel();
-        // No way to check signal directly, but it shouldn't throw
       });
 
       it('dispose calls cancel', () => {
         const instance = new AgentInstance('sess-1', { cwd: '/tmp' });
         instance.dispose();
-        // Should not throw
       });
     });
   });

@@ -29,6 +29,7 @@ function createMockActions(): StreamEventActions {
     setError: vi.fn(),
     planReady: vi.fn(),
     agentQuestion: vi.fn(),
+    approvalRequest: vi.fn(),
   };
 }
 

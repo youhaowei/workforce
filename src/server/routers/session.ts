@@ -143,7 +143,8 @@ export const sessionRouter = router({
         agentConfig: z.object({
           model: z.string(),
           thinkingLevel: z.enum(['off', 'auto', 'low', 'medium', 'high']),
-          permissionMode: z.enum(['plan', 'default', 'acceptEdits', 'bypassPermissions']),
+          permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions']),
+          planMode: z.boolean().optional(),
         }).optional(),
       }),
     }))

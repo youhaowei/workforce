@@ -42,7 +42,6 @@ export interface AgentDefaults {
 }
 
 export type AgentPermissionMode =
-  | 'plan'
   | 'default'
   | 'acceptEdits'
   | 'bypassPermissions';
@@ -51,6 +50,7 @@ export interface AgentConfig {
   model: string;
   thinkingLevel: ThinkingLevel;
   permissionMode: AgentPermissionMode;
+  planMode?: boolean;
 }
 
 export interface AgentModelInfo {
@@ -72,6 +72,8 @@ export interface RunOptions {
   maxThinkingTokens?: number;
   /** Permission mode for tool execution */
   permissionMode?: AgentPermissionMode;
+  /** Whether to enter plan mode (orthogonal to permission mode) */
+  planMode?: boolean;
   /** System prompt override */
   systemPrompt?: string;
   /** Tools available for this run */
@@ -116,7 +118,8 @@ export type AgentStreamEvent =
   | { type: 'content_block_stop'; index: number }
   | { type: 'status'; message: string }
   | { type: 'plan_ready'; path: string }
-  | { type: 'agent_question'; requestId: string; questions: AgentQuestion[] };
+  | { type: 'agent_question'; requestId: string; questions: AgentQuestion[] }
+  | { type: 'approval_request'; requestId: string; toolName: string; input: unknown; description: string };
 
 // =============================================================================
 // Artifact Types
@@ -257,6 +260,12 @@ export interface AgentService extends Disposable {
 
   /** Get the currently pending question (if any). Used for snapshot on reconnect. */
   getPendingQuestion(): { requestId: string; questions: AgentQuestion[] } | null;
+
+  /** Submit a decision for a pending tool approval request. */
+  submitApproval(requestId: string, decision: 'approve' | 'approve_session' | 'deny' | 'cancel'): void;
+
+  /** Get the currently pending approval (if any). Used for snapshot on reconnect. */
+  getPendingApproval(): { requestId: string; toolName: string; input: unknown; description: string } | null;
 
   /**
    * Check if a run is currently in progress.

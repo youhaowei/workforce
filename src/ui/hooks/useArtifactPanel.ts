@@ -9,7 +9,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { trpc as trpcClient } from '@/bridge/trpc';
 import { useTRPC } from '@/bridge/react';
-import type { ArtifactComment, AgentPermissionMode } from '@/services/types';
+import type { ArtifactComment } from '@/services/types';
 import { generateReviewPrompt } from '@/ui/lib/artifact-utils';
 
 type CommentSeverity = ArtifactComment['severity'];
@@ -17,7 +17,7 @@ type CommentSeverity = ArtifactComment['severity'];
 interface UseArtifactPanelParams {
   planArtifactId: string | null;
   sessionId: string | null;
-  onApprove?: (permission: AgentPermissionMode) => void;
+  onApprove?: () => void;
   onReject?: () => void;
   onSubmitPrompt?: (prompt: string) => void;
 }
@@ -119,7 +119,7 @@ export function useArtifactPanel({
   );
 
   const handleApprove = useCallback(
-    (permission: AgentPermissionMode) => {
+    () => {
       const id = activeArtifactId;
       const comments = pendingCommentsRef.current;
       if (id) {
@@ -133,7 +133,7 @@ export function useArtifactPanel({
         }).catch((err) => console.warn('[ArtifactPanel] mutation failed:', err));
       }
       setPendingComments([]);
-      onApprove?.(permission);
+      onApprove?.();
     },
     [activeArtifactId, onApprove],
   );

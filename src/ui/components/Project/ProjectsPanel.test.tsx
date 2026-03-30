@@ -5,6 +5,7 @@ import { useOrgStore } from '@/ui/stores/useOrgStore';
 import { useDialogStore } from '@/ui/stores/useDialogStore';
 import { ProjectsPanel } from './ProjectsPanel';
 
+
 const mockUseQuery = vi.fn();
 const mockUseMutation = vi.fn();
 const mockSetQueriesData = vi.fn();

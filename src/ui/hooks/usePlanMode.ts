@@ -11,7 +11,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { trpc as trpcClient } from '@/bridge/trpc';
 import { queryClient } from '@/bridge/query-client';
-import type { AgentConfig, AgentPermissionMode, ArtifactStatus } from '@/services/types';
+import type { AgentConfig, ArtifactStatus } from '@/services/types';
 import type { MessageState } from '@/ui/stores/useMessagesStore';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
 
@@ -41,13 +41,22 @@ interface UsePlanModeParams {
   onSubmit: (submission: { content: string; agentConfig: AgentConfig }) => void;
 }
 
-function resolveLastPermission(messages: MessageState[]): AgentPermissionMode | undefined {
+function resolveLastPlanMode(messages: MessageState[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === 'user' && messages[i].agentConfig?.planMode !== undefined) {
+      return messages[i].agentConfig!.planMode ?? false;
+    }
+  }
+  return false;
+}
+
+function resolveLastPermission(messages: MessageState[]): AgentConfig['permissionMode'] {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i].role === 'user' && messages[i].agentConfig?.permissionMode !== undefined) {
       return messages[i].agentConfig!.permissionMode;
     }
   }
-  return undefined;
+  return 'default';
 }
 
 export function usePlanMode({ orgId, selectedSessionId, messages, onCancelStream, onSubmit }: UsePlanModeParams) {
@@ -66,8 +75,8 @@ export function usePlanMode({ orgId, selectedSessionId, messages, onCancelStream
   /** Ref guard to prevent duplicate artifact creation in async context where state is stale */
   const creatingArtifactRef = useRef(false);
 
-  // Derive plan mode from the last user message's permission setting
-  const isPlanMode = resolveLastPermission(messages) === 'plan';
+  // Derive plan mode from the last user message's planMode boolean
+  const isPlanMode = resolveLastPlanMode(messages);
 
   // Auto-open panel when entering plan mode (even before plan arrives)
   const prevPlanMode = useRef(false);
@@ -143,7 +152,7 @@ export function usePlanMode({ orgId, selectedSessionId, messages, onCancelStream
     });
   }, [orgId]);
 
-  const handlePlanApprove = useCallback((permission: AgentPermissionMode) => {
+  const handlePlanApprove = useCallback(() => {
     if (!planFilePath) return;
     setPlanStatus('approved');
     setPlanPanelOpen(false);
@@ -160,9 +169,10 @@ export function usePlanMode({ orgId, selectedSessionId, messages, onCancelStream
       const currentMessages = useMessagesStore.getState().messages;
       const lastModel = resolveLastModel(currentMessages);
       const lastThinking = resolveLastThinking(currentMessages);
+      const lastPermission = resolveLastPermission(currentMessages);
       onSubmit({
         content: `Execute the plan at ${planFilePath}`,
-        agentConfig: { model: lastModel, thinkingLevel: lastThinking, permissionMode: permission },
+        agentConfig: { model: lastModel, thinkingLevel: lastThinking, permissionMode: lastPermission, planMode: false },
       });
     }, 100);
   }, [planFilePath, selectedSessionId, onCancelStream, onSubmit]);

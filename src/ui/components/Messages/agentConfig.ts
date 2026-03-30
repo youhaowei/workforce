@@ -35,11 +35,10 @@ export const THINKING_TOKENS: Record<ThinkingLevel, number | undefined> = {
   high: 16384,
 };
 
-export const PERMISSION_OPTIONS: Array<{ value: AgentPermissionMode; label: string }> = [
-  { value: 'plan', label: 'Plan' },
-  { value: 'default', label: 'Ask' },
-  { value: 'acceptEdits', label: 'Auto-Edit' },
-  { value: 'bypassPermissions', label: 'Bypass' },
+export const PERMISSION_OPTIONS: Array<{ value: AgentPermissionMode; label: string; description: string }> = [
+  { value: 'default', label: 'Ask', description: 'Approve each tool call' },
+  { value: 'acceptEdits', label: 'Auto-Edit', description: 'Auto-approve file edits' },
+  { value: 'bypassPermissions', label: 'Bypass', description: 'Auto-approve everything' },
 ];
 
 export const TONE_OPTIONS: Array<{ value: AgentTone; label: string }> = [
@@ -67,6 +66,7 @@ export const DEFAULT_AGENT_CONFIG: AgentConfig = {
   model: SEED_MODELS[2].id, // Sonnet 4.5
   thinkingLevel: 'auto',
   permissionMode: 'default',
+  planMode: false,
 };
 
 function isAgentModelInfo(value: unknown): value is AgentModelInfo {
@@ -103,15 +103,25 @@ export function cacheModels(models: AgentModelInfo[]): void {
 export function parseStoredAgentConfig(raw: string | null): AgentConfig | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as Partial<AgentConfig>;
-    if (
-      typeof parsed.model === 'string' && parsed.model.length > 0 &&
-      THINKING_LEVELS.some((option) => option.value === parsed.thinkingLevel) &&
-      PERMISSION_OPTIONS.some((option) => option.value === parsed.permissionMode)
-    ) {
-      return parsed as AgentConfig;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parsed = JSON.parse(raw) as any;
+    if (typeof parsed.model !== 'string' || parsed.model.length === 0) return null;
+    if (!THINKING_LEVELS.some((option) => option.value === parsed.thinkingLevel)) return null;
+
+    // Migrate old 'plan' permission mode → { permissionMode: 'default', planMode: true }
+    if (parsed.permissionMode === 'plan') {
+      parsed.permissionMode = 'default';
+      parsed.planMode = true;
     }
-    return null;
+
+    if (!PERMISSION_OPTIONS.some((option) => option.value === parsed.permissionMode)) return null;
+
+    return {
+      model: parsed.model,
+      thinkingLevel: parsed.thinkingLevel,
+      permissionMode: parsed.permissionMode,
+      planMode: Boolean(parsed.planMode ?? false),
+    };
   } catch {
     return null;
   }

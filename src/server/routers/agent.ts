@@ -18,7 +18,8 @@ export const agentRouter = router({
       prompt: z.string(),
       model: z.string().optional(),
       maxThinkingTokens: z.number().optional(),
-      permissionMode: z.enum(['plan', 'default', 'acceptEdits', 'bypassPermissions']).optional(),
+      permissionMode: z.enum(['default', 'acceptEdits', 'bypassPermissions']).optional(),
+      planMode: z.boolean().optional(),
       sessionId: z.string().optional(),
       messageId: z.string().optional(),
     }))
@@ -67,6 +68,16 @@ export const agentRouter = router({
     .mutation(({ input }) => {
       getAgentRunner().recordQuestionAnswer(input.requestId, input.answers);
       getAgentService().submitAnswer(input.requestId, input.answers);
+      return { ok: true };
+    }),
+
+  submitApproval: publicProcedure
+    .input(z.object({
+      requestId: z.string(),
+      decision: z.enum(['approve', 'approve_session', 'deny', 'cancel']),
+    }))
+    .mutation(({ input }) => {
+      getAgentRunner().recordApprovalDecision(input.requestId, input.decision);
       return { ok: true };
     }),
 });

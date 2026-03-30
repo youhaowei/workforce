@@ -94,6 +94,13 @@ export function registerMigration(migration: Migration): void {
   registry.push(migration);
 }
 
+/** Remove test-only migrations (IDs starting with '99'). Used by test cleanup. */
+export function resetTestMigrations(): void {
+  const keep = registry.filter((m) => !m.id.startsWith('99'));
+  registry.length = 0;
+  registry.push(...keep);
+}
+
 // =============================================================================
 // Runner
 // =============================================================================
