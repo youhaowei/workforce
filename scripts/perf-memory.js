@@ -58,9 +58,16 @@ async function measureMemory() {
     });
 
     let resolved = false;
-    const timeout = setTimeout(async () => {
+    let timeout;
+    const finish = (callback) => {
       if (resolved) return;
       resolved = true;
+      clearTimeout(timeout);
+      callback();
+    };
+
+    timeout = setTimeout(async () => {
+      if (resolved) return;
 
       try {
         const totalMB = await measureProcessTreeRssMb(proc.pid);
@@ -70,21 +77,27 @@ async function measureMemory() {
 
         if (totalMB < 100) {
           console.log('✓ PASS: Idle memory < 100MB');
-          resolve(true);
+          finish(() => resolve(true));
         } else {
           console.log(`✗ FAIL: Idle memory ${totalMB}MB > 100MB`);
-          resolve(false);
+          finish(() => resolve(false));
         }
       } catch (error) {
-        reject(error);
+        finish(() => reject(error));
         return;
       } finally {
         proc.kill();
       }
     }, 3000);
 
-    proc.on('error', reject);
-    proc.on('exit', () => clearTimeout(timeout));
+    proc.once('error', (error) => finish(() => reject(error)));
+    proc.once('exit', (code, signal) => {
+      if (!resolved) {
+        finish(() =>
+          reject(new Error(`pnpm run dev exited before memory sample (code=${code}, signal=${signal})`)),
+        );
+      }
+    });
   });
 }
 

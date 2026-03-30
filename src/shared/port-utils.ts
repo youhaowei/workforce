@@ -1,4 +1,4 @@
-import { createServer } from 'net';
+import type { Server } from 'net';
 
 export function parsePort(value: string | undefined, fallback: number): number {
   if (!value || !/^\d+$/.test(value)) return fallback;
@@ -6,29 +6,40 @@ export function parsePort(value: string | undefined, fallback: number): number {
   return parsed >= 1 && parsed <= 65535 ? parsed : fallback;
 }
 
-export function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const server = createServer();
-
-    server.once('error', () => {
-      server.close(() => resolve(false));
-    });
-    server.listen(port, 'localhost', () => {
-      server.close(() => resolve(true));
-    });
-  });
-}
-
-export async function findAvailablePort(
+/**
+ * Bind-to-discover: attempt to listen on `basePort`, catch EADDRINUSE, retry
+ * on the next port. Eliminates the TOCTOU gap in probe-then-bind approaches.
+ *
+ * `createServerFn` receives the candidate port and must return a server that
+ * is already calling `.listen()`. This function resolves when one succeeds.
+ */
+export async function bindWithRetry<T extends Server>(
   basePort: number,
-  maxRetries = 10,
-  isAvailable: (port: number) => Promise<boolean> = isPortAvailable,
+  maxRetries: number,
+  createServerFn: (port: number) => T,
   onRetry?: (tried: number, next: number) => void,
-): Promise<number> {
+): Promise<{ server: T; port: number }> {
   for (let offset = 0; offset <= maxRetries; offset += 1) {
     const candidate = basePort + offset;
-    if (await isAvailable(candidate)) return candidate;
-    if (offset < maxRetries) {
+    try {
+      const server = await new Promise<T>((resolve, reject) => {
+        const s = createServerFn(candidate);
+        const onError = (err: NodeJS.ErrnoException) => {
+          s.close(() => reject(err));
+        };
+        s.once('error', onError);
+        s.once('listening', () => {
+          s.removeListener('error', onError);
+          resolve(s);
+        });
+      });
+      return { server, port: candidate };
+    } catch (err) {
+      const isRetryable = (err as NodeJS.ErrnoException).code === 'EADDRINUSE';
+      if (!isRetryable) throw err;
+      if (offset >= maxRetries) {
+        throw new Error(`All ports ${basePort}-${basePort + maxRetries} are in use`);
+      }
       onRetry?.(candidate, candidate + 1);
     }
   }

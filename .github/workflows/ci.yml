@@ -38,3 +38,30 @@ jobs:
 
             - name: Unit tests
               run: pnpm run test
+
+    packaged-build-smoke:
+        runs-on: macos-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: pnpm/action-setup@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+                  cache: pnpm
+
+            - name: Setup
+              run: |
+                  git config --global url."https://github.com/".insteadOf "git@github.com:"
+                  git submodule update --init --recursive --depth=1
+                  pnpm install --frozen-lockfile
+
+            - name: Generate route tree
+              run: pnpm run routes:generate
+
+            - name: Packaged build
+              run: pnpm run build
+
+            - name: Packaged smoke
+              run: pnpm run test:packaged-smoke

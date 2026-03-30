@@ -25,6 +25,7 @@
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
+    "test:packaged-smoke": "node scripts/packaged-smoke.js",
     "lint": "eslint src src-electron tooling --max-warnings 0",
     "type-check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
     "cli": "tsx src/cli/index.ts"

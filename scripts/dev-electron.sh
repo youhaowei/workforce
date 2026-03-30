@@ -39,6 +39,7 @@ terminate_jobs() {
   pids=$(jobs -p || true)
   [ -n "$pids" ] || return 0
 
+  # shellcheck disable=SC2086 # Intentional word splitting for multiple PIDs
   kill -TERM $pids 2>/dev/null || true
   sleep 2
 

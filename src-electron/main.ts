@@ -14,15 +14,18 @@
  */
 
 import { app, BrowserWindow, Menu, dialog, ipcMain, nativeImage, session, shell } from 'electron';
-import { execFileSync } from 'child_process';
-import { readFileSync } from 'fs';
 import path from 'path';
 import type { ServerType } from '@hono/node-server';
 import { createLogger } from 'tracey';
 import { buildRendererContentSecurityPolicy } from '@/shared/content-security-policy';
-import { parsePort } from '@/shared/port-utils';
 import { DEFAULT_SERVER_PORT, DEFAULT_VITE_PORT } from '@/shared/ports';
 import { applyPackagedServerRuntimeEnv } from '@/shared/runtime-env';
+import {
+  repairPath as repairPathImpl,
+  discoverPort,
+  closeServerWithTimeout as closeServerImpl,
+  waitForHealth,
+} from './helpers';
 
 const isDev = !app.isPackaged;
 const appName = isDev ? 'Workforce Dev' : 'Workforce';
@@ -31,56 +34,31 @@ const log = createLogger('electron-main');
 let mainWindow: BrowserWindow | null = null;
 let server: ServerType | null = null;
 let serverPort: number | null = null;
+let rendererPort: number | null = null;
 let isQuitting = false;
 let hasRegisteredCsp = false;
 
 // ── PATH Repair ──────────────────────────────────────────────────────────────
-// macOS GUI-launched apps get a stripped PATH. Repair by sourcing the login shell.
-// Uses -lc (login, non-interactive) to avoid MOTD/prompt output from -i.
 
 function repairPath() {
   if (isDev) return;
-  try {
-    const loginShell = process.env.SHELL || '/bin/zsh';
-    const shellPath = execFileSync(loginShell, ['-lc', 'printf %s "$PATH"'], {
-      encoding: 'utf-8',
-      timeout: 3_000,
-    }).trim();
-    if (shellPath) {
-      // Append login-shell entries not already present (don't shadow bundled tools)
-      const existing = new Set((process.env.PATH || '').split(':'));
-      const extra = shellPath.split(':').filter((p) => p && !existing.has(p));
-      if (extra.length) {
-        process.env.PATH = process.env.PATH
-          ? `${process.env.PATH}:${extra.join(':')}`
-          : extra.join(':');
-      }
-    }
-  } catch (e) {
-    log.warn({ error: e }, 'repairPath failed');
+  const loginShell = process.env.SHELL || '/bin/zsh';
+  const result = repairPathImpl(process.env.PATH, loginShell);
+  if (result === undefined) {
+    log.warn('repairPath failed');
+  } else {
+    process.env.PATH = result;
   }
 }
 
 // ── Dev Port Discovery ───────────────────────────────────────────────────────
 
-/** Read a port from: env var > dot-file in app root > fallback. */
-function discoverPort(envVar: string, dotFile: string, fallback: number): number {
-  const envValue = process.env[envVar];
-  if (envValue) return parsePort(envValue, fallback);
-  try {
-    const portStr = readFileSync(path.join(app.getAppPath(), dotFile), 'utf-8').trim();
-    return parsePort(portStr, fallback);
-  } catch {
-    return fallback;
-  }
-}
-
 function discoverVitePort(): number {
-  return discoverPort('VITE_PORT', '.vite-port', DEFAULT_VITE_PORT);
+  return discoverPort('VITE_PORT', '.vite-port', DEFAULT_VITE_PORT, app.getAppPath());
 }
 
 function discoverServerPort(): number {
-  return discoverPort('SERVER_PORT', '.dev-port', DEFAULT_SERVER_PORT);
+  return discoverPort('SERVER_PORT', '.dev-port', DEFAULT_SERVER_PORT, app.getAppPath());
 }
 
 // ── Window ───────────────────────────────────────────────────────────────────
@@ -100,23 +78,18 @@ function applyContentSecurityPolicy(activePort: number) {
     serverPort,
   });
 
+  const localhostPrefix = 'http://localhost';
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    try {
-      const url = new URL(details.url);
-      if (url.hostname !== 'localhost') {
-        callback({ responseHeaders: details.responseHeaders });
-        return;
-      }
-
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [csp],
-        },
-      });
-    } catch {
+    if (!details.url.startsWith(localhostPrefix)) {
       callback({ responseHeaders: details.responseHeaders });
+      return;
     }
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp],
+      },
+    });
   });
 }
 
@@ -155,58 +128,18 @@ function createWindow() {
   if (!activePort) {
     throw new Error('Renderer port was not resolved before window creation');
   }
+  rendererPort = activePort;
   applyContentSecurityPolicy(activePort);
   win.loadURL(`http://localhost:${activePort}`);
-
-  // Security: prevent navigation away from the app origin
-  const allowedPort = String(activePort);
-  win.webContents.on('will-navigate', (event, url) => {
-    try {
-      const parsed = new URL(url);
-      const allowed = parsed.protocol === 'http:' && parsed.hostname === 'localhost' && parsed.port === allowedPort;
-      if (!allowed) event.preventDefault();
-    } catch {
-      event.preventDefault();
-    }
-  });
-
-  // Security: open external links in system browser, deny new windows
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-        shell.openExternal(parsed.href).catch((error) => log.warn({ error, url }, 'openExternal failed'));
-      }
-    } catch { /* invalid URL, ignore */ }
-    return { action: 'deny' };
-  });
 
   return win;
 }
 
-async function closeServerWithTimeout(timeoutMs = 5_000): Promise<void> {
+async function closeServer(timeoutMs = 5_000): Promise<void> {
   if (!server) return;
-
   const closingServer = server;
   server = null;
-
-  let timer: ReturnType<typeof setTimeout>;
-  const closePromise = new Promise<void>((resolve, reject) => {
-    closingServer.close((error) => {
-      clearTimeout(timer);
-      if (error) reject(error);
-      else resolve();
-    });
-  });
-  const timeoutPromise = new Promise<void>((resolve) => {
-    timer = setTimeout(() => {
-      log.warn({ timeoutMs }, 'Server shutdown exceeded timeout, forcing app exit');
-      resolve();
-    }, timeoutMs);
-  });
-  // Prevent unhandled rejection if close callback errors after timeout wins the race
-  closePromise.catch((err) => log.warn({ error: err }, 'Server close error after timeout'));
-  await Promise.race([closePromise, timeoutPromise]);
+  await closeServerImpl(closingServer, timeoutMs, (ctx, msg) => log.warn(ctx, msg));
 }
 
 // ── Menu ─────────────────────────────────────────────────────────────────────
@@ -311,15 +244,48 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_wc, _perm, callback) => callback(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
 
+  // Security: register navigation guards on ALL webContents (not per-window)
+  // so any dynamically created webContents also get protection.
+  app.on('web-contents-created', (_event, contents) => {
+    contents.on('will-navigate', (navEvent) => {
+      if (!rendererPort) { navEvent.preventDefault(); return; }
+      try {
+        const parsed = new URL(navEvent.url);
+        const allowed = parsed.protocol === 'http:'
+          && parsed.hostname === 'localhost'
+          && parsed.port === String(rendererPort);
+        if (!allowed) navEvent.preventDefault();
+      } catch {
+        navEvent.preventDefault();
+      }
+    });
+
+    contents.setWindowOpenHandler(({ url }) => {
+      try {
+        const parsed = new URL(url);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+          shell.openExternal(parsed.href).catch((error) => log.warn({ error, url }, 'openExternal failed'));
+        }
+      } catch { /* invalid URL, ignore */ }
+      return { action: 'deny' };
+    });
+  });
+
   // In dev, server runs externally via `pnpm run server:watch`.
   // In production, start it in-process.
   if (!isDev) {
     try {
       applyPackagedServerRuntimeEnv(app.isPackaged);
       const { startServer } = await import('../src/server/index');
-      const result = await startServer();
+      // Pass explicit staticDir so production doesn't rely on __dirname heuristics
+      const staticDir = path.join(app.getAppPath(), 'dist');
+      const result = await startServer({ staticDir });
       server = result.server;
       serverPort = result.port;
+
+      // Wait for the server to be fully ready (middleware + routes), not just bound
+      const ready = await waitForHealth(`http://localhost:${result.port}/health`, 10_000);
+      if (!ready) log.warn('Health check timed out — proceeding anyway');
     } catch (err) {
       dialog.showErrorBox(
         'Server failed to start',
@@ -359,7 +325,7 @@ app.on('before-quit', (event) => {
   event.preventDefault();
   isQuitting = true;
 
-  closeServerWithTimeout()
+  closeServer()
     .catch((error) => {
       log.warn({ error }, 'Server shutdown failed');
     })

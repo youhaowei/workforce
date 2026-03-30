@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { findAvailablePort, isPortAvailable, parsePort } from './port-utils';
+import { bindWithRetry, parsePort } from './port-utils';
 
 describe('parsePort', () => {
   it('returns the fallback when the value is missing or invalid', () => {
@@ -24,61 +24,80 @@ describe('parsePort', () => {
   });
 });
 
-describe('findAvailablePort', () => {
-  it('skips occupied ports and returns the next free port', async () => {
-    const isAvailable = vi.fn().mockResolvedValue(false);
-    isAvailable.mockResolvedValueOnce(false); // port 19690: occupied
-    isAvailable.mockResolvedValueOnce(true);  // port 19691: available
+describe('bindWithRetry', () => {
+  it('returns the server and port on first successful bind', async () => {
+    const { createServer } = await import('net');
+    // Use a high ephemeral port to avoid conflicts
+    const { server, port } = await bindWithRetry(49152, 20, (candidate) => {
+      const srv = createServer();
+      srv.listen(candidate, 'localhost');
+      return srv;
+    });
+
+    try {
+      const addr = server.address();
+      const boundPort = typeof addr === 'object' && addr ? addr.port : 0;
+      expect(boundPort).toBe(port);
+      expect(port).toBeGreaterThanOrEqual(49152);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('retries on EADDRINUSE and succeeds on next port', async () => {
+    const { createServer } = await import('net');
+    // Occupy a port
+    const blocker = createServer();
+    await new Promise<void>((resolve) => blocker.listen(0, 'localhost', resolve));
+    const addr = blocker.address();
+    const blockedPort = typeof addr === 'object' && addr ? addr.port : 0;
 
     const onRetry = vi.fn();
-    const nextPort = await findAvailablePort(19690, 2, isAvailable, onRetry);
+    const { server, port } = await bindWithRetry(blockedPort, 5, (candidate) => {
+      const srv = createServer();
+      srv.listen(candidate, 'localhost');
+      return srv;
+    }, onRetry);
 
-    expect(nextPort).toBe(19691);
-    expect(isAvailable).toHaveBeenNthCalledWith(1, 19690);
-    expect(isAvailable).toHaveBeenNthCalledWith(2, 19691);
-    expect(onRetry).toHaveBeenCalledTimes(1);
-    expect(onRetry).toHaveBeenCalledWith(19690, 19691);
+    try {
+      expect(port).toBeGreaterThan(blockedPort);
+      expect(onRetry).toHaveBeenCalled();
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await new Promise<void>((resolve) => blocker.close(() => resolve()));
+    }
   });
 
-  it('throws when every candidate port is occupied', async () => {
-    const isAvailable = vi.fn().mockResolvedValue(false);
-
-    await expect(findAvailablePort(19700, 2, isAvailable)).rejects.toThrow(
-      'All ports 19700-19702 are in use',
-    );
-  });
-
-  it('returns base port immediately when maxRetries=0 and port is free', async () => {
-    const isAvailable = vi.fn().mockResolvedValue(true);
-    expect(await findAvailablePort(19700, 0, isAvailable)).toBe(19700);
-  });
-
-  it('throws immediately when maxRetries=0 and port is occupied', async () => {
-    const isAvailable = vi.fn().mockResolvedValue(false);
-    await expect(findAvailablePort(19700, 0, isAvailable)).rejects.toThrow(
-      'All ports 19700-19700 are in use',
-    );
-  });
-});
-
-describe('isPortAvailable', () => {
-  it('returns true for a free port and false for an occupied one', async () => {
-    // Use port 0 to let the OS assign a free port, then check the assigned port
+  it('throws when all retries exhausted', async () => {
     const { createServer } = await import('net');
-    const srv = createServer();
-    await new Promise<void>((resolve) => srv.listen(0, 'localhost', resolve));
-    const addr = srv.address();
-    const port = typeof addr === 'object' && addr ? addr.port : 0;
+    await expect(
+      bindWithRetry(1, 1, (_candidate) => {
+        const srv = createServer();
+        process.nextTick(() => {
+          const err = new Error('EADDRINUSE') as NodeJS.ErrnoException;
+          err.code = 'EADDRINUSE';
+          srv.emit('error', err);
+        });
+        return srv;
+      }),
+    ).rejects.toThrow('All ports 1-2 are in use');
+  });
 
-    // Port is occupied by our server
-    expect(await isPortAvailable(port)).toBe(false);
+  it('re-throws non-EADDRINUSE errors without retrying', async () => {
+    const { createServer } = await import('net');
+    const onRetry = vi.fn();
 
-    // Release it
-    await new Promise<void>((resolve, reject) =>
-      srv.close((err) => (err ? reject(err) : resolve())),
-    );
+    const rejection = bindWithRetry(1, 5, (_candidate) => {
+      const srv = createServer();
+      process.nextTick(() => {
+        const err = new Error('Permission denied') as NodeJS.ErrnoException;
+        err.code = 'EACCES';
+        srv.emit('error', err);
+      });
+      return srv;
+    }, onRetry);
 
-    // Port should now be available
-    expect(await isPortAvailable(port)).toBe(true);
+    await expect(rejection).rejects.toThrow('Permission denied');
+    expect(onRetry).not.toHaveBeenCalled();
   });
 });

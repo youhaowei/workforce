@@ -67,26 +67,86 @@ function AppInner({ router }: { router: Router<any, any, any, any> }) {
   );
 }
 
+function RuntimeBootstrapError({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="h-screen flex items-center justify-center bg-neutral-bg px-6">
+      <div className="w-full max-w-md rounded-2xl border border-neutral-border bg-neutral-panel p-6 shadow-lg">
+        <div className="space-y-3">
+          <h1 className="text-lg font-semibold text-neutral-fg">Desktop runtime failed to initialize</h1>
+          <p className="text-sm text-neutral-fg-subtle">
+            The Electron app could not finish local server discovery, so the UI stayed gated instead of
+            falling back to a stale default port.
+          </p>
+          <pre className="overflow-auto rounded-lg bg-neutral-bg-subtle p-3 text-xs text-neutral-fg-subtle">
+            {message}
+          </pre>
+        </div>
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            className="inline-flex items-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground"
+            onClick={onRetry}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App({ router }: { router: Router<any, any, any, any> }) {
-  const { isDesktop, isMacOS, platformType } = usePlatformDetection();
+  const { isMacOS, platformType } = usePlatformDetection();
   const platformActions = useMemo(
-    () => createPlatformActions(isDesktop, isMacOS, platformType),
-    [isDesktop, isMacOS, platformType],
+    () => createPlatformActions(isMacOS, platformType),
+    [isMacOS, platformType],
   );
 
   // Block rendering until server port is resolved (critical for Electron where
   // port is dynamically assigned). Without this, tRPC links would be created
   // with the stale build-time port and first queries would hit the wrong server.
   const [serverReady, setServerReady] = useState(() => platformType !== 'electron');
-  const initRef = useRef(false);
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
+  const initRef = useRef<number | null>(null);
   useEffect(() => {
-    if (initRef.current) return;
-    initRef.current = true;
-    initializeClientRuntime(initServerUrl, refreshTrpcClient)
-      .catch((err) => console.error('Client runtime init failed, proceeding with defaults:', err))
-      .finally(() => setServerReady(true));
-  }, []);
+    if (platformType !== 'electron') return;
+    if (initRef.current === bootstrapAttempt) return;
 
+    initRef.current = bootstrapAttempt;
+    let cancelled = false;
+    setServerReady(false);
+    setBootstrapError(null);
+
+    void initializeClientRuntime(initServerUrl, refreshTrpcClient)
+      .then(() => {
+        if (!cancelled) setServerReady(true);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        console.error('Client runtime init failed, keeping Electron gate closed:', error);
+        setBootstrapError(error instanceof Error ? error.message : String(error));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bootstrapAttempt, platformType]);
+
+  if (bootstrapError) {
+    return (
+      <RuntimeBootstrapError
+        message={bootstrapError}
+        onRetry={() => setBootstrapAttempt((attempt) => attempt + 1)}
+      />
+    );
+  }
   if (!serverReady) return null;
 
   return (

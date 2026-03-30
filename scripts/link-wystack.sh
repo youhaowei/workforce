@@ -1,8 +1,8 @@
 #!/bin/bash
 # Symlink @wystack packages from the submodule into node_modules.
 # This allows local workspace consumers to resolve them even when tsconfig paths
-# do not apply across submodule boundaries.
-# for imports originating from within submodules with their own tsconfig).
+# do not apply across submodule boundaries (e.g., for imports originating from
+# within submodules with their own tsconfig).
 #
 # Run after `pnpm install` or `git submodule update`.
 

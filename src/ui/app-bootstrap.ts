@@ -9,7 +9,6 @@ export function detectPlatformType(targetWindow: Window | undefined = globalThis
 }
 
 export function createPlatformActions(
-  isDesktop: boolean,
   isMacOS: boolean,
   platformType: PlatformType,
   targetWindow: Window | undefined = typeof window !== 'undefined' ? window : undefined,
@@ -18,9 +17,9 @@ export function createPlatformActions(
 
   if (platformType === 'electron' && api) {
     return {
-      isDesktop,
+      platformType: 'electron',
+      isDesktop: true,
       isMacOS,
-      platformType,
       openDirectory: (startingFolder?: string) => api.openDirectory(startingFolder),
       onOpenUrl: (url: string) => {
         // Keep the renderer browser-safe; tracey is Node-only today.
@@ -29,7 +28,7 @@ export function createPlatformActions(
     };
   }
 
-  return { isDesktop, isMacOS, platformType };
+  return { platformType: 'web', isDesktop: false, isMacOS };
 }
 
 export async function initializeClientRuntime(

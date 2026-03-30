@@ -1,0 +1,99 @@
+import { execFileSync } from 'child_process';
+import { readFileSync } from 'fs';
+import path from 'path';
+import type { ServerType } from '@hono/node-server';
+import { parsePort } from '@/shared/port-utils';
+
+/**
+ * macOS GUI-launched apps get a stripped PATH. Repair by sourcing the login shell.
+ * Returns the repaired PATH or undefined if skipped/failed.
+ */
+export function repairPath(
+  currentPath: string | undefined,
+  loginShell: string,
+): string | undefined {
+  try {
+    const shellPath = execFileSync(loginShell, ['-lc', 'printf %s "$PATH"'], {
+      encoding: 'utf-8',
+      timeout: 3_000,
+    }).trim();
+    if (!shellPath) return currentPath;
+
+    const existing = new Set((currentPath || '').split(':'));
+    const extra = shellPath.split(':').filter((p) => p && !existing.has(p));
+    if (!extra.length) return currentPath;
+
+    return currentPath
+      ? `${currentPath}:${extra.join(':')}`
+      : extra.join(':');
+  } catch {
+    return undefined;
+  }
+}
+
+/** Read a port from: env var > dot-file in app root > fallback. */
+export function discoverPort(
+  envVar: string,
+  dotFile: string,
+  fallback: number,
+  appPath: string,
+): number {
+  const envValue = process.env[envVar];
+  if (envValue) return parsePort(envValue, fallback);
+  try {
+    const portStr = readFileSync(path.join(appPath, dotFile), 'utf-8').trim();
+    return parsePort(portStr, fallback);
+  } catch {
+    return fallback;
+  }
+}
+
+/** Gracefully close a server with a timeout. */
+export async function closeServerWithTimeout(
+  closingServer: ServerType,
+  timeoutMs: number,
+  onWarn?: (context: Record<string, unknown>, msg: string) => void,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout>;
+  const closePromise = new Promise<void>((resolve, reject) => {
+    closingServer.close((error) => {
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+  const timeoutPromise = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      onWarn?.({ timeoutMs }, 'Server shutdown exceeded timeout, forcing app exit');
+      resolve();
+    }, timeoutMs);
+  });
+  closePromise.catch((err) =>
+    onWarn?.({ error: err }, 'Server close error'),
+  );
+  await Promise.race([closePromise, timeoutPromise]);
+}
+
+/** Poll a health endpoint until it returns 200. */
+export async function waitForHealth(
+  url: string,
+  timeoutMs: number,
+  fetchFn: typeof fetch = fetch,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  const interval = 100;
+  while (Date.now() < deadline) {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 2_000);
+    try {
+      const res = await fetchFn(url, { signal: ac.signal });
+      // Consume body to release the socket
+      await res.body?.cancel();
+      if (res.ok) return true;
+    } catch { /* server not ready yet */ } finally {
+      clearTimeout(timer);
+    }
+    await new Promise((r) => setTimeout(r, interval));
+  }
+  return false;
+}

@@ -22,22 +22,25 @@ describe('createPlatformActions', () => {
     const openDirectory = vi.fn().mockResolvedValue('/tmp/project');
     const openExternal = vi.fn().mockResolvedValue(undefined);
 
-    const actions = createPlatformActions(true, true, 'electron', {
+    const actions = createPlatformActions(true, 'electron', {
       electronAPI: { openDirectory, openExternal },
     } as unknown as Window);
 
     expect(actions.isDesktop).toBe(true);
     expect(actions.isMacOS).toBe(true);
     expect(actions.platformType).toBe('electron');
-    await expect(actions.openDirectory?.('/tmp')).resolves.toBe('/tmp/project');
-    actions.onOpenUrl?.('https://example.com');
+    if (actions.platformType === 'electron') {
+      await expect(actions.openDirectory('/tmp')).resolves.toBe('/tmp/project');
+      actions.onOpenUrl('https://example.com');
+    }
 
     expect(openDirectory).toHaveBeenCalledWith('/tmp');
     expect(openExternal).toHaveBeenCalledWith('https://example.com');
   });
 
-  it('returns inert web actions outside Electron', () => {
-    expect(createPlatformActions(false, false, 'web')).toEqual({
+  it('returns web platform actions outside Electron', () => {
+    const actions = createPlatformActions(false, 'web');
+    expect(actions).toEqual({
       isDesktop: false,
       isMacOS: false,
       platformType: 'web',
@@ -49,11 +52,13 @@ describe('createPlatformActions', () => {
     const openExternal = vi.fn().mockRejectedValue(new Error('denied'));
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const actions = createPlatformActions(true, false, 'electron', {
+    const actions = createPlatformActions(false, 'electron', {
       electronAPI: { openDirectory, openExternal },
     } as unknown as Window);
 
-    actions.onOpenUrl?.('https://example.com');
+    if (actions.platformType === 'electron') {
+      actions.onOpenUrl('https://example.com');
+    }
     // Let the microtask (catch handler) run
     await new Promise((r) => setTimeout(r, 0));
 
@@ -62,14 +67,12 @@ describe('createPlatformActions', () => {
   });
 
   it('falls back to web actions when electron type but no electronAPI', () => {
-    const actions = createPlatformActions(true, false, 'electron', {} as Window);
+    const actions = createPlatformActions(false, 'electron', {} as Window);
     expect(actions).toEqual({
-      isDesktop: true,
+      isDesktop: false,
       isMacOS: false,
-      platformType: 'electron',
+      platformType: 'web',
     });
-    expect(actions.openDirectory).toBeUndefined();
-    expect(actions.onOpenUrl).toBeUndefined();
   });
 });
 

@@ -9,7 +9,7 @@ import {fileURLToPath} from "url";
 import {createLogger, initTracey, getRecentLogs} from "tracey";
 import {getAgentService} from "@/services/agent";
 import {DEFAULT_SERVER_PORT} from "@/shared/ports";
-import {findAvailablePort} from "@/shared/port-utils";
+import {bindWithRetry, parsePort} from "@/shared/port-utils";
 import {getDataDir} from "@/services/data-dir";
 
 initTracey({
@@ -150,14 +150,8 @@ app.get("/auth-check", async (c) => {
 });
 
 // Serve Vite build output in production (same-origin, no CORS needed).
-// Candidates: relative to src/server/ (dev) or to packaged app root.
-function setupStaticServing() {
-    const distCandidates = [
-        join(__dirname, "../dist"),
-        join(__dirname, "../../dist"),
-    ];
-    const distPath = distCandidates.find((p) => existsSync(p));
-    if (!distPath) return;
+function setupStaticServingFromDir(distPath: string) {
+    if (!existsSync(distPath)) return;
 
     app.use("*", serveStatic({root: distPath}));
     // SPA fallback: serve index.html for non-API paths that don't match a static file
@@ -167,7 +161,17 @@ function setupStaticServing() {
         app.get("*", (c) => c.html(indexHtml));
     }
 }
-setupStaticServing();
+
+// Standalone mode heuristic: try relative paths from server's __dirname.
+// Electron production passes explicit staticDir via startServer() instead.
+function setupStaticServing() {
+    const distCandidates = [
+        join(__dirname, "../dist"),
+        join(__dirname, "../../dist"),
+    ];
+    const distPath = distCandidates.find((p) => existsSync(p));
+    if (distPath) setupStaticServingFromDir(distPath);
+}
 
 const DEV_PORT_FILE = join(process.cwd(), ".dev-port");
 const MAX_PORT_RETRIES = 10;
@@ -176,27 +180,31 @@ const MAX_PORT_RETRIES = 10;
 // the function body and the top-level call site can reference it.
 const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 
-export async function startServer(overrides?: {port?: number}): Promise<{port: number; server: ServerType}> {
-    const basePort = overrides?.port ?? parseInt(process.env.PORT || String(DEFAULT_SERVER_PORT), 10);
-    const port = await findAvailablePort(
+// Only register heuristic static serving in standalone mode.
+// Electron production passes explicit staticDir via startServer() instead.
+if (isMainModule) setupStaticServing();
+
+export async function startServer(overrides?: {port?: number; staticDir?: string}): Promise<{port: number; server: ServerType}> {
+    // Set up static serving before binding — uses explicit staticDir if provided,
+    // otherwise falls back to heuristic path discovery (standalone server mode).
+    if (overrides?.staticDir) {
+        setupStaticServingFromDir(overrides.staticDir);
+    }
+
+    const basePort = overrides?.port ?? parsePort(process.env.PORT, DEFAULT_SERVER_PORT);
+
+    // Bind-to-discover: attempt listen on candidate port, catch EADDRINUSE, retry.
+    // Eliminates the TOCTOU gap of the previous probe-then-bind approach.
+    const { server: httpServer, port } = await bindWithRetry<ServerType & { keepAliveTimeout?: number; headersTimeout?: number }>(
         basePort,
         MAX_PORT_RETRIES,
-        undefined,
+        (candidate) => serve({
+            fetch: app.fetch,
+            port: candidate,
+            hostname: "localhost",
+        }) as ServerType & { keepAliveTimeout?: number; headersTimeout?: number },
         (tried, next) => log.info(`Port ${tried} in use, trying ${next}`),
     );
-
-    const httpServer = await new Promise<ServerType & { keepAliveTimeout?: number; headersTimeout?: number }>((resolve, reject) => {
-        const s = serve({
-            fetch: app.fetch,
-            port,
-            hostname: "localhost",
-        }) as ServerType & { keepAliveTimeout?: number; headersTimeout?: number };
-        s.once('error', reject);
-        s.once('listening', () => {
-            s.removeListener('error', reject);
-            resolve(s);
-        });
-    });
 
     // SSE connections are long-lived; allow up to 2 min idle (Node defaults to 5s)
     httpServer.keepAliveTimeout = 120_000;

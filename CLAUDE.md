@@ -123,6 +123,15 @@ pnpm install                             # Install workspace deps after submodul
 run a separate package-manager install inside those submodules unless you are
 working on the submodule repo in isolation.
 
+### Dependency Pins
+
+- `pnpm.overrides["@openai/codex"] = 0.107.0` was added during the pnpm
+  migration on 2026-03-27 (`ba5ccd6`) to keep Workforce on the known-good
+  Codex release used by the desktop + agent runtime during the Electron cutover.
+  Only remove or update that override after re-running `pnpm install`,
+  `pnpm run test`, and a packaged Electron smoke check against the newer Codex
+  release.
+
 **Branch-per-agent for submodule changes**: When modifying a submodule, create a branch (e.g., `agent/feat-redaction`). Commit on the branch, push, then merge to main. This prevents conflicts when multiple agents work on the same submodule in parallel. The parent repo's submodule pointer should always reference a merge commit on main.
 
 **Path resolution**: tsconfig `paths` + vite `resolve.alias` + vitest `resolve.alias` all map `"tracey"` → `lib/tracey/src` and `"unifai"` → `lib/unifai/src`.

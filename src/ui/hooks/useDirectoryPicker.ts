@@ -17,7 +17,8 @@ interface UseDirectoryPickerResult {
 }
 
 export function useDirectoryPicker(): UseDirectoryPickerResult {
-  const { openDirectory } = usePlatform();
+  const platform = usePlatform();
+  const openDirectory = platform.platformType === 'electron' ? platform.openDirectory : null;
   const [isPicking, setIsPicking] = useState(false);
 
   const pick = useCallback(async (): Promise<string | null> => {
