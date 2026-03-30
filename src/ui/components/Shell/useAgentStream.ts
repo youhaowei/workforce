@@ -11,6 +11,7 @@
 import { useEffect, useCallback, type MutableRefObject } from "react";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
+import { useApprovalStore } from "@/ui/stores/useApprovalStore";
 import { trpc as trpcClient } from "@/bridge/trpc";
 import { queryClient } from "@/bridge/query-client";
 import type {
@@ -67,6 +68,11 @@ function buildStreamActions(deps: StreamActionDeps) {
       useAgentQuestionStore
         .getState()
         .setPending({ requestId, sessionId: deps.sessionId, questions });
+    },
+    approvalRequest: (requestId: string, toolName: string, input: unknown, description: string) => {
+      useApprovalStore
+        .getState()
+        .setPending({ requestId, toolName, input, description });
     },
   };
 }
@@ -247,6 +253,10 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
                   sessionId: opts.selectedSessionId,
                   questions: pq.questions,
                 });
+              }
+              const pa = event.pendingApproval as { requestId: string; toolName: string; input: unknown; description: string } | undefined;
+              if (pa) {
+                useApprovalStore.getState().setPending(pa);
               }
             } else {
               handleStreamEvent(event, opts.selectedSessionId, messageId, actions, opts.cancelStreamRef);

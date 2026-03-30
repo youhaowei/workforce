@@ -10,7 +10,16 @@ import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { Button } from '@/components/ui/button';
 import { AlertCircle } from 'lucide-react';
 import { useMessagesStore } from '@/ui/stores/useMessagesStore';
+import { useApprovalStore } from '@/ui/stores/useApprovalStore';
 import MessageItem, { type ForkInfo } from './MessageItem';
+import { ApprovalCard } from './ApprovalCard';
+
+/** Renders ApprovalCard at the bottom of the message list when there's a pending approval. */
+function ApprovalCardFooter() {
+  const pending = useApprovalStore((s) => s.pending);
+  if (!pending) return null;
+  return <ApprovalCard />;
+}
 
 interface MessageListProps {
   messages: Array<{
@@ -303,7 +312,11 @@ export default function MessageList({
         )}
       </>
     ),
-    Footer: () => <div className="h-52" />,
+    Footer: () => (
+      <div className="h-52">
+        <ApprovalCardFooter />
+      </div>
+    ),
   }), [error, onDismissError]);
 
   // Empty state is handled by the parent (SessionsView)

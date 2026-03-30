@@ -107,12 +107,14 @@ export interface StreamEventActions {
   setError: (error: string) => void;
   planReady: (path: string, sessId: string | null) => void;
   agentQuestion: (requestId: string, questions: AgentQuestion[]) => void;
+  approvalRequest: (requestId: string, toolName: string, input: unknown, description: string) => void;
 }
 
 /**
  * Handle a single SSE event from the agent subscription. Returns true if stream is done.
  * Note: `assistantMsgId` is retained for transport-error abort fallback (handleStreamError).
  */
+// eslint-disable-next-line complexity -- Flat switch dispatch; each case is trivial.
 export function handleStreamEvent(
   data: { type: string; [key: string]: unknown },
   sessId: string | null,
@@ -164,6 +166,10 @@ export function handleStreamEvent(
       // Complete non-task tools but leave AskUserQuestion in 'running' state
       actions.completeNonTaskTools();
       actions.agentQuestion(data.requestId as string, data.questions as AgentQuestion[]);
+      return false;
+
+    case 'approval_request':
+      actions.approvalRequest(data.requestId as string, data.toolName as string, data.input, data.description as string);
       return false;
 
     case 'done':

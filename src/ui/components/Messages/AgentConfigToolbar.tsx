@@ -1,4 +1,5 @@
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ShieldQuestion, FileEdit, ShieldOff } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +12,12 @@ import {
 import { cn } from '@/ui/lib/utils';
 import type { AgentModelInfo, AgentPermissionMode, ThinkingLevel } from '@/services/types';
 import { THINKING_LEVELS, PERMISSION_OPTIONS } from './agentConfig';
+
+const PERMISSION_ICONS: Record<AgentPermissionMode, typeof ShieldQuestion> = {
+  default: ShieldQuestion,
+  acceptEdits: FileEdit,
+  bypassPermissions: ShieldOff,
+};
 
 interface PillProps {
   label: string;
@@ -44,10 +51,12 @@ interface AgentConfigToolbarProps {
   model: string;
   thinkingLevel: ThinkingLevel;
   permissionMode: AgentPermissionMode;
+  planMode: boolean;
   models: AgentModelInfo[];
   onModelChange: (value: string) => void;
   onThinkingChange: (value: ThinkingLevel) => void;
   onPermissionChange: (value: AgentPermissionMode) => void;
+  onPlanModeChange: (value: boolean) => void;
   disabled?: boolean;
 }
 
@@ -55,10 +64,12 @@ export default function AgentConfigToolbar({
   model,
   thinkingLevel,
   permissionMode,
+  planMode,
   models,
   onModelChange,
   onThinkingChange,
   onPermissionChange,
+  onPlanModeChange,
   disabled,
 }: AgentConfigToolbarProps) {
   const modelLabel = models.find((m) => m.id === model)?.displayName ?? model.replace(/^claude-/, '');
@@ -95,6 +106,7 @@ export default function AgentConfigToolbar({
         </DropdownMenuRadioGroup>
       </Pill>
 
+      {/* Permission mode — Claude Desktop style dropdown with icon + description */}
       <Pill label={permissionLabel} disabled={disabled}>
         <DropdownMenuLabel className="text-xs">Permission</DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -102,13 +114,37 @@ export default function AgentConfigToolbar({
           value={permissionMode}
           onValueChange={(value) => onPermissionChange(value as AgentPermissionMode)}
         >
-          {PERMISSION_OPTIONS.map((p) => (
-            <DropdownMenuRadioItem key={p.value} value={p.value} className="text-xs">
-              {p.label}
-            </DropdownMenuRadioItem>
-          ))}
+          {PERMISSION_OPTIONS.map((p) => {
+            const Icon = PERMISSION_ICONS[p.value];
+            return (
+              <DropdownMenuRadioItem key={p.value} value={p.value} className="text-xs flex-col items-start gap-0">
+                <div className="flex items-center gap-2">
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{p.label}</span>
+                </div>
+                <span className="text-neutral-fg-subtle font-normal text-[10px] ml-[22px]">{p.description}</span>
+              </DropdownMenuRadioItem>
+            );
+          })}
         </DropdownMenuRadioGroup>
       </Pill>
+
+      {/* Plan mode — toggle switch */}
+      <label
+        className={cn(
+          'inline-flex items-center gap-1.5 text-[11px] cursor-pointer select-none',
+          disabled && 'opacity-30 cursor-not-allowed',
+          planMode ? 'text-palette-primary' : 'text-neutral-fg-subtle/70',
+        )}
+      >
+        Plan
+        <Switch
+          checked={planMode}
+          onCheckedChange={onPlanModeChange}
+          disabled={disabled}
+          className="scale-[0.6] origin-left"
+        />
+      </label>
     </div>
   );
 }

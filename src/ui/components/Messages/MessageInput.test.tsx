@@ -72,6 +72,7 @@ describe('MessageInput', () => {
       model: 'claude-sonnet-4-5-20250929',
       thinkingLevel: 'auto',
       permissionMode: 'default',
+      planMode: false,
     });
   });
 
@@ -204,14 +205,14 @@ describe('MessageInput', () => {
       fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
 
       const call = mockOnSubmit.mock.calls[0][0];
-      expect(call.agentConfig).toEqual(stored);
+      expect(call.agentConfig).toEqual({ ...stored, planMode: false });
     });
 
     it('restores config from session messages over localStorage', () => {
       const storedConfig = { model: 'claude-opus-4-6', thinkingLevel: 'high', permissionMode: 'bypassPermissions' };
       localStorage.setItem('agent-config-last', JSON.stringify(storedConfig));
 
-      const sessionConfig = { model: 'claude-haiku-4-5-20251001', thinkingLevel: 'low' as const, permissionMode: 'plan' as const };
+      const sessionConfig = { model: 'claude-haiku-4-5-20251001', thinkingLevel: 'low' as const, permissionMode: 'default' as const, planMode: true };
       const messages = [
         { role: 'user' as const, agentConfig: sessionConfig },
         { role: 'assistant' as const },
@@ -248,6 +249,7 @@ describe('MessageInput', () => {
         model: 'claude-sonnet-4-5-20250929',
         thinkingLevel: 'auto',
         permissionMode: 'default',
+        planMode: false,
       });
     });
 
@@ -263,6 +265,7 @@ describe('MessageInput', () => {
         model: 'claude-sonnet-4-5-20250929',
         thinkingLevel: 'auto',
         permissionMode: 'default',
+        planMode: false,
       });
     });
 

@@ -8,13 +8,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { ChevronDown, ChevronUp, Check, X, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import type { ArtifactComment, AgentPermissionMode } from '@/services/types';
+import type { ArtifactComment } from '@/services/types';
 import { generateReviewPrompt } from '@/ui/lib/artifact-utils';
 
 interface ArtifactReviewBoxProps {
@@ -22,27 +16,20 @@ interface ArtifactReviewBoxProps {
   artifactTitle: string;
   isPlanArtifact: boolean;
   onSubmitReview: (summary: string) => void;
-  onApprove: (permission: AgentPermissionMode) => void;
+  onApprove: () => void;
   onReject: () => void;
 }
-
-const PERMISSION_OPTIONS: Array<{ value: AgentPermissionMode; label: string; description: string }> = [
-  { value: 'default', label: 'Ask', description: 'Prompt before each tool use' },
-  { value: 'acceptEdits', label: 'Auto-Edit', description: 'Auto-approve file edits' },
-  { value: 'bypassPermissions', label: 'Full Auto', description: 'Skip all permission checks' },
-];
 
 export function ArtifactReviewBox({
   comments,
   artifactTitle,
-  isPlanArtifact,
+  isPlanArtifact: _isPlanArtifact,
   onSubmitReview,
   onApprove,
   onReject,
 }: ArtifactReviewBoxProps) {
   const [summary, setSummary] = useState('');
   const [promptExpanded, setPromptExpanded] = useState(false);
-  const [selectedPermission, setSelectedPermission] = useState<AgentPermissionMode>('acceptEdits');
 
   const prompt = useMemo(
     () => generateReviewPrompt(artifactTitle, comments, summary),
@@ -53,8 +40,6 @@ export function ArtifactReviewBox({
     onSubmitReview(summary.trim());
     setSummary('');
   }, [summary, onSubmitReview]);
-
-  const selectedOption = PERMISSION_OPTIONS.find((o) => o.value === selectedPermission) ?? PERMISSION_OPTIONS[1];
 
   return (
     <div className="border-t border-neutral-border bg-neutral-bg flex-shrink-0">
@@ -92,52 +77,17 @@ export function ArtifactReviewBox({
         />
       </div>
 
-      {/* Action buttons */}
+      {/* Action buttons — single Approve button (permission mode comes from toolbar) */}
       <div className="flex items-center gap-1.5 px-3 pb-2">
         <Button size="xs" onClick={handleSubmit} className="gap-1">
           <Send className="h-3 w-3" />
           Submit Review
         </Button>
 
-        {isPlanArtifact ? (
-          /* Plan artifact: approve with permission selection (split button) */
-          <div className="flex items-center rounded-md overflow-hidden">
-            <Button
-              size="xs"
-              color="success"
-              className="rounded-r-none gap-1"
-              onClick={() => onApprove(selectedPermission)}
-            >
-              <Check className="h-3 w-3" />
-              Approve ({selectedOption.label})
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="xs" color="success" className="rounded-l-none border-l border-palette-success-fg/20 px-1">
-                  <ChevronDown className="h-3 w-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                {PERMISSION_OPTIONS.map((option) => (
-                  <DropdownMenuItem
-                    key={option.value}
-                    onClick={() => setSelectedPermission(option.value)}
-                    className="flex flex-col items-start"
-                  >
-                    <span className="font-medium">{option.label}</span>
-                    <span className="text-xs text-neutral-fg-subtle">{option.description}</span>
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        ) : (
-          /* Regular artifact: simple approve */
-          <Button size="xs" color="success" className="gap-1" onClick={() => onApprove('default')}>
-            <Check className="h-3 w-3" />
-            Approve
-          </Button>
-        )}
+        <Button size="xs" color="success" className="gap-1" onClick={onApprove}>
+          <Check className="h-3 w-3" />
+          Approve
+        </Button>
 
         <Button size="xs" variant="soft" color="danger" className="gap-1" onClick={onReject}>
           <X className="h-3 w-3" />
