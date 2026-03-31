@@ -53,6 +53,7 @@ export function useElectronBootstrap(
 
     return () => {
       cancelled = true;
+      autoRetryCount.current = 0;
     };
   }, [bootstrapAttempt, initializeElectronBootstrap, platformType]);
 

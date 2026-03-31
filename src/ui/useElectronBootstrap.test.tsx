@@ -29,7 +29,7 @@ describe('useElectronBootstrap', () => {
       () => useElectronBootstrap('electron', initializeElectronBootstrap),
     );
 
-    // Auto-retries 5 times (1s each), then surfaces error
+    // Auto-retries 5 times (500ms each), then surfaces error
     await waitFor(() => expect(result.current.bootstrapError).toBe('port not ready'), { timeout: 10_000 });
     expect(result.current.serverReady).toBe(false);
     expect(errorSpy).toHaveBeenCalled();
