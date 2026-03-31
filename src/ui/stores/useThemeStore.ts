@@ -48,8 +48,8 @@ interface NeutralTokenDef {
 const NEUTRAL_TOKENS: Record<string, NeutralTokenDef> = {
     fg: {light: {l: 0.145}, dark: {l: 0.985}},
     "fg-subtle": {light: {l: 0.556}, dark: {l: 0.708}},
-    bg: {light: {l: 1.0}, dark: {l: 0.145}},
-    "bg-subtle": {light: {l: 0.98}, dark: {l: 0.17}},
+    bg: {light: {l: 0.985}, dark: {l: 0.145}},
+    "bg-subtle": {light: {l: 0.97}, dark: {l: 0.17}},
     "bg-muted": {light: {l: 0.96}, dark: {l: 0.19}},
     "bg-emphasis": {light: {l: 0.94}, dark: {l: 0.22}},
     "bg-bold": {light: {l: 0.92}, dark: {l: 0.24}},
@@ -61,6 +61,15 @@ const NEUTRAL_TOKENS: Record<string, NeutralTokenDef> = {
 };
 
 const NEUTRAL_TOKEN_NAMES = Object.keys(NEUTRAL_TOKENS);
+
+const PALETTE_COLORS: PaletteColor[] = [
+    "primary",
+    "secondary",
+    "success",
+    "danger",
+    "warning",
+    "info",
+];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -122,15 +131,7 @@ function contrastFg(oklchStr: string) {
 }
 
 function applyPaletteOverrides(style: CSSStyleDeclaration, palette: ModeOverrides["palette"]) {
-    const paletteColors: PaletteColor[] = [
-        "primary",
-        "secondary",
-        "success",
-        "danger",
-        "warning",
-        "info",
-    ];
-    for (const name of paletteColors) {
+    for (const name of PALETTE_COLORS) {
         const value = palette?.[name];
         if (value) {
             style.setProperty(`--palette-${name}`, value);
@@ -226,8 +227,8 @@ function applySurfaceOverrides(
 
     style.setProperty("--shell-bg", buildShellBg(tintStyle, start, mid, end));
 
-    // Semi-transparent version for Tauri vibrancy (same geometry as shell bg).
-    const vibrancyAlpha = isDark ? 0.2 : 0.24;
+    // Semi-transparent version for desktop vibrancy (same geometry as shell bg).
+    const vibrancyAlpha = isDark ? 0.55 : 0.65;
     const vStart = formatOklch(startL, baseC, baseH, vibrancyAlpha);
     const vMid = formatOklch(midL, baseC, baseH, vibrancyAlpha);
     const vEnd = formatOklch(endL, baseC, baseH, vibrancyAlpha);
@@ -257,15 +258,7 @@ function applyOverrides(
 
 function clearAllOverrideStyles() {
     const style = document.documentElement.style;
-    const paletteColors: PaletteColor[] = [
-        "primary",
-        "secondary",
-        "success",
-        "danger",
-        "warning",
-        "info",
-    ];
-    for (const name of paletteColors) {
+    for (const name of PALETTE_COLORS) {
         style.removeProperty(`--palette-${name}`);
         style.removeProperty(`--palette-${name}-fg`);
     }

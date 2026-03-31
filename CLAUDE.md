@@ -5,28 +5,28 @@ Docs: `docs/` (high-level) + [Notion](https://www.notion.so/2ffd48ccaf5481d7bb33
 ## Commands
 
 ```bash
-bun install           # Install dependencies
-bun run test          # All unit tests (Vitest)
+bun install          # Install dependencies
+bun run test         # All unit tests (Vitest)
 bun run test -- src/services/session.test.ts  # Single test file
-bun run test:e2e      # Playwright E2E tests
-bun run lint          # Lint code
-bun run type-check    # TypeScript check
-bun run server        # Start backend server (port 19675)
-bun run server:watch  # Server with hot-reload
-bun run dev:web       # Start server + vite for web testing (port 19676)
-bun run clean         # Remove build artifacts (dist, out)
+bun run test:e2e     # Playwright E2E tests
+bun run lint         # Lint code
+bun run type-check   # TypeScript check
+bun run server       # Start backend server (port 19675)
+bun run server:watch # Server with hot-reload
+bun run dev:web      # Start server + vite for web testing (port 19676)
+bun run clean        # Remove build artifacts (dist, out)
 ```
 
 **ASK FIRST — never auto-run:**
 
 ```bash
-bun run dev   # Server + Tauri desktop app (dev loads from Vite :19676)
-bun run build # Tauri release build
+bun run dev   # Server + Electron desktop app (dev loads from Vite :19676)
+bun run build # Electron release build (electron-builder)
 ```
 
 ## Debugging Tools
 
-- **Visual/CSS** → agent-browser on dev server (localhost:19676) or Peekaboo (`peekaboo see --app Workforce`) for Tauri app
+- **Visual/CSS** → agent-browser on dev server (localhost:19676) or CDP on Electron (--remote-debugging-port=9229)
 - **Server state** → `bun run cli -- health check`, `session list --json`, `audit session <id>`
 - **Server logs** → `curl http://localhost:19675/debug-log`
 - **Port issues** → `lsof -ti :19675 :19676`
@@ -77,8 +77,8 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 ### Architecture
 
-- **Tauri commands** — Keep `src/ui/` browser-safe. Native dialogs via `invoke('open_directory')`. Rust code in `src-tauri/`.
-- **`isDesktop` detection** — `!!window.__TAURI__` or `!!window.__TAURI_INTERNALS__`. Do not use port-based detection.
+- **Electron IPC** — Keep `src/ui/` browser-safe. Native dialogs via `window.electronAPI.openDirectory()`. Electron code in `src-electron/`.
+- **`isDesktop` detection** — `!!window.electronAPI` via preload bridge. Do not use port-based detection.
 - **Singleflight for lazy init** — `this.initPromise ??= this.doInit()` prevents concurrent callers racing.
 - **SetupGate** — Wraps `Shell`, guarantees user identity + initialized org. `useRequiredOrgId()` throws if called outside.
 
@@ -94,7 +94,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 - **React 19 `useRef`** — Requires initial value: `useRef<T | undefined>(undefined)`, not `useRef<T>()`.
 - **`useState` + async queries** — `useState(() => fn(queryData))` captures `undefined` at first render. Use `useEffect` + ref guard instead.
 - **Markdown** — `marked` + `dompurify`. `stripMarkdown()` regexes must use word boundaries to avoid corrupting `foo_bar_baz` identifiers.
-- **Drag region overlay** — `index.html` has a z-40 fixed div covering `--topbar-height` for window dragging. Interactive elements (`button`, `input`, `a`, `[role="button"]`) auto-opt-out via `-webkit-app-region: no-drag`. Custom interactive elements in the topbar need `role="button"` or explicit `app-region: no-drag` to be clickable. The raw `<style>` tag in `index.html` is intentional — Lightning CSS strips `-webkit-app-region`.
+- **Drag regions** — `titlebar-drag-region` CSS class (defined in `index.html` raw `<style>` tag — Lightning CSS strips `-webkit-app-region`) applied to AppHeader and sidebar top spacer. Only active on desktop windowed mode (`html[data-electron]:not([data-fullscreen])`). Interactive elements (`button`, `input`, `a`, `[role="button"]`) auto-opt-out via `no-drag` rules. DevTools always opens detached to avoid drag zone conflicts.
 
 ### Testing & Build
 
@@ -115,9 +115,22 @@ Both **unifai** and **tracey** are git submodules under `lib/`:
 - `lib/tracey` — Structured logging (pino-based). Imports as `"tracey"`.
 
 ```bash
-git submodule update --init          # After fresh clone
-cd lib/tracey && bun install         # Install tracey's deps (pino, pino-pretty)
+git submodule update --init --recursive  # After fresh clone
+bun install                             # Install workspace deps after submodules are present
 ```
+
+`bun install` is sufficient for workspace submodules like `lib/tracey`; do not
+run a separate package-manager install inside those submodules unless you are
+working on the submodule repo in isolation.
+
+### Dependency Pins
+
+- `overrides["@openai/codex"] = 0.107.0` was added during the Electron
+  migration on 2026-03-28 to keep Workforce on the known-good
+  Codex release used by the desktop + agent runtime during the Electron cutover.
+  Only remove or update that override after re-running `bun install`,
+  `bun run test`, and a packaged Electron smoke check against the newer Codex
+  release.
 
 **Branch-per-agent for submodule changes**: When modifying a submodule, create a branch (e.g., `agent/feat-redaction`). Commit on the branch, push, then merge to main. This prevents conflicts when multiple agents work on the same submodule in parallel. The parent repo's submodule pointer should always reference a merge commit on main.
 

@@ -1,7 +1,8 @@
 #!/bin/bash
 # Symlink @wystack packages from the submodule into node_modules.
-# This allows bun's runtime resolver to find them (it doesn't use tsconfig paths
-# for imports originating from within submodules with their own tsconfig).
+# This allows local workspace consumers to resolve them even when tsconfig paths
+# do not apply across submodule boundaries (e.g., for imports originating from
+# within submodules with their own tsconfig).
 #
 # Run after `bun install` or `git submodule update`.
 

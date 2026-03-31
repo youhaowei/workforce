@@ -18,6 +18,7 @@ import { AgentQuestionDialog } from "./AgentQuestionDialog";
 import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
 import { useHotkey } from "@/ui/hotkeys";
 import { usePlatform } from "@/ui/context/PlatformProvider";
+import { getServerPort } from "@/bridge/config";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
 import { useTRPC } from "@/bridge/react";
@@ -123,7 +124,7 @@ export default function Shell() {
   // Dev mode: include git branch + port in document.title for multi-instance debugging.
   useEffect(() => {
     const branch = import.meta.env.VITE_GIT_BRANCH;
-    const port = import.meta.env.VITE_API_PORT;
+    const port = getServerPort();
     const devPrefix = branch ? `[${branch}${port ? ` :${port}` : ""}] ` : "";
     const pageTitle = activeSessionTitle || "Workforce";
     document.title = devPrefix + pageTitle;
@@ -418,9 +419,9 @@ export default function Shell() {
         className="h-screen flex overflow-hidden shell-ground"
         data-desktop={isDesktop || undefined}
       >
-        {/* Tauri: window dragging handled by data-tauri-drag-region on AppHeader.
-            No overlay div needed — Tauri intercepts drag at the native WKWebView level.
-            (The old z-40 overlay with -webkit-app-region: drag was Chromium/Electron-only.) */}
+        {/* Window dragging: Electron uses CSS -webkit-app-region: drag via the
+            .titlebar-drag-region class in AppHeader and sidebar spacer.
+            Interactive elements opt out via app-region: no-drag (set in index.html <style>). */}
 
         <AppSidebar
           mode={sidebarMode}

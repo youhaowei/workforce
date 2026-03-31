@@ -209,6 +209,8 @@ Workforce must now provide:
 
 ---
 
+> Historical note: this document captures earlier desktop-platform exploration, including Tauri-specific analysis. Workforce currently ships on Electron.
+
 ## Hard Constraint: No Sidecar, No Custom Auth
 
 **Claude Agent SDK requires the OS-level Claude CLI auth** from `~/.claude/.credentials.json`. This auth state:
@@ -220,9 +222,9 @@ Workforce must now provide:
 **Implication:** The sidecar architecture pattern (used by OpenCode) is **off the table**. Workforce must either:
 
 1. **External server started from terminal** (current approach — server runs in a terminal with proper shell env, WebView connects via HTTP)
-2. **In-process services** where Bun has inherited the shell environment
+2. **In-process services** where Node.js has inherited the shell environment
 
-The current Workforce already solved this: `bun run dev` starts the server from the terminal first, then launches Tauri. The server process inherits `PATH`, `HOME`, and the Claude credential files.
+The current Workforce solves this with an Electron main process plus a Node.js-backed server lifecycle. In development, `pnpm run dev` launches the server from the terminal first, then attaches the Electron shell. The server process inherits `PATH`, `HOME`, and the Claude credential files.
 
 **What this means for state management:**
 

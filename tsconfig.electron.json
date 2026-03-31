@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2021"],
+    "types": ["node", "electron", "vite/client"]
+  },
+  "include": [
+    "src-electron/**/*.ts",
+    "vite.main.config.ts",
+    "vite.preload.config.ts"
+  ],
+  "exclude": ["node_modules", "dist", "build", "out", ".vite"]
+}

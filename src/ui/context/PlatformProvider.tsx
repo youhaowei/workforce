@@ -1,26 +1,30 @@
 /**
  * PlatformProvider — Decouples platform-specific actions from components.
  *
- * Pattern from craft-agents-oss PlatformContext.tsx.
- * All methods are optional — components check before calling.
- * Desktop provides real implementations; web/test contexts provide no-ops.
+ * Discriminated union on `platformType`:
+ *   - 'electron': desktop with openDirectory, onOpenUrl
+ *   - 'web': browser with no native actions
  */
 
 import { createContext, useContext, type ReactNode } from 'react';
 
-export interface PlatformActions {
-  onOpenFile?: (path: string) => void;
-  onOpenUrl?: (url: string) => void;
-  onCopyToClipboard?: (text: string) => Promise<void>;
-  onRevealInFinder?: (path: string) => void;
-  onMinimize?: () => void;
-  onMaximize?: () => void;
-  onClose?: () => void;
-  openDirectory?: (startingFolder?: string) => Promise<string | null>;
-  isDesktop?: boolean;
+interface ElectronPlatform {
+  platformType: 'electron';
+  isDesktop: true;
+  isMacOS: boolean;
+  openDirectory: (startingFolder?: string) => Promise<string | null>;
+  onOpenUrl: (url: string) => void;
 }
 
-const PlatformContext = createContext<PlatformActions>({});
+interface WebPlatform {
+  platformType: 'web';
+  isDesktop: false;
+  isMacOS: boolean;
+}
+
+export type PlatformActions = ElectronPlatform | WebPlatform;
+
+const PlatformContext = createContext<PlatformActions>({ platformType: 'web', isDesktop: false, isMacOS: false });
 
 export function PlatformProvider({
   actions,

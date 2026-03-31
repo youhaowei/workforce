@@ -21,11 +21,6 @@ import {
 } from '@/components/ui/context-menu';
 import { usePlatform } from '@/ui/context/PlatformProvider';
 
-const isMac =
-  typeof navigator !== 'undefined' &&
-  /mac/i.test(navigator.platform);
-const modKey = isMac ? '⌘' : 'Ctrl+';
-
 /** Returns true when right-click target is an editable element or has text selected. */
 function isTextContext(target: EventTarget | null): boolean {
   const selection = window.getSelection()?.toString();
@@ -52,7 +47,8 @@ interface AppContextMenuProps {
 }
 
 export function AppContextMenu({ children }: AppContextMenuProps) {
-  const { isDesktop } = usePlatform();
+  const { isDesktop, isMacOS } = usePlatform();
+  const modKey = isMacOS ? '⌘' : 'Ctrl+';
   const saved = useRef<Snapshot>({ element: null, text: '' });
 
   // Gate the context menu: only allow the Radix menu to open on text/editable

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { usePlatform } from "@/ui/context/PlatformProvider";
+import { getServerPort } from "@/bridge/config";
 
 import {
   Tooltip,
@@ -59,10 +60,8 @@ export default function AppSidebar({
   onToggleSize,
 }: AppSidebarProps) {
   const isCollapsed = mode === "collapsed";
-  const { isDesktop } = usePlatform();
-  const isMacDesktop = isDesktop && typeof navigator !== "undefined"
-    ? /^Mac/i.test((navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform ?? navigator.platform)
-    : false;
+  const { isDesktop, isMacOS } = usePlatform();
+  const isMacDesktop = isDesktop && isMacOS;
   const topSpacerHeight = isDesktop ? "h-10" : "h-2";
 
   return (
@@ -73,11 +72,7 @@ export default function AppSidebar({
       {/* Traffic light zone — inherits pointer-events-none so drag overlay beneath is reachable */}
       <div className={`${topSpacerHeight} shrink-0 flex items-center pointer-events-auto`}>
         {isMacDesktop && (
-          <div
-            data-tauri-drag-region=""
-            className="h-full w-full rounded-lg border-neutral-border-subtle flex items-center font-medium text-neutral-fg-subtle tracking-tight"
-          >
-          </div>
+          <div className="h-full w-full titlebar-drag-region" />
         )}
       </div>
 
@@ -106,7 +101,7 @@ export default function AppSidebar({
             <Link
               key={item.id}
               to={item.path}
-              className={`nav-glass-item relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 text-neutral-fg/50 hover:text-neutral-fg/80 hover:bg-white/30 dark:hover:bg-white/5 ${
+              className={`nav-glass-item relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 text-neutral-fg/50 hover:text-neutral-fg/80 hover:bg-neutral-bg/30 dark:hover:bg-neutral-bg/5 ${
                 isCollapsed ? "px-0 py-2 justify-center" : "px-2.5 py-[7px]"
               }`}
               activeProps={{
@@ -147,7 +142,7 @@ export default function AppSidebar({
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
-                  className="flex items-center justify-center w-full rounded-lg py-2 text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-white/30 dark:hover:bg-white/5 transition-all duration-150"
+                  className="flex items-center justify-center w-full rounded-lg py-2 text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-neutral-bg/30 dark:hover:bg-neutral-bg/5 transition-all duration-150"
                   onClick={onToggleSize}
                   aria-label="Expand sidebar"
                 >
@@ -160,7 +155,7 @@ export default function AppSidebar({
             </Tooltip>
           ) : (
             <button
-              className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-[7px] text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-white/30 dark:hover:bg-white/5 transition-all duration-150"
+              className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-[7px] text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-neutral-bg/30 dark:hover:bg-neutral-bg/5 transition-all duration-150"
               onClick={onToggleSize}
             >
               <PanelLeftClose className="h-4 w-4" />
@@ -182,9 +177,7 @@ export default function AppSidebar({
                 <TooltipContent side="right" sideOffset={8}>
                   <div className="flex flex-col gap-0.5">
                     <span className="font-medium">{import.meta.env.VITE_GIT_BRANCH}</span>
-                    {import.meta.env.VITE_API_PORT && (
-                      <span className="opacity-60">API :{import.meta.env.VITE_API_PORT}</span>
-                    )}
+                    <span className="opacity-60">API :{getServerPort()}</span>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -196,9 +189,7 @@ export default function AppSidebar({
                     {import.meta.env.VITE_GIT_BRANCH}
                   </span>
                 </div>
-                {import.meta.env.VITE_API_PORT && (
-                  <span className="text-[10px] opacity-50 pl-[18px]">API :{import.meta.env.VITE_API_PORT}</span>
-                )}
+                <span className="text-[10px] opacity-50 pl-[18px]">API :{getServerPort()}</span>
               </div>
             )}
           </div>

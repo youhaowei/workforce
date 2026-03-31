@@ -13,19 +13,21 @@ jobs:
             - uses: actions/checkout@v4
 
             - uses: oven-sh/setup-bun@v2
+
+            - uses: actions/setup-node@v4
               with:
-                  bun-version: latest
+                  node-version: 20
 
             # SSH→HTTPS rewrite for public submodules, then shared setup script
             - name: Setup
               run: |
                   git config --global url."https://github.com/".insteadOf "git@github.com:"
                   git submodule update --init --recursive --depth=1
-                  bun install
+                  bun install --frozen-lockfile
 
             # TanStack Router route tree (needed for type-check)
             - name: Generate route tree
-              run: bunx @tanstack/router-cli generate
+              run: bun run routes:generate
 
             - name: Type check
               run: bun run type-check
@@ -35,3 +37,29 @@ jobs:
 
             - name: Unit tests
               run: bun run test
+
+    packaged-build-smoke:
+        runs-on: macos-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: oven-sh/setup-bun@v2
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20
+
+            - name: Setup
+              run: |
+                  git config --global url."https://github.com/".insteadOf "git@github.com:"
+                  git submodule update --init --recursive --depth=1
+                  bun install --frozen-lockfile
+
+            - name: Generate route tree
+              run: bun run routes:generate
+
+            - name: Packaged build
+              run: bun run build
+
+            - name: Packaged smoke
+              run: bun run test:packaged-smoke

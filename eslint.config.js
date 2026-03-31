@@ -6,10 +6,10 @@ import tsParser from '@typescript-eslint/parser';
 
 export default [
   {
-    ignores: ['dist', 'build', 'node_modules', 'out', 'src/components/ui', 'src/electron']
+    ignores: ['dist', 'build', 'node_modules', 'out', 'src/components/ui']
   },
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'src-electron/**/*.ts', 'tooling/**/*.ts'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {
@@ -76,15 +76,10 @@ export default [
       }
     },
     plugins: {
-      '@typescript-eslint': typescript,
-      'react-hooks': reactHooks,
-      'react-refresh': reactRefresh
+      '@typescript-eslint': typescript
     },
     rules: {
       ...js.configs.recommended.rules,
-      'react-hooks/rules-of-hooks': 'error',
-      'react-hooks/exhaustive-deps': 'warn',
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
       // Disable no-undef for TypeScript — tsc handles this natively and
       // understands DOM globals (HTMLParagraphElement, etc.) that ESLint doesn't.
       'no-undef': 'off',
@@ -112,7 +107,18 @@ export default [
       'max-depth': ['warn', 4],
       'max-lines': ['warn', { max: 500, skipBlankLines: true, skipComments: true }],
       'complexity': ['warn', 15],
-      // React-specific (rules-of-hooks and exhaustive-deps are above)
+    }
+  },
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh
+    },
+    rules: {
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     }
   },
   // Relax max-lines for test files and type definition barrels

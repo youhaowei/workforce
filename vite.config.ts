@@ -7,6 +7,7 @@ import {resolve} from "path";
 import {readFileSync, writeFileSync, unlinkSync} from "fs";
 import {execFileSync} from "child_process";
 import {DEFAULT_SERVER_PORT, DEFAULT_VITE_PORT} from "./src/shared/ports";
+import {createPathAliases} from "./tooling/path-aliases";
 
 /** Read current git branch name (best-effort, returns undefined on failure). */
 function discoverGitBranch(): string | undefined {
@@ -59,11 +60,10 @@ function vitePortFile(): Plugin {
     };
 }
 
-// Tauri injects TAURI_DEV_HOST for mobile dev; on desktop devUrl in tauri.conf.json
-// handles the connection. Vite's host config adapts for both.
-const host = process.env.TAURI_DEV_HOST;
+const host = process.env.DEV_HOST;
 
 export default defineConfig(({command}) => ({
+    base: "./",
     plugins: [
         TanStackRouterVite({
             routesDirectory: "./src/ui/routes",
@@ -80,35 +80,22 @@ export default defineConfig(({command}) => ({
         }),
     ],
     resolve: {
-        alias: {
-            "@": resolve(__dirname, "src"),
-            "tracey": resolve(__dirname, "lib/tracey/src"),
-            "unifai": resolve(__dirname, "lib/unifai/src"),
-            "@wystack/types": resolve(__dirname, "lib/wystack/packages/types/src"),
-            "@wystack/version": resolve(__dirname, "lib/wystack/packages/version/src"),
-            "@wystack/db": resolve(__dirname, "lib/wystack/packages/db/src"),
-            "@wystack/server": resolve(__dirname, "lib/wystack/packages/server/src"),
-            "@wystack/client": resolve(__dirname, "lib/wystack/packages/client/src"),
-            "@wystack/start": resolve(__dirname, "lib/wystack/packages/start/src"),
-            "@stdui/react": resolve(__dirname, "lib/stdui/packages/ui/src"),
-        },
+        alias: createPathAliases(__dirname),
     },
-    // Prevent vite from obscuring Rust errors
     clearScreen: false,
     server: {
-        port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)),
+        port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT), 10),
         strictPort: false,
         host: host || false,
-        hmr: host ? {protocol: "ws", host, port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT)) + 1} : undefined,
+        hmr: host ? {protocol: "ws", host, port: parseInt(process.env.VITE_PORT || String(DEFAULT_VITE_PORT), 10) + 1} : undefined,
         watch: {
-            // Tell vite to ignore watching src-tauri
-            ignored: ["**/src-tauri/**"],
+            ignored: ["**/src-electron/**"],
         },
     },
     define: {
         // Always inject VITE_API_PORT so the UI finds the API server.
         // Dev: read from .dev-port (written by server on startup) or fall back to default.
-        // Production build: bake in the default port (Tauri sidecar always uses this).
+        // Production: Electron main process overrides via preload bridge.
         "import.meta.env.VITE_API_PORT": JSON.stringify(
             process.env.VITE_API_PORT ||
             (command === "serve" ? discoverApiPort() : undefined) ||
@@ -123,35 +110,8 @@ export default defineConfig(({command}) => ({
         target: "ES2020",
         minify: "esbuild",
         sourcemap: false,
-        rollupOptions: {
-            output: {
-                manualChunks(id) {
-                    if (id.includes("node_modules")) {
-                        // React core
-                        if (id.includes("react") || id.includes("react-dom")) {
-                            return "react-vendor";
-                        }
-                        // Icons
-                        if (id.includes("lucide-react")) {
-                            return "icons";
-                        }
-                        // Data layer
-                        if (id.includes("@trpc") || id.includes("@tanstack/react-query")) {
-                            return "data-vendor";
-                        }
-                        // Router
-                        if (id.includes("@tanstack/react-router")) {
-                            return "router";
-                        }
-                        // UI primitives
-                        if (id.includes("radix-ui")) {
-                            return "ui-vendor";
-                        }
-                        // Everything else
-                        return "vendor";
-                    }
-                },
-            },
-        },
+        // Use Vite/Rollup's default chunk graph. The previous manual vendor split
+        // introduced a react-vendor <-> vendor cycle that only surfaced at runtime
+        // in the packaged Electron build.
     },
 }));

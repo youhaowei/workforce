@@ -174,7 +174,7 @@ describe('MessageList scroll behavior', () => {
     expect(onJumpToBottom).toHaveBeenLastCalledWith(expect.any(Function));
   });
 
-  it('should clear jump handler when user returns to bottom', () => {
+  it('should clear jump handler when user returns to bottom', async () => {
     mockStoreIsStreaming = true;
     const messages = makeMessages(10, true);
     const onJumpToBottom = vi.fn();
@@ -192,15 +192,21 @@ describe('MessageList scroll behavior', () => {
 
     // Invoke the handler (simulates clicking jump-to-bottom externally)
     const handler = onJumpToBottom.mock.calls[onJumpToBottom.mock.calls.length - 1]?.[0];
-    handler?.();
-    act(() => capturedAtBottomStateChange?.(true));
+    await act(async () => {
+      handler?.();
+      capturedAtBottomStateChange?.(true);
+      vi.advanceTimersByTime(100);
+    });
 
     // Handler should be null again
     expect(onJumpToBottom).toHaveBeenLastCalledWith(null);
 
     // Scroll up again — should be able to disengage again
-    fireEvent.wheel(scroller, { deltaY: -100 });
-    act(() => capturedAtBottomStateChange?.(false));
+    await act(async () => {
+      fireEvent.wheel(scroller, { deltaY: -100 });
+      capturedAtBottomStateChange?.(false);
+      vi.advanceTimersByTime(100);
+    });
     expect(onJumpToBottom).toHaveBeenLastCalledWith(expect.any(Function));
   });
 

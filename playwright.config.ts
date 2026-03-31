@@ -51,7 +51,7 @@ export default defineConfig({
             },
         },
         {
-            command: `bun run vite --port ${E2E_VITE_PORT}`,
+            command: `bunx vite --port ${E2E_VITE_PORT}`,
             url: `http://localhost:${E2E_VITE_PORT}`,
             reuseExistingServer: false,
             env: {

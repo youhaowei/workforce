@@ -1,6 +1,6 @@
 # Architectural Decisions - Workforce
 
-Last updated: 2026-02-17
+Last updated: 2026-03-28
 
 ## Accepted
 
@@ -24,13 +24,12 @@ Last updated: 2026-02-17
     - template portability: workspace-local in MVP
 14. **Effect library deferred** — POC evaluated Effect for session persistence error handling. Typed errors are valuable but the paradigm overhead isn't justified yet. Instead: adopt typed error classes + `Result<T, E>` without Effect. Revisit when retry policies, resource scoping, or structured concurrency become needed.
 15. **Error handling strategy** — Use typed domain error classes + discriminated `Result<T, E>` unions at service boundaries. Tracing via structured LogService fields. No new library dependencies until complexity warrants it.
-16. **~~Sidecar server architecture~~ → ~~Electrobun direct-call~~ → ~~Electron subprocess~~ → Tauri sidecar architecture** — Originally Tauri sidecar (~300 lines Rust). Migrated to Electrobun, then Electron. This worktree returns to Tauri for smaller footprint and native vibrancy.
+16. **Desktop runtime is Electron** — Workforce ships an Electron shell with a Node.js main process and an in-process Hono backend in production. Tauri is no longer a supported runtime.
 
-    **Current architecture (Tauri)**:
-    - `src-tauri/` — Rust main process: repairs PATH for sidecar, applies window vibrancy, spawns Bun sidecar
-    - `src-tauri/sidecar.rs` — Spawns Bun server (`src/server/index.ts`) as sidecar, waits for health before showing window
-    - `src/server/index.ts` — Hono HTTP server (Bun). Runs as sidecar in desktop, standalone for dev:web
-    - `tauri.conf.json` — `devUrl: localhost:5173` (Vite); `transparent: true` for macOS vibrancy
-    - Native dialogs via Tauri commands: `invoke('open_directory')`, `invoke('open_external')`
-    - `isDesktop` detected via `!!window.__TAURI__` or `!!window.__TAURI_INTERNALS__`. Do not use port-based detection.
-    - Tauri 2 + `@tauri-apps/api` handles build and packaging
+    **Current architecture (Electron)**:
+    - `src-electron/` — Electron main/preload processes: PATH repair, BrowserWindow lifecycle, native menu, CSP, and desktop IPC
+    - `src/server/index.ts` — Hono HTTP server on Node.js; runs in-process in packaged desktop builds and as a separate dev process for `dev:web`
+    - `src/ui/` — React renderer loaded from Vite in development and bundled `dist/` assets in production
+    - Native dialogs and external URL handling flow through `window.electronAPI`
+    - `isDesktop` detected via `!!window.electronAPI`. Do not use port-based detection.
+    - Packaging uses electron-builder with bun-managed dependencies
