@@ -44,6 +44,5 @@ export async function bindWithRetry<T extends Server>(
     }
   }
 
-  // Unreachable: all loop paths return or throw — satisfies TypeScript control-flow analysis.
   throw new Error(`All ports ${basePort}-${basePort + maxRetries} are in use`);
 }
