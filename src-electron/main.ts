@@ -215,7 +215,10 @@ function buildMenu() {
 
 function registerIpcHandlers() {
   // Native directory picker
-  ipcMain.handle('open-directory', async (event, startingFolder?: string) => {
+  ipcMain.handle('open-directory', async (event, startingFolder?: unknown) => {
+    if (startingFolder !== undefined && typeof startingFolder !== 'string') {
+      throw new Error('open-directory: startingFolder must be a string');
+    }
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return null;
     const result = await dialog.showOpenDialog(win, {
@@ -226,7 +229,8 @@ function registerIpcHandlers() {
   });
 
   // Open URL in system browser — validate scheme for security
-  ipcMain.handle('open-external', async (_event, url: string) => {
+  ipcMain.handle('open-external', async (_event, url: unknown) => {
+    if (typeof url !== 'string') throw new Error('open-external: url must be a string');
     const parsed = validateExternalUrl(url);
     await shell.openExternal(parsed.href);
   });

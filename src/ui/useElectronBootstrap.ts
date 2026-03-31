@@ -18,6 +18,7 @@ export function useElectronBootstrap(
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
   const autoRetryCount = useRef(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (platformType !== 'electron') {
@@ -42,7 +43,7 @@ export function useElectronBootstrap(
         // Auto-retry transient failures (e.g., server port not yet available)
         if (autoRetryCount.current < BOOTSTRAP_MAX_AUTO_RETRIES) {
           autoRetryCount.current += 1;
-          setTimeout(() => {
+          retryTimer.current = setTimeout(() => {
             if (!cancelled) setBootstrapAttempt((a) => a + 1);
           }, BOOTSTRAP_RETRY_INTERVAL_MS);
           return;
@@ -53,6 +54,7 @@ export function useElectronBootstrap(
 
     return () => {
       cancelled = true;
+      clearTimeout(retryTimer.current);
     };
   }, [bootstrapAttempt, initializeElectronBootstrap, platformType]);
 

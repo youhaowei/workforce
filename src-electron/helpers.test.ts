@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'net';
+import { mkdtempSync, writeFileSync, rmSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
 import type { ServerType } from '@hono/node-server';
 
 import { repairPath, discoverPort, closeServerWithTimeout, waitForHealth, validateExternalUrl, isAllowedNavigation } from './helpers';
@@ -60,6 +63,28 @@ describe('discoverPort', () => {
   it('rejects invalid env var values', () => {
     process.env.TEST_PORT = 'not-a-port';
     expect(discoverPort('TEST_PORT', '.nonexistent', 19675, '/tmp')).toBe(19675);
+  });
+
+  it('reads port from a dot-file when env var is absent', () => {
+    delete process.env.DOTFILE_TEST_PORT;
+    const tmpDir = mkdtempSync(join(tmpdir(), 'discover-port-'));
+    try {
+      writeFileSync(join(tmpDir, '.test-port'), '19700\n');
+      expect(discoverPort('DOTFILE_TEST_PORT', '.test-port', 19675, tmpDir)).toBe(19700);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back when dot-file contains an invalid value', () => {
+    delete process.env.DOTFILE_TEST_PORT;
+    const tmpDir = mkdtempSync(join(tmpdir(), 'discover-port-'));
+    try {
+      writeFileSync(join(tmpDir, '.test-port'), 'garbage\n');
+      expect(discoverPort('DOTFILE_TEST_PORT', '.test-port', 19675, tmpDir)).toBe(19675);
+    } finally {
+      rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -157,6 +182,10 @@ describe('isAllowedNavigation', () => {
   it('rejects invalid URLs', () => {
     expect(isAllowedNavigation('not a url', 19676)).toBe(false);
   });
+
+  it('rejects 127.0.0.1 (only localhost hostname allowed)', () => {
+    expect(isAllowedNavigation('http://127.0.0.1:19676/', 19676)).toBe(false);
+  });
 });
 
 describe('waitForHealth', () => {
@@ -186,5 +215,18 @@ describe('waitForHealth', () => {
     const mockFetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
     const result = await waitForHealth('http://localhost:1/health', 200, mockFetch as typeof fetch);
     expect(result).toBe(false);
+  });
+
+  it('retries on non-200 responses until server returns 200', async () => {
+    let calls = 0;
+    const mockFetch = vi.fn().mockImplementation(() => {
+      calls++;
+      if (calls < 3) return Promise.resolve({ ok: false, status: 503 });
+      return Promise.resolve({ ok: true });
+    });
+
+    const result = await waitForHealth('http://localhost:1/health', 5_000, mockFetch as typeof fetch);
+    expect(result).toBe(true);
+    expect(calls).toBeGreaterThanOrEqual(3);
   });
 });

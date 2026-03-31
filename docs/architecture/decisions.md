@@ -32,4 +32,4 @@ Last updated: 2026-03-28
     - `src/ui/` — React renderer loaded from Vite in development and bundled `dist/` assets in production
     - Native dialogs and external URL handling flow through `window.electronAPI`
     - `isDesktop` detected via `!!window.electronAPI`. Do not use port-based detection.
-    - Packaging uses Electron Forge with pnpm-managed dependencies
+    - Packaging uses electron-builder with bun-managed dependencies

@@ -83,6 +83,7 @@ describe('buildRendererContentSecurityPolicy', () => {
     });
     const parsed = parseCsp(csp);
 
+    expect(parsed['frame-src']).toEqual(["'none'"]);
     expect(parsed['worker-src']).toEqual(["'none'"]);
     expect(parsed['object-src']).toEqual(["'none'"]);
     expect(parsed['base-uri']).toEqual(["'self'"]);

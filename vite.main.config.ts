@@ -7,6 +7,7 @@ export default defineConfig({
     alias: createPathAliases(__dirname),
   },
   build: {
+    target: 'node20',
     outDir: 'dist-electron',
     lib: {
       entry: 'src-electron/main.ts',

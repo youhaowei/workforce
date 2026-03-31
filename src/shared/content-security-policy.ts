@@ -35,6 +35,7 @@ export function buildRendererContentSecurityPolicy({
     "font-src 'self' data:",
     `connect-src ${connectSrc}`,
     "form-action 'self'",
+    "frame-src 'none'",
     "worker-src 'none'",
     "object-src 'none'",
     "base-uri 'self'",

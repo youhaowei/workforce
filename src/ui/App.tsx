@@ -118,7 +118,16 @@ export default function App({ router }: { router: Router<any, any, any, any> }) 
       />
     );
   }
-  if (!serverReady) return null;
+  if (!serverReady) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-neutral-bg">
+        <div className="flex flex-col items-center gap-3 text-neutral-fg-subtle">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+          <span className="text-sm">Starting server&hellip;</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

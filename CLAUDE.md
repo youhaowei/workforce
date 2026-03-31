@@ -21,7 +21,7 @@ bun run clean        # Remove build artifacts (dist, out)
 
 ```bash
 bun run dev   # Server + Electron desktop app (dev loads from Vite :19676)
-bun run build # Electron release build (electron-forge)
+bun run build # Electron release build (electron-builder)
 ```
 
 ## Debugging Tools
