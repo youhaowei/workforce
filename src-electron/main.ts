@@ -25,6 +25,8 @@ import {
   discoverPort,
   closeServerWithTimeout as closeServerImpl,
   waitForHealth,
+  validateExternalUrl,
+  isAllowedNavigation,
 } from './helpers';
 
 const isDev = !app.isPackaged;
@@ -36,7 +38,6 @@ let server: ServerType | null = null;
 let serverPort: number | null = null;
 let rendererPort: number | null = null;
 let isQuitting = false;
-let hasRegisteredCsp = false;
 
 // ── PATH Repair ──────────────────────────────────────────────────────────────
 
@@ -69,9 +70,6 @@ const iconPath = isDev
   : path.join(process.resourcesPath, 'icon.icns');
 
 function applyContentSecurityPolicy(activePort: number) {
-  if (hasRegisteredCsp) return;
-  hasRegisteredCsp = true;
-
   const csp = buildRendererContentSecurityPolicy({
     isDev,
     rendererPort: activePort,
@@ -123,8 +121,7 @@ function createWindow() {
     },
   });
 
-  const vitePort = isDev ? discoverVitePort() : null;
-  const activePort = isDev ? vitePort : serverPort;
+  const activePort = isDev ? discoverVitePort() : serverPort;
   if (!activePort) {
     throw new Error('Renderer port was not resolved before window creation');
   }
@@ -141,6 +138,7 @@ function createWindow() {
   };
   win.on('enter-full-screen', syncFullscreen);
   win.on('leave-full-screen', syncFullscreen);
+  win.on('closed', () => { mainWindow = null; });
 
   return win;
 }
@@ -229,15 +227,7 @@ function registerIpcHandlers() {
 
   // Open URL in system browser — validate scheme for security
   ipcMain.handle('open-external', async (_event, url: string) => {
-    let parsed: URL;
-    try {
-      parsed = new URL(url);
-    } catch {
-      throw new Error(`Invalid URL: ${url}`);
-    }
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-      throw new Error(`Blocked open-external for scheme: ${parsed.protocol}`);
-    }
+    const parsed = validateExternalUrl(url);
     await shell.openExternal(parsed.href);
   });
 
@@ -269,25 +259,16 @@ app.whenReady().then(async () => {
   // so any dynamically created webContents also get protection.
   app.on('web-contents-created', (_event, contents) => {
     contents.on('will-navigate', (navEvent) => {
-      if (!rendererPort) { navEvent.preventDefault(); return; }
-      try {
-        const parsed = new URL(navEvent.url);
-        const allowed = parsed.protocol === 'http:'
-          && parsed.hostname === 'localhost'
-          && parsed.port === String(rendererPort);
-        if (!allowed) navEvent.preventDefault();
-      } catch {
+      if (!rendererPort || !isAllowedNavigation(navEvent.url, rendererPort)) {
         navEvent.preventDefault();
       }
     });
 
     contents.setWindowOpenHandler(({ url }) => {
       try {
-        const parsed = new URL(url);
-        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-          shell.openExternal(parsed.href).catch((error) => log.warn({ error, url }, 'openExternal failed'));
-        }
-      } catch { /* invalid URL, ignore */ }
+        const parsed = validateExternalUrl(url);
+        shell.openExternal(parsed.href).catch((error) => log.warn({ error, url }, 'openExternal failed'));
+      } catch { /* blocked or invalid URL */ }
       return { action: 'deny' };
     });
   });
@@ -321,10 +302,6 @@ app.whenReady().then(async () => {
 
   mainWindow = createWindow();
   updateWindowTitle();
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

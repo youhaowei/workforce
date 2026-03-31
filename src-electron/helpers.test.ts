@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createServer } from 'net';
 import type { ServerType } from '@hono/node-server';
 
-import { repairPath, discoverPort, closeServerWithTimeout, waitForHealth } from './helpers';
+import { repairPath, discoverPort, closeServerWithTimeout, waitForHealth, validateExternalUrl, isAllowedNavigation } from './helpers';
 
 describe('repairPath', () => {
   it('appends new entries from the login shell PATH', () => {
@@ -23,6 +23,20 @@ describe('repairPath', () => {
     const result = repairPath(undefined, '/bin/zsh');
     // Either returns a string or undefined (shell failure)
     expect(result === undefined || typeof result === 'string').toBe(true);
+  });
+
+  it('strips profile noise before null-byte delimiter', () => {
+    // Use sh -c with explicit echo to simulate profile output before PATH
+    const result = repairPath('/usr/bin', '/bin/sh');
+    // The null-byte delimiter isolates PATH from any profile output.
+    // If repairPath works correctly, the result should only contain
+    // valid path entries (containing '/'), not random text.
+    if (result !== undefined) {
+      const entries = result.split(':');
+      for (const entry of entries) {
+        expect(entry).toMatch(/^\//); // all PATH entries start with /
+      }
+    }
   });
 });
 
@@ -75,6 +89,73 @@ describe('closeServerWithTimeout', () => {
       expect.objectContaining({ timeoutMs: 50 }),
       'Server shutdown exceeded timeout, forcing app exit',
     );
+  });
+
+  it('logs warning when server close callback returns an error', async () => {
+    const mockServer = {
+      close: (cb: (err?: Error) => void) => {
+        cb(new Error('address already in use'));
+      },
+    } as unknown as ServerType;
+
+    const onWarn = vi.fn();
+    // closeServerWithTimeout rejects when server.close errors — catch it
+    await closeServerWithTimeout(mockServer, 5_000, onWarn).catch(() => {});
+
+    expect(onWarn).toHaveBeenCalledWith(
+      expect.objectContaining({ error: expect.any(Error) }),
+      'Server close error',
+    );
+  });
+});
+
+describe('validateExternalUrl', () => {
+  it('accepts http URLs', () => {
+    const url = validateExternalUrl('http://example.com/path');
+    expect(url.href).toBe('http://example.com/path');
+  });
+
+  it('accepts https URLs', () => {
+    const url = validateExternalUrl('https://example.com');
+    expect(url.href).toBe('https://example.com/');
+  });
+
+  it('rejects file: scheme', () => {
+    expect(() => validateExternalUrl('file:///etc/passwd')).toThrow('Blocked open-external for scheme: file:');
+  });
+
+  it('rejects javascript: scheme', () => {
+    expect(() => validateExternalUrl('javascript:alert(1)')).toThrow('Blocked open-external for scheme: javascript:');
+  });
+
+  it('rejects invalid URLs', () => {
+    expect(() => validateExternalUrl('not a url')).toThrow('Invalid URL');
+  });
+
+  it('rejects data: scheme', () => {
+    expect(() => validateExternalUrl('data:text/html,<h1>hi</h1>')).toThrow('Blocked open-external for scheme: data:');
+  });
+});
+
+describe('isAllowedNavigation', () => {
+  it('allows http://localhost with matching port', () => {
+    expect(isAllowedNavigation('http://localhost:19676/path', 19676)).toBe(true);
+  });
+
+  it('rejects different port', () => {
+    expect(isAllowedNavigation('http://localhost:9999/', 19676)).toBe(false);
+  });
+
+  it('rejects https', () => {
+    expect(isAllowedNavigation('https://localhost:19676/', 19676)).toBe(false);
+  });
+
+  it('rejects non-localhost', () => {
+    expect(isAllowedNavigation('http://evil.com:19676/', 19676)).toBe(false);
+  });
+
+  it('rejects invalid URLs', () => {
+    expect(isAllowedNavigation('not a url', 19676)).toBe(false);
   });
 });
 

@@ -34,10 +34,7 @@ export function getTrpcUrl(): string {
 export async function initServerUrl(): Promise<void> {
   if (typeof window === "undefined" || !window.electronAPI?.getServerPort) return;
 
-  try {
-    const port = await window.electronAPI.getServerPort();
-    if (port) resolvedPort = String(port);
-  } catch (e) {
-    console.warn('initServerUrl: Electron port discovery failed, using fallback:', e);
-  }
+  const port = await window.electronAPI.getServerPort();
+  if (!port) throw new Error('Server port not yet available');
+  resolvedPort = String(port);
 }

@@ -23,10 +23,11 @@ describe('buildRendererContentSecurityPolicy', () => {
     expect(parsed['script-src']).toContain("'unsafe-eval'");
     expect(parsed['script-src']).toContain("'unsafe-inline'");
     expect(parsed['connect-src']).toContain('ws://localhost:*');
-    expect(parsed['connect-src']).toContain('http://localhost:*');
     expect(parsed['connect-src']).toContain('http://localhost:19676');
     expect(parsed['connect-src']).toContain('http://localhost:19675');
+    expect(parsed['connect-src']).not.toContain('http://localhost:*');
     expect(parsed['img-src']).toContain('http://localhost:*');
+    expect(parsed['worker-src']).toEqual(["'none'"]);
   });
 
   it('keeps the production renderer policy strict', () => {
@@ -41,9 +42,9 @@ describe('buildRendererContentSecurityPolicy', () => {
     expect(parsed['style-src']).toContain("'unsafe-inline'");
     expect(parsed['connect-src']).toContain('http://localhost:19676');
     expect(parsed['connect-src']).toContain('http://localhost:19675');
-    expect(parsed['connect-src']).not.toContain('ws://localhost:*');
+    expect(parsed['connect-src']).not.toContain('ws://localhost:19676');
+    expect(parsed['connect-src']).not.toContain('ws://localhost:19675');
     expect(parsed['form-action']).toEqual(["'self'"]);
-    // Production img-src scoped to known origins, not wildcard
     expect(parsed['img-src']).not.toContain('http://localhost:*');
     expect(parsed['img-src']).toContain('http://localhost:19676');
   });
@@ -82,6 +83,7 @@ describe('buildRendererContentSecurityPolicy', () => {
     });
     const parsed = parseCsp(csp);
 
+    expect(parsed['worker-src']).toEqual(["'none'"]);
     expect(parsed['object-src']).toEqual(["'none'"]);
     expect(parsed['base-uri']).toEqual(["'self'"]);
     expect(parsed['frame-ancestors']).toEqual(["'none'"]);

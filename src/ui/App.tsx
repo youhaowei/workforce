@@ -75,21 +75,19 @@ function RuntimeBootstrapError({
 }) {
   return (
     <div className="h-screen flex items-center justify-center bg-neutral-bg px-6">
-      <div className="w-full max-w-md rounded-2xl border border-neutral-border bg-neutral-panel p-6 shadow-lg">
+      <div className="w-full max-w-md rounded-2xl border border-neutral-border bg-neutral-bg-subtle p-6 shadow-lg">
         <div className="space-y-3">
           <h1 className="text-lg font-semibold text-neutral-fg">Desktop runtime failed to initialize</h1>
           <p className="text-sm text-neutral-fg-subtle">
             The Electron app could not finish local server discovery, so the UI stayed gated instead of
             falling back to a stale default port.
           </p>
-          <pre className="overflow-auto rounded-lg bg-neutral-bg-subtle p-3 text-xs text-neutral-fg-subtle">
-            {message}
-          </pre>
+          <pre className="overflow-auto rounded-lg bg-neutral-bg-subtle p-3 text-xs text-neutral-fg-subtle">{message}</pre>
         </div>
         <div className="mt-5 flex justify-end">
           <button
             type="button"
-            className="inline-flex items-center rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-foreground"
+            className="inline-flex items-center rounded-lg bg-palette-primary px-4 py-2 text-sm font-medium text-palette-primary-fg"
             onClick={onRetry}
           >
             Retry

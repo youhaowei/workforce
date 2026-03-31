@@ -1,47 +1,40 @@
 import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/ui/lib/utils"
 import { usePlatform } from "@/ui/context/PlatformProvider"
 
-const surfaceVariants = cva("overflow-hidden", {
-  variants: {
-    variant: {
-      main: "bg-neutral-bg/80",
-      stage: "bg-neutral-bg/70",
-      panel: "bg-neutral-bg/90 saturate-[1.2]",
-    },
-  },
-})
+// Not using CVA: desktop/web variants are mutually exclusive (selected at
+// runtime via usePlatform), so CVA's cascade model required !important overrides.
+type SurfaceVariant = "main" | "stage" | "panel"
 
-/** Desktop: use glass variant for vibrancy blur-through. */
-const desktopOverrides: Record<
-  "main" | "stage" | "panel",
-  string
-> = {
-  main: "!bg-neutral-bg/40 saturate-[1.2]",
-  stage: "!bg-neutral-bg/60",
-  panel: "!bg-neutral-bg/60",
+const baseClasses = "overflow-hidden"
+
+const webVariants: Record<SurfaceVariant, string> = {
+  main: "bg-neutral-bg/80",
+  stage: "bg-neutral-bg/70",
+  panel: "bg-neutral-bg/90 saturate-[1.2]",
 }
 
-export interface SurfaceProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof surfaceVariants> {}
+const desktopVariants: Record<SurfaceVariant, string> = {
+  main: "bg-neutral-bg/40 saturate-[1.2]",
+  stage: "bg-neutral-bg/60",
+  panel: "bg-neutral-bg/60",
+}
+
+export interface SurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: SurfaceVariant | null
+}
 
 const Surface = React.forwardRef<HTMLDivElement, SurfaceProps>(
   ({ className, variant, ...props }, ref) => {
     const { isDesktop } = usePlatform()
-    const desktopClass =
-      isDesktop && variant
-        ? desktopOverrides[variant]
-        : undefined
+    const variantClass = variant
+      ? (isDesktop ? desktopVariants : webVariants)[variant]
+      : undefined
     return (
       <div
         ref={ref}
-        className={cn(
-          surfaceVariants({ variant, className }),
-          desktopClass,
-        )}
+        className={cn(baseClasses, variantClass, className)}
         {...props}
       />
     )
@@ -49,4 +42,4 @@ const Surface = React.forwardRef<HTMLDivElement, SurfaceProps>(
 )
 Surface.displayName = "Surface"
 
-export { Surface, surfaceVariants }
+export { Surface }

@@ -42,7 +42,7 @@ describe('bridge/config', () => {
     expect(config.getTrpcUrl()).toBe('http://localhost:19777/api/trpc');
   });
 
-  it('keeps the fallback port when Electron bridge returns null', async () => {
+  it('throws when Electron bridge returns null (port not yet available)', async () => {
     globalThis.window = {
       electronAPI: {
         getServerPort: vi.fn().mockResolvedValue(null),
@@ -50,25 +50,22 @@ describe('bridge/config', () => {
     } as unknown as Window & typeof globalThis;
 
     const config = await loadConfigModule();
-    await config.initServerUrl();
+    await expect(config.initServerUrl()).rejects.toThrow('Server port not yet available');
 
     expect(config.getServerPort()).toBe('19675');
   });
 
-  it('keeps the fallback port when Electron discovery fails', async () => {
+  it('propagates rejection when Electron discovery fails', async () => {
     globalThis.window = {
       electronAPI: {
         getServerPort: vi.fn().mockRejectedValue(new Error('boom')),
       },
     } as unknown as Window & typeof globalThis;
 
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const config = await loadConfigModule();
-
-    await config.initServerUrl();
+    await expect(config.initServerUrl()).rejects.toThrow('boom');
 
     expect(config.getServerPort()).toBe('19675');
-    expect(warnSpy).toHaveBeenCalledOnce();
   });
 
   it('is a no-op when window exists but electronAPI is absent (web browser)', async () => {

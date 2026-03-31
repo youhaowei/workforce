@@ -97,8 +97,6 @@
 
     /* ── Surfaces ────────────────────────────────────────────────────────── */
     --surface-base: oklch(0.95 0.006 70);
-    --surface-main-bg: oklch(0.95 0.006 70 / 45%);
-    --surface-main-bg-glass: oklch(0.95 0.006 70 / 40%);
 
     /* ── Typography ──────────────────────────────────────────────────────── */
     --text-display-size: 24px;
@@ -216,8 +214,6 @@
 
     /* ── Surfaces (dark) ─────────────────────────────────────────────────── */
     --surface-base: oklch(0.2 0.005 250);
-    --surface-main-bg: oklch(0.2 0.005 250 / 45%);
-    --surface-main-bg-glass: oklch(0.2 0.005 250 / 40%);
 
     /* ── Shadows (dark) ──────────────────────────────────────────────────── */
     --shadow-xs: 0 1px 2px oklch(0 0 0 / 30%);
@@ -381,7 +377,6 @@ html[data-vibrancy-mismatch] body {
         @apply flex items-center shrink-0 gap-3;
     }
 }
-
 
 /* Message list fade overlays — don't cover the scrollbar */
 @layer components {

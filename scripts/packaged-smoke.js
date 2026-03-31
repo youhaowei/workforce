@@ -9,19 +9,17 @@ const repoRoot = path.resolve(scriptDir, '..');
 const smokePorts = Array.from({ length: 21 }, (_, index) => 19675 + index);
 const launchArgs = ['--remote-debugging-port=9333'];
 
-async function getCandidateBundles() {
+function getCandidateBundles() {
   const suffix = process.arch;
-  const candidates = [];
 
   if (process.platform === 'darwin') {
-    candidates.push(
-      {
-        appPath: path.join(repoRoot, 'out', `Workforce-darwin-${suffix}`, 'Workforce.app'),
-        binaryPath: path.join(repoRoot, 'out', `Workforce-darwin-${suffix}`, 'Workforce.app', 'Contents', 'MacOS', 'Workforce'),
-      },
-    );
-  } else if (process.platform === 'linux') {
-    candidates.push(
+    return [{
+      appPath: path.join(repoRoot, 'out', `Workforce-darwin-${suffix}`, 'Workforce.app'),
+      binaryPath: path.join(repoRoot, 'out', `Workforce-darwin-${suffix}`, 'Workforce.app', 'Contents', 'MacOS', 'Workforce'),
+    }];
+  }
+  if (process.platform === 'linux') {
+    return [
       {
         appPath: path.join(repoRoot, 'out', `Workforce-linux-${suffix}`),
         binaryPath: path.join(repoRoot, 'out', `Workforce-linux-${suffix}`, 'Workforce'),
@@ -30,21 +28,20 @@ async function getCandidateBundles() {
         appPath: path.join(repoRoot, 'out', `workforce-linux-${suffix}`),
         binaryPath: path.join(repoRoot, 'out', `workforce-linux-${suffix}`, 'workforce'),
       },
-    );
-  } else if (process.platform === 'win32') {
-    candidates.push(
-      {
-        appPath: path.join(repoRoot, 'out', `Workforce-win32-${suffix}`),
-        binaryPath: path.join(repoRoot, 'out', `Workforce-win32-${suffix}`, 'Workforce.exe'),
-      },
-    );
+    ];
+  }
+  if (process.platform === 'win32') {
+    return [{
+      appPath: path.join(repoRoot, 'out', `Workforce-win32-${suffix}`),
+      binaryPath: path.join(repoRoot, 'out', `Workforce-win32-${suffix}`, 'Workforce.exe'),
+    }];
   }
 
-  return candidates;
+  return [];
 }
 
 async function resolveBundle() {
-  for (const candidate of await getCandidateBundles()) {
+  for (const candidate of getCandidateBundles()) {
     try {
       await access(candidate.binaryPath);
       return candidate;
@@ -64,7 +61,8 @@ async function pollHealth() {
       try {
         const response = await fetch(`http://localhost:${port}/health`);
         if (response.ok) {
-          const json = await response.json();
+          let json;
+          try { json = await response.json(); } catch { continue; }
           if (json?.ok === true) return { port, payload: json };
         }
       } catch {

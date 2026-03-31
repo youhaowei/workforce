@@ -72,10 +72,7 @@ export default function AppSidebar({
       {/* Traffic light zone — inherits pointer-events-none so drag overlay beneath is reachable */}
       <div className={`${topSpacerHeight} shrink-0 flex items-center pointer-events-auto`}>
         {isMacDesktop && (
-          <div
-            className="h-full w-full titlebar-drag-region rounded-lg border-neutral-border-subtle flex items-center font-medium text-neutral-fg-subtle tracking-tight"
-          >
-          </div>
+          <div className="h-full w-full titlebar-drag-region" />
         )}
       </div>
 

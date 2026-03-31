@@ -13,10 +13,13 @@ export function repairPath(
   loginShell: string,
 ): string | undefined {
   try {
-    const shellPath = execFileSync(loginShell, ['-lc', 'printf %s "$PATH"'], {
+    // Use a null byte delimiter to isolate PATH from any profile script output
+    const raw = execFileSync(loginShell, ['-lc', 'printf "\\0%s" "$PATH"'], {
       encoding: 'utf-8',
       timeout: 3_000,
-    }).trim();
+    });
+    const nulIdx = raw.lastIndexOf('\0');
+    const shellPath = (nulIdx >= 0 ? raw.slice(nulIdx + 1) : raw).trim();
     if (!shellPath) return currentPath;
 
     const existing = new Set((currentPath || '').split(':'));
@@ -54,7 +57,14 @@ export async function closeServerWithTimeout(
   timeoutMs: number,
   onWarn?: (context: Record<string, unknown>, msg: string) => void,
 ): Promise<void> {
-  let timer: ReturnType<typeof setTimeout>;
+  let resolveTimeout: () => void;
+  const timeoutPromise = new Promise<void>((r) => { resolveTimeout = r; });
+
+  const timer = setTimeout(() => {
+    onWarn?.({ timeoutMs }, 'Server shutdown exceeded timeout, forcing app exit');
+    resolveTimeout();
+  }, timeoutMs);
+
   const closePromise = new Promise<void>((resolve, reject) => {
     closingServer.close((error) => {
       clearTimeout(timer);
@@ -62,16 +72,44 @@ export async function closeServerWithTimeout(
       else resolve();
     });
   });
-  const timeoutPromise = new Promise<void>((resolve) => {
-    timer = setTimeout(() => {
-      onWarn?.({ timeoutMs }, 'Server shutdown exceeded timeout, forcing app exit');
-      resolve();
-    }, timeoutMs);
-  });
+
   closePromise.catch((err) =>
     onWarn?.({ error: err }, 'Server close error'),
   );
   await Promise.race([closePromise, timeoutPromise]);
+}
+
+const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:']);
+
+/**
+ * Validate a URL for open-external IPC — only http/https allowed.
+ * Returns the parsed URL or throws with a descriptive error.
+ */
+export function validateExternalUrl(url: string): URL {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+  if (!ALLOWED_EXTERNAL_PROTOCOLS.has(parsed.protocol)) {
+    throw new Error(`Blocked open-external for scheme: ${parsed.protocol}`);
+  }
+  return parsed;
+}
+
+/**
+ * Check if a navigation URL is allowed — must be http://localhost:<rendererPort>.
+ */
+export function isAllowedNavigation(url: string, allowedPort: number): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:'
+      && parsed.hostname === 'localhost'
+      && parsed.port === String(allowedPort);
+  } catch {
+    return false;
+  }
 }
 
 /** Poll a health endpoint until it returns 200. */
