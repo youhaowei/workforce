@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { initServerUrl } from '@/bridge/config';
 import { refreshTrpcClient } from '@/bridge/trpc';
 import { initializeClientRuntime, type PlatformType } from './app-bootstrap';
+
+export const BOOTSTRAP_MAX_AUTO_RETRIES = 5;
+export const BOOTSTRAP_RETRY_INTERVAL_MS = 500;
 
 async function defaultInitializeElectronBootstrap() {
   await initializeClientRuntime(initServerUrl, refreshTrpcClient);
@@ -14,6 +17,7 @@ export function useElectronBootstrap(
   const [serverReady, setServerReady] = useState(() => platformType !== 'electron');
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
+  const autoRetryCount = useRef(0);
 
   useEffect(() => {
     if (platformType !== 'electron') {
@@ -28,11 +32,22 @@ export function useElectronBootstrap(
 
     void initializeElectronBootstrap()
       .then(() => {
-        if (!cancelled) setServerReady(true);
+        if (!cancelled) {
+          autoRetryCount.current = 0;
+          setServerReady(true);
+        }
       })
       .catch((error) => {
         if (cancelled) return;
-        console.error('Client runtime init failed, keeping Electron gate closed:', error);
+        // Auto-retry transient failures (e.g., server port not yet available)
+        if (autoRetryCount.current < BOOTSTRAP_MAX_AUTO_RETRIES) {
+          autoRetryCount.current += 1;
+          setTimeout(() => {
+            if (!cancelled) setBootstrapAttempt((a) => a + 1);
+          }, BOOTSTRAP_RETRY_INTERVAL_MS);
+          return;
+        }
+        console.error('Client runtime init failed after retries, showing error:', error);
         setBootstrapError(error instanceof Error ? error.message : String(error));
       });
 
@@ -42,6 +57,7 @@ export function useElectronBootstrap(
   }, [bootstrapAttempt, initializeElectronBootstrap, platformType]);
 
   const retryBootstrap = useCallback(() => {
+    autoRetryCount.current = 0;
     setBootstrapAttempt((attempt) => attempt + 1);
   }, []);
 
