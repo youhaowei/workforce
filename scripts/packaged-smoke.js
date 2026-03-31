@@ -13,27 +13,31 @@ function getCandidateBundles() {
   const suffix = process.arch;
 
   if (process.platform === 'darwin') {
-    return [{
-      appPath: path.join(repoRoot, 'out', `Workforce-darwin-${suffix}`, 'Workforce.app'),
-      binaryPath: path.join(repoRoot, 'out', `Workforce-darwin-${suffix}`, 'Workforce.app', 'Contents', 'MacOS', 'Workforce'),
-    }];
+    // electron-builder outputs to out/mac-<arch>/Workforce.app
+    return [
+      {
+        appPath: path.join(repoRoot, 'out', `mac-${suffix}`, 'Workforce.app'),
+        binaryPath: path.join(repoRoot, 'out', `mac-${suffix}`, 'Workforce.app', 'Contents', 'MacOS', 'Workforce'),
+      },
+      // Fallback: unpacked output from --dir
+      {
+        appPath: path.join(repoRoot, 'out', 'mac', 'Workforce.app'),
+        binaryPath: path.join(repoRoot, 'out', 'mac', 'Workforce.app', 'Contents', 'MacOS', 'Workforce'),
+      },
+    ];
   }
   if (process.platform === 'linux') {
     return [
       {
-        appPath: path.join(repoRoot, 'out', `Workforce-linux-${suffix}`),
-        binaryPath: path.join(repoRoot, 'out', `Workforce-linux-${suffix}`, 'Workforce'),
-      },
-      {
-        appPath: path.join(repoRoot, 'out', `workforce-linux-${suffix}`),
-        binaryPath: path.join(repoRoot, 'out', `workforce-linux-${suffix}`, 'workforce'),
+        appPath: path.join(repoRoot, 'out', `linux-unpacked`),
+        binaryPath: path.join(repoRoot, 'out', `linux-unpacked`, 'workforce'),
       },
     ];
   }
   if (process.platform === 'win32') {
     return [{
-      appPath: path.join(repoRoot, 'out', `Workforce-win32-${suffix}`),
-      binaryPath: path.join(repoRoot, 'out', `Workforce-win32-${suffix}`, 'Workforce.exe'),
+      appPath: path.join(repoRoot, 'out', `win-unpacked`),
+      binaryPath: path.join(repoRoot, 'out', `win-unpacked`, 'Workforce.exe'),
     }];
   }
 

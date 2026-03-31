@@ -2,20 +2,24 @@
   "name": "workforce",
   "version": "0.1.0",
   "description": "High-performance desktop agentic orchestrator with Claude Code parity",
+  "author": "Youhao Wei <wei@youhao.me>",
   "type": "module",
-  "main": ".vite/build/main.cjs",
-  "packageManager": "pnpm@10.12.1",
+  "main": "dist-electron/main.cjs",
+  "packageManager": "bun@1.3.9",
   "scripts": {
-    "setup": "git submodule update --init --recursive && pnpm install",
+    "setup": "git submodule update --init --recursive && bun install",
     "dev": "bash scripts/dev-electron.sh",
     "dev:web": "bash scripts/dev-preview.sh",
     "routes:generate": "tsr generate",
     "server": "tsx src/server/index.ts",
     "server:watch": "PORT=${PORT:-19675} tsx --watch src/server/index.ts",
-    "build": "pnpm run vite:build && electron-forge make",
-    "package": "pnpm run vite:build && electron-forge package",
-    "release": "pnpm run build",
-    "clean": "rm -rf dist out .vite",
+    "build:electron:main": "vite build --config vite.main.config.ts",
+    "build:electron:preload": "vite build --config vite.preload.config.ts",
+    "build:electron": "bun run build:electron:main && bun run build:electron:preload",
+    "build": "bun run build:electron && bun run vite:build && electron-builder --config electron-builder.yml",
+    "package": "bun run build:electron && bun run vite:build && electron-builder --config electron-builder.yml --dir",
+    "release": "bun run build",
+    "clean": "rm -rf dist dist-electron out",
     "vite": "vite",
     "vite:build": "vite build",
     "test": "vitest run",
@@ -65,10 +69,8 @@
     "zustand": "^5"
   },
   "devDependencies": {
-    "@electron-forge/cli": "^7",
-    "@electron-forge/maker-dmg": "^7",
-    "@electron-forge/maker-zip": "^7",
-    "@electron-forge/plugin-vite": "^7",
+    "@eslint/js": "^8.57.0",
+    "electron-builder": "^26.0.12",
     "@playwright/test": "^1.58.1",
     "@tanstack/router-cli": "^1.166.2",
     "@tanstack/router-plugin": "^1.166.2",
@@ -93,10 +95,15 @@
     "vite": "^5.0.0",
     "vitest": "^1.0.0"
   },
-  "pnpm": {
-    "overrides": {
-      "@openai/codex": "0.107.0"
-    }
+  "workspaces": [
+    "lib/tracey",
+    "lib/unifai",
+    "lib/stdui",
+    "lib/wystack",
+    "lib/wystack/packages/*"
+  ],
+  "overrides": {
+    "@openai/codex": "0.107.0"
   },
   "engines": {
     "node": ">=20"

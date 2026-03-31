@@ -4,7 +4,7 @@
 # do not apply across submodule boundaries (e.g., for imports originating from
 # within submodules with their own tsconfig).
 #
-# Run after `pnpm install` or `git submodule update`.
+# Run after `bun install` or `git submodule update`.
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

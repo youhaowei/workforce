@@ -82,4 +82,3 @@ Desktop.ini
 *.key
 *.cert
 .playwright-mcp/
-.pnpm-store

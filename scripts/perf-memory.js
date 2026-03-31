@@ -52,7 +52,7 @@ async function measureProcessTreeRssMb(rootPid) {
 
 async function measureMemory() {
   return new Promise((resolve, reject) => {
-    const proc = spawn('pnpm', ['run', 'dev'], {
+    const proc = spawn('bun', ['run', 'dev'], {
       cwd: dirname(__dirname),
       stdio: 'pipe',
     });
@@ -94,7 +94,7 @@ async function measureMemory() {
     proc.once('exit', (code, signal) => {
       if (!resolved) {
         finish(() =>
-          reject(new Error(`pnpm run dev exited before memory sample (code=${code}, signal=${signal})`)),
+          reject(new Error(`bun run dev exited before memory sample (code=${code}, signal=${signal})`)),
         );
       }
     });

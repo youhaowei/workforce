@@ -12,56 +12,54 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
-            - uses: pnpm/action-setup@v4
+            - uses: oven-sh/setup-bun@v2
 
             - uses: actions/setup-node@v4
               with:
                   node-version: 20
-                  cache: pnpm
 
             # SSH→HTTPS rewrite for public submodules, then shared setup script
             - name: Setup
               run: |
                   git config --global url."https://github.com/".insteadOf "git@github.com:"
                   git submodule update --init --recursive --depth=1
-                  pnpm install --frozen-lockfile
+                  bun install --frozen-lockfile
 
             # TanStack Router route tree (needed for type-check)
             - name: Generate route tree
-              run: pnpm run routes:generate
+              run: bun run routes:generate
 
             - name: Type check
-              run: pnpm run type-check
+              run: bun run type-check
 
             - name: Lint
-              run: pnpm run lint
+              run: bun run lint
 
             - name: Unit tests
-              run: pnpm run test
+              run: bun run test
 
     packaged-build-smoke:
         runs-on: macos-latest
         steps:
             - uses: actions/checkout@v4
 
-            - uses: pnpm/action-setup@v4
+            - uses: oven-sh/setup-bun@v2
 
             - uses: actions/setup-node@v4
               with:
                   node-version: 20
-                  cache: pnpm
 
             - name: Setup
               run: |
                   git config --global url."https://github.com/".insteadOf "git@github.com:"
                   git submodule update --init --recursive --depth=1
-                  pnpm install --frozen-lockfile
+                  bun install --frozen-lockfile
 
             - name: Generate route tree
-              run: pnpm run routes:generate
+              run: bun run routes:generate
 
             - name: Packaged build
-              run: pnpm run build
+              run: bun run build
 
             - name: Packaged smoke
-              run: pnpm run test:packaged-smoke
+              run: bun run test:packaged-smoke

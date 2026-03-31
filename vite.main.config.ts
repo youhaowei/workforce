@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { builtinModules } from 'module';
 import { createPathAliases } from './tooling/path-aliases';
 
 export default defineConfig({
@@ -6,11 +7,20 @@ export default defineConfig({
     alias: createPathAliases(__dirname),
   },
   build: {
-    rollupOptions: {
-      output: {
-        // Use .cjs extension since package.json has "type": "module"
-        entryFileNames: '[name].cjs',
-      },
+    outDir: 'dist-electron',
+    lib: {
+      entry: 'src-electron/main.ts',
+      formats: ['cjs'],
+      fileName: () => 'main.cjs',
     },
+    rollupOptions: {
+      external: [
+        'electron',
+        ...builtinModules,
+        ...builtinModules.map((m) => `node:${m}`),
+      ],
+    },
+    // Prevent clearing preload output when building main (or vice versa)
+    emptyOutDir: false,
   },
 });

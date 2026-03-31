@@ -6,7 +6,6 @@
   },
   "include": [
     "src-electron/**/*.ts",
-    "forge.config.ts",
     "vite.main.config.ts",
     "vite.preload.config.ts"
   ],

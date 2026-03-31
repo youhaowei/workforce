@@ -5,29 +5,29 @@ Docs: `docs/` (high-level) + [Notion](https://www.notion.so/2ffd48ccaf5481d7bb33
 ## Commands
 
 ```bash
-pnpm install          # Install dependencies
-pnpm run test         # All unit tests (Vitest)
-pnpm run test -- src/services/session.test.ts  # Single test file
-pnpm run test:e2e     # Playwright E2E tests
-pnpm run lint         # Lint code
-pnpm run type-check   # TypeScript check
-pnpm run server       # Start backend server (port 19675)
-pnpm run server:watch # Server with hot-reload
-pnpm run dev:web      # Start server + vite for web testing (port 19676)
-pnpm run clean        # Remove build artifacts (dist, out)
+bun install          # Install dependencies
+bun run test         # All unit tests (Vitest)
+bun run test -- src/services/session.test.ts  # Single test file
+bun run test:e2e     # Playwright E2E tests
+bun run lint         # Lint code
+bun run type-check   # TypeScript check
+bun run server       # Start backend server (port 19675)
+bun run server:watch # Server with hot-reload
+bun run dev:web      # Start server + vite for web testing (port 19676)
+bun run clean        # Remove build artifacts (dist, out)
 ```
 
 **ASK FIRST — never auto-run:**
 
 ```bash
-pnpm run dev   # Server + Electron desktop app (dev loads from Vite :19676)
-pnpm run build # Electron release build (electron-forge)
+bun run dev   # Server + Electron desktop app (dev loads from Vite :19676)
+bun run build # Electron release build (electron-forge)
 ```
 
 ## Debugging Tools
 
 - **Visual/CSS** → agent-browser on dev server (localhost:19676) or CDP on Electron (--remote-debugging-port=9229)
-- **Server state** → `pnpm run cli -- health check`, `session list --json`, `audit session <id>`
+- **Server state** → `bun run cli -- health check`, `session list --json`, `audit session <id>`
 - **Server logs** → `curl http://localhost:19675/debug-log`
 - **Port issues** → `lsof -ti :19675 :19676`
 - **Reproduction escalation**: agent-browser → Peekaboo → console.log + ask user → Playwright E2E
@@ -57,7 +57,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 - **Service/router** — `router.test.ts` via `createCaller()`, or service-level with factory functions + temp dirs
 - **UI** — React Testing Library + jsdom (`src/ui/**/*.test.tsx`)
-- **E2E** — Playwright (`pnpm run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
+- **E2E** — Playwright (`bun run test:e2e`, `test:e2e:headed`, `test:e2e:debug`)
 - **Bug reproduction** — Construct JSONL journal records and replay via `replaySession()`. More reliable than mocking UI state.
 - **Co-located tests** — `Foo.test.ts` next to `Foo.ts`, not in `__tests__/` directories
 - **Environments** — Node (default) for services/routers; `jsdom` for `src/ui/**/*.test.tsx` (auto-matched in vitest.config.ts)
@@ -116,20 +116,20 @@ Both **unifai** and **tracey** are git submodules under `lib/`:
 
 ```bash
 git submodule update --init --recursive  # After fresh clone
-pnpm install                             # Install workspace deps after submodules are present
+bun install                             # Install workspace deps after submodules are present
 ```
 
-`pnpm install` is sufficient for workspace submodules like `lib/tracey`; do not
+`bun install` is sufficient for workspace submodules like `lib/tracey`; do not
 run a separate package-manager install inside those submodules unless you are
 working on the submodule repo in isolation.
 
 ### Dependency Pins
 
-- `pnpm.overrides["@openai/codex"] = 0.107.0` was added during the pnpm
-  migration on 2026-03-27 (`ba5ccd6`) to keep Workforce on the known-good
+- `overrides["@openai/codex"] = 0.107.0` was added during the Electron
+  migration on 2026-03-28 to keep Workforce on the known-good
   Codex release used by the desktop + agent runtime during the Electron cutover.
-  Only remove or update that override after re-running `pnpm install`,
-  `pnpm run test`, and a packaged Electron smoke check against the newer Codex
+  Only remove or update that override after re-running `bun install`,
+  `bun run test`, and a packaged Electron smoke check against the newer Codex
   release.
 
 **Branch-per-agent for submodule changes**: When modifying a submodule, create a branch (e.g., `agent/feat-redaction`). Commit on the branch, push, then merge to main. This prevents conflicts when multiple agents work on the same submodule in parallel. The parent repo's submodule pointer should always reference a merge commit on main.

@@ -42,7 +42,7 @@ export default defineConfig({
     ],
     webServer: [
         {
-            command: "pnpm run server",
+            command: "bun run server",
             url: `http://localhost:${E2E_API_PORT}/health`,
             reuseExistingServer: false,
             env: {
@@ -51,7 +51,7 @@ export default defineConfig({
             },
         },
         {
-            command: `pnpm exec vite --port ${E2E_VITE_PORT}`,
+            command: `bunx vite --port ${E2E_VITE_PORT}`,
             url: `http://localhost:${E2E_VITE_PORT}`,
             reuseExistingServer: false,
             env: {

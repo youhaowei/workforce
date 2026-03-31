@@ -41,7 +41,7 @@ program.parseAsync = async (...args: Parameters<typeof program.parseAsync>) => {
         const msg = err?.message ?? String(err);
         if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
             console.error(
-                "Error: Cannot connect to Workforce server. Is it running? (pnpm run server)",
+                "Error: Cannot connect to Workforce server. Is it running? (bun run server)",
             );
             process.exit(1);
         }

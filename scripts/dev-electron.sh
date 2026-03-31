@@ -80,10 +80,13 @@ export CDP_PORT="${CDP_PORT:-$(find_free_port "$DEFAULT_CDP_PORT")}"
 
 echo "[dev] Server :$SERVER_PORT  Vite :$VITE_PORT  CDP :$CDP_PORT"
 
-PORT="$SERVER_PORT" pnpm exec tsx --watch src/server/index.ts &
-pnpm run vite &
+# Build main + preload for Electron
+bun run build:electron
+
+PORT="$SERVER_PORT" bunx tsx --watch src/server/index.ts &
+bun run vite &
 
 wait_for_file .dev-port
 wait_for_file .vite-port
 
-pnpm exec electron-forge start -- --remote-debugging-port="$CDP_PORT"
+bunx electron . --remote-debugging-port="$CDP_PORT"

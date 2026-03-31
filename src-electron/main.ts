@@ -4,7 +4,7 @@
  * Architecture:
  *   - Server runs in-process on Node (no child process, no IPC).
  *   - Dynamic port discovery: scans for a free port starting at 19675.
- *   - Dev: renderer loads from Vite dev server. Server runs externally via `pnpm run server:watch`.
+ *   - Dev: renderer loads from Vite dev server. Server runs externally via `bun run server:watch`.
  *   - Production: server starts in-process, Hono serves Vite build output on the same port.
  *
  * Ports (all auto-assigned if occupied):
@@ -273,7 +273,7 @@ app.whenReady().then(async () => {
     });
   });
 
-  // In dev, server runs externally via `pnpm run server:watch`.
+  // In dev, server runs externally via `bun run server:watch`.
   // In production, start it in-process.
   if (!isDev) {
     try {

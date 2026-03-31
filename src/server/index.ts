@@ -176,7 +176,7 @@ function setupStaticServing() {
 const DEV_PORT_FILE = join(process.cwd(), ".dev-port");
 const MAX_PORT_RETRIES = 10;
 
-// Standalone mode (`pnpm run server`) — detected before startServer so both
+// Standalone mode (`bun run server`) — detected before startServer so both
 // the function body and the top-level call site can reference it.
 const isMainModule = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
 
