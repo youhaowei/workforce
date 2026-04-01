@@ -77,6 +77,7 @@ fi
 
 export VITE_API_PORT="$SERVER_PORT"
 export CDP_PORT="${CDP_PORT:-$(find_free_port "$DEFAULT_CDP_PORT")}"
+export WORKFORCE_DATA_DIR="${WORKFORCE_DATA_DIR:-.workforce-dev}"
 
 echo "[dev] Server :$SERVER_PORT  Vite :$VITE_PORT  CDP :$CDP_PORT"
 
