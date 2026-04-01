@@ -44,7 +44,6 @@ export function HotkeyProvider({ children }: { children: ReactNode }) {
  * Uses the centralized HOTKEYS config for key definitions,
  * respecting the `global` flag for form-enabled shortcuts.
  */
-// eslint-disable-next-line react-refresh/only-export-components
 export function useHotkey(name: HotkeyName, callback: () => void, enabled = true) {
   const def = HOTKEYS[name];
   const hotkeyStr = toHotkeyString(def.keys);
@@ -63,7 +62,6 @@ export function useHotkey(name: HotkeyName, callback: () => void, enabled = true
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useHotkeyContext() {
   return useContext(HotkeyContext);
 }

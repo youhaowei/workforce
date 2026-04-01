@@ -9,7 +9,7 @@
 import { createContext, useContext, type ReactNode } from "react";
 
 interface ElectronPlatform {
-  platformType: 'electron';
+  platformType: "electron";
   isDesktop: true;
   isMacOS: boolean;
   openDirectory: (startingFolder?: string) => Promise<string | null>;
@@ -17,14 +17,18 @@ interface ElectronPlatform {
 }
 
 interface WebPlatform {
-  platformType: 'web';
+  platformType: "web";
   isDesktop: false;
   isMacOS: boolean;
 }
 
 export type PlatformActions = ElectronPlatform | WebPlatform;
 
-const PlatformContext = createContext<PlatformActions>({ platformType: 'web', isDesktop: false, isMacOS: false });
+const PlatformContext = createContext<PlatformActions>({
+  platformType: "web",
+  isDesktop: false,
+  isMacOS: false,
+});
 
 export function PlatformProvider({
   actions,
@@ -36,7 +40,6 @@ export function PlatformProvider({
   return <PlatformContext.Provider value={actions}>{children}</PlatformContext.Provider>;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function usePlatform(): PlatformActions {
   return useContext(PlatformContext);
 }

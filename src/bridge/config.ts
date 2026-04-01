@@ -35,6 +35,6 @@ export async function initServerUrl(): Promise<void> {
   if (typeof window === "undefined" || !window.electronAPI?.getServerPort) return;
 
   const port = await window.electronAPI.getServerPort();
-  if (!port) throw new Error('Server port not yet available');
+  if (!port) throw new Error("Server port not yet available");
   resolvedPort = String(port);
 }

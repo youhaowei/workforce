@@ -1,4 +1,4 @@
-import type { Server } from 'net';
+import type { Server } from "net";
 
 export function parsePort(value: string | undefined, fallback: number): number {
   if (!value || !/^\d+$/.test(value)) return fallback;
@@ -27,15 +27,15 @@ export async function bindWithRetry<T extends Server>(
         const onError = (err: NodeJS.ErrnoException) => {
           s.close(() => reject(err));
         };
-        s.once('error', onError);
-        s.once('listening', () => {
-          s.removeListener('error', onError);
+        s.once("error", onError);
+        s.once("listening", () => {
+          s.removeListener("error", onError);
           resolve(s);
         });
       });
       return { server, port: candidate };
     } catch (err) {
-      const isRetryable = (err as NodeJS.ErrnoException).code === 'EADDRINUSE';
+      const isRetryable = (err as NodeJS.ErrnoException).code === "EADDRINUSE";
       if (!isRetryable) throw err;
       if (offset >= maxRetries) {
         throw new Error(`All ports ${basePort}-${basePort + maxRetries} are in use`);

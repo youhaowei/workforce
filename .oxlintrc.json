@@ -1,0 +1,54 @@
+{
+  "plugins": ["react", "typescript"],
+  "categories": {
+    "correctness": "warn"
+  },
+  "rules": {
+    "no-console": ["warn", { "allow": ["warn", "error", "log"] }],
+    "no-debugger": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "no-nested-ternary": "warn",
+    "max-depth": ["warn", { "max": 4 }],
+    "max-lines": ["warn", { "max": 500, "skipBlankLines": true, "skipComments": true }],
+    "complexity": ["warn", { "max": 15 }],
+    "no-case-declarations": "off",
+    "no-dupe-class-members": "off",
+    "require-yield": "off",
+    "react/exhaustive-deps": "warn",
+    "react/rules-of-hooks": "error",
+    "typescript/no-unused-vars": ["error", {
+      "argsIgnorePattern": "^_",
+      "varsIgnorePattern": "^_"
+    }]
+  },
+  "overrides": [
+    {
+      "files": ["src/**/*.test.{ts,tsx}", "src/**/types.ts"],
+      "rules": {
+        "max-lines": "off"
+      }
+    }
+  ],
+  "settings": {
+    "react": {
+      "formComponents": [],
+      "linkComponents": [],
+      "version": null,
+      "componentWrapperFunctions": []
+    }
+  },
+  "env": {
+    "builtin": true
+  },
+  "globals": {},
+  "ignorePatterns": [
+    "dist",
+    "build",
+    "node_modules",
+    "out",
+    "src/components/ui",
+    "src/electron",
+    "src/ui/routeTree.gen.ts"
+  ]
+}

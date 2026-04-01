@@ -1,34 +1,36 @@
-import type { PlatformActions } from './context/PlatformProvider';
+import type { PlatformActions } from "./context/PlatformProvider";
 
-export type PlatformType = 'electron' | 'web';
+export type PlatformType = "electron" | "web";
 
-export function detectPlatformType(targetWindow: Window | undefined = globalThis.window): PlatformType {
-  if (!targetWindow) return 'web';
-  if (targetWindow.electronAPI) return 'electron';
-  return 'web';
+export function detectPlatformType(
+  targetWindow: Window | undefined = globalThis.window,
+): PlatformType {
+  if (!targetWindow) return "web";
+  if (targetWindow.electronAPI) return "electron";
+  return "web";
 }
 
 export function createPlatformActions(
   isMacOS: boolean,
   platformType: PlatformType,
-  targetWindow: Window | undefined = typeof window !== 'undefined' ? window : undefined,
+  targetWindow: Window | undefined = typeof window !== "undefined" ? window : undefined,
 ): PlatformActions {
   const api = targetWindow?.electronAPI;
 
-  if (platformType === 'electron' && api) {
+  if (platformType === "electron" && api) {
     return {
-      platformType: 'electron',
+      platformType: "electron",
       isDesktop: true,
       isMacOS,
       openDirectory: (startingFolder?: string) => api.openDirectory(startingFolder),
       onOpenUrl: (url: string) => {
         // Keep the renderer browser-safe; tracey is Node-only today.
-        api.openExternal(url).catch((error) => console.warn('openExternal failed:', error));
+        api.openExternal(url).catch((error) => console.warn("openExternal failed:", error));
       },
     };
   }
 
-  return { platformType: 'web', isDesktop: false, isMacOS };
+  return { platformType: "web", isDesktop: false, isMacOS };
 }
 
 export async function initializeClientRuntime(

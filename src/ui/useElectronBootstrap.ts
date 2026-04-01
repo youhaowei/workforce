@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { initServerUrl } from '@/bridge/config';
-import { refreshTrpcClient } from '@/bridge/trpc';
-import { initializeClientRuntime, type PlatformType } from './app-bootstrap';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { initServerUrl } from "@/bridge/config";
+import { refreshTrpcClient } from "@/bridge/trpc";
+import { initializeClientRuntime, type PlatformType } from "./app-bootstrap";
 
 export const BOOTSTRAP_MAX_AUTO_RETRIES = 5;
 export const BOOTSTRAP_RETRY_INTERVAL_MS = 500;
@@ -14,14 +14,14 @@ export function useElectronBootstrap(
   platformType: PlatformType,
   initializeElectronBootstrap: () => Promise<void> = defaultInitializeElectronBootstrap,
 ) {
-  const [serverReady, setServerReady] = useState(() => platformType !== 'electron');
+  const [serverReady, setServerReady] = useState(() => platformType !== "electron");
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
   const autoRetryCount = useRef(0);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    if (platformType !== 'electron') {
+    if (platformType !== "electron") {
       setServerReady(true);
       setBootstrapError(null);
       return;
@@ -48,7 +48,7 @@ export function useElectronBootstrap(
           }, BOOTSTRAP_RETRY_INTERVAL_MS);
           return;
         }
-        console.error('Client runtime init failed after retries, showing error:', error);
+        console.error("Client runtime init failed after retries, showing error:", error);
         setBootstrapError(error instanceof Error ? error.message : String(error));
       });
 

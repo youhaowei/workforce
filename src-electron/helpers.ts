@@ -1,8 +1,8 @@
-import { execFileSync } from 'child_process';
-import { readFileSync } from 'fs';
-import path from 'path';
-import type { ServerType } from '@hono/node-server';
-import { parsePort } from '@/shared/port-utils';
+import { execFileSync } from "child_process";
+import { readFileSync } from "fs";
+import path from "path";
+import type { ServerType } from "@hono/node-server";
+import { parsePort } from "@/shared/port-utils";
 
 /**
  * macOS GUI-launched apps get a stripped PATH. Repair by sourcing the login shell.
@@ -14,21 +14,19 @@ export function repairPath(
 ): string | undefined {
   try {
     // Use a null byte delimiter to isolate PATH from any profile script output
-    const raw = execFileSync(loginShell, ['-lc', 'printf "\\0%s" "$PATH"'], {
-      encoding: 'utf-8',
+    const raw = execFileSync(loginShell, ["-lc", 'printf "\\0%s" "$PATH"'], {
+      encoding: "utf-8",
       timeout: 3_000,
     });
-    const nulIdx = raw.lastIndexOf('\0');
+    const nulIdx = raw.lastIndexOf("\0");
     const shellPath = (nulIdx >= 0 ? raw.slice(nulIdx + 1) : raw).trim();
     if (!shellPath) return currentPath;
 
-    const existing = new Set((currentPath || '').split(':'));
-    const extra = shellPath.split(':').filter((p) => p && !existing.has(p));
+    const existing = new Set((currentPath || "").split(":"));
+    const extra = shellPath.split(":").filter((p) => p && !existing.has(p));
     if (!extra.length) return currentPath;
 
-    return currentPath
-      ? `${currentPath}:${extra.join(':')}`
-      : extra.join(':');
+    return currentPath ? `${currentPath}:${extra.join(":")}` : extra.join(":");
   } catch {
     return undefined;
   }
@@ -44,7 +42,7 @@ export function discoverPort(
   const envValue = process.env[envVar];
   if (envValue) return parsePort(envValue, fallback);
   try {
-    const portStr = readFileSync(path.join(appPath, dotFile), 'utf-8').trim();
+    const portStr = readFileSync(path.join(appPath, dotFile), "utf-8").trim();
     return parsePort(portStr, fallback);
   } catch {
     return fallback;
@@ -58,10 +56,12 @@ export async function closeServerWithTimeout(
   onWarn?: (context: Record<string, unknown>, msg: string) => void,
 ): Promise<void> {
   let resolveTimeout: () => void;
-  const timeoutPromise = new Promise<void>((r) => { resolveTimeout = r; });
+  const timeoutPromise = new Promise<void>((r) => {
+    resolveTimeout = r;
+  });
 
   const timer = setTimeout(() => {
-    onWarn?.({ timeoutMs }, 'Server shutdown exceeded timeout, forcing app exit');
+    onWarn?.({ timeoutMs }, "Server shutdown exceeded timeout, forcing app exit");
     resolveTimeout();
   }, timeoutMs);
 
@@ -73,13 +73,11 @@ export async function closeServerWithTimeout(
     });
   });
 
-  closePromise.catch((err) =>
-    onWarn?.({ error: err }, 'Server close error'),
-  );
+  closePromise.catch((err) => onWarn?.({ error: err }, "Server close error"));
   await Promise.race([closePromise, timeoutPromise]);
 }
 
-const ALLOWED_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:']);
+const ALLOWED_EXTERNAL_PROTOCOLS = new Set(["http:", "https:"]);
 
 /**
  * Validate a URL for open-external IPC — only http/https allowed.
@@ -104,9 +102,11 @@ export function validateExternalUrl(url: string): URL {
 export function isAllowedNavigation(url: string, allowedPort: number): boolean {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'http:'
-      && parsed.hostname === 'localhost'
-      && parsed.port === String(allowedPort);
+    return (
+      parsed.protocol === "http:" &&
+      parsed.hostname === "localhost" &&
+      parsed.port === String(allowedPort)
+    );
   } catch {
     return false;
   }
@@ -128,7 +128,9 @@ export async function waitForHealth(
       // Consume body to release the socket
       await res.body?.cancel();
       if (res.ok) return true;
-    } catch { /* server not ready yet */ } finally {
+    } catch {
+      /* server not ready yet */
+    } finally {
       clearTimeout(timer);
     }
     await new Promise((r) => setTimeout(r, interval));

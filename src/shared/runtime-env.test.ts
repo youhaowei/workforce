@@ -1,6 +1,6 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from "vitest";
 
-import { applyPackagedServerRuntimeEnv } from './runtime-env';
+import { applyPackagedServerRuntimeEnv } from "./runtime-env";
 
 const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
 const ORIGINAL_LOG_PRETTY = process.env.LOG_PRETTY;
@@ -19,28 +19,28 @@ afterEach(() => {
   }
 });
 
-describe('applyPackagedServerRuntimeEnv', () => {
-  it('defaults packaged builds to production JSON logging', () => {
+describe("applyPackagedServerRuntimeEnv", () => {
+  it("defaults packaged builds to production JSON logging", () => {
     delete process.env.NODE_ENV;
     delete process.env.LOG_PRETTY;
 
     applyPackagedServerRuntimeEnv(true);
 
-    expect(process.env.NODE_ENV).toBe('production');
-    expect(process.env.LOG_PRETTY).toBe('0');
+    expect(process.env.NODE_ENV).toBe("production");
+    expect(process.env.LOG_PRETTY).toBe("0");
   });
 
-  it('preserves explicit logging overrides', () => {
-    process.env.NODE_ENV = 'staging';
-    process.env.LOG_PRETTY = '1';
+  it("preserves explicit logging overrides", () => {
+    process.env.NODE_ENV = "staging";
+    process.env.LOG_PRETTY = "1";
 
     applyPackagedServerRuntimeEnv(true);
 
-    expect(process.env.NODE_ENV).toBe('staging');
-    expect(process.env.LOG_PRETTY).toBe('1');
+    expect(process.env.NODE_ENV).toBe("staging");
+    expect(process.env.LOG_PRETTY).toBe("1");
   });
 
-  it('does nothing for dev builds', () => {
+  it("does nothing for dev builds", () => {
     delete process.env.NODE_ENV;
     delete process.env.LOG_PRETTY;
 

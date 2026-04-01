@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import React from "react";
 import { Search, Plus, SlidersHorizontal, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";

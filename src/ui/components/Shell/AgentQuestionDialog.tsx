@@ -36,7 +36,7 @@ export function AgentQuestionDialog() {
       setSelections({});
       setFeedbacks({});
     }
-  }, [pending?.requestId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pending?.requestId]); // oxlint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = useCallback(() => {
     if (!pending) return;

@@ -327,7 +327,7 @@ class AgentServiceImpl implements AgentService {
     };
   }
 
-  // eslint-disable-next-line complexity -- Flat dispatch to domain handlers; each case is a trivial delegation.
+  // oxlint-disable-next-line complexity -- Flat dispatch to domain handlers; each case is a trivial delegation.
   private emitBusEvent(event: AgentEvent, bus: EventBus, now: number, lastMessageId: string) {
     switch (event.type) {
       case "message_start":

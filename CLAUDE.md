@@ -9,7 +9,9 @@ bun install          # Install dependencies
 bun run test         # All unit tests (Vitest)
 bun run test -- src/services/session.test.ts  # Single test file
 bun run test:e2e     # Playwright E2E tests
-bun run lint         # Lint code
+bun run lint         # Lint code (oxlint)
+bun run format       # Format code (oxfmt)
+bun run format:check # Check formatting without writing
 bun run type-check   # TypeScript check
 bun run server       # Start backend server (port 19675)
 bun run server:watch # Server with hot-reload

@@ -54,7 +54,7 @@ export type ViewType =
   | "detail";
 export type SidebarMode = "expanded" | "collapsed";
 
-// eslint-disable-next-line complexity
+// oxlint-disable-next-line complexity
 export default function Shell() {
   const { isDesktop } = usePlatform();
   const location = useLocation();
