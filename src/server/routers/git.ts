@@ -12,10 +12,10 @@ import { GitService } from '@/services/git';
 // ─── cwd validation ─────────────────────────────────────────────────────────
 
 function validateGitCwd(cwd: string): string {
-  const resolved = resolve(cwd);
-  if (!isAbsolute(resolved)) {
+  if (!isAbsolute(cwd)) {
     throw new TRPCError({ code: 'BAD_REQUEST', message: 'cwd must be an absolute path' });
   }
+  const resolved = resolve(cwd);
   if (!existsSync(resolve(resolved, '.git'))) {
     throw new TRPCError({ code: 'BAD_REQUEST', message: 'cwd is not a git repository root' });
   }
@@ -124,9 +124,9 @@ export const gitRouter = router({
   /** Check if a directory is a git repository. */
   isRepo: publicProcedure
     .input(z.object({ cwd: z.string() }))
-    .query(async ({ input }) => {
-      const svc = gitFor(input.cwd);
-      return svc.isRepo();
+    .query(({ input }) => {
+      const resolved = resolve(input.cwd);
+      return existsSync(resolve(resolved, '.git'));
     }),
 
   /** Get the repository root directory. */

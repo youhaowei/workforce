@@ -59,6 +59,12 @@ describe('cwd validation', () => {
       caller.git.status({ cwd: '/tmp/does-not-exist-ever-12345' }),
     ).rejects.toThrow('cwd is not a git repository root');
   });
+
+  it('rejects a relative path', async () => {
+    await expect(
+      caller.git.status({ cwd: '../relative/path' }),
+    ).rejects.toThrow('cwd must be an absolute path');
+  });
 });
 
 // ─── status ─────────────────────────────────────────────────────────────────
@@ -123,6 +129,16 @@ describe('git.commit', () => {
 describe('git queries', () => {
   it('isRepo returns true for valid repo', async () => {
     expect(await caller.git.isRepo({ cwd: repoDir })).toBe(true);
+  });
+
+  it('isRepo returns false for non-repo directory', async () => {
+    const nonGitDir = join(tmpdir(), `non-git-isrepo-${Date.now()}`);
+    await mkdir(nonGitDir, { recursive: true });
+    try {
+      expect(await caller.git.isRepo({ cwd: nonGitDir })).toBe(false);
+    } finally {
+      await rm(nonGitDir, { recursive: true, force: true });
+    }
   });
 
   it('branches returns at least one branch', async () => {
