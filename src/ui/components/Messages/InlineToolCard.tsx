@@ -7,28 +7,28 @@
  * Styled after craft-agents-oss ActivityRow.
  */
 
-import { useState, useMemo, useCallback, type KeyboardEvent } from 'react';
-import { Check, X, ChevronRight, Loader2, Circle } from 'lucide-react';
-import type { ContentBlock } from '@/services/types';
-import { formatToolResult } from '@/ui/formatters';
-import { Chip } from '@/ui/components/Chip';
+import { useState, useMemo, useCallback, type KeyboardEvent } from "react";
+import { Check, X, ChevronRight, Loader2, Circle } from "lucide-react";
+import type { ContentBlock } from "@/services/types";
+import { formatToolResult } from "@/ui/formatters";
+import { Chip } from "@/ui/components/Chip";
 
-type ToolBlock = ContentBlock & { type: 'tool_use' };
+type ToolBlock = ContentBlock & { type: "tool_use" };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function getBasename(path: string) {
-  return path.split('/').pop() || path;
+  return path.split("/").pop() || path;
 }
 
 function trunc(s: string, max: number) {
-  return s.length > max ? s.slice(0, max) + '\u2026' : s;
+  return s.length > max ? s.slice(0, max) + "\u2026" : s;
 }
 
 function truncLines(s: string, max: number) {
-  const lines = s.split('\n');
+  const lines = s.split("\n");
   if (lines.length <= max) return s;
-  return lines.slice(0, max).join('\n') + `\n\u2026 ${lines.length - max} more lines`;
+  return lines.slice(0, max).join("\n") + `\n\u2026 ${lines.length - max} more lines`;
 }
 
 // ─── Smart summary per tool type ─────────────────────────────────────────────
@@ -48,7 +48,7 @@ interface ToolSummary {
   isTask?: boolean;
 }
 
-const FILE_OPS = new Set(['Read', 'Write', 'Edit']);
+const FILE_OPS = new Set(["Read", "Write", "Edit"]);
 
 function summarizeFileOp(name: string, args: Record<string, unknown>, input: string): ToolSummary {
   const filePath = String(args.file_path ?? input);
@@ -57,31 +57,38 @@ function summarizeFileOp(name: string, args: Record<string, unknown>, input: str
 }
 
 function summarizeBash(args: Record<string, unknown>, input: string): ToolSummary {
-  const desc = String(args.description ?? '');
-  return { displayName: desc || 'Bash', inputSummary: trunc(String(args.command ?? input), 80) };
+  const desc = String(args.description ?? "");
+  return { displayName: desc || "Bash", inputSummary: trunc(String(args.command ?? input), 80) };
 }
 
 function summarizeGrep(args: Record<string, unknown>, input: string): ToolSummary {
   const pattern = String(args.pattern ?? input);
   const scope = args.path ? getBasename(String(args.path)) : undefined;
-  return { displayName: 'Grep', intent: `"${pattern}"${scope ? ` in ${scope}` : ''}` };
+  return { displayName: "Grep", intent: `"${pattern}"${scope ? ` in ${scope}` : ""}` };
 }
 
 function summarizeTask(args: Record<string, unknown>, input: string): ToolSummary {
   const desc = String(args.description ?? input);
   const subagentType = args.subagent_type ? String(args.subagent_type) : undefined;
-  return { displayName: trunc(desc, 60), badges: subagentType ? [subagentType] : undefined, isTask: true };
+  return {
+    displayName: trunc(desc, 60),
+    badges: subagentType ? [subagentType] : undefined,
+    isTask: true,
+  };
 }
 
 function summarizeAskUser(args: Record<string, unknown>, input: string): ToolSummary {
   const questions = args.questions as Array<{ question?: string }> | undefined;
   const text = questions?.[0]?.question ?? input;
-  return { displayName: 'Question', intent: trunc(text, 120) };
+  return { displayName: "Question", intent: trunc(text, 120) };
 }
 
-const TOOL_SUMMARIZERS: Record<string, (args: Record<string, unknown>, input: string) => ToolSummary> = {
+const TOOL_SUMMARIZERS: Record<
+  string,
+  (args: Record<string, unknown>, input: string) => ToolSummary
+> = {
   Bash: summarizeBash,
-  Glob: (args, input) => ({ displayName: 'Glob', inputSummary: String(args.pattern ?? input) }),
+  Glob: (args, input) => ({ displayName: "Glob", inputSummary: String(args.pattern ?? input) }),
   Grep: summarizeGrep,
   Task: summarizeTask,
   Agent: summarizeTask,
@@ -100,95 +107,98 @@ function summarize(name: string, input: string, inputRaw?: unknown): ToolSummary
 
 /** Extract text from SDK tool_result content (may be string, content block array, or structured object). */
 function normalizeResultText(result: unknown): string | null {
-  if (typeof result === 'string') return result;
+  if (typeof result === "string") return result;
   if (Array.isArray(result)) {
     const texts = result
-      .filter((b): b is { type: string; text: string } => b?.type === 'text' && typeof b.text === 'string')
+      .filter(
+        (b): b is { type: string; text: string } =>
+          b?.type === "text" && typeof b.text === "string",
+      )
       .map((b) => b.text);
-    return texts.length > 0 ? texts.join('\n') : null;
+    return texts.length > 0 ? texts.join("\n") : null;
   }
   return null;
 }
 
 /** Count total lines in a string (including blank lines). */
 function countLines(s: string) {
-  return s.split('\n').length;
+  return s.split("\n").length;
 }
 
 /** Count non-empty lines (used as a proxy for entry counts in Glob results). */
 function countEntries(s: string) {
-  return s.split('\n').filter((l) => l.trim().length > 0).length;
+  return s.split("\n").filter((l) => l.trim().length > 0).length;
 }
 
 // ─── Result badge ────────────────────────────────────────────────────────────
 
 function getBashBadge(result: unknown): string | null {
   // Structured result from internal formatters
-  if (typeof result === 'object' && result !== null) {
+  if (typeof result === "object" && result !== null) {
     const code = (result as { exitCode?: number }).exitCode;
-    if (code !== undefined) return code === 0 ? 'success' : `exit ${code}`;
+    if (code !== undefined) return code === 0 ? "success" : `exit ${code}`;
   }
   // Raw string from SDK — show "done" if non-empty
   const text = normalizeResultText(result);
-  if (text !== null) return 'done';
+  if (text !== null) return "done";
   return null;
 }
 
 function getSearchBadge(name: string, result: unknown): string | null {
   // Structured result from internal formatters
-  if (typeof result === 'object' && result !== null && !Array.isArray(result)) {
-    if (name === 'Glob') {
+  if (typeof result === "object" && result !== null && !Array.isArray(result)) {
+    if (name === "Glob") {
       const files = (result as { files?: unknown[] }).files;
-      return files ? `${files.length} file${files.length !== 1 ? 's' : ''}` : null;
+      return files ? `${files.length} file${files.length !== 1 ? "s" : ""}` : null;
     }
     const r = result as { totalMatches?: number; matches?: unknown[] };
     const n = r.totalMatches ?? r.matches?.length ?? 0;
-    return `${n} match${n !== 1 ? 'es' : ''}`;
+    return `${n} match${n !== 1 ? "es" : ""}`;
   }
   // Raw string/content-array from SDK — count entries heuristically
   const text = normalizeResultText(result);
   if (text === null) return null;
   const n = countEntries(text);
-  if (name === 'Glob') return `${n} file${n !== 1 ? 's' : ''}`;
+  if (name === "Glob") return `${n} file${n !== 1 ? "s" : ""}`;
   // Grep output includes context lines and separators, so line count ≠ match count
-  return `${n} result${n !== 1 ? 's' : ''}`;
+  return `${n} result${n !== 1 ? "s" : ""}`;
 }
 
-const STATIC_BADGES: Record<string, string> = { Edit: 'applied', Write: 'written' };
+const STATIC_BADGES: Record<string, string> = { Edit: "applied", Write: "written" };
 
 function getResultBadge(name: string, result: unknown, error?: string): string | null {
   if (error || result == null) return null;
   // Read: count lines from either string or structured result
-  if (name === 'Read') {
+  if (name === "Read") {
     const text = normalizeResultText(result);
     if (text !== null) return `${countLines(text)} lines`;
-    if (typeof result === 'object') {
+    if (typeof result === "object") {
       const r = result as { content?: string; lineCount?: number };
-      const n = r.lineCount ?? r.content?.split('\n').length ?? 0;
+      const n = r.lineCount ?? r.content?.split("\n").length ?? 0;
       return `${n} lines`;
     }
     return null;
   }
   if (name in STATIC_BADGES) return STATIC_BADGES[name];
-  if (name === 'Bash') return getBashBadge(result);
-  if (name === 'Glob' || name === 'Grep') return getSearchBadge(name, result);
+  if (name === "Bash") return getBashBadge(result);
+  if (name === "Glob" || name === "Grep") return getSearchBadge(name, result);
   return null;
 }
 
 // ─── Status icon ─────────────────────────────────────────────────────────────
 
-function StatusIcon({ status }: { status: ToolBlock['status'] }) {
-  if (status === 'running') {
+function StatusIcon({ status }: { status: ToolBlock["status"] }) {
+  if (status === "running") {
     return <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />;
   }
-  if (status === 'error') {
+  if (status === "error") {
     return (
       <span className="shrink-0 w-4 h-4 rounded-full bg-palette-danger/15 inline-flex items-center justify-center">
         <X className="h-2.5 w-2.5 text-palette-danger" />
       </span>
     );
   }
-  if (status === 'complete') {
+  if (status === "complete") {
     return (
       <span className="shrink-0 w-4 h-4 rounded-full bg-palette-success/15 inline-flex items-center justify-center">
         <Check className="h-2.5 w-2.5 text-palette-success" />
@@ -202,7 +212,9 @@ function StatusIcon({ status }: { status: ToolBlock['status'] }) {
 
 function DetailContent({ error, detail }: { error?: string; detail: string }) {
   if (error) {
-    return <pre className="text-[11px] font-mono text-palette-danger whitespace-pre-wrap">{error}</pre>;
+    return (
+      <pre className="text-[11px] font-mono text-palette-danger whitespace-pre-wrap">{error}</pre>
+    );
   }
   if (detail) {
     return (
@@ -220,7 +232,12 @@ export default function InlineToolCard({ block }: { block: ToolBlock }) {
   const [expanded, setExpanded] = useState(false);
   const toggle = useCallback(() => setExpanded((p) => !p), []);
   const onKeyDown = useCallback(
-    (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } },
+    (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    },
     [toggle],
   );
 
@@ -236,9 +253,13 @@ export default function InlineToolCard({ block }: { block: ToolBlock }) {
 
   const detail = useMemo(() => {
     if (block.error) return block.error;
-    if (!block.result) return '';
+    if (!block.result) return "";
     const f = formatToolResult(block.name, block.result);
-    return f.detail || f.summary || (typeof block.result === 'string' ? block.result : JSON.stringify(block.result, null, 2));
+    return (
+      f.detail ||
+      f.summary ||
+      (typeof block.result === "string" ? block.result : JSON.stringify(block.result, null, 2))
+    );
   }, [block.name, block.result, block.error]);
 
   const expandable = detail.length > 0;
@@ -258,13 +279,13 @@ export default function InlineToolCard({ block }: { block: ToolBlock }) {
         <StatusIcon status={block.status} />
 
         {/* Display name */}
-        <span className="shrink-0 font-medium">
-          {info.displayName}
-        </span>
+        <span className="shrink-0 font-medium">{info.displayName}</span>
 
         {info.fileBadge && <Chip>{info.fileBadge}</Chip>}
-        {info.badges?.map((b) => <Chip key={b}>{b}</Chip>)}
-        {block.status === 'error' && <Chip color="danger">Error</Chip>}
+        {info.badges?.map((b) => (
+          <Chip key={b}>{b}</Chip>
+        ))}
+        {block.status === "error" && <Chip color="danger">Error</Chip>}
 
         {/* Intent + input summary (truncated, faded) */}
         <span className="truncate flex-1 min-w-0">
@@ -292,7 +313,7 @@ export default function InlineToolCard({ block }: { block: ToolBlock }) {
         {/* Expand chevron */}
         {expandable && (
           <ChevronRight
-            className={`h-3 w-3 text-neutral-fg-subtle/40 transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`}
+            className={`h-3 w-3 text-neutral-fg-subtle/40 transition-transform shrink-0 ${expanded ? "rotate-90" : ""}`}
           />
         )}
       </div>

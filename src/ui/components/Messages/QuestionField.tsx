@@ -5,13 +5,18 @@
  * Supports single/multi select, freeform "Other" option, and feedback input.
  */
 
-import { useState, useCallback } from 'react';
-import { Input } from '@/components/ui/input';
-import { Chip } from '@/ui/components/Chip';
-import type { AgentQuestion } from '@/services/types';
+import { useState, useCallback } from "react";
+import { Input } from "@/components/ui/input";
+import { Chip } from "@/ui/components/Chip";
+import type { AgentQuestion } from "@/services/types";
 
 export function QuestionField({
-  question, selected, onSelect, feedback, onFeedbackChange, disabled,
+  question,
+  selected,
+  onSelect,
+  feedback,
+  onFeedbackChange,
+  disabled,
 }: {
   question: AgentQuestion;
   selected: string[];
@@ -22,23 +27,28 @@ export function QuestionField({
 }) {
   const isMulti = question.multiSelect ?? false;
   const [useOther, setUseOther] = useState(false);
-  const [otherText, setOtherText] = useState('');
+  const [otherText, setOtherText] = useState("");
 
-  const handleOptionToggle = useCallback((label: string) => {
-    if (isMulti) {
-      const next = selected.includes(label) ? selected.filter((s) => s !== label) : [...selected, label];
-      // Keep "Other" text if active
-      if (useOther && otherText) {
-        const withoutOther = next.filter((s) => question.options?.some((o) => o.label === s));
-        onSelect([...withoutOther, otherText]);
+  const handleOptionToggle = useCallback(
+    (label: string) => {
+      if (isMulti) {
+        const next = selected.includes(label)
+          ? selected.filter((s) => s !== label)
+          : [...selected, label];
+        // Keep "Other" text if active
+        if (useOther && otherText) {
+          const withoutOther = next.filter((s) => question.options?.some((o) => o.label === s));
+          onSelect([...withoutOther, otherText]);
+        } else {
+          onSelect(next);
+        }
       } else {
-        onSelect(next);
+        setUseOther(false);
+        onSelect([label]);
       }
-    } else {
-      setUseOther(false);
-      onSelect([label]);
-    }
-  }, [isMulti, selected, onSelect, useOther, otherText, question.options]);
+    },
+    [isMulti, selected, onSelect, useOther, otherText, question.options],
+  );
 
   const effectiveSelected = useOther && !isMulti ? [] : selected;
 
@@ -55,11 +65,13 @@ export function QuestionField({
               <label
                 key={opt.label}
                 className={`flex items-start gap-2.5 rounded-md border px-3 py-2 cursor-pointer transition-colors ${
-                  isSelected ? 'border-palette-primary bg-palette-primary/5' : 'border-neutral-border hover:bg-neutral-bg-dim/50'
-                } ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
+                  isSelected
+                    ? "border-palette-primary bg-palette-primary/5"
+                    : "border-neutral-border hover:bg-neutral-bg-dim/50"
+                } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
               >
                 <input
-                  type={isMulti ? 'checkbox' : 'radio'}
+                  type={isMulti ? "checkbox" : "radio"}
                   name={question.id}
                   checked={isSelected}
                   onChange={() => handleOptionToggle(opt.label)}
@@ -79,14 +91,19 @@ export function QuestionField({
           {question.freeform && (
             <label
               className={`flex items-start gap-2.5 rounded-md border px-3 py-2 cursor-pointer transition-colors ${
-                useOther ? 'border-palette-primary bg-palette-primary/5' : 'border-neutral-border hover:bg-neutral-bg-dim/50'
-              } ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
+                useOther
+                  ? "border-palette-primary bg-palette-primary/5"
+                  : "border-neutral-border hover:bg-neutral-bg-dim/50"
+              } ${disabled ? "opacity-60 pointer-events-none" : ""}`}
             >
               <input
-                type={isMulti ? 'checkbox' : 'radio'}
+                type={isMulti ? "checkbox" : "radio"}
                 name={question.id}
                 checked={useOther}
-                onChange={() => { setUseOther(true); if (!isMulti) onSelect([]); }}
+                onChange={() => {
+                  setUseOther(true);
+                  if (!isMulti) onSelect([]);
+                }}
                 disabled={disabled}
                 className="mt-0.5 accent-primary"
               />
@@ -99,7 +116,9 @@ export function QuestionField({
                     onChange={(e) => {
                       setOtherText(e.target.value);
                       if (isMulti) {
-                        const optionSels = selected.filter((s) => question.options?.some((o) => o.label === s));
+                        const optionSels = selected.filter((s) =>
+                          question.options?.some((o) => o.label === s),
+                        );
                         onSelect(e.target.value ? [...optionSels, e.target.value] : optionSels);
                       } else {
                         onSelect(e.target.value ? [e.target.value] : []);
@@ -108,7 +127,7 @@ export function QuestionField({
                     placeholder="Type your answer..."
                     className="mt-1.5 h-8 text-sm"
                     disabled={disabled}
-                    type={question.secret ? 'password' : 'text'}
+                    type={question.secret ? "password" : "text"}
                   />
                 )}
               </div>
@@ -123,7 +142,7 @@ export function QuestionField({
         placeholder="Additional feedback (optional)..."
         className="h-8 text-sm"
         disabled={disabled}
-        type={question.secret ? 'password' : 'text'}
+        type={question.secret ? "password" : "text"}
       />
     </div>
   );

@@ -14,7 +14,7 @@ import type {
   HookContext,
   PreHookResult,
   PostHookResult,
-} from './types';
+} from "./types";
 
 interface HookEntry<T> {
   name: string;
@@ -82,7 +82,7 @@ class HookServiceImpl implements HookService {
 
   async runPostHooks(context: HookContext, result: unknown): Promise<PostHookResult> {
     let currentResult = result;
-    const allSideEffects: PostHookResult['sideEffects'] = [];
+    const allSideEffects: PostHookResult["sideEffects"] = [];
 
     for (const entry of this.postHooks) {
       const hookResult = await entry.hook(context, currentResult);
@@ -102,15 +102,15 @@ class HookServiceImpl implements HookService {
     };
   }
 
-  listHooks(): Array<{ name: string; type: 'pre' | 'post'; priority: number }> {
-    const hooks: Array<{ name: string; type: 'pre' | 'post'; priority: number }> = [];
+  listHooks(): Array<{ name: string; type: "pre" | "post"; priority: number }> {
+    const hooks: Array<{ name: string; type: "pre" | "post"; priority: number }> = [];
 
     for (const h of this.preHooks) {
-      hooks.push({ name: h.name, type: 'pre', priority: h.priority });
+      hooks.push({ name: h.name, type: "pre", priority: h.priority });
     }
 
     for (const h of this.postHooks) {
-      hooks.push({ name: h.name, type: 'post', priority: h.priority });
+      hooks.push({ name: h.name, type: "post", priority: h.priority });
     }
 
     return hooks;

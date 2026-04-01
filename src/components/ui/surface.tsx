@@ -1,45 +1,42 @@
-import * as React from "react"
+import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/ui/lib/utils"
-import { usePlatform } from "@/ui/context/PlatformProvider"
+import { cn } from "@/ui/lib/utils";
+import { usePlatform } from "@/ui/context/PlatformProvider";
 
-// Not using CVA: desktop/web variants are mutually exclusive (selected at
-// runtime via usePlatform), so CVA's cascade model required !important overrides.
-type SurfaceVariant = "main" | "stage" | "panel"
+const surfaceVariants = cva("overflow-hidden", {
+  variants: {
+    variant: {
+      main: "bg-neutral-bg/45 saturate-[1.2]",
+      stage: "bg-neutral-bg/95",
+      panel: "bg-neutral-bg/90 saturate-[1.2]",
+    },
+  },
+});
 
-const baseClasses = "overflow-hidden"
+/** Desktop: main fully transparent (macOS vibrancy shows through), stage/panel opaque for readability */
+const desktopOverrides: Record<"main" | "stage" | "panel", string> = {
+  main: "!bg-neutral-bg/40",
+  stage: "!bg-neutral-bg/80",
+  panel: "!bg-neutral-bg/60",
+};
 
-const webVariants: Record<SurfaceVariant, string> = {
-  main: "bg-neutral-bg/80",
-  stage: "bg-neutral-bg/70",
-  panel: "bg-neutral-bg/90 saturate-[1.2]",
-}
-
-const desktopVariants: Record<SurfaceVariant, string> = {
-  main: "bg-neutral-bg/40 saturate-[1.2]",
-  stage: "bg-neutral-bg/60",
-  panel: "bg-neutral-bg/60",
-}
-
-export interface SurfaceProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: SurfaceVariant | null
-}
+export interface SurfaceProps
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof surfaceVariants> {}
 
 const Surface = React.forwardRef<HTMLDivElement, SurfaceProps>(
   ({ className, variant, ...props }, ref) => {
-    const { isDesktop } = usePlatform()
-    const variantClass = variant
-      ? (isDesktop ? desktopVariants : webVariants)[variant]
-      : undefined
+    const { isDesktop } = usePlatform();
+    const desktopClass = isDesktop && variant ? desktopOverrides[variant] : undefined;
     return (
       <div
         ref={ref}
-        className={cn(baseClasses, variantClass, className)}
+        className={cn(surfaceVariants({ variant, className }), desktopClass)}
         {...props}
       />
-    )
-  }
-)
-Surface.displayName = "Surface"
+    );
+  },
+);
+Surface.displayName = "Surface";
 
-export { Surface }
+export { Surface, surfaceVariants };

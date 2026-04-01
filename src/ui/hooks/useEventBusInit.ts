@@ -8,8 +8,8 @@
  * is handled directly by Shell.tsx via tRPC subscriptions, not through EventBus.
  */
 
-import { useEffect } from 'react';
-import { getEventBus } from '@/shared/event-bus';
+import { useEffect } from "react";
+import { getEventBus } from "@/shared/event-bus";
 import type {
   SystemInitEvent,
   QueryResultEvent,
@@ -21,9 +21,9 @@ import type {
   HookResponseEvent,
   ToolStartEvent,
   ToolEndEvent,
-} from '@/shared/event-bus';
-import { useSdkStore } from '../stores/useSdkStore';
-import { useToolStore } from '../stores/useToolStore';
+} from "@/shared/event-bus";
+import { useSdkStore } from "../stores/useSdkStore";
+import { useToolStore } from "../stores/useToolStore";
 
 export function useEventBusInit() {
   useEffect(() => {
@@ -35,26 +35,26 @@ export function useEventBusInit() {
 
     const unsubscribers = [
       // SDK store events
-      bus.on('SystemInit', (e) => sdk.handleSystemInit(e as SystemInitEvent)),
-      bus.on('MessageStart', (e) => {
+      bus.on("SystemInit", (e) => sdk.handleSystemInit(e as SystemInitEvent)),
+      bus.on("MessageStart", (e) => {
         const evt = e as MessageStartEvent;
         sdk.handleMessageStart(evt.usage);
         // Note: messages.startAssistantMessage() is called by Shell.tsx via tRPC subscription
       }),
-      bus.on('AssistantMessage', (e) => {
+      bus.on("AssistantMessage", (e) => {
         const evt = e as AssistantMessageEvent;
         sdk.handleAssistantMessage(evt.usage);
         // Note: messages.finishStreamingMessage() is called by Shell.tsx via tRPC subscription
       }),
-      bus.on('QueryResult', (e) => sdk.handleQueryResult(e as QueryResultEvent)),
-      bus.on('ToolProgress', (e) => sdk.handleToolProgress(e as ToolProgressEvent)),
-      bus.on('ThinkingDelta', (e) => sdk.handleThinkingDelta((e as ThinkingDeltaEvent).thinking)),
-      bus.on('HookStarted', (e) => sdk.handleHookStarted(e as HookStartedEvent)),
-      bus.on('HookResponse', (e) => sdk.handleHookResponse(e as HookResponseEvent)),
+      bus.on("QueryResult", (e) => sdk.handleQueryResult(e as QueryResultEvent)),
+      bus.on("ToolProgress", (e) => sdk.handleToolProgress(e as ToolProgressEvent)),
+      bus.on("ThinkingDelta", (e) => sdk.handleThinkingDelta((e as ThinkingDeltaEvent).thinking)),
+      bus.on("HookStarted", (e) => sdk.handleHookStarted(e as HookStartedEvent)),
+      bus.on("HookResponse", (e) => sdk.handleHookResponse(e as HookResponseEvent)),
 
       // Tool store events
-      bus.on('ToolStart', (e) => tool.handleToolStart(e as ToolStartEvent)),
-      bus.on('ToolEnd', (e) => tool.handleToolEnd(e as ToolEndEvent)),
+      bus.on("ToolStart", (e) => tool.handleToolStart(e as ToolStartEvent)),
+      bus.on("ToolEnd", (e) => tool.handleToolEnd(e as ToolEndEvent)),
 
       // Note: Streaming events (token/tool_start/status) → messages store is handled
       // by Shell.tsx via tRPC subscription, not EventBus.

@@ -10,34 +10,34 @@
  * that version is not bumped and will retry on next load.
  */
 
-import { SchemaVersion } from '@wystack/version';
-import { semver, isoFrom, isoNow, type SemVer } from '@wystack/types';
-import type { Session, JournalMeta } from './types';
-import { replaySession, appendRecords, JSONL_VERSION } from './session-journal';
-import { createLogger } from 'tracey';
+import { SchemaVersion } from "@wystack/version";
+import { semver, isoFrom, isoNow, type SemVer } from "@wystack/types";
+import type { Session, JournalMeta } from "./types";
+import { replaySession, appendRecords, JSONL_VERSION } from "./session-journal";
+import { createLogger } from "tracey";
 
-const log = createLogger('SessionUpgrade');
+const log = createLogger("SessionUpgrade");
 
 // =============================================================================
 // Schema Definition
 // =============================================================================
 
 /** Current session schema version — bump when adding upgraders. */
-export const SESSION_SCHEMA_VERSION = semver('0.4.0');
+export const SESSION_SCHEMA_VERSION = semver("0.4.0");
 
 export const sessionSchema = new SchemaVersion({
   current: SESSION_SCHEMA_VERSION,
   changelog: [
     {
-      version: semver('0.3.0'),
-      date: isoFrom('2026-02-01'),
-      description: 'Baseline JSONL format with messages, tool calls, and metadata',
+      version: semver("0.3.0"),
+      date: isoFrom("2026-02-01"),
+      description: "Baseline JSONL format with messages, tool calls, and metadata",
       breaking: false,
     },
     {
-      version: semver('0.4.0'),
-      date: isoFrom('2026-03-18'),
-      description: 'Extract plan artifacts from CC sessions',
+      version: semver("0.4.0"),
+      date: isoFrom("2026-03-18"),
+      description: "Extract plan artifacts from CC sessions",
       breaking: false,
     },
   ],
@@ -89,12 +89,15 @@ export interface LoadResult {
  * 4. replaySession() again → clean upgraded session
  * 5. Return
  */
-export async function loadSession(sessionsDir: string, sessionId: string): Promise<LoadResult | null> {
+export async function loadSession(
+  sessionsDir: string,
+  sessionId: string,
+): Promise<LoadResult | null> {
   const firstPass = await replaySession(sessionsDir, sessionId);
   if (!firstPass) return null;
 
   const { session, maxSeq } = firstPass;
-  const sessionVersion = session.metadata._schemaVersion as string | undefined ?? JSONL_VERSION;
+  const sessionVersion = (session.metadata._schemaVersion as string | undefined) ?? JSONL_VERSION;
 
   const staleness = sessionSchema.checkStaleness({
     schemaVersion: semver(sessionVersion),
@@ -105,7 +108,10 @@ export async function loadSession(sessionsDir: string, sessionId: string): Promi
     return { session, maxSeq, upgraded: false };
   }
 
-  log.info({ sessionId, from: sessionVersion, to: SESSION_SCHEMA_VERSION }, 'Session needs upgrade');
+  log.info(
+    { sessionId, from: sessionVersion, to: SESSION_SCHEMA_VERSION },
+    "Session needs upgrade",
+  );
 
   // Get changelog entries between session version and current
   const changes = sessionSchema.changesSince(semver(sessionVersion));
@@ -123,7 +129,10 @@ export async function loadSession(sessionsDir: string, sessionId: string): Promi
 
       try {
         await upgrader.run(ctx);
-        log.info({ sessionId, upgrader: upgrader.id, version: change.version }, 'Upgrader completed');
+        log.info(
+          { sessionId, upgrader: upgrader.id, version: change.version },
+          "Upgrader completed",
+        );
         upgraded = true;
       } catch (err) {
         log.error({ sessionId, upgrader: upgrader.id, err }, `Upgrader failed: ${upgrader.id}`);
@@ -135,19 +144,27 @@ export async function loadSession(sessionsDir: string, sessionId: string): Promi
     if (!versionSuccess) break; // Don't proceed to later versions
 
     // Stamp the version
-    await appendRecords(sessionsDir, sessionId, [{
-      t: 'meta', seq: 0, ts: Date.now(),
-      patch: { _schemaVersion: change.version as string },
-    } satisfies JournalMeta]);
+    await appendRecords(sessionsDir, sessionId, [
+      {
+        t: "meta",
+        seq: 0,
+        ts: Date.now(),
+        patch: { _schemaVersion: change.version as string },
+      } satisfies JournalMeta,
+    ]);
   }
 
   if (!upgraded) {
     // No upgraders ran (all skipped), but still stamp the version
     const versionStr = SESSION_SCHEMA_VERSION as string;
-    await appendRecords(sessionsDir, sessionId, [{
-      t: 'meta', seq: 0, ts: Date.now(),
-      patch: { _schemaVersion: versionStr },
-    } satisfies JournalMeta]);
+    await appendRecords(sessionsDir, sessionId, [
+      {
+        t: "meta",
+        seq: 0,
+        ts: Date.now(),
+        patch: { _schemaVersion: versionStr },
+      } satisfies JournalMeta,
+    ]);
     session.metadata._schemaVersion = versionStr;
     return { session, maxSeq, upgraded: false };
   }
@@ -163,14 +180,14 @@ export async function loadSession(sessionsDir: string, sessionId: string): Promi
 // Built-in Upgrader: Extract CC Plan Artifacts (0.4.0)
 // =============================================================================
 
-registerUpgrader(semver('0.4.0'), {
-  id: 'extract-cc-plans',
+registerUpgrader(semver("0.4.0"), {
+  id: "extract-cc-plans",
 
-  applicable: (ctx) => ctx.session.metadata.source === 'claude-code',
+  applicable: (ctx) => ctx.session.metadata.source === "claude-code",
 
   async run(ctx) {
-    const { extractPlansFromRecords } = await import('./artifact-extractor');
-    const { getArtifactService } = await import('./artifact');
+    const { extractPlansFromRecords } = await import("./artifact-extractor");
+    const { getArtifactService } = await import("./artifact");
 
     // session.records is populated by replaySession()'s applyRecord() default case,
     // which pushes unknown record types (tool_call, hook, file_change, etc.) into it.
@@ -185,21 +202,24 @@ registerUpgrader(semver('0.4.0'), {
     const existing = await artifactService.list({ sessionId: ctx.session.id });
     const existingPaths = new Set(existing.map((a) => a.filePath));
 
-    const orgId = (ctx.session.metadata.orgId as string) ?? '';
+    const orgId = (ctx.session.metadata.orgId as string) ?? "";
 
     for (const plan of plans) {
       if (existingPaths.has(plan.filePath)) continue;
       await artifactService.create({
         orgId,
         title: plan.title,
-        mimeType: 'text/markdown',
+        mimeType: "text/markdown",
         filePath: plan.filePath,
         content: plan.content,
-        createdBy: { type: 'system' },
+        createdBy: { type: "system" },
         sessionId: ctx.session.id,
-        metadata: { source: 'cc_import', originalTimestamp: plan.timestamp },
+        metadata: { source: "cc_import", originalTimestamp: plan.timestamp },
       });
-      log.info({ sessionId: ctx.session.id, filePath: plan.filePath }, 'Created plan artifact from CC session');
+      log.info(
+        { sessionId: ctx.session.id, filePath: plan.filePath },
+        "Created plan artifact from CC session",
+      );
     }
   },
 });

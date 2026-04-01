@@ -5,12 +5,12 @@
  * Single-select: picking a session imports it immediately and closes.
  */
 
-import { useMemo, useRef, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Project } from '@/services/types';
-import { Loader2, Folder, GitBranch, GitFork } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { ClaudeIcon } from '@/ui/components/icons/ClaudeIcon';
+import { useMemo, useRef, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { Project } from "@/services/types";
+import { Loader2, Folder, GitBranch, GitFork } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ClaudeIcon } from "@/ui/components/icons/ClaudeIcon";
 import {
   CommandDialog,
   CommandInput,
@@ -18,20 +18,18 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandItem,
-} from '@/components/ui/command';
-import { useTRPC } from '@/bridge/react';
-import { timeAgo } from '@/ui/lib/time';
-import { CLAUDE_COLOR, WORKTREE_COLOR } from '@/ui/lib/brand-colors';
+} from "@/components/ui/command";
+import { useTRPC } from "@/bridge/react";
+import { timeAgo } from "@/ui/lib/time";
+import { CLAUDE_COLOR, WORKTREE_COLOR } from "@/ui/lib/brand-colors";
 
 function folderInfo(cwd?: string): { folder?: string; worktree?: string } {
   if (!cwd) return {};
   // Worktree paths like ~/.agents/worktrees/<repo>/<name> → resolve to project
   const wtMatch = cwd.match(/\.agents\/worktrees\/([^/]+)\/([^/]+)/);
   if (wtMatch) return { folder: `Projects/${wtMatch[1]}`, worktree: wtMatch[2] };
-  const parts = cwd.split('/').filter(Boolean);
-  const folder = parts.length >= 2
-    ? parts.slice(-2).join('/')
-    : parts[parts.length - 1];
+  const parts = cwd.split("/").filter(Boolean);
+  const folder = parts.length >= 2 ? parts.slice(-2).join("/") : parts[parts.length - 1];
   return { folder };
 }
 
@@ -58,7 +56,11 @@ function LocationBadge({ project, folder }: { project?: Project; folder?: string
       <Badge
         variant="soft"
         className="h-[16px] px-1.5 py-0 text-[10px] rounded font-medium truncate max-w-[160px]"
-        style={project.color ? { backgroundColor: `${project.color}18`, color: project.color } : undefined}
+        style={
+          project.color
+            ? { backgroundColor: `${project.color}18`, color: project.color }
+            : undefined
+        }
       >
         {project.name}
       </Badge>
@@ -76,20 +78,42 @@ function LocationBadge({ project, folder }: { project?: Project; folder?: string
 }
 
 interface CCCandidateItemProps {
-  cc: { sessionId: string; fullPath: string; title?: string; firstPrompt?: string; cwd?: string; gitBranch?: string; lastModified: number };
+  cc: {
+    sessionId: string;
+    fullPath: string;
+    title?: string;
+    firstPrompt?: string;
+    cwd?: string;
+    gitBranch?: string;
+    lastModified: number;
+  };
   importing: boolean;
   disabled: boolean;
   cwdToProject: ProjectIndex;
   onSelect: (fullPath: string) => void;
 }
 
-function buildSearchValue(cc: CCCandidateItemProps['cc'], project?: Project, folder?: string, worktree?: string, branch?: string) {
-  return [cc.title, cc.firstPrompt, project?.name, folder, worktree, branch].filter(Boolean).join(' ');
+function buildSearchValue(
+  cc: CCCandidateItemProps["cc"],
+  project?: Project,
+  folder?: string,
+  worktree?: string,
+  branch?: string,
+) {
+  return [cc.title, cc.firstPrompt, project?.name, folder, worktree, branch]
+    .filter(Boolean)
+    .join(" ");
 }
 
-function CCCandidateItem({ cc, importing, disabled, cwdToProject, onSelect }: CCCandidateItemProps) {
+function CCCandidateItem({
+  cc,
+  importing,
+  disabled,
+  cwdToProject,
+  onSelect,
+}: CCCandidateItemProps) {
   const { folder, worktree } = folderInfo(cc.cwd);
-  const branch = cc.gitBranch && cc.gitBranch !== 'HEAD' ? cc.gitBranch : undefined;
+  const branch = cc.gitBranch && cc.gitBranch !== "HEAD" ? cc.gitBranch : undefined;
   const project = resolveProject(cc.cwd, cwdToProject);
 
   return (
@@ -100,15 +124,16 @@ function CCCandidateItem({ cc, importing, disabled, cwdToProject, onSelect }: CC
       className="flex flex-col items-start gap-1 py-2 [&_svg]:!h-3 [&_svg]:!w-3"
     >
       <div className="flex items-center gap-2 w-full">
-        {importing
-          ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" style={{ color: CLAUDE_COLOR }} />
-          : <div style={{ color: CLAUDE_COLOR }}><ClaudeIcon className="h-3.5 w-3.5 shrink-0" /></div>
-        }
-        <span className="flex-1 truncate text-sm">
-          {cc.title || 'Untitled Session'}
-        </span>
+        {importing ? (
+          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" style={{ color: CLAUDE_COLOR }} />
+        ) : (
+          <div style={{ color: CLAUDE_COLOR }}>
+            <ClaudeIcon className="h-3.5 w-3.5 shrink-0" />
+          </div>
+        )}
+        <span className="flex-1 truncate text-sm">{cc.title || "Untitled Session"}</span>
         <span className="text-[11px] text-neutral-fg-subtle/60 tabular-nums shrink-0">
-          {timeAgo(cc.lastModified, 'verbose')}
+          {timeAgo(cc.lastModified, "verbose")}
         </span>
       </div>
       {(project || folder || branch || worktree) && (
@@ -159,11 +184,12 @@ export function ImportCCDialog({ open, onOpenChange, orgId, onImported }: Import
   });
 
   const importedCCIds = useMemo(
-    () => new Set(
-      wfSessions
-        .filter((s) => s.metadata?.ccSessionId)
-        .map((s) => s.metadata!.ccSessionId as string),
-    ),
+    () =>
+      new Set(
+        wfSessions
+          .filter((s) => s.metadata?.ccSessionId)
+          .map((s) => s.metadata!.ccSessionId as string),
+      ),
     [wfSessions],
   );
 
@@ -176,17 +202,22 @@ export function ImportCCDialog({ open, onOpenChange, orgId, onImported }: Import
   // Also index by basename for worktree matching (worktree cwds don't match rootPath directly).
   const cwdToProject = useMemo(() => {
     const byPath = new Map(projects.map((p: Project) => [p.rootPath, p]));
-    const byBasename = new Map(projects.map((p: Project) => {
-      const base = p.rootPath.split('/').filter(Boolean).pop();
-      return base ? [base, p] as const : null;
-    }).filter(Boolean) as [string, Project][]);
+    const byBasename = new Map(
+      projects
+        .map((p: Project) => {
+          const base = p.rootPath.split("/").filter(Boolean).pop();
+          return base ? ([base, p] as const) : null;
+        })
+        .filter(Boolean) as [string, Project][],
+    );
     return { byPath, byBasename };
   }, [projects]);
 
   const candidates = useMemo(
-    () => ccSessions
-      .filter((cc) => !importedCCIds.has(cc.sessionId))
-      .sort((a, b) => b.lastModified - a.lastModified),
+    () =>
+      ccSessions
+        .filter((cc) => !importedCCIds.has(cc.sessionId))
+        .sort((a, b) => b.lastModified - a.lastModified),
     [ccSessions, importedCCIds],
   );
 
@@ -204,7 +235,7 @@ export function ImportCCDialog({ open, onOpenChange, orgId, onImported }: Import
         setImportingPath(null);
       },
       onError: (err) => {
-        console.error('[ImportCCDialog] import failed:', err);
+        console.error("[ImportCCDialog] import failed:", err);
         setImportingPath(null);
       },
     }),
@@ -233,7 +264,9 @@ export function ImportCCDialog({ open, onOpenChange, orgId, onImported }: Import
         )}
         {!discovering && (
           <CommandEmpty>
-            {allImported ? 'All discovered sessions are already imported.' : 'No matching sessions found.'}
+            {allImported
+              ? "All discovered sessions are already imported."
+              : "No matching sessions found."}
           </CommandEmpty>
         )}
         {!discovering && candidates.length > 0 && (

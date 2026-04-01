@@ -3,27 +3,25 @@
  * Uses tRPC queries instead of legacy SolidJS reviewStore.
  */
 
-import { useCallback } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
-import { ReviewItemCard } from './ReviewItemCard';
-import { CheckCircle } from 'lucide-react';
-import type { ReviewItem } from '@/services/types';
+import { useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
+import { ReviewItemCard } from "./ReviewItemCard";
+import { CheckCircle } from "lucide-react";
+import type { ReviewItem } from "@/services/types";
 
 export function ReviewQueue() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const orgId = useRequiredOrgId();
 
-  const { data: items = [], isLoading } = useQuery(
-    trpc.review.listPending.queryOptions({ orgId }),
-  );
+  const { data: items = [], isLoading } = useQuery(trpc.review.listPending.queryOptions({ orgId }));
 
   const resolveMutation = useMutation(
     trpc.review.resolve.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['review'] });
+        queryClient.invalidateQueries({ queryKey: ["review"] });
       },
     }),
   );
@@ -33,7 +31,7 @@ export function ReviewQueue() {
       resolveMutation.mutate({
         id: reviewId,
         orgId,
-        action: action as 'approve' | 'reject' | 'edit' | 'clarify',
+        action: action as "approve" | "reject" | "edit" | "clarify",
         comment,
       });
     },
@@ -49,9 +47,7 @@ export function ReviewQueue() {
         </p>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {isLoading && (
-          <p className="text-sm text-neutral-fg-subtle text-center py-8">Loading...</p>
-        )}
+        {isLoading && <p className="text-sm text-neutral-fg-subtle text-center py-8">Loading...</p>}
         {!isLoading && items.length > 0 && (
           <div className="space-y-3 max-w-2xl">
             {items.map((item: ReviewItem) => (

@@ -5,14 +5,14 @@
  * (e.g., workflow ↔ orchestration).
  */
 
-import { createOrchestrationService } from '@/services/orchestration';
-import { createWorkflowService } from '@/services/workflow';
-import { createReviewService } from '@/services/review';
-import { createAuditService } from '@/services/audit';
-import { getSessionService } from '@/services/session';
-import { getTemplateService } from '@/services/template';
-import { getWorktreeService } from '@/services/worktree';
-import { getOrgService } from '@/services/org';
+import { createOrchestrationService } from "@/services/orchestration";
+import { createWorkflowService } from "@/services/workflow";
+import { createReviewService } from "@/services/review";
+import { createAuditService } from "@/services/audit";
+import { getSessionService } from "@/services/session";
+import { getTemplateService } from "@/services/template";
+import { getWorktreeService } from "@/services/worktree";
+import { getOrgService } from "@/services/org";
 
 let _workflowService: ReturnType<typeof createWorkflowService> | null = null;
 export function getWorkflowService() {

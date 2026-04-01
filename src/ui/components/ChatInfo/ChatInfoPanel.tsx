@@ -5,21 +5,25 @@
  * duration, files touched, and plan artifacts. Always visible in sessions view.
  */
 
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { useSdkStore } from '@/ui/stores/useSdkStore';
-import { useMessagesStore, type MessageState } from '@/ui/stores/useMessagesStore';
-import type { ArtifactStatus } from '@/services/types';
-import { MIME_DOT_COLOR, ARTIFACT_STATUS_STYLES, ARTIFACT_STATUS_LABELS } from '@/ui/lib/artifact-utils';
-import { trpc as trpcClient } from '@/bridge/trpc';
-import { FileText, Clock, Cpu, DollarSign, Pencil } from 'lucide-react';
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { useSdkStore } from "@/ui/stores/useSdkStore";
+import { useMessagesStore, type MessageState } from "@/ui/stores/useMessagesStore";
+import type { ArtifactStatus } from "@/services/types";
+import {
+  MIME_DOT_COLOR,
+  ARTIFACT_STATUS_STYLES,
+  ARTIFACT_STATUS_LABELS,
+} from "@/ui/lib/artifact-utils";
+import { trpc as trpcClient } from "@/bridge/trpc";
+import { FileText, Clock, Cpu, DollarSign, Pencil } from "lucide-react";
 
 // =============================================================================
 // Helpers
 // =============================================================================
 
-const FILE_TOOLS = new Set(['Read', 'Write', 'Edit']);
+const FILE_TOOLS = new Set(["Read", "Write", "Edit"]);
 
 function extractFilePaths(messages: MessageState[]): string[] {
   const paths = new Set<string>();
@@ -45,7 +49,7 @@ function formatDuration(ms: number) {
   const secs = Math.floor(ms / 1000);
   if (secs < 60) return `${secs}s`;
   const mins = Math.floor(secs / 60);
-  return `${mins}m ${String(secs % 60).padStart(2, '0')}s`;
+  return `${mins}m ${String(secs % 60).padStart(2, "0")}s`;
 }
 
 function formatCost(usd: number) {
@@ -53,7 +57,7 @@ function formatCost(usd: number) {
 }
 
 function shortenPath(path: string) {
-  const parts = path.split('/');
+  const parts = path.split("/");
   return parts.length > 1
     ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}`
     : parts[parts.length - 1];
@@ -79,35 +83,30 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
   const messages = useMessagesStore((s) => s.messages);
 
   const { data: session } = useQuery(
-    trpc.session.get.queryOptions(
-      { sessionId: sessionId! },
-      { enabled: isOpen && !!sessionId },
-    ),
+    trpc.session.get.queryOptions({ sessionId: sessionId! }, { enabled: isOpen && !!sessionId }),
   );
 
   const [editingTitle, setEditingTitle] = useState(false);
-  const [titleValue, setTitleValue] = useState('');
-  const [notesValue, setNotesValue] = useState('');
+  const [titleValue, setTitleValue] = useState("");
+  const [notesValue, setNotesValue] = useState("");
   const titleInputRef = useRef<HTMLInputElement>(null);
   const notesDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync session data to local state
   useEffect(() => {
     if (session) {
-      setTitleValue(session.title ?? '');
-      setNotesValue((session.metadata?.notes as string) ?? '');
+      setTitleValue(session.title ?? "");
+      setNotesValue((session.metadata?.notes as string) ?? "");
     }
   }, [session]);
 
   const renameMutation = useMutation(
     trpc.session.rename.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["session"] }),
     }),
   );
 
-  const updateNotesMutation = useMutation(
-    trpc.session.updateNotes.mutationOptions(),
-  );
+  const updateNotesMutation = useMutation(trpc.session.updateNotes.mutationOptions());
 
   const handleTitleBlur = useCallback(() => {
     setEditingTitle(false);
@@ -117,15 +116,18 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
     }
   }, [sessionId, titleValue, session?.title, renameMutation]);
 
-  const handleNotesChange = useCallback((value: string) => {
-    setNotesValue(value);
-    if (notesDebounceRef.current) clearTimeout(notesDebounceRef.current);
-    notesDebounceRef.current = setTimeout(() => {
-      if (sessionId) {
-        updateNotesMutation.mutate({ sessionId, notes: value });
-      }
-    }, 500);
-  }, [sessionId, updateNotesMutation]);
+  const handleNotesChange = useCallback(
+    (value: string) => {
+      setNotesValue(value);
+      if (notesDebounceRef.current) clearTimeout(notesDebounceRef.current);
+      notesDebounceRef.current = setTimeout(() => {
+        if (sessionId) {
+          updateNotesMutation.mutate({ sessionId, notes: value });
+        }
+      }, 500);
+    },
+    [sessionId, updateNotesMutation],
+  );
 
   // Flush pending notes mutation on session switch or unmount
   const sessionIdForFlush = useRef(sessionId);
@@ -138,7 +140,10 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
         clearTimeout(notesDebounceRef.current);
         notesDebounceRef.current = null;
         if (sessionIdForFlush.current) {
-          updateNotesMutation.mutate({ sessionId: sessionIdForFlush.current, notes: notesValueRef.current });
+          updateNotesMutation.mutate({
+            sessionId: sessionIdForFlush.current,
+            notes: notesValueRef.current,
+          });
         }
       }
     };
@@ -148,11 +153,11 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
 
   const model = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === 'user' && messages[i].agentConfig?.model) {
+      if (messages[i].role === "user" && messages[i].agentConfig?.model) {
         return messages[i].agentConfig!.model;
       }
     }
-    return systemInfo?.model ?? '';
+    return systemInfo?.model ?? "";
   }, [messages, systemInfo]);
 
   const hasUsage = cumulativeUsage.inputTokens > 0 || cumulativeUsage.outputTokens > 0;
@@ -160,7 +165,7 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
   return (
     <div
       className={`flex-shrink-0 flex flex-col transition-[width] duration-200 ease-in-out select-none ${
-        isOpen ? 'w-60' : 'w-0'
+        isOpen ? "w-60" : "w-0"
       }`}
       aria-hidden={!isOpen}
       inert={!isOpen ? true : undefined}
@@ -179,8 +184,8 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
               onChange={(e) => setTitleValue(e.currentTarget.value)}
               onBlur={handleTitleBlur}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleTitleBlur();
-                if (e.key === 'Escape') setEditingTitle(false);
+                if (e.key === "Enter") handleTitleBlur();
+                if (e.key === "Escape") setEditingTitle(false);
               }}
               className="w-full bg-neutral-bg-dim/50 rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-neutral-ring"
               autoFocus
@@ -190,7 +195,7 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
               className="w-full text-left text-neutral-fg hover:bg-neutral-bg-dim/50 rounded px-2 py-1 flex items-center gap-1 group"
               onClick={() => setEditingTitle(true)}
             >
-              <span className="truncate flex-1">{session?.title || 'Untitled'}</span>
+              <span className="truncate flex-1">{session?.title || "Untitled"}</span>
               <Pencil className="h-3 w-3 text-neutral-fg-subtle opacity-0 group-hover:opacity-100 flex-shrink-0" />
             </button>
           )}
@@ -221,7 +226,10 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
               <StatRow label="Input" value={formatTokenCount(cumulativeUsage.inputTokens)} />
               <StatRow label="Output" value={formatTokenCount(cumulativeUsage.outputTokens)} />
               {cumulativeUsage.cacheReadInputTokens > 0 && (
-                <StatRow label="Cache" value={formatTokenCount(cumulativeUsage.cacheReadInputTokens)} />
+                <StatRow
+                  label="Cache"
+                  value={formatTokenCount(cumulativeUsage.cacheReadInputTokens)}
+                />
               )}
               <StatRow label="Cost" value={formatCost(cumulativeUsage.totalCostUsd)} />
             </div>
@@ -244,7 +252,11 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
           <Section label={`Files (${filePaths.length})`} icon={<FileText className="h-3 w-3" />}>
             <div className="space-y-0.5">
               {filePaths.map((path) => (
-                <div key={path} className="text-xs font-mono text-neutral-fg-subtle truncate" title={path}>
+                <div
+                  key={path}
+                  className="text-xs font-mono text-neutral-fg-subtle truncate"
+                  title={path}
+                >
                   {shortenPath(path)}
                 </div>
               ))}
@@ -253,11 +265,7 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
         )}
 
         {/* Artifacts */}
-        <ArtifactsSection
-          sessionId={sessionId}
-          isOpen={isOpen}
-          onOpenArtifact={onOpenArtifact}
-        />
+        <ArtifactsSection sessionId={sessionId} isOpen={isOpen} onOpenArtifact={onOpenArtifact} />
       </div>
     </div>
   );
@@ -267,7 +275,15 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
 // Sub-components
 // =============================================================================
 
-function Section({ label, icon, children }: { label: string; icon?: React.ReactNode; children: React.ReactNode }) {
+function Section({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div>
       <label className="text-xs font-medium text-neutral-fg-subtle flex items-center gap-1">
@@ -288,12 +304,12 @@ function StatRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-
-
 function StatusBadge({ status }: { status: string }) {
   const s = status as ArtifactStatus;
   return (
-    <span className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${ARTIFACT_STATUS_STYLES[s] ?? ''}`}>
+    <span
+      className={`text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${ARTIFACT_STATUS_STYLES[s] ?? ""}`}
+    >
       {ARTIFACT_STATUS_LABELS[s] ?? status}
     </span>
   );
@@ -309,7 +325,7 @@ function ArtifactsSection({
   onOpenArtifact?: (artifactId: string) => void;
 }) {
   const { data: artifacts = [] } = useQuery({
-    queryKey: ['artifact', 'list', sessionId],
+    queryKey: ["artifact", "list", sessionId],
     queryFn: () => trpcClient.artifact.list.query({ sessionId: sessionId! }),
     enabled: isOpen && !!sessionId,
     staleTime: 30_000,
@@ -321,14 +337,16 @@ function ArtifactsSection({
     <Section label={`Artifacts (${artifacts.length})`}>
       <div className="space-y-1">
         {artifacts.map((a) => {
-          const filename = a.filePath.split('/').pop() ?? a.title;
+          const filename = a.filePath.split("/").pop() ?? a.title;
           return (
             <button
               key={a.id}
               className="w-full text-left text-xs bg-neutral-bg-dim/50 rounded px-2 py-1.5 hover:bg-neutral-bg-dim flex items-center gap-1.5"
               onClick={() => onOpenArtifact?.(a.id)}
             >
-              <span className={`w-[5px] h-[5px] rounded-full flex-shrink-0 ${MIME_DOT_COLOR[a.mimeType] ?? 'bg-neutral-fg-subtle'}`} />
+              <span
+                className={`w-[5px] h-[5px] rounded-full flex-shrink-0 ${MIME_DOT_COLOR[a.mimeType] ?? "bg-neutral-fg-subtle"}`}
+              />
               <span className="truncate flex-1 font-mono">{filename}</span>
               <StatusBadge status={a.status} />
             </button>

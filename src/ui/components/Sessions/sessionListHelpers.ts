@@ -5,9 +5,9 @@
  * without rendering the React component.
  */
 
-import type { Project, SessionLifecycle, SessionSummary, SessionType } from '@/services/types';
+import type { Project, SessionLifecycle, SessionSummary, SessionType } from "@/services/types";
 
-export type GroupByMode = 'none' | 'date' | 'active' | 'project' | 'status';
+export type GroupByMode = "none" | "date" | "active" | "project" | "status";
 
 export interface SessionGroup {
   key: string;
@@ -21,10 +21,10 @@ export interface SessionGroup {
  * Shows the last 2 path segments for scannability.
  */
 export function smartTruncateTitle(title: string): string {
-  if (!title.includes('/')) return title;
-  const segments = title.split('/').filter(Boolean);
+  if (!title.includes("/")) return title;
+  const segments = title.split("/").filter(Boolean);
   if (segments.length <= 2) return title;
-  return segments.slice(-2).join('/');
+  return segments.slice(-2).join("/");
 }
 
 export function filterSessions(
@@ -35,14 +35,14 @@ export function filterSessions(
 ): SessionSummary[] {
   let result = sessions;
 
-  if (typeFilter !== 'all') {
+  if (typeFilter !== "all") {
     result = result.filter((s) => {
-      const type = (s.metadata?.type as SessionType) ?? 'chat';
+      const type = (s.metadata?.type as SessionType) ?? "chat";
       return type === typeFilter;
     });
   }
 
-  if (stateFilter !== 'all') {
+  if (stateFilter !== "all") {
     result = result.filter((s) => {
       const lifecycle = s.metadata?.lifecycle as SessionLifecycle | undefined;
       return lifecycle?.state === stateFilter;
@@ -71,22 +71,39 @@ function formatDateGroupLabel(date: Date): string {
   const target = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const diffDays = Math.round((today.getTime() - target.getTime()) / 86400000);
 
-  if (diffDays === 0) return 'TODAY';
-  if (diffDays === 1) return 'YESTERDAY';
+  if (diffDays === 0) return "TODAY";
+  if (diffDays === 1) return "YESTERDAY";
 
-  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const months = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+  ];
   return `${months[date.getMonth()]} ${date.getDate()}`;
 }
 
 /** Get a stable date key (YYYY-MM-DD) for grouping. */
 function dateKey(timestamp: number): string {
   const d = new Date(timestamp);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export type SortDirection = 'asc' | 'desc';
+export type SortDirection = "asc" | "desc";
 
-function groupByTimestamp(sessions: SessionSummary[], field: 'createdAt' | 'updatedAt', dir: SortDirection): SessionGroup[] {
+function groupByTimestamp(
+  sessions: SessionSummary[],
+  field: "createdAt" | "updatedAt",
+  dir: SortDirection,
+): SessionGroup[] {
   const grouped = new Map<string, SessionSummary[]>();
   for (const session of sessions) {
     const ts = session[field];
@@ -95,7 +112,7 @@ function groupByTimestamp(sessions: SessionSummary[], field: 'createdAt' | 'upda
     arr.push(session);
     grouped.set(key, arr);
   }
-  const mul = dir === 'desc' ? -1 : 1;
+  const mul = dir === "desc" ? -1 : 1;
   return [...grouped.entries()]
     .sort(([a], [b]) => mul * a.localeCompare(b))
     .map(([key, items]) => {
@@ -112,28 +129,32 @@ export function groupSessions(
   filteredSessions: SessionSummary[],
   groupBy: GroupByMode,
   projectMap?: Map<string, Project>,
-  sortDir: SortDirection = 'desc',
+  sortDir: SortDirection = "desc",
 ): SessionGroup[] | null {
-  if (groupBy === 'none') {
+  if (groupBy === "none") {
     return null;
   }
 
-  if (groupBy === 'date' || groupBy === 'active') {
-    return groupByTimestamp(filteredSessions, groupBy === 'date' ? 'createdAt' : 'updatedAt', sortDir);
+  if (groupBy === "date" || groupBy === "active") {
+    return groupByTimestamp(
+      filteredSessions,
+      groupBy === "date" ? "createdAt" : "updatedAt",
+      sortDir,
+    );
   }
 
-  if (groupBy === 'project') {
+  if (groupBy === "project") {
     const grouped = new Map<string, SessionSummary[]>();
     for (const session of filteredSessions) {
-      const projectId = (session.metadata?.projectId as string) ?? '__ungrouped__';
+      const projectId = (session.metadata?.projectId as string) ?? "__ungrouped__";
       const arr = grouped.get(projectId) ?? [];
       arr.push(session);
       grouped.set(projectId, arr);
     }
     const result: SessionGroup[] = [];
     for (const [key, groupSessions] of grouped) {
-      if (key === '__ungrouped__') {
-        result.push({ key, label: 'Ungrouped', sessions: groupSessions });
+      if (key === "__ungrouped__") {
+        result.push({ key, label: "Ungrouped", sessions: groupSessions });
       } else {
         const project = projectMap?.get(key);
         result.push({
@@ -144,10 +165,10 @@ export function groupSessions(
         });
       }
     }
-    const mul = sortDir === 'desc' ? -1 : 1;
+    const mul = sortDir === "desc" ? -1 : 1;
     return result.sort((a, b) => {
-      if (a.key === '__ungrouped__') return 1;
-      if (b.key === '__ungrouped__') return -1;
+      if (a.key === "__ungrouped__") return 1;
+      if (b.key === "__ungrouped__") return -1;
       return mul * a.label.localeCompare(b.label);
     });
   }
@@ -160,14 +181,15 @@ function groupByStatus(sessions: SessionSummary[], dir: SortDirection): SessionG
   const grouped = new Map<string, SessionSummary[]>();
   for (const session of sessions) {
     const lifecycle = session.metadata?.lifecycle as SessionLifecycle | undefined;
-    const state = lifecycle?.state ?? 'created';
+    const state = lifecycle?.state ?? "created";
     const arr = grouped.get(state) ?? [];
     arr.push(session);
     grouped.set(state, arr);
   }
-  const stateOrder = dir === 'desc'
-    ? ['active', 'created', 'paused', 'completed', 'failed', 'cancelled']
-    : ['cancelled', 'failed', 'completed', 'paused', 'created', 'active'];
+  const stateOrder =
+    dir === "desc"
+      ? ["active", "created", "paused", "completed", "failed", "cancelled"]
+      : ["cancelled", "failed", "completed", "paused", "created", "active"];
   return stateOrder
     .filter((s) => grouped.has(s))
     .map((state) => ({

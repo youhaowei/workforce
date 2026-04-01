@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
-import React from 'react';
-import { Search, Plus, SlidersHorizontal, MessageSquare } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import React from "react";
+import { Search, Plus, SlidersHorizontal, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 function EmptyState({
   icon,
@@ -59,12 +59,14 @@ export function renderEmptyState(
       icon={<MessageSquare className="h-5 w-5 text-neutral-fg-subtle" />}
       heading="No sessions yet"
       subtext="Start a conversation to begin"
-      action={onCreate ? (
-        <Button variant="outline" size="sm" onClick={onCreate}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          New session
-        </Button>
-      ) : undefined}
+      action={
+        onCreate ? (
+          <Button variant="outline" size="sm" onClick={onCreate}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            New session
+          </Button>
+        ) : undefined
+      }
     />
   );
 }

@@ -10,11 +10,11 @@
  * - Only activates for .ts/.tsx files
  */
 
-import { dirname } from 'path';
-import { access } from 'fs/promises';
-import { join } from 'path';
-import { execFileNoThrow, type ExecResult } from '../utils/execFileNoThrow';
-import type { HookContext, PostHookResult, PostHook } from '../services/types';
+import { dirname } from "path";
+import { access } from "fs/promises";
+import { join } from "path";
+import { execFileNoThrow, type ExecResult } from "../utils/execFileNoThrow";
+import type { HookContext, PostHookResult, PostHook } from "../services/types";
 
 // Configuration
 const DEBOUNCE_MS = 300;
@@ -29,7 +29,7 @@ export interface TypeScriptDiagnostic {
   column: number;
   code: string;
   message: string;
-  severity: 'error' | 'warning';
+  severity: "error" | "warning";
 }
 
 export interface TypeScriptCheckResult {
@@ -55,7 +55,7 @@ function parseTscOutput(output: string): TypeScriptDiagnostic[] {
       column: parseInt(match[3], 10),
       code: `TS${match[5]}`,
       message: match[6],
-      severity: match[4] as 'error' | 'warning',
+      severity: match[4] as "error" | "warning",
     });
   }
 
@@ -67,10 +67,10 @@ function parseTscOutput(output: string): TypeScriptDiagnostic[] {
  */
 async function findTsConfig(filePath: string): Promise<string | null> {
   let dir = dirname(filePath);
-  const root = '/';
+  const root = "/";
 
   while (dir !== root) {
-    const tsConfigPath = join(dir, 'tsconfig.json');
+    const tsConfigPath = join(dir, "tsconfig.json");
     try {
       await access(tsConfigPath);
       return dir;
@@ -96,18 +96,14 @@ async function runTypeCheck(filePath: string): Promise<TypeScriptCheckResult> {
   }
 
   // Run tsc with noEmit using execFile (safe from injection)
-  const result: ExecResult = await execFileNoThrow(
-    'npx',
-    ['tsc', '--noEmit'],
-    {
-      cwd: projectDir,
-      timeout: TSC_TIMEOUT_MS,
-    }
-  );
+  const result: ExecResult = await execFileNoThrow("npx", ["tsc", "--noEmit"], {
+    cwd: projectDir,
+    timeout: TSC_TIMEOUT_MS,
+  });
 
   const output = result.stdout + result.stderr;
 
-  if (result.status === 'success') {
+  if (result.status === "success") {
     // No errors
     return {
       errors: [],
@@ -116,7 +112,7 @@ async function runTypeCheck(filePath: string): Promise<TypeScriptCheckResult> {
     };
   }
 
-  if (result.status === 'timeout') {
+  if (result.status === "timeout") {
     // Timeout - return warning
     return {
       errors: [],
@@ -125,9 +121,9 @@ async function runTypeCheck(filePath: string): Promise<TypeScriptCheckResult> {
           file: filePath,
           line: 0,
           column: 0,
-          code: 'TS0000',
-          message: 'TypeScript check timed out',
-          severity: 'warning',
+          code: "TS0000",
+          message: "TypeScript check timed out",
+          severity: "warning",
         },
       ],
       duration: Date.now() - startTime,
@@ -136,8 +132,8 @@ async function runTypeCheck(filePath: string): Promise<TypeScriptCheckResult> {
 
   // Parse errors from output
   const diagnostics = parseTscOutput(output);
-  const errors = diagnostics.filter((d) => d.severity === 'error');
-  const warnings = diagnostics.filter((d) => d.severity === 'warning');
+  const errors = diagnostics.filter((d) => d.severity === "error");
+  const warnings = diagnostics.filter((d) => d.severity === "warning");
 
   return {
     errors,
@@ -176,10 +172,10 @@ function scheduleTypeCheck(filePath: string): Promise<TypeScriptCheckResult> {
  */
 export const typescriptDiagnosticsHook: PostHook = async (
   context: HookContext,
-  result: unknown
+  result: unknown,
 ): Promise<PostHookResult> => {
   // Only process Edit and Write tools
-  if (!['Edit', 'Write'].includes(context.toolName)) {
+  if (!["Edit", "Write"].includes(context.toolName)) {
     return {};
   }
 
@@ -190,7 +186,7 @@ export const typescriptDiagnosticsHook: PostHook = async (
   }
 
   // Only process TypeScript files
-  if (!filePath.endsWith('.ts') && !filePath.endsWith('.tsx')) {
+  if (!filePath.endsWith(".ts") && !filePath.endsWith(".tsx")) {
     return {};
   }
 
@@ -204,7 +200,7 @@ export const typescriptDiagnosticsHook: PostHook = async (
 
   // Format diagnostics for display
   const formattedErrors = checkResult.errors.map(
-    (d) => `${d.file}:${d.line}:${d.column} - ${d.code}: ${d.message}`
+    (d) => `${d.file}:${d.line}:${d.column} - ${d.code}: ${d.message}`,
   );
 
   // Append diagnostics to result
@@ -220,7 +216,7 @@ export const typescriptDiagnosticsHook: PostHook = async (
   // Add warning message if errors found
   if (checkResult.errors.length > 0) {
     (modifiedResult as Record<string, unknown>).typescript_warning =
-      `Edit introduced ${checkResult.errors.length} TypeScript error(s):\n${formattedErrors.join('\n')}`;
+      `Edit introduced ${checkResult.errors.length} TypeScript error(s):\n${formattedErrors.join("\n")}`;
   }
 
   return { modifiedResult };

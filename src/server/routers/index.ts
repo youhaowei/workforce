@@ -1,19 +1,19 @@
-import { router, createCallerFactory } from '../trpc';
-import { healthRouter } from './health';
-import { sessionRouter } from './session';
-import { orgRouter } from './org';
-import { userRouter } from './user';
-import { projectRouter } from './project';
-import { templateRouter } from './template';
-import { workflowRouter } from './workflow';
-import { orchestrationRouter } from './orchestration';
-import { reviewRouter } from './review';
-import { auditRouter } from './audit';
-import { worktreeRouter } from './worktree';
-import { taskRouter } from './task';
-import { agentRouter } from './agent';
-import { artifactRouter } from './artifact';
-import { eventsRouter } from './events';
+import { router, createCallerFactory } from "../trpc";
+import { healthRouter } from "./health";
+import { sessionRouter } from "./session";
+import { orgRouter } from "./org";
+import { userRouter } from "./user";
+import { projectRouter } from "./project";
+import { templateRouter } from "./template";
+import { workflowRouter } from "./workflow";
+import { orchestrationRouter } from "./orchestration";
+import { reviewRouter } from "./review";
+import { auditRouter } from "./audit";
+import { worktreeRouter } from "./worktree";
+import { taskRouter } from "./task";
+import { agentRouter } from "./agent";
+import { artifactRouter } from "./artifact";
+import { eventsRouter } from "./events";
 
 export const appRouter = router({
   health: healthRouter,
@@ -38,4 +38,4 @@ export type AppRouter = typeof appRouter;
 export const createCaller = createCallerFactory(appRouter);
 
 // Re-export for test cleanup
-export { resetRouterServices } from './_services';
+export { resetRouterServices } from "./_services";

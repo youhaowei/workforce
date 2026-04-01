@@ -10,20 +10,20 @@
  * A returning user with an initialized org skips all steps.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
-import { Loader2 } from 'lucide-react';
-import type { Org } from '@/services/types';
+import { useState, useEffect, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { useOrgStore } from "@/ui/stores/useOrgStore";
+import { Loader2 } from "lucide-react";
+import type { Org } from "@/services/types";
 
-import { getServerUrl } from '@/bridge/config';
-import { UserStep } from './UserStep';
-import { CreateOrgStep } from './CreateOrgStep';
-import { SelectOrgStep } from './SelectOrgStep';
-import { InitOrgStep } from './InitOrgStep';
+import { getServerUrl } from "@/bridge/config";
+import { UserStep } from "./UserStep";
+import { CreateOrgStep } from "./CreateOrgStep";
+import { SelectOrgStep } from "./SelectOrgStep";
+import { InitOrgStep } from "./InitOrgStep";
 
-type SetupStep = 'loading' | 'user' | 'create-org' | 'select-org' | 'init-org' | 'done';
+type SetupStep = "loading" | "user" | "create-org" | "select-org" | "init-org" | "done";
 
 function useServerHealth() {
   const [connected, setConnected] = useState(false);
@@ -43,7 +43,10 @@ function useServerHealth() {
     const interval = setInterval(() => {
       if (!cancelled) check();
     }, 1000);
-    return () => { cancelled = true; clearInterval(interval); };
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [connected]);
 
   return connected;
@@ -56,23 +59,23 @@ function resolveStep(
   currentOrg: Org | null | undefined,
   orgId: string | null,
 ): SetupStep {
-  if (isLoading) return 'loading';
-  if (userExists === undefined) return 'loading';
-  if (userExists === false) return 'user';
+  if (isLoading) return "loading";
+  if (userExists === undefined) return "loading";
+  if (userExists === false) return "user";
 
   const orgs = orgList ?? [];
-  if (orgs.length === 0) return 'create-org';
+  if (orgs.length === 0) return "create-org";
 
   const activeOrg = currentOrg ?? (orgId ? orgs.find((o) => o.id === orgId) : null);
-  if (!activeOrg) return 'select-org';
-  if (!activeOrg.initialized) return 'init-org';
+  if (!activeOrg) return "select-org";
+  if (!activeOrg.initialized) return "init-org";
 
   // Shell uses useRequiredOrgId() which reads from Zustand.
   // The useEffect that syncs currentOrg.id → Zustand fires after render,
   // so wait until orgId is set before mounting Shell.
-  if (!orgId) return 'loading';
+  if (!orgId) return "loading";
 
-  return 'done';
+  return "done";
 }
 
 function StepRenderer({
@@ -93,13 +96,13 @@ function StepRenderer({
   const resolvedOrg = currentOrg ?? (orgId && orgList ? orgList.find((o) => o.id === orgId) : null);
 
   switch (step) {
-    case 'user':
+    case "user":
       return <UserStep onComplete={onComplete} />;
-    case 'create-org':
+    case "create-org":
       return user ? <CreateOrgStep userName={user.displayName} onComplete={onComplete} /> : null;
-    case 'select-org':
+    case "select-org":
       return orgList ? <SelectOrgStep orgs={orgList} onComplete={onComplete} /> : null;
-    case 'init-org':
+    case "init-org":
       return resolvedOrg ? <InitOrgStep org={resolvedOrg} onComplete={onComplete} /> : null;
     default:
       return null;
@@ -137,7 +140,9 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
     trpc.org.list.queryOptions(undefined, { enabled: serverConnected && userExists === true }),
   );
   const { data: currentOrg, isLoading: isLoadingCurrent } = useQuery(
-    trpc.org.getCurrent.queryOptions(undefined, { enabled: serverConnected && userExists === true }),
+    trpc.org.getCurrent.queryOptions(undefined, {
+      enabled: serverConnected && userExists === true,
+    }),
   );
 
   // Auto-set org from server if available (returning user)
@@ -145,26 +150,27 @@ export function SetupGate({ children }: { children: React.ReactNode }) {
     if (currentOrg?.id && !orgId) setCurrentOrgId(currentOrg.id);
   }, [currentOrg, orgId, setCurrentOrgId]);
 
-  const isLoading = !serverConnected
-    || isLoadingUserExists
-    || (userExists === true && (isLoadingUser || isLoadingOrgs || isLoadingCurrent));
+  const isLoading =
+    !serverConnected ||
+    isLoadingUserExists ||
+    (userExists === true && (isLoadingUser || isLoadingOrgs || isLoadingCurrent));
 
   const step = resolveStep(isLoading, userExists, orgList, currentOrg, orgId);
 
   const handleComplete = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ['user'] });
-    queryClient.invalidateQueries({ queryKey: ['org'] });
+    queryClient.invalidateQueries({ queryKey: ["user"] });
+    queryClient.invalidateQueries({ queryKey: ["org"] });
   }, [queryClient]);
 
-  if (step === 'done') return <>{children}</>;
+  if (step === "done") return <>{children}</>;
 
-  if (step === 'loading') {
+  if (step === "loading") {
     return (
       <div className="h-screen flex items-center justify-center bg-neutral-bg">
         <div className="text-center space-y-3">
           <Loader2 className="h-8 w-8 mx-auto animate-spin text-neutral-fg-subtle" />
           <p className="text-sm text-neutral-fg-subtle">
-            {!serverConnected ? 'Connecting to server...' : 'Loading...'}
+            {!serverConnected ? "Connecting to server..." : "Loading..."}
           </p>
         </div>
       </div>

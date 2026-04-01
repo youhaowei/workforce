@@ -3,16 +3,16 @@
  * Provides debounced keyword search and status filtering.
  */
 
-import { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
+import { useState, useEffect } from "react";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Search } from 'lucide-react';
+} from "@/components/ui/select";
+import { Search } from "lucide-react";
 
 interface BoardFiltersProps {
   keyword: string;
@@ -22,13 +22,13 @@ interface BoardFiltersProps {
 }
 
 const STATUS_OPTIONS = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'created', label: 'Created' },
-  { value: 'active', label: 'Active' },
-  { value: 'paused', label: 'Paused' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'failed', label: 'Failed' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: "all", label: "All statuses" },
+  { value: "created", label: "Created" },
+  { value: "active", label: "Active" },
+  { value: "paused", label: "Paused" },
+  { value: "completed", label: "Completed" },
+  { value: "failed", label: "Failed" },
+  { value: "cancelled", label: "Cancelled" },
 ];
 
 export function BoardFilters({
@@ -68,7 +68,9 @@ export function BoardFilters({
         </SelectTrigger>
         <SelectContent>
           {STATUS_OPTIONS.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+            <SelectItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>

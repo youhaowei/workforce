@@ -1,20 +1,31 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
-import { SessionsPanel } from './SessionsPanel';
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+import { SessionsPanel } from "./SessionsPanel";
 
 // Bun + vitest + jsdom doesn't always provide localStorage.
 // Polyfill before any module reads it (Zustand persist, SessionList initializers).
 beforeAll(() => {
-  if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localStorage.getItem !== 'function') {
+  if (
+    typeof globalThis.localStorage === "undefined" ||
+    typeof globalThis.localStorage.getItem !== "function"
+  ) {
     const store: Record<string, string> = {};
-    Object.defineProperty(globalThis, 'localStorage', {
+    Object.defineProperty(globalThis, "localStorage", {
       value: {
         getItem: (k: string) => store[k] ?? null,
-        setItem: (k: string, v: string) => { store[k] = v; },
-        removeItem: (k: string) => { delete store[k]; },
-        clear: () => { Object.keys(store).forEach(k => delete store[k]); },
-        get length() { return Object.keys(store).length; },
+        setItem: (k: string, v: string) => {
+          store[k] = v;
+        },
+        removeItem: (k: string) => {
+          delete store[k];
+        },
+        clear: () => {
+          Object.keys(store).forEach((k) => delete store[k]);
+        },
+        get length() {
+          return Object.keys(store).length;
+        },
         key: (i: number) => Object.keys(store)[i] ?? null,
       },
       writable: true,
@@ -29,40 +40,47 @@ const mockQueryData = {
   isLoading: false,
 };
 
-vi.mock('@tanstack/react-query', () => ({
+vi.mock("@tanstack/react-query", () => ({
   useQuery: vi.fn(() => mockQueryData),
   useMutation: vi.fn(() => ({ mutate: vi.fn(), isLoading: false })),
-  useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn(), setQueriesData: vi.fn(), refetchQueries: vi.fn() })),
+  useQueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueriesData: vi.fn(),
+    refetchQueries: vi.fn(),
+  })),
 }));
 
-vi.mock('@/bridge/react', () => ({
+vi.mock("@/bridge/react", () => ({
   useTRPC: vi.fn(() => ({
     session: {
-      list: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ['session', 'list']) },
+      list: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ["session", "list"]) },
       resume: { mutationOptions: vi.fn(() => ({})) },
       delete: { mutationOptions: vi.fn(() => ({})) },
       discoverCC: { queryOptions: vi.fn(() => ({})) },
       importCC: { mutationOptions: vi.fn(() => ({})) },
     },
     project: {
-      list: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ['project', 'list']) },
+      list: { queryOptions: vi.fn(() => ({})), queryKey: vi.fn(() => ["project", "list"]) },
     },
   })),
 }));
 
 // Mock OrgStore to avoid Zustand persist middleware needing localStorage at import time
-vi.mock('@/ui/stores/useOrgStore', () => ({
-  useOrgStore: Object.assign(vi.fn(() => 'org_test_12345'), {
-    setState: vi.fn(),
-    getState: vi.fn(() => ({ currentOrgId: 'org_test_12345' })),
-  }),
+vi.mock("@/ui/stores/useOrgStore", () => ({
+  useOrgStore: Object.assign(
+    vi.fn(() => "org_test_12345"),
+    {
+      setState: vi.fn(),
+      getState: vi.fn(() => ({ currentOrgId: "org_test_12345" })),
+    },
+  ),
 }));
 
-vi.mock('@/ui/hooks/useRequiredOrgId', () => ({
-  useRequiredOrgId: vi.fn(() => 'org_test_12345'),
+vi.mock("@/ui/hooks/useRequiredOrgId", () => ({
+  useRequiredOrgId: vi.fn(() => "org_test_12345"),
 }));
 
-describe('SessionsPanel', () => {
+describe("SessionsPanel", () => {
   const mockOnSelectSession = vi.fn();
 
   beforeEach(() => {
@@ -71,24 +89,24 @@ describe('SessionsPanel', () => {
     mockQueryData.isLoading = false;
   });
 
-  it('renders collapsed when collapsed prop is true', () => {
+  it("renders collapsed when collapsed prop is true", () => {
     render(<SessionsPanel collapsed={true} onSelectSession={mockOnSelectSession} />);
-    expect(screen.queryByText('Sessions')).not.toBeInTheDocument();
+    expect(screen.queryByText("Sessions")).not.toBeInTheDocument();
   });
 
-  it('renders panel with title when expanded', () => {
+  it("renders panel with title when expanded", () => {
     render(<SessionsPanel collapsed={false} onSelectSession={mockOnSelectSession} />);
-    expect(screen.getByText('Sessions')).toBeInTheDocument();
+    expect(screen.getByText("Sessions")).toBeInTheDocument();
   });
 
-  it('shows loading state when isLoading', () => {
+  it("shows loading state when isLoading", () => {
     mockQueryData.isLoading = true;
     render(<SessionsPanel collapsed={false} onSelectSession={mockOnSelectSession} />);
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
   });
 
-  it('shows session list when loaded', () => {
+  it("shows session list when loaded", () => {
     render(<SessionsPanel collapsed={false} onSelectSession={mockOnSelectSession} />);
-    expect(screen.getByText('No sessions yet')).toBeInTheDocument();
+    expect(screen.getByText("No sessions yet")).toBeInTheDocument();
   });
 });

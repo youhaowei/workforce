@@ -11,235 +11,235 @@
 
 /* ── Tailwind v4 Bridge ──────────────────────────────────────────────────── */
 @theme inline {
-    /* Palette — semantic colors */
-    --color-palette-primary: var(--palette-primary);
-    --color-palette-primary-fg: var(--palette-primary-fg);
-    --color-palette-secondary: var(--palette-secondary);
-    --color-palette-secondary-fg: var(--palette-secondary-fg);
-    --color-palette-success: var(--palette-success);
-    --color-palette-success-fg: var(--palette-success-fg);
-    --color-palette-danger: var(--palette-danger);
-    --color-palette-danger-fg: var(--palette-danger-fg);
-    --color-palette-warning: var(--palette-warning);
-    --color-palette-warning-fg: var(--palette-warning-fg);
-    --color-palette-info: var(--palette-info);
-    --color-palette-info-fg: var(--palette-info-fg);
+  /* Palette — semantic colors */
+  --color-palette-primary: var(--palette-primary);
+  --color-palette-primary-fg: var(--palette-primary-fg);
+  --color-palette-secondary: var(--palette-secondary);
+  --color-palette-secondary-fg: var(--palette-secondary-fg);
+  --color-palette-success: var(--palette-success);
+  --color-palette-success-fg: var(--palette-success-fg);
+  --color-palette-danger: var(--palette-danger);
+  --color-palette-danger-fg: var(--palette-danger-fg);
+  --color-palette-warning: var(--palette-warning);
+  --color-palette-warning-fg: var(--palette-warning-fg);
+  --color-palette-info: var(--palette-info);
+  --color-palette-info-fg: var(--palette-info-fg);
 
-    /* Neutrals — page chrome, text, borders */
-    --color-neutral-bg: var(--neutral-bg);
-    --color-neutral-fg: var(--neutral-fg);
-    --color-neutral-bg-subtle: var(--neutral-bg-subtle);
-    --color-neutral-fg-subtle: var(--neutral-fg-subtle);
-    --color-neutral-bg-muted: var(--neutral-bg-muted);
-    --color-neutral-bg-emphasis: var(--neutral-bg-emphasis);
-    --color-neutral-bg-bold: var(--neutral-bg-bold);
-    --color-neutral-bg-strongest: var(--neutral-bg-strongest);
-    --color-neutral-bg-dim: var(--neutral-bg-dim);
-    --color-neutral-border: var(--neutral-border);
-    --color-neutral-border-subtle: var(--neutral-border-subtle);
-    --color-neutral-ring: var(--neutral-ring);
-    --color-neutral-ring-glow: var(--neutral-ring-glow);
+  /* Neutrals — page chrome, text, borders */
+  --color-neutral-bg: var(--neutral-bg);
+  --color-neutral-fg: var(--neutral-fg);
+  --color-neutral-bg-subtle: var(--neutral-bg-subtle);
+  --color-neutral-fg-subtle: var(--neutral-fg-subtle);
+  --color-neutral-bg-muted: var(--neutral-bg-muted);
+  --color-neutral-bg-emphasis: var(--neutral-bg-emphasis);
+  --color-neutral-bg-bold: var(--neutral-bg-bold);
+  --color-neutral-bg-strongest: var(--neutral-bg-strongest);
+  --color-neutral-bg-dim: var(--neutral-bg-dim);
+  --color-neutral-border: var(--neutral-border);
+  --color-neutral-border-subtle: var(--neutral-border-subtle);
+  --color-neutral-ring: var(--neutral-ring);
+  --color-neutral-ring-glow: var(--neutral-ring-glow);
 
-    /* Surfaces — layered elevation */
-    --color-surface-base: var(--surface-base);
-    /* Utility colors */
-    --color-scrollbar: var(--scrollbar);
-    --color-code-bg: var(--code-bg);
+  /* Surfaces — layered elevation */
+  --color-surface-base: var(--surface-base);
+  /* Utility colors */
+  --color-scrollbar: var(--scrollbar);
+  --color-code-bg: var(--code-bg);
 
-    /* Chart colors */
-    --color-chart-1: var(--chart-1);
-    --color-chart-2: var(--chart-2);
-    --color-chart-3: var(--chart-3);
-    --color-chart-4: var(--chart-4);
-    --color-chart-5: var(--chart-5);
+  /* Chart colors */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 
-    /* Spacing base — Tailwind's spacing scale uses this as multiplier */
-    --spacing: var(--space-1);
+  /* Spacing base — Tailwind's spacing scale uses this as multiplier */
+  --spacing: var(--space-1);
 
-    /* Shape */
-    --radius: var(--radius);
+  /* Shape */
+  --radius: var(--radius);
 }
 
 /* ── Light Theme (default) ───────────────────────────────────────────────── */
 :root {
-    /* ── Palette (semantic colors only) ───────────────────────────────────── */
-    --palette-primary: oklch(0.205 0 0);
-    --palette-primary-fg: oklch(0.985 0 0);
-    --palette-secondary: oklch(0.45 0 0);
-    --palette-secondary-fg: oklch(0.985 0 0);
-    --palette-success: oklch(0.59 0.19 149);
-    --palette-success-fg: oklch(0.985 0 0);
-    --palette-danger: oklch(0.577 0.245 27.325);
-    --palette-danger-fg: oklch(0.985 0 0);
-    --palette-warning: oklch(0.75 0.08 55);
-    --palette-warning-fg: oklch(0.205 0 0);
-    --palette-info: oklch(0.55 0.15 250);
-    --palette-info-fg: oklch(0.985 0 0);
+  /* ── Palette (semantic colors only) ───────────────────────────────────── */
+  --palette-primary: oklch(0.205 0 0);
+  --palette-primary-fg: oklch(0.985 0 0);
+  --palette-secondary: oklch(0.45 0 0);
+  --palette-secondary-fg: oklch(0.985 0 0);
+  --palette-success: oklch(0.59 0.19 149);
+  --palette-success-fg: oklch(0.985 0 0);
+  --palette-danger: oklch(0.577 0.245 27.325);
+  --palette-danger-fg: oklch(0.985 0 0);
+  --palette-warning: oklch(0.75 0.08 55);
+  --palette-warning-fg: oklch(0.205 0 0);
+  --palette-info: oklch(0.55 0.15 250);
+  --palette-info-fg: oklch(0.985 0 0);
 
-    /* ── Neutrals ────────────────────────────────────────────────────────── */
-    /* Text */
-    --neutral-fg: oklch(0.145 0 0);
-    --neutral-fg-subtle: oklch(0.556 0 0);
-    /* Surface scale (M3-inspired: 7 tonal levels, white → dim) */
-    --neutral-bg: oklch(0.985 0 0); /* Container Lowest — page bg, card bg */
-    --neutral-bg-subtle: oklch(0.97 0 0); /* Surface — hover, focus states */
-    --neutral-bg-muted: oklch(0.96 0 0); /* Container Low — code blocks, table headers */
-    --neutral-bg-emphasis: oklch(0.94 0 0); /* Container — input fills, active states */
-    --neutral-bg-bold: oklch(0.92 0 0); /* Container High — strong container fills */
-    --neutral-bg-strongest: oklch(0.9 0 0); /* Container Highest — maximum container emphasis */
-    --neutral-bg-dim: oklch(0.87 0 0); /* Surface Dim — disabled fills, dimmed areas */
+  /* ── Neutrals ────────────────────────────────────────────────────────── */
+  /* Text */
+  --neutral-fg: oklch(0.145 0 0);
+  --neutral-fg-subtle: oklch(0.556 0 0);
+  /* Surface scale (M3-inspired: 7 tonal levels, white → dim) */
+  --neutral-bg: oklch(1 0 0); /* Container Lowest — page bg, card bg */
+  --neutral-bg-subtle: oklch(0.98 0 0); /* Surface — hover, focus states */
+  --neutral-bg-muted: oklch(0.96 0 0); /* Container Low — code blocks, table headers */
+  --neutral-bg-emphasis: oklch(0.94 0 0); /* Container — input fills, active states */
+  --neutral-bg-bold: oklch(0.92 0 0); /* Container High — strong container fills */
+  --neutral-bg-strongest: oklch(0.9 0 0); /* Container Highest — maximum container emphasis */
+  --neutral-bg-dim: oklch(0.87 0 0); /* Surface Dim — disabled fills, dimmed areas */
 
-    /* Borders & rings */
-    --neutral-border: oklch(0.922 0 0);
-    --neutral-border-subtle: oklch(0.95 0 0);
-    --neutral-ring: oklch(0.708 0 0);
-    --neutral-ring-glow: oklch(0.708 0 0 / 30%);
+  /* Borders & rings */
+  --neutral-border: oklch(0.922 0 0);
+  --neutral-border-subtle: oklch(0.95 0 0);
+  --neutral-ring: oklch(0.708 0 0);
+  --neutral-ring-glow: oklch(0.708 0 0 / 30%);
 
-    /* ── Surfaces ────────────────────────────────────────────────────────── */
-    --surface-base: oklch(0.95 0.006 70);
+  /* ── Surfaces ────────────────────────────────────────────────────────── */
+  --surface-base: oklch(0.95 0.006 70);
 
-    /* ── Typography ──────────────────────────────────────────────────────── */
-    --text-display-size: 24px;
-    --text-display-weight: 700;
-    --text-display-leading: 1.2;
-    --text-heading-size: 16px;
-    --text-heading-weight: 600;
-    --text-heading-leading: 1.3;
-    --text-body-size: 14px;
-    --text-body-weight: 400;
-    --text-body-leading: 1.5;
-    --text-sm-size: 13px;
-    --text-sm-weight: 400;
-    --text-sm-leading: 1.4;
-    --text-caption-size: 11px;
-    --text-caption-weight: 500;
-    --text-caption-leading: 1.3;
-    --text-code-size: 13px;
-    --text-code-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+  /* ── Typography ──────────────────────────────────────────────────────── */
+  --text-display-size: 24px;
+  --text-display-weight: 700;
+  --text-display-leading: 1.2;
+  --text-heading-size: 16px;
+  --text-heading-weight: 600;
+  --text-heading-leading: 1.3;
+  --text-body-size: 14px;
+  --text-body-weight: 400;
+  --text-body-leading: 1.5;
+  --text-sm-size: 13px;
+  --text-sm-weight: 400;
+  --text-sm-leading: 1.4;
+  --text-caption-size: 11px;
+  --text-caption-weight: 500;
+  --text-caption-leading: 1.3;
+  --text-code-size: 13px;
+  --text-code-family: "SF Mono", "Fira Code", ui-monospace, monospace;
 
-    /* ── Spacing (4px grid) ──────────────────────────────────────────────── */
-    --space-0: 0px;
-    --space-px: 1px;
-    --space-0\.5: 2px;
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 20px;
-    --space-6: 24px;
-    --space-8: 32px;
-    --space-10: 40px;
-    --space-12: 48px;
+  /* ── Spacing (4px grid) ──────────────────────────────────────────────── */
+  --space-0: 0px;
+  --space-px: 1px;
+  --space-0\.5: 2px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
 
-    /* ── Shadows ─────────────────────────────────────────────────────────── */
-    --shadow-xs: 0 1px 2px oklch(0 0 0 / 4%);
-    --shadow-sm: 0 1px 3px oklch(0 0 0 / 6%), 0 1px 2px oklch(0 0 0 / 4%);
-    --shadow-md:
-        0 0 0 1px oklch(0 0 0 / 3%), 0 1px 2px oklch(0 0 0 / 4%), 0 4px 8px oklch(0 0 0 / 3%),
-        0 8px 16px oklch(0 0 0 / 2%);
-    --shadow-lg:
-        0 0 0 1px oklch(0 0 0 / 3%), 0 4px 12px oklch(0 0 0 / 6%), 0 12px 24px oklch(0 0 0 / 4%);
-    /* Aliases for backward compat within CSS */
-    --surface-shadow: var(--shadow-md);
-    --inner-shadow:
-        0 0 0 1px oklch(0 0 0 / 5%), 0 1px 3px oklch(0 0 0 / 8%), 0 4px 8px oklch(0 0 0 / 5%);
+  /* ── Shadows ─────────────────────────────────────────────────────────── */
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 4%);
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 6%), 0 1px 2px oklch(0 0 0 / 4%);
+  --shadow-md:
+    0 0 0 1px oklch(0 0 0 / 3%), 0 1px 2px oklch(0 0 0 / 4%), 0 4px 8px oklch(0 0 0 / 3%),
+    0 8px 16px oklch(0 0 0 / 2%);
+  --shadow-lg:
+    0 0 0 1px oklch(0 0 0 / 3%), 0 4px 12px oklch(0 0 0 / 6%), 0 12px 24px oklch(0 0 0 / 4%);
+  /* Aliases for backward compat within CSS */
+  --surface-shadow: var(--shadow-md);
+  --inner-shadow:
+    0 0 0 1px oklch(0 0 0 / 5%), 0 1px 3px oklch(0 0 0 / 8%), 0 4px 8px oklch(0 0 0 / 5%);
 
-    /* ── Shape ───────────────────────────────────────────────────────────── */
-    --radius: 0.625rem;
-    --surface-radius: 10px;
-    --surface-inset: 8px;
-    --inner-radius: 8px;
-    --inner-gap: 4px;
+  /* ── Shape ───────────────────────────────────────────────────────────── */
+  --radius: 0.625rem;
+  --surface-radius: 10px;
+  --surface-inset: 8px;
+  --inner-radius: 8px;
+  --inner-gap: 4px;
 
-    /* ── Z-Index ─────────────────────────────────────────────────────────── */
-    --z-base: 0;
-    --z-dropdown: 100;
-    --z-sticky: 200;
-    --z-modal: 300;
-    --z-popover: 400;
-    --z-toast: 500;
+  /* ── Z-Index ─────────────────────────────────────────────────────────── */
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-modal: 300;
+  --z-popover: 400;
+  --z-toast: 500;
 
-    /* ── Layout ──────────────────────────────────────────────────────────── */
-    --titlebar-height: env(titlebar-area-height, 0px);
-    --topbar-height: 40px;
-    --shell-bg: oklch(0.95 0.006 70);
-    --shell-bg-vibrancy: oklch(0.98 0.003 70 / 65%);
+  /* ── Layout ──────────────────────────────────────────────────────────── */
+  --titlebar-height: env(titlebar-area-height, 0px);
+  --topbar-height: 40px;
+  --shell-bg: oklch(0.95 0.006 70);
+  --shell-bg-vibrancy: oklch(0.98 0.003 70 / 22%);
 
-    /* ── Utility ─────────────────────────────────────────────────────────── */
-    --scrollbar: oklch(0.5 0 0);
-    --code-bg: oklch(0.16 0 0);
+  /* ── Utility ─────────────────────────────────────────────────────────── */
+  --scrollbar: oklch(0.5 0 0);
+  --code-bg: oklch(0.16 0 0);
 
-    /* ── Charts ──────────────────────────────────────────────────────────── */
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
+  /* ── Charts ──────────────────────────────────────────────────────────── */
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
 }
 
 /* ── Dark Theme ──────────────────────────────────────────────────────────── */
 .dark {
-    /* ── Palette (dark) ──────────────────────────────────────────────────── */
-    --palette-primary: oklch(0.922 0 0);
-    --palette-primary-fg: oklch(0.205 0 0);
-    --palette-secondary: oklch(0.65 0 0);
-    --palette-secondary-fg: oklch(0.145 0 0);
-    --palette-success: oklch(0.65 0.19 149);
-    --palette-success-fg: oklch(0.145 0 0);
-    --palette-danger: oklch(0.704 0.191 22.216);
-    --palette-danger-fg: oklch(0.985 0 0);
-    --palette-warning: oklch(0.75 0.1 70);
-    --palette-warning-fg: oklch(0.205 0 0);
-    --palette-info: oklch(0.65 0.15 250);
-    --palette-info-fg: oklch(0.145 0 0);
+  /* ── Palette (dark) ──────────────────────────────────────────────────── */
+  --palette-primary: oklch(0.922 0 0);
+  --palette-primary-fg: oklch(0.205 0 0);
+  --palette-secondary: oklch(0.65 0 0);
+  --palette-secondary-fg: oklch(0.145 0 0);
+  --palette-success: oklch(0.65 0.19 149);
+  --palette-success-fg: oklch(0.145 0 0);
+  --palette-danger: oklch(0.704 0.191 22.216);
+  --palette-danger-fg: oklch(0.985 0 0);
+  --palette-warning: oklch(0.75 0.1 70);
+  --palette-warning-fg: oklch(0.205 0 0);
+  --palette-info: oklch(0.65 0.15 250);
+  --palette-info-fg: oklch(0.145 0 0);
 
-    /* ── Neutrals (dark) ─────────────────────────────────────────────────── */
-    /* Text */
-    --neutral-fg: oklch(0.985 0 0);
-    --neutral-fg-subtle: oklch(0.708 0 0);
-    /* Surface scale (dark — inverted: dark → lighter) */
-    --neutral-bg: oklch(0.145 0 0); /* Container Lowest */
-    --neutral-bg-subtle: oklch(0.17 0 0); /* Surface */
-    --neutral-bg-muted: oklch(0.19 0 0); /* Container Low */
-    --neutral-bg-emphasis: oklch(0.22 0 0); /* Container */
-    --neutral-bg-bold: oklch(0.24 0 0); /* Container High */
-    --neutral-bg-strongest: oklch(0.26 0 0); /* Container Highest */
-    --neutral-bg-dim: oklch(0.12 0 0); /* Surface Dim */
+  /* ── Neutrals (dark) ─────────────────────────────────────────────────── */
+  /* Text */
+  --neutral-fg: oklch(0.985 0 0);
+  --neutral-fg-subtle: oklch(0.708 0 0);
+  /* Surface scale (dark — inverted: dark → lighter) */
+  --neutral-bg: oklch(0.145 0 0); /* Container Lowest */
+  --neutral-bg-subtle: oklch(0.17 0 0); /* Surface */
+  --neutral-bg-muted: oklch(0.19 0 0); /* Container Low */
+  --neutral-bg-emphasis: oklch(0.22 0 0); /* Container */
+  --neutral-bg-bold: oklch(0.24 0 0); /* Container High */
+  --neutral-bg-strongest: oklch(0.26 0 0); /* Container Highest */
+  --neutral-bg-dim: oklch(0.12 0 0); /* Surface Dim */
 
-    /* Borders & rings */
-    --neutral-border: oklch(1 0 0 / 10%);
-    --neutral-border-subtle: oklch(1 0 0 / 6%);
-    --neutral-ring: oklch(0.556 0 0);
-    --neutral-ring-glow: oklch(0.556 0 0 / 20%);
+  /* Borders & rings */
+  --neutral-border: oklch(1 0 0 / 10%);
+  --neutral-border-subtle: oklch(1 0 0 / 6%);
+  --neutral-ring: oklch(0.556 0 0);
+  --neutral-ring-glow: oklch(0.556 0 0 / 20%);
 
-    /* ── Surfaces (dark) ─────────────────────────────────────────────────── */
-    --surface-base: oklch(0.2 0.005 250);
+  /* ── Surfaces (dark) ─────────────────────────────────────────────────── */
+  --surface-base: oklch(0.2 0.005 250);
 
-    /* ── Shadows (dark) ──────────────────────────────────────────────────── */
-    --shadow-xs: 0 1px 2px oklch(0 0 0 / 30%);
-    --shadow-sm: 0 1px 3px oklch(0 0 0 / 35%), 0 1px 2px oklch(0 0 0 / 25%);
-    --shadow-md:
-        0 0 0 1px oklch(1 0 0 / 8%), 0 1px 2px oklch(0 0 0 / 30%), 0 3px 6px oklch(0 0 0 / 25%),
-        0 6px 12px oklch(0 0 0 / 20%);
-    --shadow-lg:
-        0 0 0 1px oklch(1 0 0 / 8%), 0 4px 12px oklch(0 0 0 / 35%), 0 12px 24px oklch(0 0 0 / 25%);
-    --inner-shadow:
-        0 0 0 1px oklch(1 0 0 / 8%), 0 1px 2px oklch(0 0 0 / 25%), 0 2px 4px oklch(0 0 0 / 18%);
+  /* ── Shadows (dark) ──────────────────────────────────────────────────── */
+  --shadow-xs: 0 1px 2px oklch(0 0 0 / 30%);
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 35%), 0 1px 2px oklch(0 0 0 / 25%);
+  --shadow-md:
+    0 0 0 1px oklch(1 0 0 / 8%), 0 1px 2px oklch(0 0 0 / 30%), 0 3px 6px oklch(0 0 0 / 25%),
+    0 6px 12px oklch(0 0 0 / 20%);
+  --shadow-lg:
+    0 0 0 1px oklch(1 0 0 / 8%), 0 4px 12px oklch(0 0 0 / 35%), 0 12px 24px oklch(0 0 0 / 25%);
+  --inner-shadow:
+    0 0 0 1px oklch(1 0 0 / 8%), 0 1px 2px oklch(0 0 0 / 25%), 0 2px 4px oklch(0 0 0 / 18%);
 
-    /* ── Layout (dark) ───────────────────────────────────────────────────── */
-    --shell-bg: oklch(0.2 0.005 250);
-    --shell-bg-vibrancy: oklch(0.2 0.005 250 / 55%);
+  /* ── Layout (dark) ───────────────────────────────────────────────────── */
+  --shell-bg: oklch(0.2 0.005 250);
+  --shell-bg-vibrancy: oklch(0.2 0.005 250 / 22%);
 
-    /* ── Utility (dark) ──────────────────────────────────────────────────── */
-    --scrollbar: oklch(0.5 0 0);
-    --code-bg: oklch(0.1 0 0);
+  /* ── Utility (dark) ──────────────────────────────────────────────────── */
+  --scrollbar: oklch(0.5 0 0);
+  --code-bg: oklch(0.1 0 0);
 
-    /* ── Charts (dark) ───────────────────────────────────────────────────── */
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
+  /* ── Charts (dark) ───────────────────────────────────────────────────── */
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -247,75 +247,75 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @layer base {
-    * {
-        @apply border-neutral-border;
-    }
-    html,
-    body {
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        background: transparent;
-        @apply text-neutral-fg;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-    }
-    /* Restore TW3 behavior: pointer cursor for all interactive elements.
+  * {
+    @apply border-neutral-border;
+  }
+  html,
+  body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    @apply text-neutral-fg;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* Restore TW3 behavior: pointer cursor for all interactive elements.
        TW4 changed this default and it's less intuitive. */
-    button,
-    a,
-    [role="button"],
-    [role="link"],
-    [role="tab"],
-    [role="menuitem"],
-    [role="option"],
-    summary,
-    input[type="button"],
-    input[type="submit"],
-    input[type="reset"],
-    input[type="checkbox"],
-    input[type="radio"],
-    select {
-        cursor: pointer;
-    }
-    /* Non-desktop (web) gets opaque background; desktop stays transparent for vibrancy */
-    html:not([data-desktop]),
-    html:not([data-desktop]) body {
-        @apply bg-neutral-bg;
-    }
-    #root {
-        width: 100%;
-        height: 100%;
-    }
-    /* Refined scrollbar — thin, rounded, fades in on hover */
-    ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-    }
-    ::-webkit-scrollbar-track {
-        background: transparent;
-        margin: 10px 0;
-    }
-    ::-webkit-scrollbar-thumb {
-        background: oklch(0.5 0 0 / 15%);
-        border-radius: 100px;
-        border: 2px solid transparent;
-        background-clip: padding-box;
-        transition: background 0.2s ease;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-        background: oklch(0.5 0 0 / 30%);
-        border: 2px solid transparent;
-        background-clip: padding-box;
-    }
-    ::-webkit-scrollbar-thumb:active {
-        background: oklch(0.5 0 0 / 40%);
-        border: 2px solid transparent;
-        background-clip: padding-box;
-    }
-    ::-webkit-scrollbar-corner {
-        background: transparent;
-    }
+  button,
+  a,
+  [role="button"],
+  [role="link"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  summary,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  select {
+    cursor: pointer;
+  }
+  /* Non-desktop (web) gets opaque background; desktop stays transparent for vibrancy */
+  html:not([data-desktop]),
+  html:not([data-desktop]) body {
+    @apply bg-neutral-bg;
+  }
+  #root {
+    width: 100%;
+    height: 100%;
+  }
+  /* Refined scrollbar — thin, rounded, fades in on hover */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 10px 0;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.5 0 0 / 15%);
+    border-radius: 100px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background 0.2s ease;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.5 0 0 / 30%);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: oklch(0.5 0 0 / 40%);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -324,18 +324,18 @@
 
 /* Nav glass pill — active state for sidebar items */
 @layer components {
-    .nav-glass-active {
-        background: oklch(0.985 0 0 / 45%);
-        box-shadow:
-            0 0 0 1px oklch(0.985 0 0 / 40%),
-            0 1px 2px oklch(0 0 0 / 4%);
-    }
-    .dark .nav-glass-active {
-        background: oklch(1 0 0 / 8%);
-        box-shadow:
-            0 0 0 1px oklch(1 0 0 / 10%),
-            0 1px 2px oklch(0 0 0 / 15%);
-    }
+  .nav-glass-active {
+    background: oklch(1 0 0 / 45%);
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 40%),
+      0 1px 2px oklch(0 0 0 / 4%);
+  }
+  .dark .nav-glass-active {
+    background: oklch(1 0 0 / 8%);
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 10%),
+      0 1px 2px oklch(0 0 0 / 15%);
+  }
 }
 
 /* Drag regions — defined in index.html <style> tag to bypass Lightning CSS
@@ -343,20 +343,20 @@
  * Classes: .titlebar-drag-region, .titlebar-no-drag */
 
 /* Shell — the window ground behind everything.
-   In desktop mode (Electron vibrancy), use a semi-transparent tint so the
+   In desktop mode (Tauri vibrancy), use a semi-transparent tint so the
    macOS blur-behind effect shows through. On web, keep the solid gradient. */
 @layer components {
-    .shell-ground {
-        background: var(--shell-bg);
-    }
-    .shell-ground[data-desktop] {
-        background: var(--shell-bg-vibrancy);
-    }
-    /* Vibrancy mismatch: app theme ≠ system theme → vibrancy tint is wrong color.
+  .shell-ground {
+    background: var(--shell-bg);
+  }
+  .shell-ground[data-desktop] {
+    background: var(--shell-bg-vibrancy);
+  }
+  /* Vibrancy mismatch: app theme ≠ system theme → vibrancy tint is wrong color.
      Fall back to solid gradient so light/dark appearance is correct. */
-    html[data-vibrancy-mismatch] .shell-ground[data-desktop] {
-        background: var(--shell-bg);
-    }
+  html[data-vibrancy-mismatch] .shell-ground[data-desktop] {
+    background: var(--shell-bg);
+  }
 }
 
 /* Desktop vibrancy: html/body are transparent by default (set in @layer base).
@@ -364,219 +364,219 @@
    On vibrancy mismatch, restore opaque background. */
 html[data-vibrancy-mismatch],
 html[data-vibrancy-mismatch] body {
-    @apply bg-neutral-bg;
+  @apply bg-neutral-bg;
 }
 
 /* Window top bar — on the shell, handles drag */
 @layer components {
-    .shell-topbar {
-        height: var(--topbar-height);
-        padding: 0 var(--surface-inset) 0 0;
-        user-select: none;
-        -webkit-user-select: none;
-        @apply flex items-center shrink-0 gap-3;
-    }
+  .shell-topbar {
+    height: var(--topbar-height);
+    padding: 0 var(--surface-inset) 0 8px;
+    user-select: none;
+    -webkit-user-select: none;
+    @apply flex items-center shrink-0 gap-3;
+  }
 }
 
 /* Message list fade overlays — don't cover the scrollbar */
 @layer components {
-    .message-list-fade-top,
-    .message-list-fade-bottom {
-        position: absolute;
-        left: 0;
-        right: 8px; /* leave room for scrollbar */
-        height: 56px;
-        pointer-events: none;
-        z-index: 5;
-    }
-    .message-list-fade-top {
-        top: 0;
-        background: linear-gradient(to bottom, var(--neutral-bg), transparent);
-    }
-    .message-list-fade-bottom {
-        bottom: 0;
-        background: linear-gradient(to top, var(--neutral-bg), transparent);
-    }
+  .message-list-fade-top,
+  .message-list-fade-bottom {
+    position: absolute;
+    left: 0;
+    right: 8px; /* leave room for scrollbar */
+    height: 56px;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .message-list-fade-top {
+    top: 0;
+    background: linear-gradient(to bottom, var(--neutral-bg), transparent);
+  }
+  .message-list-fade-bottom {
+    bottom: 0;
+    background: linear-gradient(to top, var(--neutral-bg), transparent);
+  }
 }
 
 /* Chat input bottom fade — hard curve: opaque quickly, gentle tail */
 @layer components {
-    .chat-input-fade {
-        height: 200px;
-        right: 8px; /* leave room for scrollbar — matches .message-list-fade-top */
-        background: linear-gradient(
-            to top,
-            white 0%,
-            white 20%,
-            rgb(255 255 255 / 85%) 40%,
-            rgb(255 255 255 / 40%) 70%,
-            transparent 100%
-        );
-    }
+  .chat-input-fade {
+    height: 200px;
+    right: 8px; /* leave room for scrollbar — matches .message-list-fade-top */
+    background: linear-gradient(
+      to top,
+      white 0%,
+      white 20%,
+      rgb(255 255 255 / 85%) 40%,
+      rgb(255 255 255 / 40%) 70%,
+      transparent 100%
+    );
+  }
 
-    :is(.dark) .chat-input-fade {
-        background: linear-gradient(
-            to top,
-            oklch(0.145 0 0) 0%,
-            oklch(0.145 0 0) 20%,
-            oklch(0.145 0 0 / 85%) 40%,
-            oklch(0.145 0 0 / 40%) 70%,
-            transparent 100%
-        );
-    }
+  :is(.dark) .chat-input-fade {
+    background: linear-gradient(
+      to top,
+      oklch(0.145 0 0) 0%,
+      oklch(0.145 0 0) 20%,
+      oklch(0.145 0 0 / 85%) 40%,
+      oklch(0.145 0 0 / 40%) 70%,
+      transparent 100%
+    );
+  }
 }
 
 /* Streaming cursor for chat */
 @layer components {
-    .streaming-cursor::after {
-        content: "\25CB";
-        display: inline-block;
-        @apply text-palette-primary;
-        animation: cursor-blink 0.8s ease-in-out infinite;
-        margin-left: 2px;
-    }
+  .streaming-cursor::after {
+    content: "\25CB";
+    display: inline-block;
+    @apply text-palette-primary;
+    animation: cursor-blink 0.8s ease-in-out infinite;
+    margin-left: 2px;
+  }
 
-    @keyframes cursor-blink {
-        0%,
-        100% {
-            opacity: 1;
-        }
-        50% {
-            opacity: 0;
-        }
+  @keyframes cursor-blink {
+    0%,
+    100% {
+      opacity: 1;
     }
+    50% {
+      opacity: 0;
+    }
+  }
 
-    .status-active {
-        @apply bg-palette-success;
-        box-shadow: 0 0 8px oklch(0.59 0.19 149 / 40%);
-        animation: status-pulse 2s ease-in-out infinite;
-    }
+  .status-active {
+    @apply bg-palette-success;
+    box-shadow: 0 0 8px oklch(0.59 0.19 149 / 40%);
+    animation: status-pulse 2s ease-in-out infinite;
+  }
 
-    @keyframes status-pulse {
-        0%,
-        100% {
-            box-shadow: 0 0 8px oklch(0.723 0.219 149.579 / 40%);
-        }
-        50% {
-            box-shadow: 0 0 16px oklch(0.723 0.219 149.579 / 60%);
-        }
+  @keyframes status-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 8px oklch(0.723 0.219 149.579 / 40%);
     }
+    50% {
+      box-shadow: 0 0 16px oklch(0.723 0.219 149.579 / 60%);
+    }
+  }
 
-    /* Markdown content — uses semantic tokens */
-    .markdown-content {
-        line-height: 1.6;
-        color: var(--neutral-fg);
-    }
-    .markdown-content p {
-        margin-bottom: 0.75em;
-    }
-    .markdown-content p:last-child {
-        margin-bottom: 0;
-    }
-    .markdown-content strong {
-        font-weight: 600;
-    }
-    .markdown-content em {
-        font-style: italic;
-    }
-    .markdown-content code {
-        font-size: 0.875em;
-        @apply px-1.5 py-0.5 rounded-[var(--radius)] font-mono;
-        background: var(--neutral-bg-emphasis);
-        border: 1px solid var(--neutral-border);
-        color: var(--neutral-fg);
-    }
-    .markdown-content pre {
-        font-size: 0.8125em;
-        @apply p-4 rounded-[var(--inner-radius)] overflow-x-auto my-3 font-mono;
-        background: var(--neutral-bg-muted);
-        color: var(--neutral-fg);
-    }
-    .markdown-content pre code {
-        background: transparent;
-        padding: 0;
-        font-size: inherit;
-        color: inherit;
-        border: none;
-    }
-    .markdown-content h1,
-    .markdown-content h2,
-    .markdown-content h3,
-    .markdown-content h4,
-    .markdown-content h5,
-    .markdown-content h6 {
-        font-weight: 600;
-        color: var(--neutral-fg);
-        margin-top: 1.4em;
-        margin-bottom: 0.5em;
-        line-height: 1.3;
-    }
-    .markdown-content h1 {
-        font-size: 1.35em;
-    }
-    .markdown-content h2 {
-        font-size: 1.15em;
-    }
-    .markdown-content h3 {
-        font-size: 1.05em;
-    }
-    .markdown-content ul,
-    .markdown-content ol {
-        margin: 0.6em 0;
-        padding-left: 1.5em;
-    }
-    .markdown-content li {
-        margin: 0.3em 0;
-    }
-    .markdown-content li::marker {
-        color: var(--neutral-fg-subtle);
-    }
-    .markdown-content ul li {
-        list-style-type: disc;
-    }
-    .markdown-content ol li {
-        list-style-type: decimal;
-    }
-    .markdown-content blockquote {
-        border-left: 2px solid var(--neutral-border);
-        @apply pl-4 my-3;
-        color: var(--neutral-fg-subtle);
-    }
-    .markdown-content a {
-        color: var(--palette-info);
-        text-decoration: underline;
-        text-underline-offset: 2px;
-    }
-    .markdown-content a:hover {
-        opacity: 0.8;
-    }
-    .markdown-content hr {
-        @apply border-t border-neutral-border my-4;
-    }
-    .markdown-content table {
-        @apply w-full my-3;
-        font-size: 0.875em;
-        border-spacing: 0;
-        border-collapse: separate;
-        border: 1px solid var(--neutral-border);
-        border-radius: var(--inner-radius);
-        overflow: hidden;
-    }
-    .markdown-content th,
-    .markdown-content td {
-        @apply px-4 py-2 text-left;
-        border-bottom: 1px solid var(--neutral-border);
-    }
-    .markdown-content th {
-        font-weight: 500;
-        font-size: 0.8125em;
-        color: var(--neutral-fg-subtle);
-        background: var(--neutral-bg-muted);
-    }
-    .markdown-content tr:last-child td {
-        border-bottom: none;
-    }
-    .markdown-content input[type="checkbox"] {
-        margin-right: 0.5em;
-    }
+  /* Markdown content — uses semantic tokens */
+  .markdown-content {
+    line-height: 1.6;
+    color: var(--neutral-fg);
+  }
+  .markdown-content p {
+    margin-bottom: 0.75em;
+  }
+  .markdown-content p:last-child {
+    margin-bottom: 0;
+  }
+  .markdown-content strong {
+    font-weight: 600;
+  }
+  .markdown-content em {
+    font-style: italic;
+  }
+  .markdown-content code {
+    font-size: 0.875em;
+    @apply px-1.5 py-0.5 rounded-[var(--radius)] font-mono;
+    background: var(--neutral-bg-emphasis);
+    border: 1px solid var(--neutral-border);
+    color: var(--neutral-fg);
+  }
+  .markdown-content pre {
+    font-size: 0.8125em;
+    @apply p-4 rounded-[var(--inner-radius)] overflow-x-auto my-3 font-mono;
+    background: var(--neutral-bg-muted);
+    color: var(--neutral-fg);
+  }
+  .markdown-content pre code {
+    background: transparent;
+    padding: 0;
+    font-size: inherit;
+    color: inherit;
+    border: none;
+  }
+  .markdown-content h1,
+  .markdown-content h2,
+  .markdown-content h3,
+  .markdown-content h4,
+  .markdown-content h5,
+  .markdown-content h6 {
+    font-weight: 600;
+    color: var(--neutral-fg);
+    margin-top: 1.4em;
+    margin-bottom: 0.5em;
+    line-height: 1.3;
+  }
+  .markdown-content h1 {
+    font-size: 1.35em;
+  }
+  .markdown-content h2 {
+    font-size: 1.15em;
+  }
+  .markdown-content h3 {
+    font-size: 1.05em;
+  }
+  .markdown-content ul,
+  .markdown-content ol {
+    margin: 0.6em 0;
+    padding-left: 1.5em;
+  }
+  .markdown-content li {
+    margin: 0.3em 0;
+  }
+  .markdown-content li::marker {
+    color: var(--neutral-fg-subtle);
+  }
+  .markdown-content ul li {
+    list-style-type: disc;
+  }
+  .markdown-content ol li {
+    list-style-type: decimal;
+  }
+  .markdown-content blockquote {
+    border-left: 2px solid var(--neutral-border);
+    @apply pl-4 my-3;
+    color: var(--neutral-fg-subtle);
+  }
+  .markdown-content a {
+    color: var(--palette-info);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .markdown-content a:hover {
+    opacity: 0.8;
+  }
+  .markdown-content hr {
+    @apply border-t border-neutral-border my-4;
+  }
+  .markdown-content table {
+    @apply w-full my-3;
+    font-size: 0.875em;
+    border-spacing: 0;
+    border-collapse: separate;
+    border: 1px solid var(--neutral-border);
+    border-radius: var(--inner-radius);
+    overflow: hidden;
+  }
+  .markdown-content th,
+  .markdown-content td {
+    @apply px-4 py-2 text-left;
+    border-bottom: 1px solid var(--neutral-border);
+  }
+  .markdown-content th {
+    font-weight: 500;
+    font-size: 0.8125em;
+    color: var(--neutral-fg-subtle);
+    background: var(--neutral-bg-muted);
+  }
+  .markdown-content tr:last-child td {
+    border-bottom: none;
+  }
+  .markdown-content input[type="checkbox"] {
+    margin-right: 0.5em;
+  }
 }

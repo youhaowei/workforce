@@ -1,6 +1,6 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
-export type SidebarMode = 'expanded' | 'collapsed';
+export type SidebarMode = "expanded" | "collapsed";
 
 interface ShellStore {
   // Panel states
@@ -16,7 +16,7 @@ interface ShellStore {
 
   // Project creation dialog
   createProjectDialogOpen: boolean;
-  createProjectDialogSource: 'projects-panel' | 'new-session' | null;
+  createProjectDialogSource: "projects-panel" | "new-session" | null;
   newSessionProjectId: string | null;
 
   // Server connection
@@ -31,26 +31,26 @@ interface ShellStore {
   setSidebarMode: (mode: SidebarMode) => void;
   setBoardKeyword: (keyword: string) => void;
   setBoardStatusFilter: (filter: string) => void;
-  setCreateProjectDialog: (open: boolean, source: 'projects-panel' | 'new-session' | null) => void;
+  setCreateProjectDialog: (open: boolean, source: "projects-panel" | "new-session" | null) => void;
   setNewSessionProjectId: (id: string | null) => void;
   setServerConnected: (connected: boolean) => void;
   setError: (error: string | null) => void;
 }
 
 // Storage keys for persistence
-const SIDEBAR_STORAGE_KEY = 'workforce:sidebar-mode';
-const SESSIONS_PANEL_STORAGE_KEY = 'workforce:sessions-panel-collapsed';
-const INFO_PANEL_STORAGE_KEY = 'workforce:info-panel-collapsed';
+const SIDEBAR_STORAGE_KEY = "workforce:sidebar-mode";
+const SESSIONS_PANEL_STORAGE_KEY = "workforce:sessions-panel-collapsed";
+const INFO_PANEL_STORAGE_KEY = "workforce:info-panel-collapsed";
 
 export const useShellStore = create<ShellStore>((set) => ({
   // Initial state from localStorage or defaults
   themePanelOpen: false,
-  sessionsPanelCollapsed: localStorage.getItem(SESSIONS_PANEL_STORAGE_KEY) === 'true',
-  infoPanelCollapsed: localStorage.getItem(INFO_PANEL_STORAGE_KEY) !== 'false', // Default true
+  sessionsPanelCollapsed: localStorage.getItem(SESSIONS_PANEL_STORAGE_KEY) === "true",
+  infoPanelCollapsed: localStorage.getItem(INFO_PANEL_STORAGE_KEY) !== "false", // Default true
   projectsPanelCollapsed: false,
-  sidebarMode: (localStorage.getItem(SIDEBAR_STORAGE_KEY) as SidebarMode) || 'expanded',
-  boardKeyword: '',
-  boardStatusFilter: 'all',
+  sidebarMode: (localStorage.getItem(SIDEBAR_STORAGE_KEY) as SidebarMode) || "expanded",
+  boardKeyword: "",
+  boardStatusFilter: "all",
   createProjectDialogOpen: false,
   createProjectDialogSource: null,
   newSessionProjectId: null,

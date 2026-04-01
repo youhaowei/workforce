@@ -2,11 +2,11 @@
  * WorkflowStepItem - Individual step row in the workflow editor.
  */
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { GripVertical, Trash2, X } from 'lucide-react';
-import type { WorkflowStep } from '@/services/types';
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { GripVertical, Trash2, X } from "lucide-react";
+import type { WorkflowStep } from "@/services/types";
 
 interface WorkflowStepItemProps {
   step: WorkflowStep;
@@ -17,19 +17,29 @@ interface WorkflowStepItemProps {
   onDelete: () => void;
 }
 
-function typeVariant(type: string): { variant?: 'soft' | 'outline'; color?: 'primary' } {
+function typeVariant(type: string): { variant?: "soft" | "outline"; color?: "primary" } {
   switch (type) {
-    case 'agent': return { color: 'primary' };
-    case 'review_gate': return { variant: 'soft' };
-    case 'parallel_group': return { variant: 'outline' };
-    default: return { variant: 'outline' };
+    case "agent":
+      return { color: "primary" };
+    case "review_gate":
+      return { variant: "soft" };
+    case "parallel_group":
+      return { variant: "outline" };
+    default:
+      return { variant: "outline" };
   }
 }
 
-export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelete }: WorkflowStepItemProps) {
+export function WorkflowStepItem({
+  step,
+  index,
+  allSteps = [],
+  onChange,
+  onDelete,
+}: WorkflowStepItemProps) {
   // For parallel_group: eligible child steps are agent or review_gate steps (not other parallel_groups)
   const eligibleChildren = allSteps.filter(
-    (s) => s.id !== step.id && (s.type === 'agent' || s.type === 'review_gate'),
+    (s) => s.id !== step.id && (s.type === "agent" || s.type === "review_gate"),
   );
   const selectedChildren = step.parallelStepIds ?? [];
 
@@ -49,7 +59,7 @@ export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelet
         <GripVertical className="h-4 w-4 text-neutral-fg-subtle shrink-0 cursor-grab" />
         <span className="text-xs text-neutral-fg-subtle w-6 shrink-0">{index + 1}</span>
         <Badge {...typeVariant(step.type)} className="text-[10px] shrink-0">
-          {step.type.replace('_', ' ')}
+          {step.type.replace("_", " ")}
         </Badge>
         <Input
           value={step.name}
@@ -57,17 +67,17 @@ export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelet
           className="h-7 text-sm flex-1"
           placeholder="Step name"
         />
-        {step.type === 'agent' && (
+        {step.type === "agent" && (
           <Input
-            value={step.goal ?? ''}
+            value={step.goal ?? ""}
             onChange={(e) => onChange({ ...step, goal: e.target.value })}
             className="h-7 text-sm flex-1"
             placeholder="Goal"
           />
         )}
-        {step.type === 'review_gate' && (
+        {step.type === "review_gate" && (
           <Input
-            value={step.reviewPrompt ?? ''}
+            value={step.reviewPrompt ?? ""}
             onChange={(e) => onChange({ ...step, reviewPrompt: e.target.value })}
             className="h-7 text-sm flex-1"
             placeholder="Review prompt"
@@ -83,7 +93,7 @@ export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelet
         </Button>
       </div>
 
-      {step.type === 'parallel_group' && (
+      {step.type === "parallel_group" && (
         <div className="ml-12 flex flex-wrap gap-1.5 items-center">
           <span className="text-[10px] font-medium text-neutral-fg-subtle">Children:</span>
           {selectedChildren.map((childId) => {
@@ -101,13 +111,17 @@ export function WorkflowStepItem({ step, index, allSteps = [], onChange, onDelet
             <select
               className="h-6 text-[10px] bg-neutral-bg-dim border rounded px-1"
               value=""
-              onChange={(e) => { if (e.target.value) toggleChild(e.target.value); }}
+              onChange={(e) => {
+                if (e.target.value) toggleChild(e.target.value);
+              }}
             >
               <option value="">+ Add step...</option>
               {eligibleChildren
                 .filter((s) => !selectedChildren.includes(s.id))
                 .map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
                 ))}
             </select>
           )}

@@ -10,16 +10,16 @@
  * Persistence: ~/.workforce/orgs/{orgId}/workflows/{id}.json
  */
 
-import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
-import { join } from 'path';
-import type { WorkflowTemplate, WorkflowStep, WorkflowService } from './types';
-import { getDataDir } from './data-dir';
+import { readFile, writeFile, readdir, mkdir } from "fs/promises";
+import { join } from "path";
+import type { WorkflowTemplate, WorkflowStep, WorkflowService } from "./types";
+import { getDataDir } from "./data-dir";
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const DEFAULT_ORGS_DIR = join(getDataDir(), 'orgs');
+const DEFAULT_ORGS_DIR = join(getDataDir(), "orgs");
 
 // =============================================================================
 // Helpers
@@ -81,7 +81,7 @@ function topologicalSort(steps: WorkflowStep[]): { batches: string[][]; errors: 
 
     if (batch.length === 0) {
       // Cycle detected — remaining steps all have unmet dependencies
-      errors.push(`Cycle detected involving steps: ${Array.from(remaining).join(', ')}`);
+      errors.push(`Cycle detected involving steps: ${Array.from(remaining).join(", ")}`);
       return { batches, errors };
     }
 
@@ -112,7 +112,7 @@ class WorkflowServiceImpl implements WorkflowService {
   }
 
   private workflowDir(orgId: string): string {
-    return join(this.orgsDir, orgId, 'workflows');
+    return join(this.orgsDir, orgId, "workflows");
   }
 
   private workflowPath(orgId: string, id: string): string {
@@ -125,7 +125,7 @@ class WorkflowServiceImpl implements WorkflowService {
 
   async create(
     orgId: string,
-    template: Omit<WorkflowTemplate, 'id' | 'createdAt' | 'updatedAt' | 'archived'>
+    template: Omit<WorkflowTemplate, "id" | "createdAt" | "updatedAt" | "archived">,
   ): Promise<WorkflowTemplate> {
     const now = Date.now();
     const workflow: WorkflowTemplate = {
@@ -139,11 +139,15 @@ class WorkflowServiceImpl implements WorkflowService {
     // Validate before saving
     const validation = this.validate(workflow);
     if (!validation.valid) {
-      throw new Error(`Invalid workflow: ${validation.errors.join('; ')}`);
+      throw new Error(`Invalid workflow: ${validation.errors.join("; ")}`);
     }
 
     await mkdir(this.workflowDir(orgId), { recursive: true });
-    await writeFile(this.workflowPath(orgId, workflow.id), JSON.stringify(workflow, null, 2), 'utf-8');
+    await writeFile(
+      this.workflowPath(orgId, workflow.id),
+      JSON.stringify(workflow, null, 2),
+      "utf-8",
+    );
 
     this.cache.set(this.cacheKey(orgId, workflow.id), workflow);
     return workflow;
@@ -156,7 +160,7 @@ class WorkflowServiceImpl implements WorkflowService {
     }
 
     try {
-      const raw = await readFile(this.workflowPath(orgId, id), 'utf-8');
+      const raw = await readFile(this.workflowPath(orgId, id), "utf-8");
       const workflow = JSON.parse(raw) as WorkflowTemplate;
       this.cache.set(key, workflow);
       return workflow;
@@ -168,7 +172,7 @@ class WorkflowServiceImpl implements WorkflowService {
   async update(
     orgId: string,
     id: string,
-    updates: Partial<WorkflowTemplate>
+    updates: Partial<WorkflowTemplate>,
   ): Promise<WorkflowTemplate> {
     const existing = await this.get(orgId, id);
     if (!existing) {
@@ -186,28 +190,25 @@ class WorkflowServiceImpl implements WorkflowService {
     if (updates.steps) {
       const validation = this.validate(updated);
       if (!validation.valid) {
-        throw new Error(`Invalid workflow update: ${validation.errors.join('; ')}`);
+        throw new Error(`Invalid workflow update: ${validation.errors.join("; ")}`);
       }
     }
 
-    await writeFile(this.workflowPath(orgId, id), JSON.stringify(updated, null, 2), 'utf-8');
+    await writeFile(this.workflowPath(orgId, id), JSON.stringify(updated, null, 2), "utf-8");
     this.cache.set(this.cacheKey(orgId, id), updated);
     return updated;
   }
 
-  async list(
-    orgId: string,
-    options?: { includeArchived?: boolean }
-  ): Promise<WorkflowTemplate[]> {
+  async list(orgId: string, options?: { includeArchived?: boolean }): Promise<WorkflowTemplate[]> {
     const dir = this.workflowDir(orgId);
     try {
       const files = await readdir(dir);
       const workflows: WorkflowTemplate[] = [];
 
       for (const file of files) {
-        if (!file.endsWith('.json')) continue;
+        if (!file.endsWith(".json")) continue;
         try {
-          const raw = await readFile(join(dir, file), 'utf-8');
+          const raw = await readFile(join(dir, file), "utf-8");
           const workflow = JSON.parse(raw) as WorkflowTemplate;
           if (!options?.includeArchived && workflow.archived) continue;
           workflows.push(workflow);
@@ -232,7 +233,7 @@ class WorkflowServiceImpl implements WorkflowService {
     existing.archived = true;
     existing.updatedAt = Date.now();
 
-    await writeFile(this.workflowPath(orgId, id), JSON.stringify(existing, null, 2), 'utf-8');
+    await writeFile(this.workflowPath(orgId, id), JSON.stringify(existing, null, 2), "utf-8");
     this.cache.set(this.cacheKey(orgId, id), existing);
   }
 
@@ -240,11 +241,11 @@ class WorkflowServiceImpl implements WorkflowService {
     const errors: string[] = [];
 
     if (!template.name?.trim()) {
-      errors.push('Workflow name is required');
+      errors.push("Workflow name is required");
     }
 
     if (!template.steps || template.steps.length === 0) {
-      errors.push('Workflow must have at least one step');
+      errors.push("Workflow must have at least one step");
     }
 
     if (template.steps) {
@@ -252,7 +253,7 @@ class WorkflowServiceImpl implements WorkflowService {
       const ids = new Set<string>();
       for (const step of template.steps) {
         if (!step.id?.trim()) {
-          errors.push('All steps must have an id');
+          errors.push("All steps must have an id");
         }
         if (ids.has(step.id)) {
           errors.push(`Duplicate step id: ${step.id}`);
@@ -263,11 +264,11 @@ class WorkflowServiceImpl implements WorkflowService {
           errors.push(`Step "${step.id}" must have a name`);
         }
 
-        if (step.type === 'agent' && !step.templateId) {
+        if (step.type === "agent" && !step.templateId) {
           errors.push(`Agent step "${step.id}" must have a templateId`);
         }
 
-        if (step.type === 'review_gate' && !step.reviewPrompt) {
+        if (step.type === "review_gate" && !step.reviewPrompt) {
           errors.push(`Review gate "${step.id}" must have a reviewPrompt`);
         }
       }
@@ -290,7 +291,7 @@ class WorkflowServiceImpl implements WorkflowService {
 
     const result = topologicalSort(workflow.steps);
     if (result.errors.length > 0) {
-      throw new Error(`Invalid workflow DAG: ${result.errors.join('; ')}`);
+      throw new Error(`Invalid workflow DAG: ${result.errors.join("; ")}`);
     }
 
     return result.batches;

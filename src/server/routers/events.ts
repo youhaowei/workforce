@@ -1,6 +1,6 @@
-import { router, publicProcedure } from '../trpc';
-import { getEventBus } from '@/shared/event-bus';
-import type { BusEvent } from '@/shared/event-bus';
+import { router, publicProcedure } from "../trpc";
+import { getEventBus } from "@/shared/event-bus";
+import type { BusEvent } from "@/shared/event-bus";
 
 const MAX_QUEUE_SIZE = 1000;
 
@@ -16,7 +16,7 @@ export const eventsRouter = router({
     const queue: BusEvent[] = [];
     let resolve: (() => void) | null = null;
 
-    const unsubscribe = bus.on('*', (event) => {
+    const unsubscribe = bus.on("*", (event) => {
       if (queue.length >= MAX_QUEUE_SIZE) {
         queue.shift(); // drop oldest under backpressure
       }
@@ -36,7 +36,7 @@ export const eventsRouter = router({
           await new Promise<void>((r) => {
             resolve = r;
             // Also resolve on abort so we can exit the loop
-            signal?.addEventListener('abort', () => r(), { once: true });
+            signal?.addEventListener("abort", () => r(), { once: true });
           });
         }
       }

@@ -10,8 +10,8 @@
  * Composes: SessionService, TemplateService, WorktreeService, AgentInstance
  */
 
-import { AgentInstance } from './agent-instance';
-import { getEventBus } from '@/shared/event-bus';
+import { AgentInstance } from "./agent-instance";
+import { getEventBus } from "@/shared/event-bus";
 import type {
   OrchestrationService,
   SpawnOptions,
@@ -26,8 +26,8 @@ import type {
   ReviewAction,
   AgentTone,
   VerboseLevel,
-} from './types';
-import type { Unsubscribe, ReviewItemChangeEvent } from '@/shared/event-bus';
+} from "./types";
+import type { Unsubscribe, ReviewItemChangeEvent } from "@/shared/event-bus";
 
 // =============================================================================
 // Implementation
@@ -44,7 +44,7 @@ class OrchestrationServiceImpl implements OrchestrationService {
     private worktreeService: WorktreeService,
     private workflowService: WorkflowService | null,
     private orgService: OrgService | null = null,
-    private reviewService: ReviewService | null = null
+    private reviewService: ReviewService | null = null,
   ) {}
 
   async spawn(options: SpawnOptions): Promise<Session> {
@@ -57,9 +57,7 @@ class OrchestrationServiceImpl implements OrchestrationService {
     }
 
     // 1b. Fetch org to get settings (e.g. allowedTools)
-    const org = this.orgService
-      ? await this.orgService.get(orgId)
-      : null;
+    const org = this.orgService ? await this.orgService.get(orgId) : null;
     const repoRoot = process.cwd();
 
     // 2. Create WorkAgent session (parentId is immutable lineage, set at creation)
@@ -105,11 +103,11 @@ class OrchestrationServiceImpl implements OrchestrationService {
     this.instances.set(session.id, instance);
 
     // 6. Transition to active
-    await this.sessionService.transitionState(session.id, 'active', 'Agent spawned', 'system');
+    await this.sessionService.transitionState(session.id, "active", "Agent spawned", "system");
 
     // Emit spawn event
     getEventBus().emit({
-      type: 'AgentSpawned',
+      type: "AgentSpawned",
       sessionId: session.id,
       parentSessionId,
       templateId,
@@ -134,9 +132,9 @@ class OrchestrationServiceImpl implements OrchestrationService {
 
     await this.sessionService.transitionState(
       sessionId,
-      'cancelled',
-      reason ?? 'Cancelled by user',
-      'user'
+      "cancelled",
+      reason ?? "Cancelled by user",
+      "user",
     );
   }
 
@@ -146,7 +144,7 @@ class OrchestrationServiceImpl implements OrchestrationService {
       instance.cancel();
     }
 
-    await this.sessionService.transitionState(sessionId, 'paused', reason, 'system');
+    await this.sessionService.transitionState(sessionId, "paused", reason, "system");
   }
 
   async resume(sessionId: string): Promise<void> {
@@ -157,18 +155,16 @@ class OrchestrationServiceImpl implements OrchestrationService {
 
     const metadata = session.metadata as Record<string, unknown>;
     const lifecycle = metadata.lifecycle as { state: string } | undefined;
-    if (lifecycle?.state !== 'paused') {
-      throw new Error(`Cannot resume session in state: ${lifecycle?.state ?? 'unknown'}`);
+    if (lifecycle?.state !== "paused") {
+      throw new Error(`Cannot resume session in state: ${lifecycle?.state ?? "unknown"}`);
     }
 
     // Transition back to active
-    await this.sessionService.transitionState(sessionId, 'active', 'Resumed', 'user');
+    await this.sessionService.transitionState(sessionId, "active", "Resumed", "user");
 
     // Re-create agent instance and restart
-    const goal = (metadata.goal as string) ?? '';
-    const cwd = (metadata.worktreePath as string)
-      ?? (metadata.repoRoot as string)
-      ?? process.cwd();
+    const goal = (metadata.goal as string) ?? "";
+    const cwd = (metadata.worktreePath as string) ?? (metadata.repoRoot as string) ?? process.cwd();
     const systemPrompt = (metadata.systemPrompt as string) ?? undefined;
 
     // Re-fetch org settings for allowedTools
@@ -208,19 +204,19 @@ class OrchestrationServiceImpl implements OrchestrationService {
     for (const child of children) {
       const meta = child.metadata as Record<string, unknown>;
       const lifecycle = meta.lifecycle as { state: string } | undefined;
-      const state = lifecycle?.state ?? 'created';
+      const state = lifecycle?.state ?? "created";
 
       switch (state) {
-        case 'completed':
+        case "completed":
           completed++;
           break;
-        case 'failed':
+        case "failed":
           failed++;
           break;
-        case 'active':
+        case "active":
           active++;
           break;
-        case 'paused':
+        case "paused":
           paused++;
           break;
       }
@@ -233,7 +229,7 @@ class OrchestrationServiceImpl implements OrchestrationService {
 
   async executeWorkflow(workflowId: string, orgId: string): Promise<Session> {
     if (!this.workflowService) {
-      throw new Error('WorkflowService not available');
+      throw new Error("WorkflowService not available");
     }
 
     const workflow = await this.workflowService.get(orgId, workflowId);
@@ -243,13 +239,18 @@ class OrchestrationServiceImpl implements OrchestrationService {
 
     // Create a parent session for the workflow
     const parentSession = await this.sessionService.createWorkAgent({
-      templateId: '',
+      templateId: "",
       goal: `Execute workflow: ${workflow.name}`,
       orgId,
       workflowId,
     });
 
-    await this.sessionService.transitionState(parentSession.id, 'active', 'Workflow started', 'system');
+    await this.sessionService.transitionState(
+      parentSession.id,
+      "active",
+      "Workflow started",
+      "system",
+    );
 
     // Get execution order (parallel batches)
     const batches = await this.workflowService.getExecutionOrder(orgId, workflowId);
@@ -289,16 +290,16 @@ class OrchestrationServiceImpl implements OrchestrationService {
     const tonePreamble = this.getTonePreamble(tone);
     const verbosePreamble = this.getVerbosePreamble(verboseLevel);
     if (tonePreamble || verbosePreamble) {
-      parts.push('## Communication Style');
+      parts.push("## Communication Style");
       if (tonePreamble) parts.push(tonePreamble);
       if (verbosePreamble) parts.push(verbosePreamble);
-      parts.push('');
+      parts.push("");
     }
 
     parts.push(base);
 
     if (constraints.length > 0) {
-      parts.push('\n## Constraints');
+      parts.push("\n## Constraints");
       for (const c of constraints) {
         parts.push(`- ${c}`);
       }
@@ -306,26 +307,36 @@ class OrchestrationServiceImpl implements OrchestrationService {
 
     parts.push(`\n## Goal\n${goal}`);
 
-    return parts.join('\n');
+    return parts.join("\n");
   }
 
   private getTonePreamble(tone?: AgentTone): string {
     switch (tone) {
-      case 'friendly': return 'Be warm and approachable. Explain your reasoning.';
-      case 'professional': return 'Be professional and precise. Focus on clarity.';
-      case 'direct': return 'Be direct and concise. Skip pleasantries.';
-      case 'technical': return 'Use technical language. Assume domain expertise.';
-      default: return '';
+      case "friendly":
+        return "Be warm and approachable. Explain your reasoning.";
+      case "professional":
+        return "Be professional and precise. Focus on clarity.";
+      case "direct":
+        return "Be direct and concise. Skip pleasantries.";
+      case "technical":
+        return "Use technical language. Assume domain expertise.";
+      default:
+        return "";
     }
   }
 
   private getVerbosePreamble(level?: VerboseLevel): string {
     switch (level) {
-      case 'concise': return 'Keep responses brief.';
-      case 'balanced': return 'Provide moderate detail.';
-      case 'thorough': return 'Provide detailed explanations with examples.';
-      case 'exhaustive': return 'Be comprehensive. Cover edge cases and alternatives.';
-      default: return '';
+      case "concise":
+        return "Keep responses brief.";
+      case "balanced":
+        return "Provide moderate detail.";
+      case "thorough":
+        return "Provide detailed explanations with examples.";
+      case "exhaustive":
+        return "Be comprehensive. Cover edge cases and alternatives.";
+      default:
+        return "";
     }
   }
 
@@ -340,13 +351,13 @@ class OrchestrationServiceImpl implements OrchestrationService {
     try {
       const tokens: string[] = [];
       for await (const delta of instance.run(goal)) {
-        if (delta.type === 'token') {
+        if (delta.type === "token") {
           tokens.push(delta.token);
         }
       }
 
       // Agent completed successfully
-      const output = tokens.join('');
+      const output = tokens.join("");
       const session = await this.sessionService.get(sessionId);
       if (session) {
         await this.sessionService.updateSession(sessionId, {
@@ -354,12 +365,14 @@ class OrchestrationServiceImpl implements OrchestrationService {
         });
       }
 
-      await this.sessionService.transitionState(sessionId, 'completed', 'Agent finished', 'system');
+      await this.sessionService.transitionState(sessionId, "completed", "Agent finished", "system");
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await this.sessionService.transitionState(sessionId, 'failed', message, 'system').catch(() => {
-        // Ignore if already transitioned (e.g. cancelled)
-      });
+      await this.sessionService
+        .transitionState(sessionId, "failed", message, "system")
+        .catch(() => {
+          // Ignore if already transitioned (e.g. cancelled)
+        });
     } finally {
       const inst = this.instances.get(sessionId);
       if (inst) {
@@ -383,21 +396,25 @@ class OrchestrationServiceImpl implements OrchestrationService {
         if (timer) clearTimeout(timer);
       };
 
-      unsubscribe = getEventBus().on('ReviewItemChange', async (event: ReviewItemChangeEvent) => {
-        if (event.reviewItemId !== reviewItemId || event.action !== 'resolved') return;
+      unsubscribe = getEventBus().on("ReviewItemChange", async (event: ReviewItemChangeEvent) => {
+        if (event.reviewItemId !== reviewItemId || event.action !== "resolved") return;
 
         cleanup();
         const item = await this.reviewService!.get(reviewItemId, orgId);
         if (item?.resolution) {
           resolve(item.resolution.action);
         } else {
-          resolve('approve');
+          resolve("approve");
         }
       });
 
       timer = setTimeout(() => {
         cleanup();
-        reject(new Error(`Review gate timed out after ${REVIEW_GATE_TIMEOUT_MS}ms for item ${reviewItemId}`));
+        reject(
+          new Error(
+            `Review gate timed out after ${REVIEW_GATE_TIMEOUT_MS}ms for item ${reviewItemId}`,
+          ),
+        );
       }, REVIEW_GATE_TIMEOUT_MS);
     });
   }
@@ -407,9 +424,19 @@ class OrchestrationServiceImpl implements OrchestrationService {
    */
   private async runWorkflow(
     parentSessionId: string,
-    workflow: { id: string; steps: Array<{ id: string; type: string; templateId?: string; goal?: string; reviewPrompt?: string; parallelStepIds?: string[] }> },
+    workflow: {
+      id: string;
+      steps: Array<{
+        id: string;
+        type: string;
+        templateId?: string;
+        goal?: string;
+        reviewPrompt?: string;
+        parallelStepIds?: string[];
+      }>;
+    },
     batches: string[][],
-    orgId: string
+    orgId: string,
   ): Promise<void> {
     try {
       const stepMap = new Map(workflow.steps.map((s) => [s.id, s]));
@@ -424,7 +451,7 @@ class OrchestrationServiceImpl implements OrchestrationService {
         if (!step) return;
 
         switch (step.type) {
-          case 'agent': {
+          case "agent": {
             if (!step.templateId) break;
             const stepIndex = workflow.steps.findIndex((s) => s.id === stepId);
             await this.spawn({
@@ -438,9 +465,9 @@ class OrchestrationServiceImpl implements OrchestrationService {
             break;
           }
 
-          case 'review_gate': {
+          case "review_gate": {
             if (!this.reviewService) {
-              throw new Error('ReviewService not available for review_gate step');
+              throw new Error("ReviewService not available for review_gate step");
             }
 
             const reviewItem = await this.reviewService.create({
@@ -448,20 +475,20 @@ class OrchestrationServiceImpl implements OrchestrationService {
               orgId,
               workflowId: workflow.id,
               workflowStepId: stepId,
-              type: 'approval',
+              type: "approval",
               title: `Review gate: ${step.reviewPrompt ?? step.goal ?? stepId}`,
               summary: step.reviewPrompt ?? `Workflow paused at step ${stepId} for review`,
               context: { workflowName: workflow.id, stepId },
             });
 
             const action = await this.waitForReviewResolution(reviewItem.id, orgId);
-            if (action === 'reject') {
+            if (action === "reject") {
               throw new Error(`Review gate rejected at step ${stepId}`);
             }
             break;
           }
 
-          case 'parallel_group': {
+          case "parallel_group": {
             const childIds = step.parallelStepIds ?? [];
             await Promise.all(childIds.map((childId) => executeStep(childId)));
             break;
@@ -476,18 +503,15 @@ class OrchestrationServiceImpl implements OrchestrationService {
       // Workflow completed
       await this.sessionService.transitionState(
         parentSessionId,
-        'completed',
-        'Workflow completed',
-        'system'
+        "completed",
+        "Workflow completed",
+        "system",
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      await this.sessionService.transitionState(
-        parentSessionId,
-        'failed',
-        `Workflow failed: ${message}`,
-        'system'
-      ).catch(() => {});
+      await this.sessionService
+        .transitionState(parentSessionId, "failed", `Workflow failed: ${message}`, "system")
+        .catch(() => {});
     }
   }
 }
@@ -502,7 +526,7 @@ export function createOrchestrationService(
   worktreeService: WorktreeService,
   workflowService?: WorkflowService,
   orgService?: OrgService,
-  reviewService?: ReviewService
+  reviewService?: ReviewService,
 ): OrchestrationService {
   return new OrchestrationServiceImpl(
     sessionService,
@@ -510,6 +534,6 @@ export function createOrchestrationService(
     worktreeService,
     workflowService ?? null,
     orgService ?? null,
-    reviewService ?? null
+    reviewService ?? null,
   );
 }

@@ -8,21 +8,17 @@
  * - Event emission for profile changes
  */
 
-import type {
-  OrchestratorService,
-  AgentProfile,
-  RoutingDecision,
-} from './types';
-import { getEventBus } from '@/shared/event-bus';
+import type { OrchestratorService, AgentProfile, RoutingDecision } from "./types";
+import { getEventBus } from "@/shared/event-bus";
 
 // =============================================================================
 // Profile Definitions
 // =============================================================================
 
 const CODER_PROFILE: AgentProfile = {
-  id: 'coder',
-  name: 'Coder',
-  description: 'Execute tasks step by step. Write code. Run commands.',
+  id: "coder",
+  name: "Coder",
+  description: "Execute tasks step by step. Write code. Run commands.",
   systemPrompt: `You are an expert software engineer. Your role is to:
 - Execute coding tasks step by step
 - Write clean, well-tested code
@@ -34,14 +30,14 @@ Always use tools to read files before modifying them. When writing code:
 - Add appropriate error handling
 - Include comments for complex logic
 - Run tests after making changes`,
-  tools: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'WebFetch'],
+  tools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebFetch"],
   maxTokens: 4096,
 };
 
 const PLANNER_PROFILE: AgentProfile = {
-  id: 'planner',
-  name: 'Planner',
-  description: 'Create detailed implementation plans without writing code directly.',
+  id: "planner",
+  name: "Planner",
+  description: "Create detailed implementation plans without writing code directly.",
   systemPrompt: `You are a software architect. Your role is to:
 - Analyze requirements and break them into tasks
 - Create detailed implementation plans
@@ -53,14 +49,14 @@ DO NOT write code directly. Instead:
 - Document the steps needed to implement
 - Identify files that need to be created or modified
 - Estimate complexity and suggest an order of operations`,
-  tools: ['Read', 'Glob', 'Grep'],
+  tools: ["Read", "Glob", "Grep"],
   maxTokens: 4096,
 };
 
 const ADVISOR_PROFILE: AgentProfile = {
-  id: 'advisor',
-  name: 'Advisor',
-  description: 'Explain concepts and answer questions without modifying files.',
+  id: "advisor",
+  name: "Advisor",
+  description: "Explain concepts and answer questions without modifying files.",
   systemPrompt: `You are a knowledgeable technical advisor. Your role is to:
 - Explain programming concepts clearly
 - Answer questions about the codebase
@@ -72,7 +68,7 @@ DO NOT modify any files. Instead:
 - Explain how things work
 - Suggest approaches for the user to implement
 - Point to relevant documentation or examples`,
-  tools: ['Read', 'Glob', 'Grep'],
+  tools: ["Read", "Glob", "Grep"],
   maxTokens: 4096,
 };
 
@@ -82,7 +78,7 @@ const PROFILES: AgentProfile[] = [CODER_PROFILE, PLANNER_PROFILE, ADVISOR_PROFIL
 // Routing Logic
 // =============================================================================
 
-export type RoutingConfidence = 'explicit' | 'high' | 'low';
+export type RoutingConfidence = "explicit" | "high" | "low";
 
 export interface DetailedRoutingDecision {
   profileId: string;
@@ -107,8 +103,8 @@ export function routePrompt(prompt: string, userOverride?: string): DetailedRout
     if (validProfiles.includes(userOverride)) {
       return {
         profileId: userOverride,
-        confidence: 'explicit',
-        reason: 'User override',
+        confidence: "explicit",
+        reason: "User override",
       };
     }
   }
@@ -116,30 +112,31 @@ export function routePrompt(prompt: string, userOverride?: string): DetailedRout
   const lower = prompt.toLowerCase().trim();
 
   // 2. Explicit command prefix (highest precedence)
-  if (lower.startsWith('/explain ')) {
+  if (lower.startsWith("/explain ")) {
     return {
-      profileId: 'advisor',
-      confidence: 'explicit',
-      reason: '/explain command',
+      profileId: "advisor",
+      confidence: "explicit",
+      reason: "/explain command",
     };
   }
-  if (lower.startsWith('/plan ')) {
+  if (lower.startsWith("/plan ")) {
     return {
-      profileId: 'planner',
-      confidence: 'explicit',
-      reason: '/plan command',
+      profileId: "planner",
+      confidence: "explicit",
+      reason: "/plan command",
     };
   }
 
   // 3. Question patterns → advisor (but guard against false positives)
   const pureExplanation = /^(explain|what is|how does|why does|what are)\b/.test(lower);
-  const wantsAction = /\b(fix|change|update|add|remove|help me|implement|create|delete|modify)\b/.test(lower);
+  const wantsAction =
+    /\b(fix|change|update|add|remove|help me|implement|create|delete|modify)\b/.test(lower);
 
   if (pureExplanation && !wantsAction) {
     return {
-      profileId: 'advisor',
-      confidence: 'high',
-      reason: 'Explanation question',
+      profileId: "advisor",
+      confidence: "high",
+      reason: "Explanation question",
     };
   }
 
@@ -147,17 +144,17 @@ export function routePrompt(prompt: string, userOverride?: string): DetailedRout
   const planningPatterns = /^(plan|design|architect|outline|how should (i|we))\b/.test(lower);
   if (planningPatterns && !wantsAction) {
     return {
-      profileId: 'planner',
-      confidence: 'high',
-      reason: 'Planning request',
+      profileId: "planner",
+      confidence: "high",
+      reason: "Planning request",
     };
   }
 
   // 5. Default to coder
   return {
-    profileId: 'coder',
-    confidence: 'low',
-    reason: 'Default',
+    profileId: "coder",
+    confidence: "low",
+    reason: "Default",
   };
 }
 
@@ -167,7 +164,7 @@ export function routePrompt(prompt: string, userOverride?: string): DetailedRout
 
 class OrchestratorServiceImpl implements OrchestratorService {
   private profiles = new Map<string, AgentProfile>();
-  private currentProfileId = 'coder';
+  private currentProfileId = "coder";
 
   constructor() {
     // Register built-in profiles
@@ -190,9 +187,9 @@ class OrchestratorServiceImpl implements OrchestratorService {
     // Emit profile change event
     const bus = getEventBus();
     bus.emit({
-      type: 'SessionChange',
+      type: "SessionChange",
       sessionId: `profile:${profileId}`,
-      action: 'resumed',
+      action: "resumed",
       timestamp: Date.now(),
     });
   }
@@ -201,13 +198,13 @@ class OrchestratorServiceImpl implements OrchestratorService {
     const decision = routePrompt(prompt, userOverride);
 
     // Auto-switch if high confidence or explicit
-    if (decision.confidence === 'explicit' || decision.confidence === 'high') {
+    if (decision.confidence === "explicit" || decision.confidence === "high") {
       await this.switchProfile(decision.profileId);
     }
 
     return {
       profileId: decision.profileId,
-      confidence: typeof decision.confidence === 'string' ? 1.0 : decision.confidence,
+      confidence: typeof decision.confidence === "string" ? 1.0 : decision.confidence,
       reason: decision.reason,
     };
   }
@@ -225,7 +222,7 @@ class OrchestratorServiceImpl implements OrchestratorService {
 
   unregisterProfile(profileId: string): void {
     // Protect built-in profiles
-    const builtIn = ['coder', 'planner', 'advisor'];
+    const builtIn = ["coder", "planner", "advisor"];
     if (builtIn.includes(profileId)) {
       throw new Error(`Cannot unregister built-in profile: ${profileId}`);
     }
@@ -233,7 +230,7 @@ class OrchestratorServiceImpl implements OrchestratorService {
     this.profiles.delete(profileId);
 
     if (this.currentProfileId === profileId) {
-      this.currentProfileId = 'coder';
+      this.currentProfileId = "coder";
     }
   }
 
@@ -242,7 +239,7 @@ class OrchestratorServiceImpl implements OrchestratorService {
     for (const profile of PROFILES) {
       this.profiles.set(profile.id, profile);
     }
-    this.currentProfileId = 'coder';
+    this.currentProfileId = "coder";
   }
 }
 

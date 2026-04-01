@@ -3,16 +3,16 @@
  * Integrated into AgentDetailView when the agent has a worktree.
  */
 
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { GitBranch, GitMerge, Archive, Clock, ChevronDown, ChevronRight } from 'lucide-react';
-import { DiffViewer } from './DiffViewer';
-import { MergeDialog } from './MergeDialog';
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { GitBranch, GitMerge, Archive, Clock, ChevronDown, ChevronRight } from "lucide-react";
+import { DiffViewer } from "./DiffViewer";
+import { MergeDialog } from "./MergeDialog";
 
 interface WorktreePanelProps {
   sessionId: string;
@@ -24,21 +24,16 @@ export function WorktreePanel({ sessionId }: WorktreePanelProps) {
   const [mergeOpen, setMergeOpen] = useState(false);
   const [diffExpanded, setDiffExpanded] = useState(false);
 
-  const { data: worktree, isError } = useQuery(
-    trpc.worktree.get.queryOptions({ sessionId }),
-  );
+  const { data: worktree, isError } = useQuery(trpc.worktree.get.queryOptions({ sessionId }));
 
   const { data: diff } = useQuery(
-    trpc.worktree.diff.queryOptions(
-      { sessionId },
-      { enabled: diffExpanded },
-    ),
+    trpc.worktree.diff.queryOptions({ sessionId }, { enabled: diffExpanded }),
   );
 
   const archiveMutation = useMutation(
     trpc.worktree.archive.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['worktree'] });
+        queryClient.invalidateQueries({ queryKey: ["worktree"] });
       },
     }),
   );
@@ -46,8 +41,8 @@ export function WorktreePanel({ sessionId }: WorktreePanelProps) {
   const keepMutation = useMutation(
     trpc.worktree.keep.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['worktree'] });
-        queryClient.invalidateQueries({ queryKey: ['session'] });
+        queryClient.invalidateQueries({ queryKey: ["worktree"] });
+        queryClient.invalidateQueries({ queryKey: ["session"] });
       },
     }),
   );
@@ -62,10 +57,12 @@ export function WorktreePanel({ sessionId }: WorktreePanelProps) {
             <div className="flex items-center gap-2">
               <GitBranch className="h-4 w-4 text-neutral-fg-subtle" />
               <span className="text-sm font-mono">{worktree.branch}</span>
-              <Badge variant="outline" className="text-[10px]">{worktree.status}</Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {worktree.status}
+              </Badge>
             </div>
             <div className="flex gap-1.5">
-              {worktree.status === 'active' && (
+              {worktree.status === "active" && (
                 <>
                   <Button size="sm" onClick={() => setMergeOpen(true)}>
                     <GitMerge className="h-3 w-3 mr-1" />
@@ -98,7 +95,11 @@ export function WorktreePanel({ sessionId }: WorktreePanelProps) {
 
           <Collapsible open={diffExpanded} onOpenChange={setDiffExpanded}>
             <CollapsibleTrigger className="flex items-center gap-1.5 text-xs text-neutral-fg-subtle hover:text-neutral-fg transition-colors">
-              {diffExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              {diffExpanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
+              )}
               View Diff
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2">

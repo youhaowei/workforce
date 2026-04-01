@@ -1,6 +1,6 @@
-import {createLazyFileRoute} from '@tanstack/react-router';
-import {TemplateListView} from '../components/Templates';
+import { createLazyFileRoute } from "@tanstack/react-router";
+import { TemplateListView } from "../components/Templates";
 
-export const Route = createLazyFileRoute('/templates')({
+export const Route = createLazyFileRoute("/templates")({
   component: TemplateListView,
 });

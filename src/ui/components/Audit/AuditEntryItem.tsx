@@ -2,23 +2,28 @@
  * AuditEntryItem - Individual audit entry with type-specific formatting.
  */
 
-import { useState } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronRight } from 'lucide-react';
-import type { AuditEntry } from '@/services/types';
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import type { AuditEntry } from "@/services/types";
 
 interface AuditEntryItemProps {
   entry: AuditEntry;
 }
 
-function typeVariant(type: string): { variant?: 'soft' | 'outline'; color?: 'primary' | 'danger' } {
+function typeVariant(type: string): { variant?: "soft" | "outline"; color?: "primary" | "danger" } {
   switch (type) {
-    case 'state_change': return { color: 'primary' };
-    case 'tool_use': return { variant: 'soft' };
-    case 'review_decision': return { color: 'danger' };
-    case 'agent_spawn': return { variant: 'outline' };
-    default: return { variant: 'outline' };
+    case "state_change":
+      return { color: "primary" };
+    case "tool_use":
+      return { variant: "soft" };
+    case "review_decision":
+      return { color: "danger" };
+    case "agent_spawn":
+      return { variant: "outline" };
+    default:
+      return { variant: "outline" };
   }
 }
 
@@ -40,10 +45,12 @@ export function AuditEntryItem({ entry }: AuditEntryItemProps) {
           {new Date(entry.timestamp).toLocaleTimeString()}
         </span>
         <Badge {...typeVariant(entry.type)} className="text-[10px] shrink-0">
-          {entry.type.replace('_', ' ')}
+          {entry.type.replace("_", " ")}
         </Badge>
         <span className="text-neutral-fg-subtle truncate flex-1">{entry.description}</span>
-        <code className="text-[10px] text-neutral-fg-subtle shrink-0">{entry.sessionId.slice(0, 8)}</code>
+        <code className="text-[10px] text-neutral-fg-subtle shrink-0">
+          {entry.sessionId.slice(0, 8)}
+        </code>
       </CollapsibleTrigger>
       {hasData && (
         <CollapsibleContent className="ml-9 mt-1 mb-2">

@@ -1,14 +1,14 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import MessageInput from './MessageInput';
+import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import MessageInput from "./MessageInput";
 
 // Mock tRPC + React Query so the component doesn't need a real provider
-vi.mock('@/bridge/react', () => ({
+vi.mock("@/bridge/react", () => ({
   useTRPC: () => ({
     agent: {
       supportedModels: {
         queryOptions: () => ({
-          queryKey: ['agent', 'supportedModels'],
+          queryKey: ["agent", "supportedModels"],
           queryFn: () => Promise.resolve([]),
         }),
       },
@@ -16,7 +16,7 @@ vi.mock('@/bridge/react', () => ({
     org: {
       getCurrent: {
         queryOptions: () => ({
-          queryKey: ['org', 'getCurrent'],
+          queryKey: ["org", "getCurrent"],
           queryFn: () => Promise.resolve(null),
         }),
       },
@@ -24,15 +24,15 @@ vi.mock('@/bridge/react', () => ({
   }),
 }));
 
-vi.mock('@tanstack/react-query', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@tanstack/react-query')>();
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tanstack/react-query")>();
   return {
     ...actual,
     useQuery: () => ({ data: undefined, isLoading: false, error: null }),
   };
 });
 
-describe('MessageInput', () => {
+describe("MessageInput", () => {
   const mockOnSubmit = vi.fn();
   const mockOnCancel = vi.fn();
 
@@ -42,179 +42,175 @@ describe('MessageInput', () => {
     localStorage.clear();
   });
 
-  it('renders with default placeholder', () => {
+  it("renders with default placeholder", () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
-    expect(screen.getByPlaceholderText('Ask Workforce anything...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask Workforce anything...")).toBeInTheDocument();
   });
 
-  it('renders with custom placeholder', () => {
+  it("renders with custom placeholder", () => {
     render(
-      <MessageInput
-        onSubmit={mockOnSubmit}
-        isStreaming={false}
-        placeholder="Ask anything..."
-      />,
+      <MessageInput onSubmit={mockOnSubmit} isStreaming={false} placeholder="Ask anything..." />,
     );
-    expect(screen.getByPlaceholderText('Ask anything...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Ask anything...")).toBeInTheDocument();
   });
 
-  it('calls onSubmit with content and agentConfig on Enter', () => {
+  it("calls onSubmit with content and agentConfig on Enter", () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-    const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
-    fireEvent.change(textarea, { target: { value: '  Hello world  ' } });
-    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+    const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
+    fireEvent.change(textarea, { target: { value: "  Hello world  " } });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
     expect(mockOnSubmit).toHaveBeenCalledTimes(1);
     const call = mockOnSubmit.mock.calls[0][0];
-    expect(call.content).toBe('Hello world');
+    expect(call.content).toBe("Hello world");
     expect(call.agentConfig).toEqual({
-      model: 'claude-sonnet-4-5-20250929',
-      thinkingLevel: 'auto',
-      permissionMode: 'default',
+      model: "claude-sonnet-4-5-20250929",
+      thinkingLevel: "auto",
+      permissionMode: "default",
     });
   });
 
-  it('does not submit on Shift+Enter (allows multiline)', () => {
+  it("does not submit on Shift+Enter (allows multiline)", () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-    const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
-    fireEvent.change(textarea, { target: { value: 'Line 1' } });
-    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
+    const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
+    fireEvent.change(textarea, { target: { value: "Line 1" } });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true });
 
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
-  it('clears input on Escape when not streaming', () => {
+  it("clears input on Escape when not streaming", () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-    const textarea = screen.getByPlaceholderText('Ask Workforce anything...') as HTMLTextAreaElement;
-    fireEvent.change(textarea, { target: { value: 'Some text' } });
-    expect(textarea.value).toBe('Some text');
+    const textarea = screen.getByPlaceholderText(
+      "Ask Workforce anything...",
+    ) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "Some text" } });
+    expect(textarea.value).toBe("Some text");
 
-    fireEvent.keyDown(textarea, { key: 'Escape' });
-    expect(textarea.value).toBe('');
+    fireEvent.keyDown(textarea, { key: "Escape" });
+    expect(textarea.value).toBe("");
   });
 
-  it('does not call onCancel on Escape when not streaming', () => {
-    render(
-      <MessageInput
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        isStreaming={false}
-      />,
-    );
+  it("does not call onCancel on Escape when not streaming", () => {
+    render(<MessageInput onSubmit={mockOnSubmit} onCancel={mockOnCancel} isStreaming={false} />);
 
-    const textarea = screen.getByPlaceholderText('Ask Workforce anything...') as HTMLTextAreaElement;
-    fireEvent.change(textarea, { target: { value: 'Test' } });
-    fireEvent.keyDown(textarea, { key: 'Escape' });
+    const textarea = screen.getByPlaceholderText(
+      "Ask Workforce anything...",
+    ) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "Test" } });
+    fireEvent.keyDown(textarea, { key: "Escape" });
 
-    expect(textarea.value).toBe('');
+    expect(textarea.value).toBe("");
     expect(mockOnCancel).not.toHaveBeenCalled();
   });
 
-  it('disables textarea during streaming', () => {
+  it("disables textarea during streaming", () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={true} />);
 
-    const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
+    const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
     expect(textarea).toBeDisabled();
   });
 
-  it('shows Stop button during streaming', () => {
-    render(
-      <MessageInput
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        isStreaming={true}
-      />,
-    );
+  it("shows Stop button during streaming", () => {
+    render(<MessageInput onSubmit={mockOnSubmit} onCancel={mockOnCancel} isStreaming={true} />);
 
-    expect(screen.getByText('Stop')).toBeInTheDocument();
-    expect(screen.queryByTitle('Send (Enter)')).not.toBeInTheDocument();
+    expect(screen.getByText("Stop")).toBeInTheDocument();
+    expect(screen.queryByTitle("Send (Enter)")).not.toBeInTheDocument();
   });
 
-  it('shows Send button when not streaming', () => {
+  it("shows Send button when not streaming", () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-    expect(screen.getByTitle('Send (Enter)')).toBeInTheDocument();
-    expect(screen.queryByText('Stop')).not.toBeInTheDocument();
+    expect(screen.getByTitle("Send (Enter)")).toBeInTheDocument();
+    expect(screen.queryByText("Stop")).not.toBeInTheDocument();
   });
 
-  it('disables Send button when input is empty', () => {
+  it("disables Send button when input is empty", () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-    const sendButton = screen.getByTitle('Send (Enter)');
+    const sendButton = screen.getByTitle("Send (Enter)");
     expect(sendButton).toBeDisabled();
   });
 
-  it('enables Send button when input has content', () => {
+  it("enables Send button when input has content", () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-    const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
-    fireEvent.change(textarea, { target: { value: 'Hello' } });
+    const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
+    fireEvent.change(textarea, { target: { value: "Hello" } });
 
-    const sendButton = screen.getByTitle('Send (Enter)');
+    const sendButton = screen.getByTitle("Send (Enter)");
     expect(sendButton).not.toBeDisabled();
   });
 
-  it('does not submit empty or whitespace-only input', () => {
+  it("does not submit empty or whitespace-only input", () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-    const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
-    fireEvent.change(textarea, { target: { value: '   ' } });
-    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+    const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
+    fireEvent.change(textarea, { target: { value: "   " } });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
     expect(mockOnSubmit).not.toHaveBeenCalled();
   });
 
-  it('clears input after successful submit', () => {
+  it("clears input after successful submit", () => {
     render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-    const textarea = screen.getByPlaceholderText('Ask Workforce anything...') as HTMLTextAreaElement;
-    fireEvent.change(textarea, { target: { value: 'Test message' } });
-    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+    const textarea = screen.getByPlaceholderText(
+      "Ask Workforce anything...",
+    ) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: "Test message" } });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
-    expect(textarea.value).toBe('');
+    expect(textarea.value).toBe("");
   });
 
-  it('calls onCancel when Stop button is clicked', () => {
-    render(
-      <MessageInput
-        onSubmit={mockOnSubmit}
-        onCancel={mockOnCancel}
-        isStreaming={true}
-      />,
-    );
+  it("calls onCancel when Stop button is clicked", () => {
+    render(<MessageInput onSubmit={mockOnSubmit} onCancel={mockOnCancel} isStreaming={true} />);
 
-    const stopButton = screen.getByText('Stop');
+    const stopButton = screen.getByText("Stop");
     fireEvent.click(stopButton);
 
     expect(mockOnCancel).toHaveBeenCalledTimes(1);
   });
 
-  describe('config restoration', () => {
-    it('restores config from localStorage when no session messages', () => {
-      const stored = { model: 'claude-opus-4-6', thinkingLevel: 'high', permissionMode: 'bypassPermissions' };
-      localStorage.setItem('agent-config-last', JSON.stringify(stored));
+  describe("config restoration", () => {
+    it("restores config from localStorage when no session messages", () => {
+      const stored = {
+        model: "claude-opus-4-6",
+        thinkingLevel: "high",
+        permissionMode: "bypassPermissions",
+      };
+      localStorage.setItem("agent-config-last", JSON.stringify(stored));
 
       render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-      const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
-      fireEvent.change(textarea, { target: { value: 'test' } });
-      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+      const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
+      fireEvent.change(textarea, { target: { value: "test" } });
+      fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
       const call = mockOnSubmit.mock.calls[0][0];
       expect(call.agentConfig).toEqual(stored);
     });
 
-    it('restores config from session messages over localStorage', () => {
-      const storedConfig = { model: 'claude-opus-4-6', thinkingLevel: 'high', permissionMode: 'bypassPermissions' };
-      localStorage.setItem('agent-config-last', JSON.stringify(storedConfig));
+    it("restores config from session messages over localStorage", () => {
+      const storedConfig = {
+        model: "claude-opus-4-6",
+        thinkingLevel: "high",
+        permissionMode: "bypassPermissions",
+      };
+      localStorage.setItem("agent-config-last", JSON.stringify(storedConfig));
 
-      const sessionConfig = { model: 'claude-haiku-4-5-20251001', thinkingLevel: 'low' as const, permissionMode: 'plan' as const };
+      const sessionConfig = {
+        model: "claude-haiku-4-5-20251001",
+        thinkingLevel: "low" as const,
+        permissionMode: "plan" as const,
+      };
       const messages = [
-        { role: 'user' as const, agentConfig: sessionConfig },
-        { role: 'assistant' as const },
+        { role: "user" as const, agentConfig: sessionConfig },
+        { role: "assistant" as const },
       ];
 
       render(
@@ -226,59 +222,66 @@ describe('MessageInput', () => {
         />,
       );
 
-      const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
-      fireEvent.change(textarea, { target: { value: 'test' } });
-      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+      const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
+      fireEvent.change(textarea, { target: { value: "test" } });
+      fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
       const call = mockOnSubmit.mock.calls[0][0];
       expect(call.agentConfig).toEqual(sessionConfig);
     });
 
-    it('ignores invalid localStorage config and falls back to defaults', () => {
-      localStorage.setItem('agent-config-last', JSON.stringify({ model: '', thinkingLevel: 'invalid' }));
+    it("ignores invalid localStorage config and falls back to defaults", () => {
+      localStorage.setItem(
+        "agent-config-last",
+        JSON.stringify({ model: "", thinkingLevel: "invalid" }),
+      );
 
       render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-      const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
-      fireEvent.change(textarea, { target: { value: 'test' } });
-      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+      const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
+      fireEvent.change(textarea, { target: { value: "test" } });
+      fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
       const call = mockOnSubmit.mock.calls[0][0];
       expect(call.agentConfig).toEqual({
-        model: 'claude-sonnet-4-5-20250929',
-        thinkingLevel: 'auto',
-        permissionMode: 'default',
+        model: "claude-sonnet-4-5-20250929",
+        thinkingLevel: "auto",
+        permissionMode: "default",
       });
     });
 
-    it('persists config to localStorage on submit', () => {
+    it("persists config to localStorage on submit", () => {
       render(<MessageInput onSubmit={mockOnSubmit} isStreaming={false} />);
 
-      const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
-      fireEvent.change(textarea, { target: { value: 'test' } });
-      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+      const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
+      fireEvent.change(textarea, { target: { value: "test" } });
+      fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
-      const stored = JSON.parse(localStorage.getItem('agent-config-last')!);
+      const stored = JSON.parse(localStorage.getItem("agent-config-last")!);
       expect(stored).toEqual({
-        model: 'claude-sonnet-4-5-20250929',
-        thinkingLevel: 'auto',
-        permissionMode: 'default',
+        model: "claude-sonnet-4-5-20250929",
+        thinkingLevel: "auto",
+        permissionMode: "default",
       });
     });
 
-    it('auto-corrects stale model from session restore to first available model', () => {
+    it("auto-corrects stale model from session restore to first available model", () => {
       // Cache a known model list
       const knownModels = [
-        { id: 'claude-opus-4-6', displayName: 'Opus 4.6', description: 'Most capable model' },
-        { id: 'claude-sonnet-4-6', displayName: 'Sonnet 4.6', description: 'Fast and capable' },
+        { id: "claude-opus-4-6", displayName: "Opus 4.6", description: "Most capable model" },
+        { id: "claude-sonnet-4-6", displayName: "Sonnet 4.6", description: "Fast and capable" },
       ];
-      localStorage.setItem('agent-models-cache', JSON.stringify(knownModels));
+      localStorage.setItem("agent-models-cache", JSON.stringify(knownModels));
 
       // Session has a deprecated model that's not in the list
-      const staleConfig = { model: 'claude-3-opus-20240229', thinkingLevel: 'auto' as const, permissionMode: 'default' as const };
+      const staleConfig = {
+        model: "claude-3-opus-20240229",
+        thinkingLevel: "auto" as const,
+        permissionMode: "default" as const,
+      };
       const messages = [
-        { role: 'user' as const, agentConfig: staleConfig },
-        { role: 'assistant' as const },
+        { role: "user" as const, agentConfig: staleConfig },
+        { role: "assistant" as const },
       ];
 
       render(
@@ -290,15 +293,15 @@ describe('MessageInput', () => {
         />,
       );
 
-      const textarea = screen.getByPlaceholderText('Ask Workforce anything...');
-      fireEvent.change(textarea, { target: { value: 'test' } });
-      fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false });
+      const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
+      fireEvent.change(textarea, { target: { value: "test" } });
+      fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
       const call = mockOnSubmit.mock.calls[0][0];
       // Should auto-correct to first model in the list, not the stale one
-      expect(call.agentConfig.model).toBe('claude-opus-4-6');
-      expect(call.agentConfig.thinkingLevel).toBe('auto');
-      expect(call.agentConfig.permissionMode).toBe('default');
+      expect(call.agentConfig.model).toBe("claude-opus-4-6");
+      expect(call.agentConfig.thinkingLevel).toBe("auto");
+      expect(call.agentConfig.permissionMode).toBe("default");
     });
   });
 });

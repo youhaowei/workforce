@@ -4,28 +4,28 @@
  * Sets org.initialized = true and org.settings.agentDefaults on submit.
  */
 
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { ArrowRight, Loader2 } from 'lucide-react';
-import type { AgentTone, Org, ThinkingLevel, VerboseLevel } from '@/services/types';
+} from "@/components/ui/select";
+import { ArrowRight, Loader2 } from "lucide-react";
+import type { AgentTone, Org, ThinkingLevel, VerboseLevel } from "@/services/types";
 import {
   SEED_MODELS,
   THINKING_LEVELS,
   TONE_OPTIONS,
   VERBOSE_OPTIONS,
   DEFAULT_AGENT_DEFAULTS,
-} from '../Messages/agentConfig';
+} from "../Messages/agentConfig";
 
 interface InitOrgStepProps {
   org: Org;
@@ -36,11 +36,15 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
-  const [description, setDescription] = useState(org.description ?? '');
+  const [description, setDescription] = useState(org.description ?? "");
   const [model, setModel] = useState(DEFAULT_AGENT_DEFAULTS.model);
-  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(DEFAULT_AGENT_DEFAULTS.thinkingLevel);
+  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(
+    DEFAULT_AGENT_DEFAULTS.thinkingLevel,
+  );
   const [tone, setTone] = useState<AgentTone>(DEFAULT_AGENT_DEFAULTS.tone);
-  const [verboseLevel, setVerboseLevel] = useState<VerboseLevel>(DEFAULT_AGENT_DEFAULTS.verboseLevel);
+  const [verboseLevel, setVerboseLevel] = useState<VerboseLevel>(
+    DEFAULT_AGENT_DEFAULTS.verboseLevel,
+  );
 
   const updateMutation = useMutation(
     trpc.org.update.mutationOptions({
@@ -48,7 +52,7 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
         // Synchronously update cache to avoid stale-data window
         queryClient.setQueryData(trpc.org.getCurrent.queryKey(), updatedOrg);
         queryClient.setQueryData(trpc.org.list.queryKey(), (old: Org[] | undefined) =>
-          (old ?? []).map((o) => o.id === updatedOrg.id ? updatedOrg : o),
+          (old ?? []).map((o) => (o.id === updatedOrg.id ? updatedOrg : o)),
         );
         onComplete();
       },
@@ -73,9 +77,7 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
   return (
     <div className="w-full max-w-lg px-6">
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-semibold mb-2">
-          Set up "{org.name}"
-        </h1>
+        <h1 className="text-2xl font-semibold mb-2">Set up "{org.name}"</h1>
         <p className="text-sm text-neutral-fg-subtle">
           Configure your workspace defaults. You can change these later in settings.
         </p>
@@ -110,8 +112,8 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
                   onClick={() => setModel(m.id)}
                   className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
                     model === m.id
-                      ? 'bg-palette-primary text-palette-primary-fg border-palette-primary'
-                      : 'bg-neutral-bg-subtle text-neutral-fg border-neutral-border hover:border-palette-primary/50'
+                      ? "bg-palette-primary text-palette-primary-fg border-palette-primary"
+                      : "bg-neutral-bg-subtle text-neutral-fg border-neutral-border hover:border-palette-primary/50"
                   }`}
                 >
                   {m.displayName}
@@ -124,7 +126,10 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label className="text-xs text-neutral-fg-subtle">Thinking</Label>
-              <Select value={thinkingLevel} onValueChange={(v) => setThinkingLevel(v as ThinkingLevel)}>
+              <Select
+                value={thinkingLevel}
+                onValueChange={(v) => setThinkingLevel(v as ThinkingLevel)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -175,7 +180,7 @@ export function InitOrgStep({ org, onComplete }: InitOrgStepProps) {
 
         {updateMutation.isError && (
           <p className="text-sm text-palette-danger">
-            {updateMutation.error?.message ?? 'Something went wrong. Please try again.'}
+            {updateMutation.error?.message ?? "Something went wrong. Please try again."}
           </p>
         )}
 

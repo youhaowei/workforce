@@ -2,24 +2,24 @@
  * TemplateEditor - Full editor dialog for creating/editing agent templates.
  */
 
-import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import type { AgentTemplate } from '@/services/types';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { AgentTemplate } from "@/services/types";
 
 interface TemplateEditorProps {
   template?: AgentTemplate | null;
@@ -27,12 +27,12 @@ interface TemplateEditorProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type ReasoningIntensity = 'low' | 'medium' | 'high' | 'max';
-const INTENSITIES: ReasoningIntensity[] = ['low', 'medium', 'high', 'max'];
+type ReasoningIntensity = "low" | "medium" | "high" | "max";
+const INTENSITIES: ReasoningIntensity[] = ["low", "medium", "high", "max"];
 
 function saveButtonLabel(isPending: boolean, isEditing: boolean): string {
-  if (isPending) return 'Saving...';
-  return isEditing ? 'Update' : 'Create';
+  if (isPending) return "Saving...";
+  return isEditing ? "Update" : "Create";
 }
 
 export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorProps) {
@@ -40,38 +40,38 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
   const queryClient = useQueryClient();
   const orgId = useRequiredOrgId();
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [skillsInput, setSkillsInput] = useState('');
-  const [toolsInput, setToolsInput] = useState('');
-  const [constraintsInput, setConstraintsInput] = useState('');
-  const [reasoning, setReasoning] = useState<ReasoningIntensity>('medium');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [systemPrompt, setSystemPrompt] = useState("");
+  const [skillsInput, setSkillsInput] = useState("");
+  const [toolsInput, setToolsInput] = useState("");
+  const [constraintsInput, setConstraintsInput] = useState("");
+  const [reasoning, setReasoning] = useState<ReasoningIntensity>("medium");
 
   useEffect(() => {
     if (template) {
       setName(template.name);
       setDescription(template.description);
       setSystemPrompt(template.systemPrompt);
-      setSkillsInput(template.skills.join(', '));
-      setToolsInput(template.tools.join(', '));
-      setConstraintsInput(template.constraints.join('\n'));
+      setSkillsInput(template.skills.join(", "));
+      setToolsInput(template.tools.join(", "));
+      setConstraintsInput(template.constraints.join("\n"));
       setReasoning(template.reasoningIntensity);
     } else {
-      setName('');
-      setDescription('');
-      setSystemPrompt('');
-      setSkillsInput('');
-      setToolsInput('');
-      setConstraintsInput('');
-      setReasoning('medium');
+      setName("");
+      setDescription("");
+      setSystemPrompt("");
+      setSkillsInput("");
+      setToolsInput("");
+      setConstraintsInput("");
+      setReasoning("medium");
     }
   }, [template, open]);
 
   const createMutation = useMutation(
     trpc.template.create.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['template'] });
+        queryClient.invalidateQueries({ queryKey: ["template"] });
         onOpenChange(false);
       },
     }),
@@ -80,14 +80,17 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
   const updateMutation = useMutation(
     trpc.template.update.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['template'] });
+        queryClient.invalidateQueries({ queryKey: ["template"] });
         onOpenChange(false);
       },
     }),
   );
 
   const parseList = (input: string): string[] =>
-    input.split(',').map((s) => s.trim()).filter(Boolean);
+    input
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -98,7 +101,10 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
       systemPrompt: systemPrompt.trim(),
       skills: parseList(skillsInput),
       tools: parseList(toolsInput),
-      constraints: constraintsInput.split('\n').map((s) => s.trim()).filter(Boolean),
+      constraints: constraintsInput
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean),
       reasoningIntensity: reasoning,
     };
 
@@ -115,7 +121,7 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh]">
         <DialogHeader>
-          <DialogTitle>{template ? 'Edit Template' : 'New Template'}</DialogTitle>
+          <DialogTitle>{template ? "Edit Template" : "New Template"}</DialogTitle>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4">
@@ -154,7 +160,9 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
                 {INTENSITIES.map((level) => (
                   <Badge
                     key={level}
-                    {...(reasoning === level ? { color: 'primary' as const } : { variant: 'outline' as const })}
+                    {...(reasoning === level
+                      ? { color: "primary" as const }
+                      : { variant: "outline" as const })}
                     className="cursor-pointer"
                     onClick={() => setReasoning(level)}
                   >
@@ -194,7 +202,9 @@ export function TemplateEditor({ template, open, onOpenChange }: TemplateEditorP
           </div>
         </ScrollArea>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleSave} disabled={!name.trim() || isPending}>
             {saveButtonLabel(isPending, !!template)}
           </Button>

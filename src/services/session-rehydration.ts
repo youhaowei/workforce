@@ -5,13 +5,13 @@
  * then consolidate the file so the header is current for future restarts.
  */
 
-import type { Session, HydrationStatus } from './types';
-import { getEventBus } from '@/shared/event-bus';
-import { createLogger } from 'tracey';
-import { consolidateSession, AppendLock, SeqAllocator } from './session-journal';
-import { loadSession } from './session-upgrade';
+import type { Session, HydrationStatus } from "./types";
+import { getEventBus } from "@/shared/event-bus";
+import { createLogger } from "tracey";
+import { consolidateSession, AppendLock, SeqAllocator } from "./session-journal";
+import { loadSession } from "./session-upgrade";
 
-const log = createLogger('Session');
+const log = createLogger("Session");
 
 /** Max concurrent background rehydration workers at startup. */
 const REHYDRATION_CONCURRENCY = 3;
@@ -45,9 +45,12 @@ export class RehydrationManager {
   /** Fill the queue with all cold sessions and start draining. */
   enqueue(): void {
     for (const [id, status] of this.deps.hydrationStatus) {
-      if (status === 'cold') this.queue.push(id);
+      if (status === "cold") this.queue.push(id);
     }
-    log.info({ count: this.queue.length }, `Rehydration: enqueued ${this.queue.length} cold sessions`);
+    log.info(
+      { count: this.queue.length },
+      `Rehydration: enqueued ${this.queue.length} cold sessions`,
+    );
     this.drain();
   }
 
@@ -78,7 +81,7 @@ export class RehydrationManager {
       this.concurrency.active < this.concurrency.max
     ) {
       const sessionId = this.queue.shift()!;
-      if (this.deps.hydrationStatus.get(sessionId) !== 'cold') continue;
+      if (this.deps.hydrationStatus.get(sessionId) !== "cold") continue;
 
       this.concurrency.active++;
       this.rehydrateAndConsolidate(sessionId).finally(() => {
@@ -106,23 +109,28 @@ export class RehydrationManager {
         if (this.deps.isDisposed() || deletedSessionIds.has(sessionId)) return;
 
         try {
-          hydrationStatus.set(sessionId, 'rehydrating');
-          bus.emit({ type: 'SessionRehydrateStarted', sessionId, timestamp: Date.now() });
+          hydrationStatus.set(sessionId, "rehydrating");
+          bus.emit({ type: "SessionRehydrateStarted", sessionId, timestamp: Date.now() });
 
           const result = await loadSession(sessionsDir, sessionId);
 
           if (deletedSessionIds.has(sessionId)) return;
           if (!result) {
-            hydrationStatus.set(sessionId, 'failed');
-            bus.emit({ type: 'SessionRehydrateFailed', sessionId, error: 'Session file not found', timestamp: Date.now() });
+            hydrationStatus.set(sessionId, "failed");
+            bus.emit({
+              type: "SessionRehydrateFailed",
+              sessionId,
+              error: "Session file not found",
+              timestamp: Date.now(),
+            });
             return;
           }
           const { session, maxSeq } = result;
           sessions.set(sessionId, session);
           this.deps.seqAllocators.set(sessionId, new SeqAllocator(maxSeq + 1));
 
-          hydrationStatus.set(sessionId, 'consolidating');
-          bus.emit({ type: 'SessionConsolidationStarted', sessionId, timestamp: Date.now() });
+          hydrationStatus.set(sessionId, "consolidating");
+          bus.emit({ type: "SessionConsolidationStarted", sessionId, timestamp: Date.now() });
 
           await appendLock.acquire(sessionId, async () => {
             if (deletedSessionIds.has(sessionId)) return;
@@ -135,22 +143,30 @@ export class RehydrationManager {
             return;
           }
 
-          hydrationStatus.set(sessionId, 'ready');
-          bus.emit({ type: 'SessionRehydrateDone', sessionId, timestamp: Date.now() });
+          hydrationStatus.set(sessionId, "ready");
+          bus.emit({ type: "SessionRehydrateDone", sessionId, timestamp: Date.now() });
           log.info({ sessionId }, `Rehydrated session ${sessionId}`);
           return;
         } catch (err) {
-          log.error({ sessionId, attempt: attempt + 1, error: err instanceof Error ? err.message : String(err) }, `Rehydration failed for ${sessionId} (attempt ${attempt + 1})`);
+          log.error(
+            {
+              sessionId,
+              attempt: attempt + 1,
+              error: err instanceof Error ? err.message : String(err),
+            },
+            `Rehydration failed for ${sessionId} (attempt ${attempt + 1})`,
+          );
 
           if (attempt < REHYDRATION_MAX_RETRIES) {
-            hydrationStatus.set(sessionId, 'cold');
+            hydrationStatus.set(sessionId, "cold");
             await new Promise((resolve) => setTimeout(resolve, REHYDRATION_RETRY_DELAY_MS));
             continue;
           }
 
-          hydrationStatus.set(sessionId, 'failed');
+          hydrationStatus.set(sessionId, "failed");
           bus.emit({
-            type: 'SessionRehydrateFailed', sessionId,
+            type: "SessionRehydrateFailed",
+            sessionId,
             error: err instanceof Error ? err.message : String(err),
             timestamp: Date.now(),
           });
@@ -158,9 +174,12 @@ export class RehydrationManager {
       }
     })();
 
-    this.hydrationFlights.set(sessionId, work.finally(() => {
-      this.hydrationFlights.delete(sessionId);
-    }));
+    this.hydrationFlights.set(
+      sessionId,
+      work.finally(() => {
+        this.hydrationFlights.delete(sessionId);
+      }),
+    );
     return work;
   }
 }

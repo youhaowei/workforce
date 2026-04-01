@@ -5,13 +5,13 @@
  * like code fences, tables, and lists). Comments appear in a list below the content.
  */
 
-import { useState, useCallback, useMemo } from 'react';
-import { Plus, MessageSquare } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import Markdown from '../Messages/Markdown';
-import type { ArtifactComment } from '@/services/types';
+import { useState, useCallback, useMemo } from "react";
+import { Plus, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import Markdown from "../Messages/Markdown";
+import type { ArtifactComment } from "@/services/types";
 
-type CommentSeverity = ArtifactComment['severity'];
+type CommentSeverity = ArtifactComment["severity"];
 
 interface ArtifactContentProps {
   content: string;
@@ -20,27 +20,45 @@ interface ArtifactContentProps {
 }
 
 const SEVERITY_STYLES: Record<CommentSeverity, { chip: string; border: string; label: string }> = {
-  suggestion: { chip: 'bg-palette-info/15 text-palette-info', border: 'border-l-palette-info', label: 'suggestion' },
-  issue: { chip: 'bg-palette-danger/15 text-palette-danger', border: 'border-l-palette-danger', label: 'issue' },
-  question: { chip: 'bg-palette-warning/15 text-palette-warning', border: 'border-l-palette-warning', label: 'question' },
-  praise: { chip: 'bg-palette-success/15 text-palette-success', border: 'border-l-palette-success', label: 'praise' },
+  suggestion: {
+    chip: "bg-palette-info/15 text-palette-info",
+    border: "border-l-palette-info",
+    label: "suggestion",
+  },
+  issue: {
+    chip: "bg-palette-danger/15 text-palette-danger",
+    border: "border-l-palette-danger",
+    label: "issue",
+  },
+  question: {
+    chip: "bg-palette-warning/15 text-palette-warning",
+    border: "border-l-palette-warning",
+    label: "question",
+  },
+  praise: {
+    chip: "bg-palette-success/15 text-palette-success",
+    border: "border-l-palette-success",
+    label: "praise",
+  },
 };
 
-const SEVERITY_OPTIONS: CommentSeverity[] = ['suggestion', 'issue', 'question', 'praise'];
+const SEVERITY_OPTIONS: CommentSeverity[] = ["suggestion", "issue", "question", "praise"];
 
 function InlineComment({ comment }: { comment: ArtifactComment }) {
-  const isAgent = comment.author.type === 'agent';
+  const isAgent = comment.author.type === "agent";
   const sev = SEVERITY_STYLES[comment.severity];
 
   return (
-    <div className={`ml-4 my-1 bg-neutral-bg-subtle border border-neutral-border rounded-md px-2.5 py-1.5 border-l-[3px] ${sev.border}`}>
+    <div
+      className={`ml-4 my-1 bg-neutral-bg-subtle border border-neutral-border rounded-md px-2.5 py-1.5 border-l-[3px] ${sev.border}`}
+    >
       <div className="flex items-center gap-1.5 mb-0.5">
-        <span className={`text-[10px] font-semibold ${isAgent ? 'text-palette-warning' : 'text-palette-primary'}`}>
-          {isAgent ? 'Agent' : 'You'}
+        <span
+          className={`text-[10px] font-semibold ${isAgent ? "text-palette-warning" : "text-palette-primary"}`}
+        >
+          {isAgent ? "Agent" : "You"}
         </span>
-        <span className={`text-[9px] px-1 py-px rounded ${sev.chip} font-medium`}>
-          {sev.label}
-        </span>
+        <span className={`text-[9px] px-1 py-px rounded ${sev.chip} font-medium`}>{sev.label}</span>
       </div>
       <p className="text-xs leading-snug text-neutral-fg">{comment.content}</p>
     </div>
@@ -54,8 +72,8 @@ function CommentForm({
   onSubmit: (text: string, severity: CommentSeverity) => void;
   onCancel: () => void;
 }) {
-  const [text, setText] = useState('');
-  const [severity, setSeverity] = useState<CommentSeverity>('suggestion');
+  const [text, setText] = useState("");
+  const [severity, setSeverity] = useState<CommentSeverity>("suggestion");
 
   const handleSubmit = useCallback(() => {
     const trimmed = text.trim();
@@ -65,11 +83,11 @@ function CommentForm({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         handleSubmit();
       }
-      if (e.key === 'Escape') onCancel();
+      if (e.key === "Escape") onCancel();
     },
     [handleSubmit, onCancel],
   );
@@ -82,7 +100,9 @@ function CommentForm({
             key={s}
             onClick={() => setSeverity(s)}
             className={`text-[10px] px-1.5 py-0.5 rounded font-medium transition-colors ${
-              severity === s ? SEVERITY_STYLES[s].chip : 'text-neutral-fg-subtle hover:text-neutral-fg'
+              severity === s
+                ? SEVERITY_STYLES[s].chip
+                : "text-neutral-fg-subtle hover:text-neutral-fg"
             }`}
           >
             {s}
