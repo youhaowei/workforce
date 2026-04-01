@@ -1,135 +1,148 @@
+/**
+ * Git tRPC router tests.
+ *
+ * Tests Zod validation, cwd validation, and service wiring via createCaller().
+ * GitService itself is tested in src/services/git.test.ts.
+ */
+
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdir, rm, writeFile, realpath } from 'fs/promises';
+import { mkdir, rm, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { GitService } from '@/services/git';
+import { createCaller } from './index';
+import { resetGitRouterCache } from './git';
 
-describe('GitService (router backing)', () => {
-  let repoDir: string;
-  let svc: GitService;
+let repoDir: string;
+let caller: ReturnType<typeof createCaller>;
 
-  beforeEach(async () => {
-    repoDir = join(tmpdir(), `git-router-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    await mkdir(repoDir, { recursive: true });
+async function initGitRepo(dir: string) {
+  const { execFileNoThrow } = await import('@/utils/execFileNoThrow');
+  const git = (...args: string[]) => execFileNoThrow('git', args, { cwd: dir });
+  await git('init');
+  await git('config', 'user.email', 'test@test.com');
+  await git('config', 'user.name', 'Test User');
+  await writeFile(join(dir, 'README.md'), '# Test\n');
+  await git('add', 'README.md');
+  await git('commit', '-m', 'Initial commit');
+}
 
-    const { execFileNoThrow } = await import('@/utils/execFileNoThrow');
-    const git = (...args: string[]) => execFileNoThrow('git', args, { cwd: repoDir });
+beforeEach(async () => {
+  repoDir = join(tmpdir(), `git-router-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  await mkdir(repoDir, { recursive: true });
+  await initGitRepo(repoDir);
+  caller = createCaller({});
+});
 
-    await git('init');
-    await git('config', 'user.email', 'test@test.com');
-    await git('config', 'user.name', 'Test User');
+afterEach(async () => {
+  resetGitRouterCache();
+  await rm(repoDir, { recursive: true, force: true });
+});
 
-    // Create initial commit so branch exists
-    await writeFile(join(repoDir, 'README.md'), '# Test\n');
-    await git('add', 'README.md');
-    await git('commit', '-m', 'Initial commit');
+// ─── cwd validation ─────────────────────────────────────────────────────────
 
-    svc = new GitService({ cwd: repoDir });
+describe('cwd validation', () => {
+  it('rejects a non-git directory', async () => {
+    const nonGitDir = join(tmpdir(), `non-git-${Date.now()}`);
+    await mkdir(nonGitDir, { recursive: true });
+
+    try {
+      await expect(caller.git.status({ cwd: nonGitDir })).rejects.toThrow(
+        'cwd is not a git repository root',
+      );
+    } finally {
+      await rm(nonGitDir, { recursive: true, force: true });
+    }
   });
 
-  afterEach(async () => {
-    svc.dispose();
-    await rm(repoDir, { recursive: true, force: true });
+  it('rejects a path that does not exist', async () => {
+    await expect(
+      caller.git.status({ cwd: '/tmp/does-not-exist-ever-12345' }),
+    ).rejects.toThrow('cwd is not a git repository root');
   });
+});
 
-  it('isRepo returns true for git repo', async () => {
-    expect(await svc.isRepo()).toBe(true);
-  });
+// ─── status ─────────────────────────────────────────────────────────────────
 
-  it('isRepo returns false for non-git dir', async () => {
-    const tmpDir = join(tmpdir(), `non-git-${Date.now()}`);
-    await mkdir(tmpDir, { recursive: true });
-    const nonGit = new GitService({ cwd: tmpDir });
-    expect(await nonGit.isRepo()).toBe(false);
-    nonGit.dispose();
-    await rm(tmpDir, { recursive: true, force: true });
-  });
-
-  it('getStatus returns clean status after commit', async () => {
-    const status = await svc.getStatus();
+describe('git.status', () => {
+  it('returns clean status after initial commit', async () => {
+    const status = await caller.git.status({ cwd: repoDir });
     expect(status).not.toBeNull();
     expect(status!.isClean).toBe(true);
     expect(status!.staged).toEqual([]);
-    expect(status!.unstaged).toEqual([]);
-    expect(status!.untracked).toEqual([]);
   });
 
-  it('getStatus detects untracked files', async () => {
+  it('detects untracked files', async () => {
     await writeFile(join(repoDir, 'new.txt'), 'hello');
-    const status = await svc.getStatus(true);
+    const status = await caller.git.status({ cwd: repoDir, forceRefresh: true });
     expect(status!.isClean).toBe(false);
     expect(status!.untracked).toContain('new.txt');
   });
+});
 
-  it('add stages a file', async () => {
-    await writeFile(join(repoDir, 'staged.txt'), 'staged');
-    const ok = await svc.add('staged.txt');
-    expect(ok).toBe(true);
+// ─── stage / unstage ────────────────────────────────────────────────────────
 
-    const status = await svc.getStatus(true);
+describe('git.stage / git.unstage', () => {
+  it('stages and unstages a file via the router', async () => {
+    await writeFile(join(repoDir, 'file.txt'), 'data');
+
+    const stageResult = await caller.git.stage({ cwd: repoDir, files: ['file.txt'] });
+    expect(stageResult.success).toBe(true);
+
+    let status = await caller.git.status({ cwd: repoDir, forceRefresh: true });
     expect(status!.staged).toHaveLength(1);
-    expect(status!.staged[0].path).toBe('staged.txt');
-    expect(status!.staged[0].status).toBe('added');
-  });
 
-  it('reset unstages a file', async () => {
-    await writeFile(join(repoDir, 'unstage.txt'), 'data');
-    await svc.add('unstage.txt');
+    const unstageResult = await caller.git.unstage({ cwd: repoDir, files: ['file.txt'] });
+    expect(unstageResult.success).toBe(true);
 
-    const ok = await svc.reset('unstage.txt');
-    expect(ok).toBe(true);
-
-    const status = await svc.getStatus(true);
+    status = await caller.git.status({ cwd: repoDir, forceRefresh: true });
     expect(status!.staged).toHaveLength(0);
-    expect(status!.untracked).toContain('unstage.txt');
   });
+});
 
-  it('commit creates a commit with staged files', async () => {
+// ─── commit ─────────────────────────────────────────────────────────────────
+
+describe('git.commit', () => {
+  it('creates a commit through the router', async () => {
     await writeFile(join(repoDir, 'commit.txt'), 'content');
-    await svc.add('commit.txt');
-    const result = await svc.commit('Test commit');
+    await caller.git.stage({ cwd: repoDir, files: ['commit.txt'] });
+
+    const result = await caller.git.commit({ cwd: repoDir, message: 'Router commit' });
     expect(result.success).toBe(true);
     expect(result.hash).toBeTruthy();
-
-    const status = await svc.getStatus(true);
-    expect(status!.isClean).toBe(true);
   });
 
-  it('commit fails without staged files', async () => {
-    const result = await svc.commit('Empty commit');
+  it('fails commit with nothing staged', async () => {
+    const result = await caller.git.commit({ cwd: repoDir, message: 'Empty' });
     expect(result.success).toBe(false);
     expect(result.error).toBeTruthy();
   });
+});
 
-  it('getBranches returns current branch', async () => {
-    const branches = await svc.getBranches();
-    expect(branches.length).toBeGreaterThan(0);
-    const current = branches.find((b) => b.isCurrent);
-    expect(current).toBeTruthy();
+// ─── other queries ──────────────────────────────────────────────────────────
+
+describe('git queries', () => {
+  it('isRepo returns true for valid repo', async () => {
+    expect(await caller.git.isRepo({ cwd: repoDir })).toBe(true);
   });
 
-  it('getLog returns commit history', async () => {
-    const log = await svc.getLog(5);
+  it('branches returns at least one branch', async () => {
+    const branches = await caller.git.branches({ cwd: repoDir });
+    expect(branches.length).toBeGreaterThan(0);
+  });
+
+  it('log returns commit history', async () => {
+    const log = await caller.git.log({ cwd: repoDir, limit: 5 });
     expect(log.length).toBeGreaterThan(0);
     expect(log[0].subject).toBe('Initial commit');
-    expect(log[0].author).toBe('Test User');
   });
 
-  it('getDiff returns empty for clean repo', async () => {
-    const diff = await svc.getDiff();
+  it('diff returns empty for clean repo', async () => {
+    const diff = await caller.git.diff({ cwd: repoDir });
     expect(diff).toBe('');
   });
 
-  it('getDiff returns diff for modified files', async () => {
-    await writeFile(join(repoDir, 'README.md'), '# Modified\n');
-    const diff = await svc.getDiff();
-    expect(diff).toContain('Modified');
-  });
-
-  it('getRoot returns repository root', async () => {
-    const root = await svc.getRoot();
-    // macOS: /var → /private/var symlink; resolve both to compare
-    const resolvedRepo = await realpath(repoDir);
-    expect(root).toBe(resolvedRepo);
+  it('remotes returns empty for local repo', async () => {
+    const remotes = await caller.git.remotes({ cwd: repoDir });
+    expect(remotes).toEqual([]);
   });
 });

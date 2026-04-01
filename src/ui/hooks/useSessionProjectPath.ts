@@ -20,7 +20,7 @@ export function useSessionProjectPath({
   const { data: sessionList } = useQuery(
     trpc.session.list.queryOptions(
       orgId ? { orgId } : undefined,
-      { enabled: serverConnected },
+      { enabled: serverConnected && !!sessionId },
     ),
   );
 

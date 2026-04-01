@@ -1,13 +1,45 @@
 /**
- * Git tRPC Router — per-request GitService scoped to the given `cwd`.
+ * Git tRPC Router — cached GitService per validated `cwd`.
  */
 
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
+import { existsSync } from 'fs';
+import { resolve, isAbsolute } from 'path';
 import { router, publicProcedure } from '../trpc';
 import { GitService } from '@/services/git';
 
+// ─── cwd validation ─────────────────────────────────────────────────────────
+
+function validateGitCwd(cwd: string): string {
+  const resolved = resolve(cwd);
+  if (!isAbsolute(resolved)) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'cwd must be an absolute path' });
+  }
+  if (!existsSync(resolve(resolved, '.git'))) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'cwd is not a git repository root' });
+  }
+  return resolved;
+}
+
+// ─── service cache ──────────────────────────────────────────────────────────
+
+const serviceCache = new Map<string, GitService>();
+
 function gitFor(cwd: string): GitService {
-  return new GitService({ cwd });
+  const validated = validateGitCwd(cwd);
+  let svc = serviceCache.get(validated);
+  if (!svc) {
+    svc = new GitService({ cwd: validated });
+    serviceCache.set(validated, svc);
+  }
+  return svc;
+}
+
+/** Clear the service cache (for test teardown). */
+export function resetGitRouterCache(): void {
+  for (const svc of serviceCache.values()) svc.dispose();
+  serviceCache.clear();
 }
 
 export const gitRouter = router({

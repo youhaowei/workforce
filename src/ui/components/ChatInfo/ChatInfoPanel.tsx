@@ -332,7 +332,7 @@ function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
   );
 
   const [commitMsg, setCommitMsg] = useState('');
-  const [commitError, setCommitError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [committing, setCommitting] = useState(false);
 
   if (!status) return null;
@@ -344,29 +344,39 @@ function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
   ];
 
   const handleStage = async (file: string) => {
-    await trpcClient.git.stage.mutate({ cwd, files: [file] });
-    queryClient.invalidateQueries({ queryKey: trpc.git.status.queryKey({ cwd }) });
+    try {
+      setActionError(null);
+      await trpcClient.git.stage.mutate({ cwd, files: [file] });
+      queryClient.invalidateQueries({ queryKey: trpc.git.status.queryKey({ cwd }) });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to stage file');
+    }
   };
 
   const handleUnstage = async (file: string) => {
-    await trpcClient.git.unstage.mutate({ cwd, files: [file] });
-    queryClient.invalidateQueries({ queryKey: trpc.git.status.queryKey({ cwd }) });
+    try {
+      setActionError(null);
+      await trpcClient.git.unstage.mutate({ cwd, files: [file] });
+      queryClient.invalidateQueries({ queryKey: trpc.git.status.queryKey({ cwd }) });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to unstage file');
+    }
   };
 
   const handleCommit = async () => {
     if (!commitMsg.trim() || status.staged.length === 0) return;
     setCommitting(true);
-    setCommitError(null);
+    setActionError(null);
     try {
       const result = await trpcClient.git.commit.mutate({ cwd, message: commitMsg.trim() });
       if (result.success) {
         setCommitMsg('');
         queryClient.invalidateQueries({ queryKey: trpc.git.status.queryKey({ cwd }) });
       } else {
-        setCommitError(result.error ?? 'Commit failed');
+        setActionError(result.error ?? 'Commit failed');
       }
     } catch (err) {
-      setCommitError(err instanceof Error ? err.message : 'Commit failed');
+      setActionError(err instanceof Error ? err.message : 'Commit failed');
     } finally {
       setCommitting(false);
     }
@@ -417,14 +427,14 @@ function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
                 <button
                   onClick={handleCommit}
                   disabled={!commitMsg.trim() || committing}
-                  className="w-full text-xs bg-palette-primary/90 text-white rounded px-2 py-1 hover:bg-palette-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full text-xs bg-palette-primary/90 text-palette-primary-fg rounded px-2 py-1 hover:bg-palette-primary disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {committing ? 'Committing...' : `Commit ${status.staged.length} file${status.staged.length !== 1 ? 's' : ''}`}
                 </button>
-                {commitError && (
-                  <p className="text-xs text-palette-danger">{commitError}</p>
-                )}
               </div>
+            )}
+            {actionError && (
+              <p className="text-xs text-palette-danger">{actionError}</p>
             )}
           </>
         )}
