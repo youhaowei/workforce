@@ -7,6 +7,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Isolate dev data from production ~/.workforce/
+export WORKFORCE_DATA_DIR="${WORKFORCE_DATA_DIR:-.workforce-dev}"
+
 DEFAULT_SERVER_PORT=19675
 DEFAULT_VITE_PORT=19676
 

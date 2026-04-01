@@ -7,6 +7,9 @@ node_modules/
 .dev-port
 .vite-port
 
+# Dev data isolation (dev scripts use this instead of ~/.workforce/)
+.workforce-dev/
+
 # Build outputs
 dist/
 dist-electron/
