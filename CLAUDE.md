@@ -68,7 +68,7 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 ### Design Tokens & Styling
 
-- **Use stdui primitives, never raw HTML** — `<Button>` not `<button>`, `<Input>` not `<input>`, `<ScrollArea>` not `<div overflow-y-auto>`. Every interactive element in `src/components/ui/` has a styled, accessible primitive. Raw HTML elements in feature components (`src/ui/components/`) are a bug.
+- **Prefer stdui primitives over raw interactive HTML** — In feature components (`src/ui/components/`), use `<Button>` not `<button>`, `<Input>` not `<input>`, `<ScrollArea>` not overflow divs. Check `src/components/ui/` for existing primitives before writing raw interactive elements. Layout elements (`<div>`, `<span>`, `<form>`) are fine.
 - **Always use token classes** — Use `bg-palette-primary`, `text-neutral-fg`, etc. Never use raw colors (`bg-gray-500`, `text-black`) in components.
 - **Button color axis** — Button uses `color="neutral"` (not `"default"`). Active/selected states use `color="primary"`.
 - **Surface variant determines bg** — `<Surface variant="main">` provides the frosted glass bg. Don't add manual `bg-*` classes on top.
