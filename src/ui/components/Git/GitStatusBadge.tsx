@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { GitBranch, Circle, ArrowUp, ArrowDown, AlertCircle } from "lucide-react";
 import { useTRPC } from "@/bridge/react";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { GitStatus } from "@/services/git";
 
@@ -10,8 +11,8 @@ interface GitStatusBadgeProps {
   onClick?: () => void;
 }
 
-const BADGE_CLASS =
-  "flex items-center gap-1.5 h-7 px-2.5 bg-neutral-bg/70 rounded-full shadow-sm border border-neutral-border/30 hover:bg-neutral-bg/90 transition-colors text-xs select-none";
+const BADGE_SHARED =
+  "h-7 rounded-full shadow-sm border border-neutral-border/30 bg-neutral-bg/70 hover:bg-neutral-bg/90 text-xs select-none gap-1.5 px-2.5";
 
 function buildTooltipLines(status: GitStatus): string[] {
   const changeCount = status.staged.length + status.unstaged.length + status.untracked.length;
@@ -41,10 +42,16 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <button onClick={onClick} className={BADGE_CLASS} aria-label="Git: error fetching status">
+          <Button
+            variant="ghost"
+            color="neutral"
+            onClick={onClick}
+            className={BADGE_SHARED}
+            aria-label="Git: error fetching status"
+          >
             <AlertCircle className="h-3 w-3 text-palette-danger shrink-0" />
             <span className="text-neutral-fg-subtle">git</span>
-          </button>
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">Failed to fetch git status</TooltipContent>
       </Tooltip>
@@ -54,7 +61,10 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
   // Skeleton placeholder while loading to prevent layout shift
   if (!status) {
     return (
-      <div className={`${BADGE_CLASS} pointer-events-none opacity-50`} aria-label="Git: loading">
+      <div
+        className={`flex items-center ${BADGE_SHARED} pointer-events-none opacity-50`}
+        aria-label="Git: loading"
+      >
         <GitBranch className="h-3 w-3 text-neutral-fg-subtle shrink-0" />
         <span className="w-16 h-2 bg-neutral-fg-subtle/20 rounded animate-pulse" />
       </div>
@@ -67,9 +77,11 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <Button
+          variant="ghost"
+          color="neutral"
           onClick={onClick}
-          className={BADGE_CLASS}
+          className={BADGE_SHARED}
           aria-label={`Git: ${status.branch}${status.isClean ? "" : " (dirty)"}`}
         >
           <GitBranch className="h-3 w-3 text-neutral-fg-subtle shrink-0" />
@@ -97,7 +109,7 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
               )}
             </span>
           )}
-        </button>
+        </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
         <div className="space-y-0.5">

@@ -17,6 +17,9 @@ import {
   ARTIFACT_STATUS_LABELS,
 } from "@/ui/lib/artifact-utils";
 import { trpc as trpcClient } from "@/bridge/trpc";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileText, Clock, Cpu, DollarSign, Pencil, GitBranch } from "lucide-react";
 
 // =============================================================================
@@ -413,36 +416,40 @@ function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
           <p className="text-xs text-neutral-fg-subtle">Working tree clean</p>
         ) : (
           <>
-            <div className="space-y-0.5 max-h-40 overflow-y-auto">
-              {allChanges.map((f) => {
-                const filename = f.path.split("/").pop() ?? f.path;
-                const isStaged = f.area === "staged";
-                return (
-                  <button
-                    key={`${f.area}-${f.path}`}
-                    className="w-full text-left text-xs rounded px-1.5 py-0.5 hover:bg-neutral-bg-dim/50 flex items-center gap-1 group"
-                    onClick={() => (isStaged ? handleUnstage(f.path) : handleStage(f.path))}
-                    title={`${f.path} (${f.area}) - click to ${isStaged ? "unstage" : "stage"}`}
-                  >
-                    <span
-                      className={`font-mono w-3 shrink-0 text-center ${gitStatusColor(isStaged, f.area)}`}
+            <ScrollArea className="max-h-40">
+              <div className="space-y-0.5">
+                {allChanges.map((f) => {
+                  const filename = f.path.split("/").pop() ?? f.path;
+                  const isStaged = f.area === "staged";
+                  return (
+                    <Button
+                      key={`${f.area}-${f.path}`}
+                      variant="ghost"
+                      color="neutral"
+                      className="w-full justify-start text-xs h-6 px-1.5 gap-1 group font-normal"
+                      onClick={() => (isStaged ? handleUnstage(f.path) : handleStage(f.path))}
+                      title={`${f.path} (${f.area}) - click to ${isStaged ? "unstage" : "stage"}`}
                     >
-                      {f.area === "untracked" ? "?" : (STATUS_CHAR[f.status] ?? "?")}
-                    </span>
-                    <span className="font-mono text-neutral-fg-subtle truncate flex-1">
-                      {filename}
-                    </span>
-                    <span className="text-[10px] text-neutral-fg-subtle/50 opacity-0 group-hover:opacity-100">
-                      {isStaged ? "unstage" : "stage"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+                      <span
+                        className={`font-mono w-3 shrink-0 text-center ${gitStatusColor(isStaged, f.area)}`}
+                      >
+                        {f.area === "untracked" ? "?" : (STATUS_CHAR[f.status] ?? "?")}
+                      </span>
+                      <span className="font-mono text-neutral-fg-subtle truncate flex-1 text-left">
+                        {filename}
+                      </span>
+                      <span className="text-[10px] text-neutral-fg-subtle/50 opacity-0 group-hover:opacity-100">
+                        {isStaged ? "unstage" : "stage"}
+                      </span>
+                    </Button>
+                  );
+                })}
+              </div>
+            </ScrollArea>
 
             {status.staged.length > 0 && (
               <div className="space-y-1">
-                <input
+                <Input
                   value={commitMsg}
                   onChange={(e) => setCommitMsg(e.currentTarget.value)}
                   onKeyDown={(e) => {
@@ -452,18 +459,21 @@ function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
                     }
                   }}
                   placeholder="Commit message..."
-                  className="w-full bg-neutral-bg-dim/50 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-neutral-ring placeholder:text-neutral-fg-subtle/50"
+                  className="h-7 text-xs px-2"
                   disabled={committing}
                 />
-                <button
+                <Button
+                  variant="solid"
+                  color="primary"
+                  size="xs"
                   onClick={handleCommit}
                   disabled={!commitMsg.trim() || committing}
-                  className="w-full text-xs bg-palette-primary/90 text-palette-primary-fg rounded px-2 py-1 hover:bg-palette-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full"
                 >
                   {committing
                     ? "Committing..."
                     : `Commit ${status.staged.length} file${status.staged.length !== 1 ? "s" : ""}`}
-                </button>
+                </Button>
               </div>
             )}
             {actionError && <p className="text-xs text-palette-danger">{actionError}</p>}
