@@ -196,13 +196,14 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
           },
           {
             onData: (data) => {
-              handleStreamEvent(
+              const isDone = handleStreamEvent(
                 data as { type: string; [key: string]: unknown },
                 sessId,
                 assistantMsgId,
                 actions,
                 opts.cancelStreamRef,
               );
+              if (isDone) subscription.unsubscribe();
             },
             onError: (err) => {
               handleStreamError(
@@ -275,13 +276,14 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
                 });
               }
             } else {
-              handleStreamEvent(
+              const isDone = handleStreamEvent(
                 event,
                 opts.selectedSessionId,
                 messageId,
                 actions,
                 opts.cancelStreamRef,
               );
+              if (isDone) subscription.unsubscribe();
             }
           },
           onError: (err) => {
