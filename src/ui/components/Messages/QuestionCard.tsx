@@ -134,7 +134,7 @@ function AnsweredCard({
   block: ContentBlock & { type: "tool_use" };
   questions: AgentQuestion[];
 }) {
-  const result = block.result as Record<string, unknown> | null;
+  const result = block.result as Record<string, unknown> | string | null;
   // Backfilled from follow-up user message — extract and show just the answer portion
   if (result && typeof result === "object" && "_fromFollowUp" in result) {
     const raw = String(result.answer ?? "");
@@ -167,6 +167,33 @@ function AnsweredCard({
       </CardShell>
     );
   }
+  // Live SDK path: result is the raw answer string
+  if (typeof result === "string") {
+    // Format: 'User has answered your questions: "Q"="A". ...' — extract answer pairs
+    const pairs = [...result.matchAll(/"([^"]+)"="([^"]+)"/g)];
+    const answer = pairs.length > 0 ? pairs.map(([, , a]) => a).join(", ") : result;
+    return (
+      <CardShell headerLabel="Question Answered">
+        <div className="px-4 py-3 space-y-2">
+          {questions.map((q) => (
+            <div key={q.id} className="space-y-1">
+              {q.header && (
+                <Chip color="muted" className="font-semibold">
+                  {q.header}
+                </Chip>
+              )}
+              <p className="text-sm text-neutral-fg-subtle">{q.question}</p>
+            </div>
+          ))}
+          <div className="flex items-start gap-1.5 text-sm pt-1">
+            <Check className="h-3.5 w-3.5 text-palette-success shrink-0 mt-0.5" />
+            <span className="font-medium">{answer}</span>
+          </div>
+        </div>
+      </CardShell>
+    );
+  }
+
   const resultAnswers =
     typeof result === "object" && result !== null ? (result as Record<string, string[]>) : {};
   return (
