@@ -10,17 +10,22 @@
  * Persistence: ~/.workforce/orgs/{orgId}/templates/{id}.json
  */
 
-import { readFile, writeFile, readdir, mkdir } from "fs/promises";
-import { join } from "path";
-import { getLogService } from "./log";
-import type { AgentTemplate, AgentProfile, TemplateValidation, TemplateService } from "./types";
-import { getDataDir } from "./data-dir";
+import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
+import { join } from 'path';
+import { getLogService } from './log';
+import type {
+  AgentTemplate,
+  AgentProfile,
+  TemplateValidation,
+  TemplateService,
+} from './types';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const ORGS_DIR = join(getDataDir(), "orgs");
+const ORGS_DIR = join(getDataDir(), 'orgs');
 
 // =============================================================================
 // Helpers
@@ -31,7 +36,7 @@ function generateId(): string {
 }
 
 function templatesDir(orgsDir: string, orgId: string): string {
-  return join(orgsDir, orgId, "templates");
+  return join(orgsDir, orgId, 'templates');
 }
 
 // =============================================================================
@@ -58,11 +63,13 @@ class TemplateServiceImpl implements TemplateService {
     try {
       await mkdir(dir, { recursive: true });
       const entries = await readdir(dir, { withFileTypes: true });
-      const jsonFiles = entries.filter((e) => e.isFile() && e.name.endsWith(".json"));
+      const jsonFiles = entries.filter(
+        (e) => e.isFile() && e.name.endsWith('.json')
+      );
 
       for (const file of jsonFiles) {
         try {
-          const raw = await readFile(join(dir, file.name), "utf-8");
+          const raw = await readFile(join(dir, file.name), 'utf-8');
           const template = JSON.parse(raw) as AgentTemplate;
           templates.set(template.id, template);
         } catch {
@@ -71,10 +78,8 @@ class TemplateServiceImpl implements TemplateService {
       }
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
-      if (error.code !== "ENOENT") {
-        getLogService().error("general", `Failed to load templates for org ${orgId}`, {
-          error: String(error),
-        });
+      if (error.code !== 'ENOENT') {
+        getLogService().error('general', `Failed to load templates for org ${orgId}`, { error: String(error) });
       }
     }
 
@@ -86,12 +91,12 @@ class TemplateServiceImpl implements TemplateService {
     const dir = templatesDir(this.orgsDir, orgId);
     await mkdir(dir, { recursive: true });
     const filePath = join(dir, `${template.id}.json`);
-    await writeFile(filePath, JSON.stringify(template, null, 2), "utf-8");
+    await writeFile(filePath, JSON.stringify(template, null, 2), 'utf-8');
   }
 
   async create(
     orgId: string,
-    input: Omit<AgentTemplate, "id" | "createdAt" | "updatedAt" | "archived">,
+    input: Omit<AgentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'archived'>
   ): Promise<AgentTemplate> {
     const templates = await this.ensureOrgLoaded(orgId);
 
@@ -115,7 +120,11 @@ class TemplateServiceImpl implements TemplateService {
     return templates.get(id) ?? null;
   }
 
-  async update(orgId: string, id: string, updates: Partial<AgentTemplate>): Promise<AgentTemplate> {
+  async update(
+    orgId: string,
+    id: string,
+    updates: Partial<AgentTemplate>
+  ): Promise<AgentTemplate> {
     const templates = await this.ensureOrgLoaded(orgId);
 
     const existing = templates.get(id);
@@ -165,7 +174,10 @@ class TemplateServiceImpl implements TemplateService {
     await this.update(orgId, id, { archived: true });
   }
 
-  async list(orgId: string, options?: { includeArchived?: boolean }): Promise<AgentTemplate[]> {
+  async list(
+    orgId: string,
+    options?: { includeArchived?: boolean }
+  ): Promise<AgentTemplate[]> {
     const templates = await this.ensureOrgLoaded(orgId);
     const all = Array.from(templates.values());
 
@@ -173,7 +185,9 @@ class TemplateServiceImpl implements TemplateService {
       return all.sort((a, b) => b.updatedAt - a.updatedAt);
     }
 
-    return all.filter((t) => !t.archived).sort((a, b) => b.updatedAt - a.updatedAt);
+    return all
+      .filter((t) => !t.archived)
+      .sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
   validate(template: Partial<AgentTemplate>): TemplateValidation {
@@ -181,44 +195,35 @@ class TemplateServiceImpl implements TemplateService {
     const warnings: Array<{ field: string; message: string }> = [];
 
     if (!template.name?.trim()) {
-      errors.push({ field: "name", message: "Name is required" });
+      errors.push({ field: 'name', message: 'Name is required' });
     }
 
     if (!template.description?.trim()) {
-      errors.push({ field: "description", message: "Description is required" });
+      errors.push({ field: 'description', message: 'Description is required' });
     }
 
     if (!template.systemPrompt?.trim()) {
-      errors.push({ field: "systemPrompt", message: "System prompt is required" });
+      errors.push({ field: 'systemPrompt', message: 'System prompt is required' });
     }
 
     if (template.systemPrompt && template.systemPrompt.length > 100_000) {
-      errors.push({ field: "systemPrompt", message: "System prompt exceeds 100,000 characters" });
+      errors.push({ field: 'systemPrompt', message: 'System prompt exceeds 100,000 characters' });
     }
 
     if (template.maxTokens !== undefined && template.maxTokens < 1) {
-      errors.push({ field: "maxTokens", message: "Max tokens must be positive" });
+      errors.push({ field: 'maxTokens', message: 'Max tokens must be positive' });
     }
 
-    if (
-      template.temperature !== undefined &&
-      (template.temperature < 0 || template.temperature > 2)
-    ) {
-      errors.push({ field: "temperature", message: "Temperature must be between 0 and 2" });
+    if (template.temperature !== undefined && (template.temperature < 0 || template.temperature > 2)) {
+      errors.push({ field: 'temperature', message: 'Temperature must be between 0 and 2' });
     }
 
     if (!template.tools || template.tools.length === 0) {
-      warnings.push({
-        field: "tools",
-        message: "No tools specified — agent will have no tool access",
-      });
+      warnings.push({ field: 'tools', message: 'No tools specified — agent will have no tool access' });
     }
 
     if (!template.constraints || template.constraints.length === 0) {
-      warnings.push({
-        field: "constraints",
-        message: "No constraints defined — agent will have no behavioral guardrails",
-      });
+      warnings.push({ field: 'constraints', message: 'No constraints defined — agent will have no behavioral guardrails' });
     }
 
     return {
@@ -238,7 +243,7 @@ class TemplateServiceImpl implements TemplateService {
       skills: [],
       tools: profile.tools ?? [],
       constraints: [],
-      reasoningIntensity: "medium",
+      reasoningIntensity: 'medium',
       maxTokens: profile.maxTokens,
       temperature: profile.temperature,
       archived: false,

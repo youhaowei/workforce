@@ -9,8 +9,8 @@
  * (onOpenChange) and operate on the captured state in handlers.
  */
 
-import { useEffect, useCallback, useRef } from "react";
-import { Scissors, Copy, ClipboardPaste, TextSelect } from "lucide-react";
+import { useEffect, useCallback, useRef } from 'react';
+import { Scissors, Copy, ClipboardPaste, TextSelect } from 'lucide-react';
 import {
   ContextMenu,
   ContextMenuTrigger,
@@ -18,11 +18,8 @@ import {
   ContextMenuItem,
   ContextMenuSeparator,
   ContextMenuShortcut,
-} from "@/components/ui/context-menu";
-import { usePlatform } from "@/ui/context/PlatformProvider";
-
-const isMac = typeof navigator !== "undefined" && /mac/i.test(navigator.platform);
-const modKey = isMac ? "⌘" : "Ctrl+";
+} from '@/components/ui/context-menu';
+import { usePlatform } from '@/ui/context/PlatformProvider';
 
 /** Returns true when right-click target is an editable element or has text selected. */
 function isTextContext(target: EventTarget | null): boolean {
@@ -31,22 +28,11 @@ function isTextContext(target: EventTarget | null): boolean {
 
   if (target instanceof HTMLInputElement) {
     // Exclude non-text input types (checkbox, radio, range, file, color, etc.)
-    const nonTextTypes = new Set([
-      "checkbox",
-      "radio",
-      "range",
-      "file",
-      "color",
-      "button",
-      "submit",
-      "reset",
-      "image",
-      "hidden",
-    ]);
+    const nonTextTypes = new Set(['checkbox', 'radio', 'range', 'file', 'color', 'button', 'submit', 'reset', 'image', 'hidden']);
     return !nonTextTypes.has(target.type);
   }
   if (target instanceof HTMLTextAreaElement) return true;
-  if (target instanceof HTMLElement && target.contentEditable === "true") return true;
+  if (target instanceof HTMLElement && target.contentEditable === 'true') return true;
 
   return false;
 }
@@ -61,8 +47,9 @@ interface AppContextMenuProps {
 }
 
 export function AppContextMenu({ children }: AppContextMenuProps) {
-  const { isDesktop } = usePlatform();
-  const saved = useRef<Snapshot>({ element: null, text: "" });
+  const { isDesktop, isMacOS } = usePlatform();
+  const modKey = isMacOS ? '⌘' : 'Ctrl+';
+  const saved = useRef<Snapshot>({ element: null, text: '' });
 
   // Gate the context menu: only allow the Radix menu to open on text/editable
   // targets. For non-text contexts we stop propagation so Radix never sees it
@@ -78,8 +65,8 @@ export function AppContextMenu({ children }: AppContextMenuProps) {
       if (isDesktop) e.preventDefault();
     };
     // Use capture phase so we intercept before Radix's trigger listener
-    document.addEventListener("contextmenu", onContextMenu, true);
-    return () => document.removeEventListener("contextmenu", onContextMenu, true);
+    document.addEventListener('contextmenu', onContextMenu, true);
+    return () => document.removeEventListener('contextmenu', onContextMenu, true);
   }, [isDesktop]);
 
   // Snapshot active element + selection when the menu opens
@@ -87,7 +74,7 @@ export function AppContextMenu({ children }: AppContextMenuProps) {
     if (nextOpen) {
       saved.current = {
         element: document.activeElement,
-        text: window.getSelection()?.toString() ?? "",
+        text: window.getSelection()?.toString() ?? '',
       };
     }
   }, []);
@@ -103,7 +90,7 @@ export function AppContextMenu({ children }: AppContextMenuProps) {
     await navigator.clipboard.writeText(text);
     restoreFocus();
     // Delete the selection from the original element
-    document.execCommand("delete");
+    document.execCommand('delete');
   }, [restoreFocus]);
 
   const handleCopy = useCallback(async () => {
@@ -115,19 +102,22 @@ export function AppContextMenu({ children }: AppContextMenuProps) {
     restoreFocus();
     try {
       const text = await navigator.clipboard.readText();
-      document.execCommand("insertText", false, text);
+      document.execCommand('insertText', false, text);
     } catch (err) {
-      console.warn("[AppContextMenu] Clipboard paste failed:", err);
+      console.warn('[AppContextMenu] Clipboard paste failed:', err);
     }
   }, [restoreFocus]);
 
   const handleSelectAll = useCallback(() => {
     restoreFocus();
     const el = saved.current.element;
-    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+    if (
+      el instanceof HTMLInputElement ||
+      el instanceof HTMLTextAreaElement
+    ) {
       el.select();
     } else {
-      document.execCommand("selectAll");
+      document.execCommand('selectAll');
     }
   }, [restoreFocus]);
 

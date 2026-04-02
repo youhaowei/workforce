@@ -1,7 +1,7 @@
-import { execFileSync } from "child_process";
-import { createLogger } from "tracey";
+import { execFileSync } from 'child_process';
+import { createLogger } from 'tracey';
 
-const log = createLogger("AgentCliPath");
+const log = createLogger('AgentCliPath');
 
 let cachedPath: string | undefined;
 
@@ -13,11 +13,11 @@ export function resolveClaudeCliPath(): string | undefined {
   if (cachedPath !== undefined) return cachedPath || undefined;
 
   try {
-    cachedPath = execFileSync("which", ["claude"], { encoding: "utf-8" }).trim();
+    cachedPath = execFileSync('which', ['claude'], { encoding: 'utf-8' }).trim();
     log.info({ path: cachedPath }, `Resolved claude binary: ${cachedPath}`);
   } catch {
-    cachedPath = "";
-    log.warn("claude binary not found on PATH");
+    cachedPath = '';
+    log.warn('claude binary not found on PATH');
   }
 
   return cachedPath || undefined;

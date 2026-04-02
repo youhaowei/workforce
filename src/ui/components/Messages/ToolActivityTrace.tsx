@@ -5,9 +5,9 @@
  * list of every tool invocation and its human-readable input summary.
  */
 
-import { useState } from "react";
-import { ChevronRight } from "lucide-react";
-import type { ToolActivity } from "@/services/types";
+import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
+import type { ToolActivity } from '@/services/types';
 
 interface ToolActivityTraceProps {
   activities: ToolActivity[];
@@ -15,18 +15,14 @@ interface ToolActivityTraceProps {
   isStreaming: boolean;
 }
 
-export default function ToolActivityTrace({
-  activities,
-  currentTool,
-  isStreaming,
-}: ToolActivityTraceProps) {
+export default function ToolActivityTrace({ activities, currentTool, isStreaming }: ToolActivityTraceProps) {
   const [expanded, setExpanded] = useState(false);
   const hasActivities = activities.length > 0;
 
   function getLabel() {
     if (currentTool) return `using ${currentTool}`;
-    if (hasActivities) return `used ${activities.length} tool${activities.length === 1 ? "" : "s"}`;
-    return "thinking";
+    if (hasActivities) return `used ${activities.length} tool${activities.length === 1 ? '' : 's'}`;
+    return 'thinking';
   }
   const label = getLabel();
 
@@ -35,7 +31,7 @@ export default function ToolActivityTrace({
       <button
         type="button"
         onClick={() => hasActivities && setExpanded(!expanded)}
-        className={`flex items-center gap-1.5 ${hasActivities ? "cursor-pointer hover:text-neutral-fg" : "cursor-default"}`}
+        className={`flex items-center gap-1.5 ${hasActivities ? 'cursor-pointer hover:text-neutral-fg' : 'cursor-default'}`}
       >
         {isStreaming && (
           <span className="w-1.5 h-1.5 rounded-full bg-palette-primary animate-pulse flex-shrink-0" />
@@ -43,7 +39,7 @@ export default function ToolActivityTrace({
         <span className="text-neutral-fg-subtle">{label}</span>
         {hasActivities && (
           <ChevronRight
-            className={`h-3 w-3 text-neutral-fg-subtle transition-transform ${expanded ? "rotate-90" : ""}`}
+            className={`h-3 w-3 text-neutral-fg-subtle transition-transform ${expanded ? 'rotate-90' : ''}`}
           />
         )}
       </button>

@@ -11,8 +11,8 @@
  *   session-streaming.ts   — Stream record methods (start/delta/final/abort)
  */
 
-import { readdir, mkdir, unlink } from "fs/promises";
-import { join } from "path";
+import { readdir, mkdir, unlink } from 'fs/promises';
+import { join } from 'path';
 import type {
   SessionService,
   Session,
@@ -28,12 +28,12 @@ import type {
   JournalMessage,
   JournalMeta,
   JournalRecord,
-} from "./types";
-import { getEventBus } from "@/shared/event-bus";
-import { getDataDir } from "./data-dir";
-import { runMigrations } from "./migration";
-import { createLogger } from "tracey";
-import { getLogService } from "./log";
+} from './types';
+import { getEventBus } from '@/shared/event-bus';
+import { getDataDir } from './data-dir';
+import { runMigrations } from './migration';
+import { createLogger } from 'tracey';
+import { getLogService } from './log';
 import {
   appendRecord,
   appendRecords,
@@ -44,16 +44,16 @@ import {
   AppendLock,
   SeqAllocator,
   JSONL_VERSION,
-} from "./session-journal";
-import { RehydrationManager } from "./session-rehydration";
-import { loadSession } from "./session-upgrade";
-import * as lifecycle from "./session-lifecycle";
-import * as streaming from "./session-streaming";
-import { CCSourceWatcher } from "./cc-watcher";
-import * as ccSync from "./cc-sync";
+} from './session-journal';
+import { RehydrationManager } from './session-rehydration';
+import { loadSession } from './session-upgrade';
+import * as lifecycle from './session-lifecycle';
+import * as streaming from './session-streaming';
+import { CCSourceWatcher } from './cc-watcher';
+import * as ccSync from './cc-sync';
 
-const SESSIONS_DIR = join(getDataDir(), "sessions");
-const log = createLogger("Session");
+const SESSIONS_DIR = join(getDataDir(), 'sessions');
+const log = createLogger('Session');
 /** Debounce delay (ms) for consolidation after writes. */
 const CONSOLIDATION_DEBOUNCE_MS = 500;
 
@@ -84,7 +84,7 @@ class SessionServiceImpl implements SessionService {
 
   constructor(sessionsDir?: string) {
     this.sessionsDir = sessionsDir ?? SESSIONS_DIR;
-    this.dataDir = sessionsDir ? join(sessionsDir, "..") : getDataDir();
+    this.dataDir = sessionsDir ? join(sessionsDir, '..') : getDataDir();
 
     this.rehydrator = new RehydrationManager({
       sessions: this.sessions,
@@ -126,7 +126,7 @@ class SessionServiceImpl implements SessionService {
     };
   }
 
-  private registerSession(session: Session, status: HydrationStatus = "cold"): void {
+  private registerSession(session: Session, status: HydrationStatus = 'cold'): void {
     this.sessions.set(session.id, session);
     this.hydrationStatus.set(session.id, status);
   }
@@ -145,18 +145,18 @@ class SessionServiceImpl implements SessionService {
       await mkdir(this.sessionsDir, { recursive: true });
       const entries = await readdir(this.sessionsDir);
       const sessionFiles = entries.filter(
-        (name) => name.endsWith(".jsonl") && !name.includes(".corrupt") && !name.includes(".tmp"),
+        (name) => name.endsWith('.jsonl') && !name.includes('.corrupt') && !name.includes('.tmp'),
       );
 
       for (const file of sessionFiles) {
-        const sessionId = file.replace(".jsonl", "");
+        const sessionId = file.replace('.jsonl', '');
         const session = await replaySessionMetadata(this.sessionsDir, sessionId);
-        if (session) this.registerSession(session, "cold");
+        if (session) this.registerSession(session, 'cold');
       }
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
-      if (error.code !== "ENOENT") {
-        getLogService().error("general", "Failed to initialize sessions", { error: String(error) });
+      if (error.code !== 'ENOENT') {
+        getLogService().error('general', 'Failed to initialize sessions', { error: String(error) });
       }
     }
 
@@ -166,44 +166,21 @@ class SessionServiceImpl implements SessionService {
 
   // ─── CRUD ──────────────────────────────────────────────────────────
 
-  async create(
-    title?: string,
-    parentId?: string,
-    metadata?: Record<string, unknown>,
-  ): Promise<Session> {
+  async create(title?: string, parentId?: string, metadata?: Record<string, unknown>): Promise<Session> {
     await this.ensureInitialized();
     const now = Date.now();
     const initialMetadata = metadata ?? {};
     const session: Session = {
-      id: generateId(),
-      title,
-      createdAt: now,
-      updatedAt: now,
-      parentId,
-      messages: [],
-      metadata: initialMetadata,
+      id: generateId(), title, createdAt: now, updatedAt: now,
+      parentId, messages: [], metadata: initialMetadata,
     };
 
-    this.registerSession(session, "ready");
-    await journalWriteRecords(this.sessionsDir, session.id, [
-      {
-        t: "header",
-        v: JSONL_VERSION,
-        seq: 0,
-        ts: now,
-        id: session.id,
-        title: session.title,
-        createdAt: now,
-        parentId,
-        metadata: initialMetadata,
-      },
-    ]);
-    getEventBus().emit({
-      type: "SessionChange",
-      sessionId: session.id,
-      action: "created",
-      timestamp: now,
-    });
+    this.registerSession(session, 'ready');
+    await journalWriteRecords(this.sessionsDir, session.id, [{
+      t: 'header', v: JSONL_VERSION, seq: 0, ts: now, id: session.id, title: session.title,
+      createdAt: now, parentId, metadata: initialMetadata,
+    }]);
+    getEventBus().emit({ type: 'SessionChange', sessionId: session.id, action: 'created', timestamp: now });
     return session;
   }
 
@@ -213,12 +190,9 @@ class SessionServiceImpl implements SessionService {
     log.info({ sessionId, status }, `get(${sessionId}) status=${status}`);
 
     // Fast path: fully rehydrated
-    if (status === "ready") {
+    if (status === 'ready') {
       const s = this.sessions.get(sessionId) ?? null;
-      log.info(
-        { sessionId, msgs: s?.messages.length ?? "null" },
-        `get(${sessionId}) ready → msgs=${s?.messages.length ?? "null"}`,
-      );
+      log.info({ sessionId, msgs: s?.messages.length ?? 'null' }, `get(${sessionId}) ready → msgs=${s?.messages.length ?? 'null'}`);
       return s;
     }
 
@@ -228,44 +202,29 @@ class SessionServiceImpl implements SessionService {
       log.info({ sessionId }, `get(${sessionId}) awaiting rehydration flight`);
       await flight;
       const s = this.sessions.get(sessionId) ?? null;
-      log.info(
-        { sessionId, msgs: s?.messages.length ?? "null" },
-        `get(${sessionId}) flight done → msgs=${s?.messages.length ?? "null"}`,
-      );
+      log.info({ sessionId, msgs: s?.messages.length ?? 'null' }, `get(${sessionId}) flight done → msgs=${s?.messages.length ?? 'null'}`);
       return s;
     }
 
     // Failed rehydration may have left the session in the map with messages
     // (loadSession succeeded but consolidation failed). Use it if available.
-    if (status === "failed") {
+    if (status === 'failed') {
       const cached = this.sessions.get(sessionId);
       if (cached && cached.messages.length > 0) {
-        log.info(
-          { sessionId, msgs: cached.messages.length },
-          `get(${sessionId}) using cached from failed rehydration → msgs=${cached.messages.length}`,
-        );
+        log.info({ sessionId, msgs: cached.messages.length }, `get(${sessionId}) using cached from failed rehydration → msgs=${cached.messages.length}`);
         return cached;
       }
     }
 
     // Cold / failed-without-cache / unknown: do a direct replay (with upgrade)
-    log.info(
-      { sessionId, status: status ?? "unknown" },
-      `get(${sessionId}) ${status ?? "unknown"}, no flight → direct load`,
-    );
+    log.info({ sessionId, status: status ?? 'unknown' }, `get(${sessionId}) ${status ?? 'unknown'}, no flight → direct load`);
     const result = await loadSession(this.sessionsDir, sessionId);
-    if (!result) {
-      log.info({ sessionId }, `get(${sessionId}) load returned null`);
-      return null;
-    }
+    if (!result) { log.info({ sessionId }, `get(${sessionId}) load returned null`); return null; }
     const { session, maxSeq } = result;
-    log.info(
-      { sessionId, msgs: session.messages.length, upgraded: result.upgraded },
-      `get(${sessionId}) loaded → msgs=${session.messages.length}`,
-    );
+    log.info({ sessionId, msgs: session.messages.length, upgraded: result.upgraded }, `get(${sessionId}) loaded → msgs=${session.messages.length}`);
     this.sessions.set(sessionId, session);
     this.seqAllocators.set(sessionId, new SeqAllocator(maxSeq + 1));
-    this.hydrationStatus.set(sessionId, "ready");
+    this.hydrationStatus.set(sessionId, 'ready');
     this.scheduleConsolidation(sessionId);
     return session;
   }
@@ -283,18 +242,9 @@ class SessionServiceImpl implements SessionService {
     session.updatedAt = Date.now();
 
     const patchRecord: Record<string, unknown> = { title: session.title, ...session.metadata };
-    await this.writeRecords(
-      sessionId,
-      [
-        {
-          t: "meta",
-          seq: 0,
-          ts: session.updatedAt,
-          patch: patchRecord,
-        } satisfies JournalMeta,
-      ],
-      true,
-    );
+    await this.writeRecords(sessionId, [{
+      t: 'meta', seq: 0, ts: session.updatedAt, patch: patchRecord,
+    } satisfies JournalMeta], true);
   }
 
   async resume(sessionId: string): Promise<Session> {
@@ -302,12 +252,7 @@ class SessionServiceImpl implements SessionService {
     if (!session) throw new Error(`Session not found: ${sessionId}`);
     this.currentSession = session;
     this.watchCCSource(session);
-    getEventBus().emit({
-      type: "SessionChange",
-      sessionId: session.id,
-      action: "resumed",
-      timestamp: Date.now(),
-    });
+    getEventBus().emit({ type: 'SessionChange', sessionId: session.id, action: 'resumed', timestamp: Date.now() });
     return session;
   }
 
@@ -320,13 +265,11 @@ class SessionServiceImpl implements SessionService {
   async fork(sessionId: string, options?: { atMessageIndex?: number }): Promise<Session> {
     const parent = await this.get(sessionId);
     if (!parent) throw new Error(`Session not found: ${sessionId}`);
-    if (parent.messages.length === 0) throw new Error("Cannot fork an empty session");
+    if (parent.messages.length === 0) throw new Error('Cannot fork an empty session');
 
     const cutoff = options?.atMessageIndex;
     if (cutoff !== undefined && (cutoff < -1 || cutoff >= parent.messages.length))
-      throw new Error(
-        `Invalid message index: ${cutoff}. Session has ${parent.messages.length} messages.`,
-      );
+      throw new Error(`Invalid message index: ${cutoff}. Session has ${parent.messages.length} messages.`);
 
     // cutoff === -1 means "fork with zero messages" (edit-and-resend the first message)
     let messages: typeof parent.messages;
@@ -336,36 +279,20 @@ class SessionServiceImpl implements SessionService {
     const lastIdx = cutoff !== undefined && cutoff >= 0 ? cutoff : parent.messages.length - 1;
     const forkAtMessageId = parent.messages[lastIdx]?.id;
     const now = Date.now();
-    const {
-      lifecycle: _,
-      type: _t,
-      templateId: _ti,
-      goal: _g,
-      worktreePath: _w,
-      workflowId: _wf,
-      workflowStepIndex: _ws,
-      repoRoot: _rr,
-      forkAtMessageId: _old,
-      ...inheritedMetadata
-    } = parent.metadata;
+    const { lifecycle: _, type: _t, templateId: _ti, goal: _g,
+            worktreePath: _w, workflowId: _wf, workflowStepIndex: _ws,
+            repoRoot: _rr, forkAtMessageId: _old, ...inheritedMetadata } = parent.metadata;
     const forked: Session = {
       id: generateId(),
       title: parent.title ? `${parent.title} (fork)` : undefined,
-      createdAt: now,
-      updatedAt: now,
-      parentId: parent.id,
+      createdAt: now, updatedAt: now, parentId: parent.id,
       messages: messages.map((m) => ({ ...m })),
       metadata: { ...inheritedMetadata, forkAtMessageId },
     };
 
-    this.registerSession(forked, "ready");
+    this.registerSession(forked, 'ready');
     await writeForkSession(this.sessionsDir, forked);
-    getEventBus().emit({
-      type: "SessionChange",
-      sessionId: forked.id,
-      action: "created",
-      timestamp: now,
-    });
+    getEventBus().emit({ type: 'SessionChange', sessionId: forked.id, action: 'created', timestamp: now });
     return forked;
   }
 
@@ -374,62 +301,37 @@ class SessionServiceImpl implements SessionService {
     if (!session) throw new Error(`Session not found: ${sessionId}`);
     if (upToMessageIndex === -1 && session.messages.length === 0) return session;
     if (upToMessageIndex < -1 || upToMessageIndex >= session.messages.length)
-      throw new Error(
-        `Invalid message index: ${upToMessageIndex}. Session has ${session.messages.length} messages.`,
-      );
+      throw new Error(`Invalid message index: ${upToMessageIndex}. Session has ${session.messages.length} messages.`);
 
     const timer = this.consolidationTimers.get(sessionId);
-    if (timer) {
-      clearTimeout(timer);
-      this.consolidationTimers.delete(sessionId);
-    }
+    if (timer) { clearTimeout(timer); this.consolidationTimers.delete(sessionId); }
 
     await this.appendLock.acquire(sessionId, async () => {
-      session.messages =
-        upToMessageIndex === -1 ? [] : session.messages.slice(0, upToMessageIndex + 1);
+      session.messages = upToMessageIndex === -1 ? [] : session.messages.slice(0, upToMessageIndex + 1);
       session.updatedAt = Date.now();
-      if (!this.deletedSessionIds.has(sessionId))
-        await consolidateSession(this.sessionsDir, session);
+      if (!this.deletedSessionIds.has(sessionId)) await consolidateSession(this.sessionsDir, session);
     });
-    getEventBus().emit({
-      type: "SessionChange",
-      sessionId,
-      action: "updated",
-      timestamp: session.updatedAt,
-    });
+    getEventBus().emit({ type: 'SessionChange', sessionId, action: 'updated', timestamp: session.updatedAt });
     return session;
   }
 
-  async list(options?: {
-    limit?: number;
-    offset?: number;
-    orgId?: string;
-    projectId?: string;
-  }): Promise<SessionSummary[]> {
+  async list(options?: { limit?: number; offset?: number; orgId?: string; projectId?: string }): Promise<SessionSummary[]> {
     await this.ensureInitialized();
     let results = Array.from(this.sessions.values());
-    if (options?.orgId)
-      results = results.filter(
-        (s) =>
-          s.metadata.orgId === options.orgId ||
-          (s.metadata.source === "claude-code" && !s.metadata.orgId), // include CC sessions missing orgId
-      );
-    if (options?.projectId)
-      results = results.filter((s) => s.metadata.projectId === options.projectId);
+    if (options?.orgId) results = results.filter((s) =>
+      s.metadata.orgId === options.orgId
+      || (s.metadata.source === 'claude-code' && !s.metadata.orgId) // include CC sessions missing orgId
+    );
+    if (options?.projectId) results = results.filter((s) => s.metadata.projectId === options.projectId);
     const sorted = results.sort((a, b) => b.updatedAt - a.updatedAt);
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? sorted.length;
     return sorted.slice(offset, offset + limit).map((session) => {
       const lastMessage = session.messages[session.messages.length - 1];
       return {
-        id: session.id,
-        title: session.title,
-        createdAt: session.createdAt,
-        updatedAt: session.updatedAt,
-        parentId: session.parentId,
-        metadata: session.metadata,
-        messageCount: session.messages.length,
-        lastMessagePreview: lastMessage?.content,
+        id: session.id, title: session.title, createdAt: session.createdAt,
+        updatedAt: session.updatedAt, parentId: session.parentId, metadata: session.metadata,
+        messageCount: session.messages.length, lastMessagePreview: lastMessage?.content,
       };
     });
   }
@@ -465,25 +367,13 @@ class SessionServiceImpl implements SessionService {
 
     this.deletedSessionIds.add(sessionId);
     const timer = this.consolidationTimers.get(sessionId);
-    if (timer) {
-      clearTimeout(timer);
-      this.consolidationTimers.delete(sessionId);
-    }
+    if (timer) { clearTimeout(timer); this.consolidationTimers.delete(sessionId); }
 
     this.sessions.delete(sessionId);
     this.hydrationStatus.delete(sessionId);
     if (this.currentSession?.id === sessionId) this.currentSession = null;
-    try {
-      await unlink(join(this.sessionsDir, `${sessionId}.jsonl`));
-    } catch {
-      /* ignore */
-    }
-    getEventBus().emit({
-      type: "SessionChange",
-      sessionId,
-      action: "terminated",
-      timestamp: Date.now(),
-    });
+    try { await unlink(join(this.sessionsDir, `${sessionId}.jsonl`)); } catch { /* ignore */ }
+    getEventBus().emit({ type: 'SessionChange', sessionId, action: 'terminated', timestamp: Date.now() });
   }
 
   async recordMessage(sessionId: string, message: Message): Promise<void> {
@@ -492,15 +382,8 @@ class SessionServiceImpl implements SessionService {
 
     const msgTs = Math.max(message.timestamp, Date.now());
     const record: JournalMessage = {
-      t: "message",
-      seq: 0,
-      ts: msgTs,
-      id: message.id,
-      role: message.role,
-      content: message.content,
-      agentConfig: message.agentConfig,
-      toolCalls: message.toolCalls,
-      toolResults: message.toolResults,
+      t: 'message', seq: 0, ts: msgTs, id: message.id, role: message.role, content: message.content,
+      agentConfig: message.agentConfig, toolCalls: message.toolCalls, toolResults: message.toolResults,
     };
 
     await this.appendLock.acquire(sessionId, async () => {
@@ -512,46 +395,31 @@ class SessionServiceImpl implements SessionService {
   }
 
   /** Update the result field on a tool_use content block (e.g. cold-replay question answers). */
-  async updateBlockResult(
-    sessionId: string,
-    messageId: string,
-    blockId: string,
-    result: unknown,
-  ): Promise<void> {
+  async updateBlockResult(sessionId: string, messageId: string, blockId: string, result: unknown): Promise<void> {
     const session = await this.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
 
     const message = session.messages.find((m) => m.id === messageId);
     if (!message) throw new Error(`Message not found: ${messageId}`);
 
-    const block = message.contentBlocks?.find((b) => b.type === "tool_use" && b.id === blockId);
-    if (!block || block.type !== "tool_use") throw new Error(`Block not found: ${blockId}`);
+    const block = message.contentBlocks?.find((b) => b.type === 'tool_use' && b.id === blockId);
+    if (!block || block.type !== 'tool_use') throw new Error(`Block not found: ${blockId}`);
 
     block.result = result;
     this.scheduleConsolidation(sessionId);
   }
 
-  getCurrent(): Session | null {
-    return this.currentSession;
-  }
-  setCurrent(session: Session | null): void {
-    this.currentSession = session;
-  }
+  getCurrent(): Session | null { return this.currentSession; }
+  setCurrent(session: Session | null): void { this.currentSession = session; }
 
-  async getMessages(
-    sessionId: string,
-    options?: { limit?: number; offset?: number },
-  ): Promise<Message[]> {
+  async getMessages(sessionId: string, options?: { limit?: number; offset?: number }): Promise<Message[]> {
     log.info({ sessionId }, `getMessages(${sessionId}) called`);
     const session = await this.get(sessionId);
     if (!session) throw new Error(`Session not found: ${sessionId}`);
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? session.messages.length;
     const result = session.messages.slice(offset, offset + limit);
-    log.info(
-      { sessionId, count: result.length },
-      `getMessages(${sessionId}) → returning ${result.length} messages`,
-    );
+    log.info({ sessionId, count: result.length }, `getMessages(${sessionId}) → returning ${result.length} messages`);
     return result;
   }
 
@@ -563,44 +431,14 @@ class SessionServiceImpl implements SessionService {
   recordStreamDelta(sessionId: string, messageId: string, delta: string, seq: number) {
     return streaming.recordStreamDelta(this.streamingDeps, sessionId, messageId, delta, seq);
   }
-  recordStreamDeltaBatch(
-    sessionId: string,
-    messageId: string,
-    deltas: Array<{ delta: string; seq: number }>,
-  ) {
+  recordStreamDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>) {
     return streaming.recordStreamDeltaBatch(this.streamingDeps, sessionId, messageId, deltas);
   }
-  recordStreamEnd(
-    sessionId: string,
-    messageId: string,
-    fullContent: string,
-    stopReason: string,
-    toolActivities?: ToolActivity[],
-    contentBlocks?: ContentBlock[],
-  ) {
-    return streaming.recordStreamEnd(
-      this.streamingDeps,
-      sessionId,
-      messageId,
-      fullContent,
-      stopReason,
-      toolActivities,
-      contentBlocks,
-    );
+  recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string, toolActivities?: ToolActivity[], contentBlocks?: ContentBlock[]) {
+    return streaming.recordStreamEnd(this.streamingDeps, sessionId, messageId, fullContent, stopReason, toolActivities, contentBlocks);
   }
-  recordStreamBlocks(
-    sessionId: string,
-    messageId: string,
-    contentBlocks: ContentBlock[],
-    toolActivities?: ToolActivity[],
-  ) {
-    return streaming.recordStreamBlocks(
-      this.streamingDeps,
-      sessionId,
-      messageId,
-      contentBlocks,
-      toolActivities,
-    );
+  recordStreamBlocks(sessionId: string, messageId: string, contentBlocks: ContentBlock[], toolActivities?: ToolActivity[]) {
+    return streaming.recordStreamBlocks(this.streamingDeps, sessionId, messageId, contentBlocks, toolActivities);
   }
   recordStreamAbort(sessionId: string, messageId: string, reason: string) {
     return streaming.recordStreamAbort(this.streamingDeps, sessionId, messageId, reason);
@@ -608,50 +446,28 @@ class SessionServiceImpl implements SessionService {
 
   // ─── Delegated: WorkAgent + Lifecycle ──────────────────────────────
 
-  createWorkAgent(config: WorkAgentConfig) {
-    return lifecycle.createWorkAgent(this.lifecycleDeps, config);
-  }
-  transitionState(
-    sessionId: string,
-    newState: LifecycleState,
-    reason: string,
-    actor?: "system" | "user" | "agent",
-  ) {
+  createWorkAgent(config: WorkAgentConfig) { return lifecycle.createWorkAgent(this.lifecycleDeps, config); }
+  transitionState(sessionId: string, newState: LifecycleState, reason: string, actor?: 'system' | 'user' | 'agent') {
     return lifecycle.transitionState(this.lifecycleDeps, sessionId, newState, reason, actor);
   }
-  listByState(state: LifecycleState, orgId?: string) {
-    return lifecycle.listByState(this.lifecycleDeps, state, orgId);
-  }
-  getChildren(parentSessionId: string) {
-    return lifecycle.getChildren(this.lifecycleDeps, parentSessionId);
-  }
+  listByState(state: LifecycleState, orgId?: string) { return lifecycle.listByState(this.lifecycleDeps, state, orgId); }
+  getChildren(parentSessionId: string) { return lifecycle.getChildren(this.lifecycleDeps, parentSessionId); }
 
   getHydrationStatus(sessionId: string): HydrationStatus {
-    return this.hydrationStatus.get(sessionId) ?? "cold";
+    return this.hydrationStatus.get(sessionId) ?? 'cold';
   }
 
   // ─── CC Session Sync (delegated to cc-sync.ts) ──────────────────
 
-  importCCSession(ccFilePath: string, orgId?: string) {
-    return ccSync.importCCSession(this.ccSyncDeps, ccFilePath, orgId);
-  }
-  checkCCSync(sessionId: string) {
-    return ccSync.checkCCSync(this.ccSyncDeps, sessionId);
-  }
-  checkCCSyncBatch(sessionIds: string[]) {
-    return ccSync.checkCCSyncBatch(this.ccSyncDeps, sessionIds);
-  }
-  syncCCSession(sessionId: string) {
-    return ccSync.syncCCSession(this.ccSyncDeps, sessionId);
+  importCCSession(ccFilePath: string, orgId?: string) { return ccSync.importCCSession(this.ccSyncDeps, ccFilePath, orgId); }
+  checkCCSync(sessionId: string) { return ccSync.checkCCSync(this.ccSyncDeps, sessionId); }
+  checkCCSyncBatch(sessionIds: string[]) { return ccSync.checkCCSyncBatch(this.ccSyncDeps, sessionIds); }
+  syncCCSession(sessionId: string) { return ccSync.syncCCSession(this.ccSyncDeps, sessionId);
   }
 
   // ─── Write Path ────────────────────────────────────────────────────
 
-  private async writeRecords(
-    sessionId: string,
-    records: JournalRecord[],
-    consolidate = false,
-  ): Promise<void> {
+  private async writeRecords(sessionId: string, records: JournalRecord[], consolidate = false): Promise<void> {
     if (records.length === 0) return;
     await this.appendLock.acquire(sessionId, () => {
       // Stamp seq from allocator (create on-demand for new sessions)
@@ -683,10 +499,7 @@ class SessionServiceImpl implements SessionService {
           log.info({ sessionId }, `Consolidated session ${sessionId}`);
         }
       } catch (err) {
-        log.error(
-          { sessionId, error: err instanceof Error ? err.message : String(err) },
-          `Consolidation failed for ${sessionId}`,
-        );
+        log.error({ sessionId, error: err instanceof Error ? err.message : String(err) }, `Consolidation failed for ${sessionId}`);
       }
     }, CONSOLIDATION_DEBOUNCE_MS);
     this.consolidationTimers.set(sessionId, timer);
@@ -712,15 +525,6 @@ export { SessionServiceImpl };
 
 // Singleton management (same pattern as all other services)
 let _instance: SessionServiceImpl | null = null;
-export function getSessionService(): SessionService {
-  return (_instance ??= new SessionServiceImpl());
-}
-export function resetSessionService(): void {
-  if (_instance) {
-    _instance.dispose();
-    _instance = null;
-  }
-}
-export function createSessionService(sessionsDir: string): SessionService {
-  return new SessionServiceImpl(sessionsDir);
-}
+export function getSessionService(): SessionService { return (_instance ??= new SessionServiceImpl()); }
+export function resetSessionService(): void { if (_instance) { _instance.dispose(); _instance = null; } }
+export function createSessionService(sessionsDir: string): SessionService { return new SessionServiceImpl(sessionsDir); }

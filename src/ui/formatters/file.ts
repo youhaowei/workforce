@@ -24,44 +24,44 @@ export interface FileEditResult {
 }
 
 export function formatFileRead(result: unknown): { summary: string; detail: string } {
-  if (!result || typeof result !== "object") {
-    return { summary: "File read", detail: String(result ?? "") };
+  if (!result || typeof result !== 'object') {
+    return { summary: 'File read', detail: String(result ?? '') };
   }
 
   const r = result as FileReadResult;
-  const lines = r.content?.split("\n") ?? [];
+  const lines = r.content?.split('\n') ?? [];
   const lineCount = r.lineCount ?? lines.length;
 
   return {
     summary: `Read ${r.path} (${lineCount} lines)`,
-    detail: r.content ?? "",
+    detail: r.content ?? '',
   };
 }
 
 export function formatFileWrite(result: unknown): { summary: string; detail: string } {
-  if (!result || typeof result !== "object") {
-    return { summary: "File written", detail: String(result ?? "") };
+  if (!result || typeof result !== 'object') {
+    return { summary: 'File written', detail: String(result ?? '') };
   }
 
   const r = result as FileWriteResult;
-  const action = r.created ? "Created" : "Updated";
-  const bytes = r.bytesWritten ? ` (${r.bytesWritten} bytes)` : "";
+  const action = r.created ? 'Created' : 'Updated';
+  const bytes = r.bytesWritten ? ` (${r.bytesWritten} bytes)` : '';
 
   return {
     summary: `${action} ${r.path}${bytes}`,
-    detail: "",
+    detail: '',
   };
 }
 
 export function formatFileEdit(result: unknown): { summary: string; detail: string } {
-  if (!result || typeof result !== "object") {
-    return { summary: "File edited", detail: String(result ?? "") };
+  if (!result || typeof result !== 'object') {
+    return { summary: 'File edited', detail: String(result ?? '') };
   }
 
   const r = result as FileEditResult;
-  const changes = r.linesChanged ? `${r.linesChanged} line(s) changed` : "Changes applied";
+  const changes = r.linesChanged ? `${r.linesChanged} line(s) changed` : 'Changes applied';
 
-  let diff = "";
+  let diff = '';
   if (r.oldContent && r.newContent) {
     diff = `- ${r.oldContent}\n+ ${r.newContent}`;
   }

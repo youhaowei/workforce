@@ -6,18 +6,18 @@
  * Task tools rendered as collapsible group headers within activity segments.
  */
 
-import { memo, useState, useMemo, useCallback, type MouseEvent } from "react";
-import { History, GitBranch, ChevronRight, Loader2, Check, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useMessagesStore } from "@/ui/stores/useMessagesStore";
-import type { ContentBlock, ToolActivity } from "@/services/types";
-import ToolOutput from "../Tools/ToolOutput";
-import ContentBlockRenderer from "./ContentBlockRenderer";
-import QuestionCard from "./QuestionCard";
-import Markdown from "./Markdown";
-import { Chip } from "@/ui/components/Chip";
-import { segmentBlocks } from "./segmentBlocks";
+import { memo, useState, useMemo, useCallback, type MouseEvent } from 'react';
+import { History, GitBranch, ChevronRight, Loader2, Check, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
+import type { ContentBlock, ToolActivity } from '@/services/types';
+import ToolOutput from '../Tools/ToolOutput';
+import ContentBlockRenderer from './ContentBlockRenderer';
+import QuestionCard from './QuestionCard';
+import Markdown from './Markdown';
+import { Chip } from '@/ui/components/Chip';
+import { segmentBlocks } from './segmentBlocks';
 
 export interface ForkInfo {
   sessionId: string;
@@ -27,7 +27,7 @@ export interface ForkInfo {
 interface MessageItemProps {
   message: {
     id: string;
-    role: "user" | "assistant" | "system";
+    role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: number;
     isStreaming: boolean;
@@ -44,31 +44,20 @@ interface MessageItemProps {
 }
 
 function formatTime(timestamp: number) {
-  return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 // ─── Hover action buttons (emphasized) ───────────────────────────────────────
 
-function MessageActions({
-  messageIndex,
-  isStreaming,
-  onRewind,
-  onFork,
-}: {
+function MessageActions({ messageIndex, isStreaming, onRewind, onFork }: {
   messageIndex: number;
   isStreaming: boolean;
   onRewind?: (messageIndex: number) => void;
   onFork?: (messageIndex: number) => void;
 }) {
   const disabled = isStreaming;
-  const handleRewind = (e: MouseEvent) => {
-    e.stopPropagation();
-    onRewind?.(messageIndex);
-  };
-  const handleFork = (e: MouseEvent) => {
-    e.stopPropagation();
-    onFork?.(messageIndex);
-  };
+  const handleRewind = (e: MouseEvent) => { e.stopPropagation(); onRewind?.(messageIndex); };
+  const handleFork = (e: MouseEvent) => { e.stopPropagation(); onFork?.(messageIndex); };
 
   return (
     <span className="inline-flex items-center gap-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
@@ -76,67 +65,47 @@ function MessageActions({
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant="outline"
-              size="sm"
+              variant="outline" size="sm"
               className="h-6 px-2 text-[11px] gap-1 text-neutral-fg-subtle hover:text-neutral-fg border-neutral-border/60"
-              disabled={disabled}
-              onClick={handleRewind}
-              aria-label="Rewind to here"
+              disabled={disabled} onClick={handleRewind} aria-label="Rewind to here"
             >
               <History className="h-3 w-3" />
               Rewind
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">
-            Rewind to here
-          </TooltipContent>
+          <TooltipContent side="top" className="text-xs">Rewind to here</TooltipContent>
         </Tooltip>
       )}
       {onFork && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
-              variant="outline"
-              size="sm"
+              variant="outline" size="sm"
               className="h-6 px-2 text-[11px] gap-1 text-neutral-fg-subtle hover:text-neutral-fg border-neutral-border/60"
-              disabled={disabled}
-              onClick={handleFork}
-              aria-label="Fork from here"
+              disabled={disabled} onClick={handleFork} aria-label="Fork from here"
             >
               <GitBranch className="h-3 w-3" />
               Fork
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top" className="text-xs">
-            Fork from here
-          </TooltipContent>
+          <TooltipContent side="top" className="text-xs">Fork from here</TooltipContent>
         </Tooltip>
       )}
     </span>
   );
 }
 
-function ForkIndicator({
-  forks,
-  onSelectSession,
-}: {
+function ForkIndicator({ forks, onSelectSession }: {
   forks: ForkInfo[];
   onSelectSession?: (sessionId: string) => void;
 }) {
   if (forks.length === 0) return null;
-  const handleClick = (e: MouseEvent) => {
-    e.stopPropagation();
-    onSelectSession?.(forks[0].sessionId);
-  };
+  const handleClick = (e: MouseEvent) => { e.stopPropagation(); onSelectSession?.(forks[0].sessionId); };
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 text-xs text-neutral-fg-subtle hover:text-neutral-fg transition-colors"
-          onClick={handleClick}
-        >
+        <button type="button" className="inline-flex items-center gap-1 text-xs text-neutral-fg-subtle hover:text-neutral-fg transition-colors" onClick={handleClick}>
           <GitBranch className="h-3 w-3" />
           {forks.length > 1 && <span>{forks.length}</span>}
         </button>
@@ -144,7 +113,7 @@ function ForkIndicator({
       <TooltipContent side="top" className="text-xs">
         {forks.length === 1
           ? `Fork: ${forks[0].title ?? forks[0].sessionId.slice(0, 8)}`
-          : forks.map((f) => f.title ?? f.sessionId.slice(0, 8)).join(", ")}
+          : forks.map((f) => f.title ?? f.sessionId.slice(0, 8)).join(', ')}
       </TooltipContent>
     </Tooltip>
   );
@@ -154,37 +123,37 @@ function ForkIndicator({
 
 /** A grouped item: either a standalone block or a Task group with children. */
 type GroupedItem =
-  | { kind: "block"; block: ContentBlock }
-  | { kind: "task"; block: ContentBlock & { type: "tool_use" }; children: ContentBlock[] };
+  | { kind: 'block'; block: ContentBlock }
+  | { kind: 'task'; block: ContentBlock & { type: 'tool_use' }; children: ContentBlock[] };
 
 /** Group activity blocks: Task tool_use blocks absorb subsequent blocks until the next text or Task. */
 function groupActivities(blocks: ContentBlock[]): GroupedItem[] {
   const items: GroupedItem[] = [];
-  let currentTask: (ContentBlock & { type: "tool_use" }) | null = null;
+  let currentTask: (ContentBlock & { type: 'tool_use' }) | null = null;
   let currentChildren: ContentBlock[] = [];
 
   function flushTask() {
     if (currentTask) {
-      items.push({ kind: "task", block: currentTask, children: currentChildren });
+      items.push({ kind: 'task', block: currentTask, children: currentChildren });
       currentTask = null;
       currentChildren = [];
     }
   }
 
   for (const block of blocks) {
-    if (block.type === "tool_use" && (block.name === "Task" || block.name === "Agent")) {
+    if (block.type === 'tool_use' && (block.name === 'Task' || block.name === 'Agent')) {
       flushTask();
       currentTask = block;
       currentChildren = [];
     } else if (currentTask) {
-      if (block.type === "text") {
+      if (block.type === 'text') {
         flushTask();
-        items.push({ kind: "block", block });
+        items.push({ kind: 'block', block });
       } else {
         currentChildren.push(block);
       }
     } else {
-      items.push({ kind: "block", block });
+      items.push({ kind: 'block', block });
     }
   }
   flushTask();
@@ -193,19 +162,16 @@ function groupActivities(blocks: ContentBlock[]): GroupedItem[] {
 
 // ─── useMessageSegments hook ─────────────────────────────────────────────────
 
-function useMessageSegments(message: MessageItemProps["message"]) {
+function useMessageSegments(message: MessageItemProps['message']) {
   const streamingContent = useMessagesStore(
     useCallback(
-      (s) => (message.isStreaming && s.streamingMessageId === message.id ? s.streamingContent : ""),
+      (s) => (message.isStreaming && s.streamingMessageId === message.id ? s.streamingContent : ''),
       [message.id, message.isStreaming],
     ),
   );
   const streamingBlocks = useMessagesStore(
     useCallback(
-      (s) =>
-        message.isStreaming && s.streamingMessageId === message.id
-          ? s.streamingBlocks
-          : EMPTY_BLOCKS,
+      (s) => (message.isStreaming && s.streamingMessageId === message.id ? s.streamingBlocks : EMPTY_BLOCKS),
       [message.id, message.isStreaming],
     ),
   );
@@ -229,10 +195,9 @@ const EMPTY_BLOCKS: ContentBlock[] = [];
 
 // ─── Status Icons ────────────────────────────────────────────────────────────
 
-function TaskStatusIcon({ status }: { status: "running" | "complete" | "error" }) {
-  if (status === "running")
-    return <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />;
-  if (status === "error") {
+function TaskStatusIcon({ status }: { status: 'running' | 'complete' | 'error' }) {
+  if (status === 'running') return <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />;
+  if (status === 'error') {
     return (
       <span className="shrink-0 w-4 h-4 rounded-full bg-palette-danger/15 inline-flex items-center justify-center">
         <X className="h-2.5 w-2.5 text-palette-danger" />
@@ -248,19 +213,15 @@ function TaskStatusIcon({ status }: { status: "running" | "complete" | "error" }
 
 // ─── Task Group Row ──────────────────────────────────────────────────────────
 
-function TaskGroupRow({
-  block,
-  children,
-  isStreaming,
-}: {
-  block: ContentBlock & { type: "tool_use" };
+function TaskGroupRow({ block, children, isStreaming }: {
+  block: ContentBlock & { type: 'tool_use' };
   children: ContentBlock[];
   isStreaming: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const args = (block.inputRaw ?? {}) as Record<string, unknown>;
   const subagentType = args.subagent_type ? String(args.subagent_type) : null;
-  const description = String(args.description ?? block.input ?? "Task");
+  const description = String(args.description ?? block.input ?? 'Task');
 
   return (
     <div>
@@ -268,23 +229,14 @@ function TaskGroupRow({
         role="button"
         tabIndex={0}
         onClick={() => setExpanded((p) => !p)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setExpanded((p) => !p);
-          }
-        }}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded((p) => !p); } }}
         className="group/row flex items-center gap-2 py-0.5 text-[13px] cursor-pointer hover:text-neutral-fg transition-colors"
       >
-        <ChevronRight
-          className={`h-3 w-3 text-neutral-fg-subtle/60 shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`}
-        />
+        <ChevronRight className={`h-3 w-3 text-neutral-fg-subtle/60 shrink-0 transition-transform ${expanded ? 'rotate-90' : ''}`} />
         <TaskStatusIcon status={block.status} />
         {subagentType && <Chip>{subagentType}</Chip>}
-        <span className="truncate flex-1 min-w-0 text-neutral-fg-subtle font-medium">
-          {description}
-        </span>
-        {block.status === "error" && <Chip color="danger">Error</Chip>}
+        <span className="truncate flex-1 min-w-0 text-neutral-fg-subtle font-medium">{description}</span>
+        {block.status === 'error' && <Chip color="danger">Error</Chip>}
       </div>
       {expanded && children.length > 0 && (
         <div className="pl-5 ml-[7px] border-l-2 border-neutral-border-subtle space-y-0">
@@ -300,15 +252,15 @@ function TaskGroupRow({
 function deriveStreamingHeader(activityBlocks: ContentBlock[]) {
   for (let i = activityBlocks.length - 1; i >= 0; i--) {
     const b = activityBlocks[i];
-    if (b.type === "tool_use" && b.status === "running") return `Running ${b.name}...`;
+    if (b.type === 'tool_use' && b.status === 'running') return `Running ${b.name}...`;
   }
-  const lastTool = [...activityBlocks].reverse().find((b) => b.type === "tool_use");
-  if (lastTool && lastTool.type === "tool_use") return `Running ${lastTool.name}...`;
-  return "Working...";
+  const lastTool = [...activityBlocks].reverse().find((b) => b.type === 'tool_use');
+  if (lastTool && lastTool.type === 'tool_use') return `Running ${lastTool.name}...`;
+  return 'Working...';
 }
 
 function pluralize(n: number, singular: string, plural: string) {
-  return n > 0 ? `${n} ${n > 1 ? plural : singular}` : "";
+  return n > 0 ? `${n} ${n > 1 ? plural : singular}` : '';
 }
 
 function buildCompletedParts(counts: Record<string, number>): string[] {
@@ -317,37 +269,31 @@ function buildCompletedParts(counts: Record<string, number>): string[] {
   const s = (counts.Grep ?? 0) + (counts.Glob ?? 0);
 
   const entries: Array<[number, string, string, string?]> = [
-    [r, "file", "files", "read "],
-    [e, "file", "files", "edited "],
-    [s, "search", "searches"],
-    [counts.Bash ?? 0, "command", "commands"],
-    [counts.Task ?? 0, "task", "tasks"],
+    [r, 'file', 'files', 'read '],
+    [e, 'file', 'files', 'edited '],
+    [s, 'search', 'searches'],
+    [counts.Bash ?? 0, 'command', 'commands'],
+    [counts.Task ?? 0, 'task', 'tasks'],
   ];
 
   return entries
     .filter(([n]) => n > 0)
-    .map(([n, sg, pl, prefix]) => `${prefix ?? ""}${pluralize(n, sg, pl)}`);
+    .map(([n, sg, pl, prefix]) => `${prefix ?? ''}${pluralize(n, sg, pl)}`);
 }
 
 function deriveCompletedHeader(activityBlocks: ContentBlock[]) {
-  const tools = activityBlocks.filter(
-    (b): b is ContentBlock & { type: "tool_use" } => b.type === "tool_use",
-  );
-  if (tools.length === 0) return "Completed";
+  const tools = activityBlocks.filter((b): b is ContentBlock & { type: 'tool_use' } => b.type === 'tool_use');
+  if (tools.length === 0) return 'Completed';
 
   const counts: Record<string, number> = {};
   for (const t of tools) counts[t.name] = (counts[t.name] ?? 0) + 1;
 
   const parts = buildCompletedParts(counts);
-  return parts.length > 0
-    ? parts.join(", ")
-    : `Used ${tools.length} tool${tools.length > 1 ? "s" : ""}`;
+  return parts.length > 0 ? parts.join(', ') : `Used ${tools.length} tool${tools.length > 1 ? 's' : ''}`;
 }
 
 function deriveHeaderText(activityBlocks: ContentBlock[], isStreaming: boolean) {
-  return isStreaming
-    ? deriveStreamingHeader(activityBlocks)
-    : deriveCompletedHeader(activityBlocks);
+  return isStreaming ? deriveStreamingHeader(activityBlocks) : deriveCompletedHeader(activityBlocks);
 }
 
 // ─── Segment Components ──────────────────────────────────────────────────────
@@ -356,44 +302,28 @@ function ThinkingSegment({ blocks }: { blocks: ContentBlock[] }) {
   return (
     <>
       {blocks.map((block, i) => {
-        if (block.type !== "thinking") return null;
-        const isActive = block.status === "running";
+        if (block.type !== 'thinking') return null;
+        const isActive = block.status === 'running';
         if (!block.text.trim() && !isActive) return null;
-        return (
-          <ContentBlockRenderer
-            key={`thinking-${i}`}
-            blocks={[block]}
-            isStreaming={isActive}
-            inline
-          />
-        );
+        return <ContentBlockRenderer key={`thinking-${i}`} blocks={[block]} isStreaming={isActive} inline />;
       })}
     </>
   );
 }
 
-function ActivitySegment({
-  blocks,
-  isStreaming,
-}: {
+function ActivitySegment({ blocks, isStreaming }: {
   blocks: ContentBlock[];
   isStreaming: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
   const grouped = useMemo(() => groupActivities(blocks), [blocks]);
-  const anyRunning = blocks.some((b) => b.status === "running");
-  const headerText = useMemo(
-    () => deriveHeaderText(blocks, isStreaming && anyRunning),
-    [blocks, isStreaming, anyRunning],
-  );
-  const errorCount = useMemo(
-    () => blocks.filter((b) => b.type === "tool_use" && b.status === "error").length,
-    [blocks],
-  );
+  const anyRunning = blocks.some((b) => b.status === 'running');
+  const headerText = useMemo(() => deriveHeaderText(blocks, isStreaming && anyRunning), [blocks, isStreaming, anyRunning]);
+  const errorCount = useMemo(() => blocks.filter((b) => b.type === 'tool_use' && b.status === 'error').length, [blocks]);
 
   // Single child → render flat without collapsible wrapper
   if (grouped.length === 1) {
-    if (grouped[0].kind === "block") {
+    if (grouped[0].kind === 'block') {
       return <ContentBlockRenderer blocks={[grouped[0].block]} isStreaming={isStreaming} inline />;
     }
     // Single task with children — render the task group directly (no outer summary)
@@ -408,9 +338,7 @@ function ActivitySegment({
         onClick={() => setExpanded((p) => !p)}
         className="flex items-center gap-2 w-full py-1 text-[13px] text-neutral-fg-subtle hover:text-neutral-fg transition-colors"
       >
-        <ChevronRight
-          className={`h-3 w-3 shrink-0 transition-transform text-neutral-fg-subtle/40 ${expanded ? "rotate-90" : ""}`}
-        />
+        <ChevronRight className={`h-3 w-3 shrink-0 transition-transform text-neutral-fg-subtle/40 ${expanded ? 'rotate-90' : ''}`} />
         {isStreaming && anyRunning ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />
         ) : (
@@ -425,7 +353,7 @@ function ActivitySegment({
       {expanded && (
         <div className="pl-4 space-y-0 border-l-2 border-neutral-border-subtle ml-[5px]">
           {grouped.map((item, i) => {
-            if (item.kind === "task") {
+            if (item.kind === 'task') {
               return (
                 <TaskGroupRow
                   key={`task-${item.block.id}`}
@@ -436,10 +364,8 @@ function ActivitySegment({
               );
             }
             const block = item.block;
-            const key = block.type === "tool_use" ? `tool-${block.id}` : `${block.type}-${i}`;
-            return (
-              <ContentBlockRenderer key={key} blocks={[block]} isStreaming={isStreaming} inline />
-            );
+            const key = block.type === 'tool_use' ? `tool-${block.id}` : `${block.type}-${i}`;
+            return <ContentBlockRenderer key={key} blocks={[block]} isStreaming={isStreaming} inline />;
           })}
         </div>
       )}
@@ -447,8 +373,11 @@ function ActivitySegment({
   );
 }
 
-function TextSegment({ blocks, isStreaming }: { blocks: ContentBlock[]; isStreaming: boolean }) {
-  const nonEmpty = blocks.filter((b) => b.type === "text" && b.text.trim().length > 0);
+function TextSegment({ blocks, isStreaming }: {
+  blocks: ContentBlock[];
+  isStreaming: boolean;
+}) {
+  const nonEmpty = blocks.filter((b) => b.type === 'text' && b.text.trim().length > 0);
   if (nonEmpty.length === 0) return null;
 
   return (
@@ -462,19 +391,13 @@ function TextSegment({ blocks, isStreaming }: { blocks: ContentBlock[]; isStream
 
 // ─── Legacy tool calls ───────────────────────────────────────────────────────
 
-function getToolResult(
-  toolCallId: string,
-  toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>,
-) {
+function getToolResult(toolCallId: string, toolResults?: Array<{ toolCallId: string; result?: unknown; error?: string }>) {
   return toolResults?.find((r) => r.toolCallId === toolCallId);
 }
 
-function LegacyToolCalls({
-  toolCalls,
-  toolResults,
-}: {
-  toolCalls: NonNullable<MessageItemProps["message"]["toolCalls"]>;
-  toolResults: MessageItemProps["message"]["toolResults"];
+function LegacyToolCalls({ toolCalls, toolResults }: {
+  toolCalls: NonNullable<MessageItemProps['message']['toolCalls']>;
+  toolResults: MessageItemProps['message']['toolResults'];
 }) {
   return (
     <div className="space-y-1">
@@ -487,7 +410,7 @@ function LegacyToolCalls({
             args={toolCall.args}
             result={result?.result}
             error={result?.error}
-            status={result ? "success" : "running"}
+            status={result ? 'success' : 'running'}
           />
         );
       })}
@@ -497,16 +420,7 @@ function LegacyToolCalls({
 
 // ─── User Bubble ─────────────────────────────────────────────────────────────
 
-function UserBubble({
-  content,
-  timestamp,
-  messageIndex,
-  forks,
-  isStreaming,
-  onRewind,
-  onFork,
-  onSelectSession,
-}: {
+function UserBubble({ content, timestamp, messageIndex, forks, isStreaming, onRewind, onFork, onSelectSession }: {
   content: string;
   timestamp: number;
   messageIndex?: number;
@@ -522,9 +436,7 @@ function UserBubble({
     <div className="flex justify-end">
       <div className="max-w-[85%]">
         <div className="bg-neutral-fg/[0.06] rounded-2xl rounded-br-md px-4 py-3">
-          <div className="text-[13.5px] leading-[1.7] whitespace-pre-wrap text-neutral-fg">
-            {content}
-          </div>
+          <div className="text-[13.5px] leading-[1.7] whitespace-pre-wrap text-neutral-fg">{content}</div>
         </div>
         <div className="flex items-center justify-end gap-2 mt-1 pr-1">
           {forks && forks.length > 0 && (
@@ -538,7 +450,9 @@ function UserBubble({
               onFork={onFork}
             />
           )}
-          <span className="text-[10px] text-neutral-fg-subtle/50">{formatTime(timestamp)}</span>
+          <span className="text-[10px] text-neutral-fg-subtle/50">
+            {formatTime(timestamp)}
+          </span>
         </div>
       </div>
     </div>
@@ -547,7 +461,9 @@ function UserBubble({
 
 // ─── Assistant Turn ──────────────────────────────────────────────────────────
 
-function AssistantTurn({ message }: { message: MessageItemProps["message"] }) {
+function AssistantTurn({ message }: {
+  message: MessageItemProps['message'];
+}) {
   const { segments, displayContent } = useMessageSegments(message);
 
   const hasSegments = segments.length > 0;
@@ -558,25 +474,13 @@ function AssistantTurn({ message }: { message: MessageItemProps["message"] }) {
       {/* Render each segment in order */}
       {segments.map((seg, i) => {
         switch (seg.kind) {
-          case "thinking":
+          case 'thinking':
             return <ThinkingSegment key={`thinking-${i}`} blocks={seg.blocks} />;
-          case "activity":
-            return (
-              <ActivitySegment
-                key={`activity-${i}`}
-                blocks={seg.blocks}
-                isStreaming={message.isStreaming}
-              />
-            );
-          case "text":
-            return (
-              <TextSegment
-                key={`text-${i}`}
-                blocks={seg.blocks}
-                isStreaming={message.isStreaming}
-              />
-            );
-          case "question":
+          case 'activity':
+            return <ActivitySegment key={`activity-${i}`} blocks={seg.blocks} isStreaming={message.isStreaming} />;
+          case 'text':
+            return <TextSegment key={`text-${i}`} blocks={seg.blocks} isStreaming={message.isStreaming} />;
+          case 'question':
             return <QuestionCard key={`question-${seg.block.id}`} block={seg.block} />;
         }
       })}
@@ -587,21 +491,22 @@ function AssistantTurn({ message }: { message: MessageItemProps["message"] }) {
       )}
 
       {/* Streaming fallback: show displayContent when no segments yet */}
-      {message.isStreaming &&
-        !hasSegments &&
-        !hasLegacyTools &&
-        (displayContent.trim() ? (
-          <div className="px-1">
-            <div className="text-[13.5px] leading-[1.7]">
-              <Markdown content={displayContent} />
+      {message.isStreaming && !hasSegments && !hasLegacyTools && (
+        displayContent.trim()
+          ? (
+            <div className="px-1">
+              <div className="text-[13.5px] leading-[1.7]">
+                <Markdown content={displayContent} />
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2 py-1 text-[13px] text-neutral-fg-subtle">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary" />
-            <span>Thinking...</span>
-          </div>
-        ))}
+          )
+          : (
+            <div className="flex items-center gap-2 py-1 text-[13px] text-neutral-fg-subtle">
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary" />
+              <span>Thinking...</span>
+            </div>
+          )
+      )}
     </div>
   );
 }
@@ -609,14 +514,9 @@ function AssistantTurn({ message }: { message: MessageItemProps["message"] }) {
 // ─── Root Component ──────────────────────────────────────────────────────────
 
 function MessageItem({
-  message,
-  messageIndex,
-  forks,
-  onRewind,
-  onFork,
-  onSelectSession,
+  message, messageIndex, forks, onRewind, onFork, onSelectSession,
 }: MessageItemProps) {
-  const isUser = message.role === "user";
+  const isUser = message.role === 'user';
 
   return (
     <div className={`group/msg py-3 px-6`}>
@@ -653,22 +553,24 @@ function areForksEqual(a?: ForkInfo[], b?: ForkInfo[]) {
 
 function areMessagePropsEqual(prev: MessageItemProps, next: MessageItemProps) {
   return (
-    (prev.message === next.message ||
-      (prev.message.id === next.message.id &&
-        prev.message.role === next.message.role &&
-        prev.message.content === next.message.content &&
-        prev.message.timestamp === next.message.timestamp &&
-        prev.message.isStreaming === next.message.isStreaming &&
-        prev.message.toolCalls === next.message.toolCalls &&
-        prev.message.toolResults === next.message.toolResults &&
-        prev.message.toolActivities === next.message.toolActivities &&
-        prev.message.contentBlocks === next.message.contentBlocks)) &&
+    prev.message === next.message ||
+    (
+      prev.message.id === next.message.id &&
+      prev.message.role === next.message.role &&
+      prev.message.content === next.message.content &&
+      prev.message.timestamp === next.message.timestamp &&
+      prev.message.isStreaming === next.message.isStreaming &&
+      prev.message.toolCalls === next.message.toolCalls &&
+      prev.message.toolResults === next.message.toolResults &&
+      prev.message.toolActivities === next.message.toolActivities &&
+      prev.message.contentBlocks === next.message.contentBlocks
+    )
+  ) &&
     prev.messageIndex === next.messageIndex &&
     areForksEqual(prev.forks, next.forks) &&
     prev.onRewind === next.onRewind &&
     prev.onFork === next.onFork &&
-    prev.onSelectSession === next.onSelectSession
-  );
+    prev.onSelectSession === next.onSelectSession;
 }
 
 export default memo(MessageItem, areMessagePropsEqual);

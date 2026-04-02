@@ -1,4 +1,4 @@
-import type { AgentQuestion } from "@/services/types";
+import type { AgentQuestion } from '@/services/types';
 
 export function buildAnswerMap(
   questions: AgentQuestion[],

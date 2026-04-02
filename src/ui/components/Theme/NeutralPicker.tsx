@@ -6,8 +6,8 @@
  * Presets and a tonal preview strip sit below.
  */
 
-import { useCallback, useEffect, useRef } from "react";
-import { formatOklch, oklchToHex } from "@/ui/lib/oklch";
+import { useCallback, useEffect, useRef } from 'react';
+import { formatOklch, oklchToHex } from '@/ui/lib/oklch';
 
 interface NeutralPickerProps {
   hue: number;
@@ -21,10 +21,10 @@ interface NeutralPickerProps {
 }
 
 const PRESETS = [
-  { label: "Gray", hue: 0, chroma: 0 },
-  { label: "Warm", hue: 70, chroma: 0.006 },
-  { label: "Cool", hue: 250, chroma: 0.005 },
-  { label: "Slate", hue: 240, chroma: 0.01 },
+  { label: 'Gray', hue: 0, chroma: 0 },
+  { label: 'Warm', hue: 70, chroma: 0.006 },
+  { label: 'Cool', hue: 250, chroma: 0.005 },
+  { label: 'Slate', hue: 240, chroma: 0.01 },
 ] as const;
 
 const AREA_W = 192;
@@ -49,7 +49,7 @@ export function NeutralPicker({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const img = ctx.createImageData(AREA_W, AREA_H);
@@ -90,7 +90,7 @@ export function NeutralPicker({
   );
 
   const handlePreset = useCallback(
-    (preset: (typeof PRESETS)[number]) => {
+    (preset: typeof PRESETS[number]) => {
       onHueChange(preset.hue);
       onChromaChange(preset.chroma);
     },
@@ -116,9 +116,7 @@ export function NeutralPicker({
           className="relative cursor-crosshair rounded-md overflow-hidden border border-neutral-border-subtle"
           style={{ width: AREA_W, height: AREA_H }}
           onPointerDown={startDrag}
-          onPointerMove={(e) => {
-            if (e.buttons > 0) handlePointer(e);
-          }}
+          onPointerMove={(e) => { if (e.buttons > 0) handlePointer(e); }}
         >
           <canvas
             ref={canvasRef as React.RefObject<HTMLCanvasElement>}
@@ -129,7 +127,7 @@ export function NeutralPicker({
           {/* Crosshair handle */}
           <div
             className="absolute pointer-events-none"
-            style={{ left: `${handleX}%`, top: `${handleY}%`, transform: "translate(-50%, -50%)" }}
+            style={{ left: `${handleX}%`, top: `${handleY}%`, transform: 'translate(-50%, -50%)' }}
           >
             <div className="w-3 h-3 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3),0_1px_3px_rgba(0,0,0,0.4)]" />
           </div>
@@ -139,8 +137,8 @@ export function NeutralPicker({
       {/* Presets */}
       <div className="flex gap-1">
         {PRESETS.map((preset) => {
-          const active =
-            Math.round(hue) === preset.hue && Math.abs(chroma - preset.chroma) < 0.0005;
+          const active = Math.round(hue) === preset.hue &&
+            Math.abs(chroma - preset.chroma) < 0.0005;
           return (
             <button
               key={preset.label}
@@ -148,8 +146,8 @@ export function NeutralPicker({
               onClick={() => handlePreset(preset)}
               className={`flex-1 py-1 rounded-md text-[11px] font-medium border transition-colors ${
                 active
-                  ? "bg-neutral-fg text-neutral-bg border-neutral-fg"
-                  : "bg-transparent text-neutral-fg-subtle border-neutral-border hover:border-neutral-ring"
+                  ? 'bg-neutral-fg text-neutral-bg border-neutral-fg'
+                  : 'bg-transparent text-neutral-fg-subtle border-neutral-border hover:border-neutral-ring'
               }`}
             >
               {preset.label}
@@ -160,15 +158,13 @@ export function NeutralPicker({
 
       {/* Tonal preview strip — sorted light→dark or dark→light for a clean gradient */}
       <div className="flex gap-px rounded-md overflow-hidden border border-neutral-border-subtle">
-        {[...previewLevels]
-          .sort((a, b) => (isDark ? a - b : b - a))
-          .map((lightness) => (
-            <div
-              key={lightness}
-              className="h-5 flex-1 transition-colors duration-150"
-              style={{ background: formatOklch(lightness, chroma, hue) }}
-            />
-          ))}
+        {[...previewLevels].sort((a, b) => isDark ? a - b : b - a).map((lightness) => (
+          <div
+            key={lightness}
+            className="h-5 flex-1 transition-colors duration-150"
+            style={{ background: formatOklch(lightness, chroma, hue) }}
+          />
+        ))}
       </div>
     </div>
   );

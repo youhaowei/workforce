@@ -1,10 +1,10 @@
-import { z } from "zod";
-import { router, publicProcedure } from "../trpc";
-import { getAgentService } from "@/services/agent";
-import { getAgentRunner } from "@/server/agent-runner";
-import { createLogger } from "tracey";
+import { z } from 'zod';
+import { router, publicProcedure } from '../trpc';
+import { getAgentService } from '@/services/agent';
+import { getAgentRunner } from '@/server/agent-runner';
+import { createLogger } from 'tracey';
 
-const log = createLogger("AgentRouter");
+const log = createLogger('AgentRouter');
 
 export const agentRouter = router({
   /**
@@ -14,16 +14,14 @@ export const agentRouter = router({
    * (e.g. HMR), the agent continues running. Use `resumeStream` to reconnect.
    */
   run: publicProcedure
-    .input(
-      z.object({
-        prompt: z.string(),
-        model: z.string().optional(),
-        maxThinkingTokens: z.number().optional(),
-        permissionMode: z.enum(["plan", "default", "acceptEdits", "bypassPermissions"]).optional(),
-        sessionId: z.string().optional(),
-        messageId: z.string().optional(),
-      }),
-    )
+    .input(z.object({
+      prompt: z.string(),
+      model: z.string().optional(),
+      maxThinkingTokens: z.number().optional(),
+      permissionMode: z.enum(['plan', 'default', 'acceptEdits', 'bypassPermissions']).optional(),
+      sessionId: z.string().optional(),
+      messageId: z.string().optional(),
+    }))
     .subscription(async function* ({ input }) {
       const runner = getAgentRunner();
       runner.startRun(input);
@@ -37,9 +35,10 @@ export const agentRouter = router({
    * activities), then live events from that point onward. If no run is active,
    * yields `done` immediately.
    */
-  resumeStream: publicProcedure.subscription(async function* () {
-    yield* getAgentRunner().observe();
-  }),
+  resumeStream: publicProcedure
+    .subscription(async function* () {
+      yield* getAgentRunner().observe();
+    }),
 
   /**
    * Check if an agent run is active and get its session/message context.
@@ -50,10 +49,7 @@ export const agentRouter = router({
     try {
       return await getAgentService().getSupportedModels();
     } catch (err) {
-      log.error(
-        { error: err instanceof Error ? err.message : String(err) },
-        "supportedModels failed",
-      );
+      log.error({ error: err instanceof Error ? err.message : String(err) }, 'supportedModels failed');
       return [];
     }
   }),
@@ -64,12 +60,10 @@ export const agentRouter = router({
   }),
 
   submitAnswer: publicProcedure
-    .input(
-      z.object({
-        requestId: z.string(),
-        answers: z.record(z.string(), z.array(z.string())),
-      }),
-    )
+    .input(z.object({
+      requestId: z.string(),
+      answers: z.record(z.string(), z.array(z.string())),
+    }))
     .mutation(({ input }) => {
       getAgentRunner().recordQuestionAnswer(input.requestId, input.answers);
       getAgentService().submitAnswer(input.requestId, input.answers);

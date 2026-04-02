@@ -13,8 +13,8 @@ import type {
   ToolDefinition,
   ToolExecutionContext,
   ToolExecutionResult,
-} from "./types";
-import { getEventBus } from "@/shared/event-bus";
+} from './types';
+import { getEventBus } from '@/shared/event-bus';
 
 interface RegisteredTool {
   definition: ToolDefinition;
@@ -50,7 +50,7 @@ class ToolServiceImpl implements ToolService {
   async execute<T = unknown>(
     name: string,
     args: Record<string, unknown>,
-    context: ToolExecutionContext,
+    context: ToolExecutionContext
   ): Promise<ToolExecutionResult<T>> {
     const tool = this.tools.get(name);
     if (!tool) {
@@ -66,7 +66,7 @@ class ToolServiceImpl implements ToolService {
     const startTime = Date.now();
 
     bus.emit({
-      type: "ToolStart",
+      type: 'ToolStart',
       toolId,
       toolName: name,
       args,
@@ -78,7 +78,7 @@ class ToolServiceImpl implements ToolService {
       const duration = Date.now() - startTime;
 
       bus.emit({
-        type: "ToolEnd",
+        type: 'ToolEnd',
         toolId,
         toolName: name,
         result,
@@ -96,7 +96,7 @@ class ToolServiceImpl implements ToolService {
       const errorMessage = err instanceof Error ? err.message : String(err);
 
       bus.emit({
-        type: "ToolEnd",
+        type: 'ToolEnd',
         toolId,
         toolName: name,
         result: null,

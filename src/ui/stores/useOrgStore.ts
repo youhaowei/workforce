@@ -9,8 +9,8 @@
  * loading→done render cycle in SetupGate).
  */
 
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface OrgState {
   currentOrgId: string | null;
@@ -23,6 +23,6 @@ export const useOrgStore = create<OrgState>()(
       currentOrgId: null,
       setCurrentOrgId: (id) => set({ currentOrgId: id }),
     }),
-    { name: "workforce-org-store" },
+    { name: 'workforce-org-store' },
   ),
 );

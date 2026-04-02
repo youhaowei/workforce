@@ -8,13 +8,13 @@
  * - GitHub CLI (gh) integration for PRs/issues
  */
 
-import { execFileNoThrow, type ExecResult } from "../utils/execFileNoThrow";
+import { execFileNoThrow, type ExecResult } from '../utils/execFileNoThrow';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type GitFileStatus = "added" | "modified" | "deleted" | "renamed" | "copied" | "unmerged";
+export type GitFileStatus = 'added' | 'modified' | 'deleted' | 'renamed' | 'copied' | 'unmerged';
 
 export interface GitStatus {
   branch: string;
@@ -56,7 +56,7 @@ export interface GitRemote {
 export interface PullRequest {
   number: number;
   title: string;
-  state: "open" | "closed" | "merged";
+  state: 'open' | 'closed' | 'merged';
   author: string;
   url: string;
   headBranch: string;
@@ -74,20 +74,13 @@ export interface GitServiceOptions {
 
 function parseStatusChar(char: string): GitFileStatus {
   switch (char) {
-    case "A":
-      return "added";
-    case "M":
-      return "modified";
-    case "D":
-      return "deleted";
-    case "R":
-      return "renamed";
-    case "C":
-      return "copied";
-    case "U":
-      return "unmerged";
-    default:
-      return "modified";
+    case 'A': return 'added';
+    case 'M': return 'modified';
+    case 'D': return 'deleted';
+    case 'R': return 'renamed';
+    case 'C': return 'copied';
+    case 'U': return 'unmerged';
+    default: return 'modified';
   }
 }
 
@@ -100,7 +93,7 @@ function parseStatusEntries(stdout: string): {
   const unstaged: GitFileChange[] = [];
   const untracked: string[] = [];
 
-  const entries = stdout.split("\0").filter(Boolean);
+  const entries = stdout.split('\0').filter(Boolean);
   let i = 0;
   while (i < entries.length) {
     const entry = entries[i];
@@ -114,18 +107,18 @@ function parseStatusEntries(stdout: string): {
     const path = entry.slice(3);
 
     let oldPath: string | undefined;
-    if (indexStatus === "R" || indexStatus === "C") {
+    if (indexStatus === 'R' || indexStatus === 'C') {
       i++;
       oldPath = entries[i];
     }
 
-    if (indexStatus === "?" && worktreeStatus === "?") {
+    if (indexStatus === '?' && worktreeStatus === '?') {
       untracked.push(path);
     } else {
-      if (indexStatus !== " " && indexStatus !== "?") {
+      if (indexStatus !== ' ' && indexStatus !== '?') {
         staged.push({ path, status: parseStatusChar(indexStatus), oldPath });
       }
-      if (worktreeStatus !== " " && worktreeStatus !== "?") {
+      if (worktreeStatus !== ' ' && worktreeStatus !== '?') {
         unstaged.push({ path, status: parseStatusChar(worktreeStatus) });
       }
     }
@@ -154,30 +147,30 @@ export class GitService {
    * Execute a git command.
    */
   private async git(...args: string[]): Promise<ExecResult> {
-    return execFileNoThrow("git", args, { cwd: this.cwd });
+    return execFileNoThrow('git', args, { cwd: this.cwd });
   }
 
   /**
    * Execute a gh (GitHub CLI) command.
    */
   private async gh(...args: string[]): Promise<ExecResult> {
-    return execFileNoThrow("gh", args, { cwd: this.cwd });
+    return execFileNoThrow('gh', args, { cwd: this.cwd });
   }
 
   /**
    * Check if current directory is a git repository.
    */
   async isRepo(): Promise<boolean> {
-    const result = await this.git("rev-parse", "--is-inside-work-tree");
-    return result.status === "success" && result.stdout.trim() === "true";
+    const result = await this.git('rev-parse', '--is-inside-work-tree');
+    return result.status === 'success' && result.stdout.trim() === 'true';
   }
 
   /**
    * Get the repository root directory.
    */
   async getRoot(): Promise<string | null> {
-    const result = await this.git("rev-parse", "--show-toplevel");
-    if (result.status !== "success") return null;
+    const result = await this.git('rev-parse', '--show-toplevel');
+    if (result.status !== 'success') return null;
     return result.stdout.trim();
   }
 
@@ -202,28 +195,28 @@ export class GitService {
     }
 
     // Get branch info
-    const branchResult = await this.git("branch", "--show-current");
-    if (branchResult.status !== "success") return null;
-    const branch = branchResult.stdout.trim() || "HEAD";
+    const branchResult = await this.git('branch', '--show-current');
+    if (branchResult.status !== 'success') return null;
+    const branch = branchResult.stdout.trim() || 'HEAD';
 
     // Get ahead/behind
     let ahead = 0;
     let behind = 0;
     const upstreamResult = await this.git(
-      "rev-list",
-      "--left-right",
-      "--count",
-      "@{upstream}...HEAD",
+      'rev-list',
+      '--left-right',
+      '--count',
+      '@{upstream}...HEAD'
     );
-    if (upstreamResult.status === "success") {
+    if (upstreamResult.status === 'success') {
       const [behindStr, aheadStr] = upstreamResult.stdout.trim().split(/\s+/);
       behind = parseInt(behindStr, 10) || 0;
       ahead = parseInt(aheadStr, 10) || 0;
     }
 
     // Get porcelain status
-    const statusResult = await this.git("status", "--porcelain=v1", "-z");
-    if (statusResult.status !== "success") return null;
+    const statusResult = await this.git('status', '--porcelain=v1', '-z');
+    if (statusResult.status !== 'success') return null;
 
     const { staged, unstaged, untracked } = parseStatusEntries(statusResult.stdout);
 
@@ -248,22 +241,22 @@ export class GitService {
    */
   async getBranches(): Promise<GitBranch[]> {
     const result = await this.git(
-      "branch",
-      "-a",
-      "--format=%(refname:short)%09%(upstream:short)%09%(HEAD)",
+      'branch',
+      '-a',
+      '--format=%(refname:short)%09%(upstream:short)%09%(HEAD)'
     );
-    if (result.status !== "success") return [];
+    if (result.status !== 'success') return [];
 
     const branches: GitBranch[] = [];
 
-    for (const line of result.stdout.trim().split("\n")) {
+    for (const line of result.stdout.trim().split('\n')) {
       if (!line) continue;
-      const [name, upstream, head] = line.split("\t");
+      const [name, upstream, head] = line.split('\t');
 
       branches.push({
-        name: name.replace(/^remotes\//, ""),
-        isCurrent: head === "*",
-        isRemote: name.startsWith("remotes/"),
+        name: name.replace(/^remotes\//, ''),
+        isCurrent: head === '*',
+        isRemote: name.startsWith('remotes/'),
         upstream: upstream || undefined,
       });
     }
@@ -276,18 +269,18 @@ export class GitService {
    */
   async getLog(limit = 10): Promise<GitCommit[]> {
     const result = await this.git(
-      "log",
+      'log',
       `-${limit}`,
-      "--format=%H%x00%h%x00%s%x00%an%x00%aI",
-      "--",
+      '--format=%H%x00%h%x00%s%x00%an%x00%aI',
+      '--'
     );
-    if (result.status !== "success") return [];
+    if (result.status !== 'success') return [];
 
     const commits: GitCommit[] = [];
 
-    for (const line of result.stdout.trim().split("\n")) {
+    for (const line of result.stdout.trim().split('\n')) {
       if (!line) continue;
-      const [hash, shortHash, subject, author, dateStr] = line.split("\0");
+      const [hash, shortHash, subject, author, dateStr] = line.split('\0');
 
       commits.push({
         hash,
@@ -305,32 +298,32 @@ export class GitService {
    * Get diff for a file or all files.
    */
   async getDiff(file?: string, staged = false): Promise<string> {
-    const args = ["diff"];
-    if (staged) args.push("--cached");
-    if (file) args.push("--", file);
+    const args = ['diff'];
+    if (staged) args.push('--cached');
+    if (file) args.push('--', file);
 
     const result = await this.git(...args);
-    return result.status === "success" ? result.stdout : "";
+    return result.status === 'success' ? result.stdout : '';
   }
 
   /**
    * Get list of remotes.
    */
   async getRemotes(): Promise<GitRemote[]> {
-    const result = await this.git("remote", "-v");
-    if (result.status !== "success") return [];
+    const result = await this.git('remote', '-v');
+    if (result.status !== 'success') return [];
 
     const remotes = new Map<string, GitRemote>();
 
-    for (const line of result.stdout.trim().split("\n")) {
+    for (const line of result.stdout.trim().split('\n')) {
       if (!line) continue;
       const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/);
       if (!match) continue;
 
       const [, name, url, type] = match;
-      const remote = remotes.get(name) ?? { name, fetchUrl: "", pushUrl: "" };
+      const remote = remotes.get(name) ?? { name, fetchUrl: '', pushUrl: '' };
 
-      if (type === "fetch") {
+      if (type === 'fetch') {
         remote.fetchUrl = url;
       } else {
         remote.pushUrl = url;
@@ -347,9 +340,9 @@ export class GitService {
    */
   async add(...files: string[]): Promise<boolean> {
     if (files.length === 0) return false;
-    const result = await this.git("add", "--", ...files);
+    const result = await this.git('add', '--', ...files);
     this.invalidateCache();
-    return result.status === "success";
+    return result.status === 'success';
   }
 
   /**
@@ -357,19 +350,19 @@ export class GitService {
    */
   async reset(...files: string[]): Promise<boolean> {
     if (files.length === 0) return false;
-    const result = await this.git("reset", "HEAD", "--", ...files);
+    const result = await this.git('reset', 'HEAD', '--', ...files);
     this.invalidateCache();
-    return result.status === "success";
+    return result.status === 'success';
   }
 
   /**
    * Create a commit.
    */
   async commit(message: string): Promise<{ success: boolean; hash?: string; error?: string }> {
-    const result = await this.git("commit", "-m", message);
+    const result = await this.git('commit', '-m', message);
     this.invalidateCache();
 
-    if (result.status !== "success") {
+    if (result.status !== 'success') {
       return { success: false, error: result.stderr || result.stdout };
     }
 
@@ -383,26 +376,26 @@ export class GitService {
    * Checkout a branch.
    */
   async checkout(branchOrPath: string, createNew = false): Promise<boolean> {
-    const args = ["checkout"];
-    if (createNew) args.push("-b");
+    const args = ['checkout'];
+    if (createNew) args.push('-b');
     args.push(branchOrPath);
 
     const result = await this.git(...args);
     this.invalidateCache();
-    return result.status === "success";
+    return result.status === 'success';
   }
 
   /**
    * Pull from remote.
    */
-  async pull(remote = "origin", branch?: string): Promise<{ success: boolean; error?: string }> {
-    const args = ["pull", remote];
+  async pull(remote = 'origin', branch?: string): Promise<{ success: boolean; error?: string }> {
+    const args = ['pull', remote];
     if (branch) args.push(branch);
 
     const result = await this.git(...args);
     this.invalidateCache();
 
-    if (result.status !== "success") {
+    if (result.status !== 'success') {
       return { success: false, error: result.stderr || result.stdout };
     }
 
@@ -413,19 +406,19 @@ export class GitService {
    * Push to remote.
    */
   async push(
-    remote = "origin",
+    remote = 'origin',
     branch?: string,
-    options: { setUpstream?: boolean; force?: boolean } = {},
+    options: { setUpstream?: boolean; force?: boolean } = {}
   ): Promise<{ success: boolean; error?: string }> {
-    const args = ["push"];
-    if (options.setUpstream) args.push("-u");
-    if (options.force) args.push("--force-with-lease"); // Safer than --force
+    const args = ['push'];
+    if (options.setUpstream) args.push('-u');
+    if (options.force) args.push('--force-with-lease'); // Safer than --force
     args.push(remote);
     if (branch) args.push(branch);
 
     const result = await this.git(...args);
 
-    if (result.status !== "success") {
+    if (result.status !== 'success') {
       return { success: false, error: result.stderr || result.stdout };
     }
 
@@ -440,29 +433,29 @@ export class GitService {
    * Check if gh CLI is available and authenticated.
    */
   async isGhAvailable(): Promise<boolean> {
-    const result = await this.gh("auth", "status");
-    return result.status === "success";
+    const result = await this.gh('auth', 'status');
+    return result.status === 'success';
   }
 
   /**
    * List pull requests.
    */
   async listPullRequests(
-    state: "open" | "closed" | "merged" | "all" = "open",
-    limit = 10,
+    state: 'open' | 'closed' | 'merged' | 'all' = 'open',
+    limit = 10
   ): Promise<PullRequest[]> {
     const result = await this.gh(
-      "pr",
-      "list",
-      "--state",
+      'pr',
+      'list',
+      '--state',
       state,
-      "--limit",
+      '--limit',
       String(limit),
-      "--json",
-      "number,title,state,author,url,headRefName,baseRefName",
+      '--json',
+      'number,title,state,author,url,headRefName,baseRefName'
     );
 
-    if (result.status !== "success") return [];
+    if (result.status !== 'success') return [];
 
     try {
       const prs = JSON.parse(result.stdout) as Array<{
@@ -478,7 +471,7 @@ export class GitService {
       return prs.map((pr) => ({
         number: pr.number,
         title: pr.title,
-        state: pr.state.toLowerCase() as "open" | "closed" | "merged",
+        state: pr.state.toLowerCase() as 'open' | 'closed' | 'merged',
         author: pr.author.login,
         url: pr.url,
         headBranch: pr.headRefName,
@@ -492,18 +485,21 @@ export class GitService {
   /**
    * Get details of a specific PR.
    */
-  async getPullRequest(numberOrBranch: number | string): Promise<PullRequest | null> {
-    const arg = typeof numberOrBranch === "number" ? String(numberOrBranch) : numberOrBranch;
+  async getPullRequest(
+    numberOrBranch: number | string
+  ): Promise<PullRequest | null> {
+    const arg =
+      typeof numberOrBranch === 'number' ? String(numberOrBranch) : numberOrBranch;
 
     const result = await this.gh(
-      "pr",
-      "view",
+      'pr',
+      'view',
       arg,
-      "--json",
-      "number,title,state,author,url,headRefName,baseRefName",
+      '--json',
+      'number,title,state,author,url,headRefName,baseRefName'
     );
 
-    if (result.status !== "success") return null;
+    if (result.status !== 'success') return null;
 
     try {
       const pr = JSON.parse(result.stdout) as {
@@ -519,7 +515,7 @@ export class GitService {
       return {
         number: pr.number,
         title: pr.title,
-        state: pr.state.toLowerCase() as "open" | "closed" | "merged",
+        state: pr.state.toLowerCase() as 'open' | 'closed' | 'merged',
         author: pr.author.login,
         url: pr.url,
         headBranch: pr.headRefName,
@@ -539,15 +535,15 @@ export class GitService {
     base?: string;
     draft?: boolean;
   }): Promise<{ success: boolean; url?: string; error?: string }> {
-    const args = ["pr", "create", "--title", options.title];
+    const args = ['pr', 'create', '--title', options.title];
 
-    if (options.body) args.push("--body", options.body);
-    if (options.base) args.push("--base", options.base);
-    if (options.draft) args.push("--draft");
+    if (options.body) args.push('--body', options.body);
+    if (options.base) args.push('--base', options.base);
+    if (options.draft) args.push('--draft');
 
     const result = await this.gh(...args);
 
-    if (result.status !== "success") {
+    if (result.status !== 'success') {
       return { success: false, error: result.stderr || result.stdout };
     }
 

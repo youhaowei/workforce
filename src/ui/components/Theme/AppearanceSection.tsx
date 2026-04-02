@@ -1,9 +1,9 @@
-import { useCallback, useMemo, useState } from "react";
-import { Sun, Moon, Monitor, RotateCcw, ChevronDown } from "lucide-react";
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { useCallback, useMemo, useState } from 'react';
+import { Sun, Moon, Monitor, RotateCcw, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import {
   useThemeStore,
   hasModeOverrides,
@@ -13,10 +13,10 @@ import {
   type ModeOverrides,
   type ResolvedMode,
   type SurfaceTintStyle,
-} from "@/ui/stores/useThemeStore";
-import { ColorPicker } from "./ColorPicker";
-import { NeutralPicker } from "./NeutralPicker";
-import { TintPicker } from "./TintPicker";
+} from '@/ui/stores/useThemeStore';
+import { ColorPicker } from './ColorPicker';
+import { NeutralPicker } from './NeutralPicker';
+import { TintPicker } from './TintPicker';
 import {
   DEFAULT_PALETTE_LIGHT,
   DEFAULT_PALETTE_DARK,
@@ -24,26 +24,26 @@ import {
   DEFAULT_SURFACE_DARK,
   PREVIEW_LEVELS_LIGHT,
   PREVIEW_LEVELS_DARK,
-} from "./theme-defaults";
+} from './theme-defaults';
 
 const PALETTE_LABELS: Record<PaletteColor, string> = {
-  primary: "Primary",
-  secondary: "Secondary",
-  success: "Success",
-  danger: "Danger",
-  warning: "Warning",
-  info: "Info",
+  primary: 'Primary',
+  secondary: 'Secondary',
+  success: 'Success',
+  danger: 'Danger',
+  warning: 'Warning',
+  info: 'Info',
 };
 
 const MODE_OPTIONS: { value: ThemeMode; label: string; icon: typeof Sun }[] = [
-  { value: "system", label: "System", icon: Monitor },
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
+  { value: 'system', label: 'System', icon: Monitor },
+  { value: 'light', label: 'Light', icon: Sun },
+  { value: 'dark', label: 'Dark', icon: Moon },
 ];
 const SURFACE_TINT_STYLES: { value: SurfaceTintStyle; label: string }[] = [
-  { value: "solid", label: "Solid" },
-  { value: "gradient2", label: "2-Stop" },
-  { value: "gradient3", label: "3-Stop" },
+  { value: 'solid', label: 'Solid' },
+  { value: 'gradient2', label: '2-Stop' },
+  { value: 'gradient3', label: '3-Stop' },
 ];
 
 export function AppearanceSection() {
@@ -53,15 +53,16 @@ export function AppearanceSection() {
   const setOverrides = useThemeStore((s) => s.setOverrides);
   const resetOverrides = useThemeStore((s) => s.resetOverrides);
 
-  const [activeVariantTab, setActiveVariantTab] = useState<ResolvedMode>(() =>
-    resolveIsDark(mode) ? "dark" : "light",
+  const [activeVariantTab, setActiveVariantTab] = useState<ResolvedMode>(
+    () => resolveIsDark(mode) ? 'dark' : 'light',
   );
 
   const hasAnyOverrides = hasModeOverrides(overrides.light) || hasModeOverrides(overrides.dark);
 
   // Which mode keys to show controls for
-  const visibleModes: ResolvedMode[] =
-    mode === "system" ? ["light", "dark"] : [mode as ResolvedMode];
+  const visibleModes: ResolvedMode[] = mode === 'system'
+    ? ['light', 'dark']
+    : [mode as ResolvedMode];
 
   return (
     <div className="space-y-3">
@@ -86,8 +87,8 @@ export function AppearanceSection() {
               onClick={() => setMode(value)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
                 mode === value
-                  ? "bg-palette-primary text-palette-primary-fg border-palette-primary"
-                  : "bg-neutral-bg-subtle text-neutral-fg-subtle border-neutral-border hover:border-neutral-ring"
+                  ? 'bg-palette-primary text-palette-primary-fg border-palette-primary'
+                  : 'bg-neutral-bg-subtle text-neutral-fg-subtle border-neutral-border hover:border-neutral-ring'
               }`}
             >
               <Icon className="h-3 w-3" />
@@ -100,10 +101,10 @@ export function AppearanceSection() {
       <Separator />
 
       {/* Variant tabs for system mode */}
-      {mode === "system" && (
+      {mode === 'system' && (
         <div className="flex gap-1.5">
-          {(["light", "dark"] as ResolvedMode[]).map((v) => {
-            const Icon = v === "light" ? Sun : Moon;
+          {(['light', 'dark'] as ResolvedMode[]).map((v) => {
+            const Icon = v === 'light' ? Sun : Moon;
             return (
               <button
                 key={v}
@@ -111,12 +112,12 @@ export function AppearanceSection() {
                 onClick={() => setActiveVariantTab(v)}
                 className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-medium transition-colors ${
                   activeVariantTab === v
-                    ? "bg-neutral-bg-emphasis text-neutral-fg"
-                    : "text-neutral-fg-subtle hover:text-neutral-fg"
+                    ? 'bg-neutral-bg-emphasis text-neutral-fg'
+                    : 'text-neutral-fg-subtle hover:text-neutral-fg'
                 }`}
               >
                 <Icon className="h-3 w-3" />
-                {v === "light" ? "Light" : "Dark"}
+                {v === 'light' ? 'Light' : 'Dark'}
               </button>
             );
           })}
@@ -124,7 +125,7 @@ export function AppearanceSection() {
       )}
 
       {/* Per-mode controls */}
-      {mode === "system" ? (
+      {mode === 'system' ? (
         <ModeColorControls
           modeKey={activeVariantTab}
           overrides={overrides}
@@ -152,19 +153,19 @@ function ModeColorControls({
   setOverrides,
 }: {
   modeKey: ResolvedMode;
-  overrides: import("@/ui/stores/useThemeStore").ThemeOverrides;
-  setOverrides: (o: import("@/ui/stores/useThemeStore").ThemeOverrides) => void;
+  overrides: import('@/ui/stores/useThemeStore').ThemeOverrides;
+  setOverrides: (o: import('@/ui/stores/useThemeStore').ThemeOverrides) => void;
 }) {
   const modeOverrides = overrides[modeKey] ?? {};
-  const defaultPalette = modeKey === "light" ? DEFAULT_PALETTE_LIGHT : DEFAULT_PALETTE_DARK;
-  const defaultSurface = modeKey === "light" ? DEFAULT_SURFACE_LIGHT : DEFAULT_SURFACE_DARK;
-  const previewLevels = modeKey === "light" ? PREVIEW_LEVELS_LIGHT : PREVIEW_LEVELS_DARK;
-  const surfaceTintStyle = modeOverrides.surfaceTintStyle ?? "solid";
+  const defaultPalette = modeKey === 'light' ? DEFAULT_PALETTE_LIGHT : DEFAULT_PALETTE_DARK;
+  const defaultSurface = modeKey === 'light' ? DEFAULT_SURFACE_LIGHT : DEFAULT_SURFACE_DARK;
+  const previewLevels = modeKey === 'light' ? PREVIEW_LEVELS_LIGHT : PREVIEW_LEVELS_DARK;
+  const surfaceTintStyle = modeOverrides.surfaceTintStyle ?? 'solid';
 
   // Only colors the user has actually customized (overrides only, not defaults)
   const usedColors = useMemo(() => {
     const result: { light: string[]; dark: string[] } = { light: [], dark: [] };
-    for (const m of ["light", "dark"] as const) {
+    for (const m of ['light', 'dark'] as const) {
       const mo = overrides[m] ?? {};
       if (mo.palette) {
         for (const v of Object.values(mo.palette)) {
@@ -236,7 +237,7 @@ function ModeColorControls({
               onHueChange={(v) => updateModeOverride({ neutralHue: v })}
               onChromaChange={(v) => updateModeOverride({ neutralChroma: v })}
               previewLevels={previewLevels}
-              isDark={modeKey === "dark"}
+              isDark={modeKey === 'dark'}
             />
           </div>
         </CollapsibleContent>
@@ -259,8 +260,8 @@ function ModeColorControls({
               onClick={() => updateModeOverride({ surfaceTintStyle: value })}
               className={`flex-1 rounded-md border px-2 py-1 text-[11px] font-medium transition-colors ${
                 surfaceTintStyle === value
-                  ? "bg-palette-primary text-palette-primary-fg border-palette-primary"
-                  : "bg-neutral-bg-subtle text-neutral-fg-subtle border-neutral-border hover:border-neutral-ring"
+                  ? 'bg-palette-primary text-palette-primary-fg border-palette-primary'
+                  : 'bg-neutral-bg-subtle text-neutral-fg-subtle border-neutral-border hover:border-neutral-ring'
               }`}
             >
               {label}

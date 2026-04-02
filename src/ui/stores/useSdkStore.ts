@@ -7,8 +7,8 @@
  * EventBus subscription is handled by the useEventBusInit hook.
  */
 
-import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
 
 // =============================================================================
 // Types (re-exported for consumers)
@@ -27,19 +27,16 @@ export interface QueryStats {
   durationApiMs: number;
   numTurns: number;
   usage: UsageStats;
-  modelUsage: Record<
-    string,
-    {
-      inputTokens: number;
-      outputTokens: number;
-      cacheReadInputTokens: number;
-      cacheCreationInputTokens: number;
-      webSearchRequests: number;
-      costUSD: number;
-      contextWindow: number;
-      maxOutputTokens: number;
-    }
-  >;
+  modelUsage: Record<string, {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+    webSearchRequests: number;
+    costUSD: number;
+    contextWindow: number;
+    maxOutputTokens: number;
+  }>;
 }
 
 export interface SystemInfo {
@@ -63,7 +60,7 @@ export interface HookExecution {
   hookId: string;
   hookName: string;
   hookEvent: string;
-  status: "running" | "success" | "error" | "cancelled";
+  status: 'running' | 'success' | 'error' | 'cancelled';
   startTime: number;
   endTime?: number;
   exitCode?: number;
@@ -87,34 +84,14 @@ interface SdkStore {
     durationMs: number;
     durationApiMs: number;
     numTurns: number;
-    usage: {
-      inputTokens: number;
-      outputTokens: number;
-      cacheReadInputTokens: number;
-      cacheCreationInputTokens: number;
-    };
+    usage: { inputTokens: number; outputTokens: number; cacheReadInputTokens: number; cacheCreationInputTokens: number };
     totalCostUsd: number;
-    modelUsage: QueryStats["modelUsage"];
+    modelUsage: QueryStats['modelUsage'];
   }) => void;
-  handleToolProgress: (event: {
-    toolUseId: string;
-    toolName: string;
-    timestamp: number;
-    elapsedTimeSeconds: number;
-  }) => void;
+  handleToolProgress: (event: { toolUseId: string; toolName: string; timestamp: number; elapsedTimeSeconds: number }) => void;
   handleThinkingDelta: (thinking: string) => void;
-  handleHookStarted: (event: {
-    hookId: string;
-    hookName: string;
-    hookEvent: string;
-    timestamp: number;
-  }) => void;
-  handleHookResponse: (event: {
-    hookId: string;
-    outcome: HookExecution["status"];
-    timestamp: number;
-    exitCode?: number;
-  }) => void;
+  handleHookStarted: (event: { hookId: string; hookName: string; hookEvent: string; timestamp: number }) => void;
+  handleHookResponse: (event: { hookId: string; outcome: HookExecution['status']; timestamp: number; exitCode?: number }) => void;
 
   // Actions
   clearActiveTool: (toolUseId: string) => void;
@@ -141,7 +118,7 @@ export const useSdkStore = create<SdkStore>()(
     activeTools: [],
     hookExecutions: [],
     lastMessageUsage: null,
-    thinkingContent: "",
+    thinkingContent: '',
     isInitialized: false,
 
     // ─── Event Handlers ───────────────────────────────────────────────
@@ -164,7 +141,7 @@ export const useSdkStore = create<SdkStore>()(
     handleMessageStart: (usage) => {
       set((s) => {
         s.lastMessageUsage = { inputTokens: usage.inputTokens, outputTokens: usage.outputTokens };
-        s.thinkingContent = "";
+        s.thinkingContent = '';
       });
     },
 
@@ -219,7 +196,7 @@ export const useSdkStore = create<SdkStore>()(
           hookId: event.hookId,
           hookName: event.hookName,
           hookEvent: event.hookEvent,
-          status: "running",
+          status: 'running',
           startTime: event.timestamp,
         });
       });

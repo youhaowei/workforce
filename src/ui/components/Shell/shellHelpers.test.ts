@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { handleStreamEvent, type StreamEventActions } from "./shellHelpers";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { handleStreamEvent, type StreamEventActions } from './shellHelpers';
 
 /**
  * Tests for handleStreamEvent — verifies SSE event dispatch to store actions.
@@ -36,7 +36,7 @@ function makeCancelRef() {
   return { current: null } as { current: (() => void) | null };
 }
 
-describe("handleStreamEvent", () => {
+describe('handleStreamEvent', () => {
   let actions: StreamEventActions;
   let cancelRef: ReturnType<typeof makeCancelRef>;
 
@@ -47,126 +47,93 @@ describe("handleStreamEvent", () => {
 
   // ─── Token events ───────────────────────────────────────────────
 
-  it("token event appends to streaming message and text block", () => {
+  it('token event appends to streaming message and text block', () => {
     const done = handleStreamEvent(
-      { type: "token", data: "Hello" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'token', data: 'Hello' },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
     expect(done).toBe(false);
-    expect(actions.appendToStreamingMessage).toHaveBeenCalledWith("Hello");
-    expect(actions.appendToTextBlock).toHaveBeenCalledWith("Hello");
+    expect(actions.appendToStreamingMessage).toHaveBeenCalledWith('Hello');
+    expect(actions.appendToTextBlock).toHaveBeenCalledWith('Hello');
     expect(actions.setCurrentTool).toHaveBeenCalledWith(null);
   });
 
   // ─── Thinking events ───────────────────────────────────────────
 
-  it("thinking_delta appends to thinking block", () => {
+  it('thinking_delta appends to thinking block', () => {
     const done = handleStreamEvent(
-      { type: "thinking_delta", data: "Let me think..." },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'thinking_delta', data: 'Let me think...' },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
     expect(done).toBe(false);
-    expect(actions.appendToThinkingBlock).toHaveBeenCalledWith("Let me think...");
+    expect(actions.appendToThinkingBlock).toHaveBeenCalledWith('Let me think...');
   });
 
-  it("multiple thinking_delta events accumulate", () => {
-    handleStreamEvent(
-      { type: "thinking_delta", data: "Part 1" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
-    );
-    handleStreamEvent(
-      { type: "thinking_delta", data: " Part 2" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
-    );
+  it('multiple thinking_delta events accumulate', () => {
+    handleStreamEvent({ type: 'thinking_delta', data: 'Part 1' }, 'sess1', 'msg1', actions, cancelRef);
+    handleStreamEvent({ type: 'thinking_delta', data: ' Part 2' }, 'sess1', 'msg1', actions, cancelRef);
 
     expect(actions.appendToThinkingBlock).toHaveBeenCalledTimes(2);
-    expect(actions.appendToThinkingBlock).toHaveBeenNthCalledWith(1, "Part 1");
-    expect(actions.appendToThinkingBlock).toHaveBeenNthCalledWith(2, " Part 2");
+    expect(actions.appendToThinkingBlock).toHaveBeenNthCalledWith(1, 'Part 1');
+    expect(actions.appendToThinkingBlock).toHaveBeenNthCalledWith(2, ' Part 2');
   });
 
   // ─── Tool lifecycle ─────────────────────────────────────────────
 
-  it("tool_start creates tool block and activity", () => {
+  it('tool_start creates tool block and activity', () => {
     handleStreamEvent(
-      { type: "tool_start", name: "Read", input: "file.ts", toolUseId: "tu_1" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'tool_start', name: 'Read', input: 'file.ts', toolUseId: 'tu_1' },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
-    expect(actions.addToolActivity).toHaveBeenCalledWith("Read", "file.ts");
-    expect(actions.setCurrentTool).toHaveBeenCalledWith("Read");
-    expect(actions.startToolBlock).toHaveBeenCalledWith("tu_1", "Read", "file.ts", undefined);
+    expect(actions.addToolActivity).toHaveBeenCalledWith('Read', 'file.ts');
+    expect(actions.setCurrentTool).toHaveBeenCalledWith('Read');
+    expect(actions.startToolBlock).toHaveBeenCalledWith('tu_1', 'Read', 'file.ts', undefined);
   });
 
-  it("tool_result marks tool complete", () => {
+  it('tool_result marks tool complete', () => {
     handleStreamEvent(
-      { type: "tool_result", toolUseId: "tu_1", result: "content", isError: false },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'tool_result', toolUseId: 'tu_1', result: 'content', isError: false },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
-    expect(actions.setToolResult).toHaveBeenCalledWith("tu_1", "content", false);
+    expect(actions.setToolResult).toHaveBeenCalledWith('tu_1', 'content', false);
   });
 
-  it("tool_result with isError marks tool as error", () => {
+  it('tool_result with isError marks tool as error', () => {
     handleStreamEvent(
-      { type: "tool_result", toolUseId: "tu_1", result: "fail", isError: true },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'tool_result', toolUseId: 'tu_1', result: 'fail', isError: true },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
-    expect(actions.setToolResult).toHaveBeenCalledWith("tu_1", "fail", true);
+    expect(actions.setToolResult).toHaveBeenCalledWith('tu_1', 'fail', true);
   });
 
   // ─── turn_complete ───────────────────────────────────────────────
 
-  it("turn_complete does not complete any tools (relies on tool_result + done)", () => {
-    handleStreamEvent({ type: "turn_complete" }, "sess1", "msg1", actions, cancelRef);
+  it('turn_complete does not complete any tools (relies on tool_result + done)', () => {
+    handleStreamEvent({ type: 'turn_complete' }, 'sess1', 'msg1', actions, cancelRef);
 
     expect(actions.completeRunningTools).not.toHaveBeenCalled();
   });
 
   // ─── Content block lifecycle ────────────────────────────────────
 
-  it("content_block_start forwards to startContentBlock", () => {
+  it('content_block_start forwards to startContentBlock', () => {
     handleStreamEvent(
-      { type: "content_block_start", index: 0, blockType: "text" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'content_block_start', index: 0, blockType: 'text' },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
-    expect(actions.startContentBlock).toHaveBeenCalledWith(0, "text", undefined, undefined);
+    expect(actions.startContentBlock).toHaveBeenCalledWith(0, 'text', undefined, undefined);
   });
 
-  it("content_block_stop forwards to finishContentBlock", () => {
+  it('content_block_stop forwards to finishContentBlock', () => {
     handleStreamEvent(
-      { type: "content_block_stop", index: 0 },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'content_block_stop', index: 0 },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
     expect(actions.finishContentBlock).toHaveBeenCalledWith(0);
@@ -174,10 +141,13 @@ describe("handleStreamEvent", () => {
 
   // ─── Done event ─────────────────────────────────────────────────
 
-  it("done completes ALL running tools and finishes stream", () => {
+  it('done completes ALL running tools and finishes stream', () => {
     cancelRef.current = vi.fn();
 
-    const done = handleStreamEvent({ type: "done", data: "" }, "sess1", "msg1", actions, cancelRef);
+    const done = handleStreamEvent(
+      { type: 'done', data: '' },
+      'sess1', 'msg1', actions, cancelRef,
+    );
 
     expect(done).toBe(true);
     expect(actions.completeRunningTools).toHaveBeenCalledTimes(1);
@@ -187,146 +157,83 @@ describe("handleStreamEvent", () => {
 
   // ─── Error event ────────────────────────────────────────────────
 
-  it("error completes running tools, finishes stream, and sets error", () => {
+  it('error completes running tools, finishes stream, and sets error', () => {
     const done = handleStreamEvent(
-      { type: "error", data: "Something went wrong" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'error', data: 'Something went wrong' },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
     expect(done).toBe(true);
     expect(actions.completeRunningTools).toHaveBeenCalledTimes(1);
     expect(actions.finishStreamingMessage).toHaveBeenCalledTimes(1);
-    expect(actions.setError).toHaveBeenCalledWith("Something went wrong");
+    expect(actions.setError).toHaveBeenCalledWith('Something went wrong');
   });
 
   // ─── Full streaming scenario ────────────────────────────────────
 
-  it("full scenario: thinking → tools → Task tool → turn_complete → tokens → done", () => {
+  it('full scenario: thinking → tools → Task tool → turn_complete → tokens → done', () => {
     // 1. Thinking block starts
-    handleStreamEvent(
-      { type: "content_block_start", index: 0, blockType: "thinking" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
-    );
-    handleStreamEvent(
-      { type: "thinking_delta", data: "Analyzing..." },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
-    );
-    handleStreamEvent(
-      { type: "content_block_stop", index: 0 },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
-    );
+    handleStreamEvent({ type: 'content_block_start', index: 0, blockType: 'thinking' }, 'sess1', 'msg1', actions, cancelRef);
+    handleStreamEvent({ type: 'thinking_delta', data: 'Analyzing...' }, 'sess1', 'msg1', actions, cancelRef);
+    handleStreamEvent({ type: 'content_block_stop', index: 0 }, 'sess1', 'msg1', actions, cancelRef);
 
     // 2. Regular tool (Read) starts and completes
-    handleStreamEvent(
-      { type: "tool_start", name: "Read", input: "f.ts", toolUseId: "tu_1" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
-    );
-    handleStreamEvent(
-      { type: "tool_result", toolUseId: "tu_1", result: "ok", isError: false },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
-    );
+    handleStreamEvent({ type: 'tool_start', name: 'Read', input: 'f.ts', toolUseId: 'tu_1' }, 'sess1', 'msg1', actions, cancelRef);
+    handleStreamEvent({ type: 'tool_result', toolUseId: 'tu_1', result: 'ok', isError: false }, 'sess1', 'msg1', actions, cancelRef);
 
     // 3. Task tool starts (long-running, no individual child results)
-    handleStreamEvent(
-      { type: "tool_start", name: "Task", input: "explore", toolUseId: "tu_2" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
-    );
+    handleStreamEvent({ type: 'tool_start', name: 'Task', input: 'explore', toolUseId: 'tu_2' }, 'sess1', 'msg1', actions, cancelRef);
 
     // 4. Turn complete — no tools completed (individual tool_result handles that)
-    handleStreamEvent({ type: "turn_complete" }, "sess1", "msg1", actions, cancelRef);
+    handleStreamEvent({ type: 'turn_complete' }, 'sess1', 'msg1', actions, cancelRef);
     expect(actions.completeRunningTools).not.toHaveBeenCalled();
 
     // 5. More tokens come in
-    handleStreamEvent({ type: "token", data: "Result: " }, "sess1", "msg1", actions, cancelRef);
+    handleStreamEvent({ type: 'token', data: 'Result: ' }, 'sess1', 'msg1', actions, cancelRef);
 
     // 6. Task tool gets its result
-    handleStreamEvent(
-      { type: "tool_result", toolUseId: "tu_2", result: "done", isError: false },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
-    );
+    handleStreamEvent({ type: 'tool_result', toolUseId: 'tu_2', result: 'done', isError: false }, 'sess1', 'msg1', actions, cancelRef);
 
     // 7. Stream ends — completes ALL remaining tools
-    handleStreamEvent({ type: "done", data: "" }, "sess1", "msg1", actions, cancelRef);
+    handleStreamEvent({ type: 'done', data: '' }, 'sess1', 'msg1', actions, cancelRef);
     expect(actions.completeRunningTools).toHaveBeenCalledTimes(1);
     expect(actions.finishStreamingMessage).toHaveBeenCalledTimes(1);
 
     // Verify thinking was accumulated
-    expect(actions.appendToThinkingBlock).toHaveBeenCalledWith("Analyzing...");
+    expect(actions.appendToThinkingBlock).toHaveBeenCalledWith('Analyzing...');
   });
 
   // ─── Plan ready ─────────────────────────────────────────────────
 
-  it("plan_ready forwards path and session", () => {
+  it('plan_ready forwards path and session', () => {
     handleStreamEvent(
-      { type: "plan_ready", path: "/tmp/plan.md" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'plan_ready', path: '/tmp/plan.md' },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
-    expect(actions.planReady).toHaveBeenCalledWith("/tmp/plan.md", "sess1");
+    expect(actions.planReady).toHaveBeenCalledWith('/tmp/plan.md', 'sess1');
   });
 
   // ─── Agent question ────────────────────────────────────────────
 
-  it("agent_question forwards requestId and questions", () => {
-    const questions = [
-      {
-        id: "q_0",
-        header: "Choice",
-        question: "Pick one?",
-        freeform: true,
-        secret: false,
-        options: [{ label: "A", description: "Option A" }],
-      },
-    ];
+  it('agent_question forwards requestId and questions', () => {
+    const questions = [{ id: 'q_0', header: 'Choice', question: 'Pick one?', freeform: true, secret: false, options: [{ label: 'A', description: 'Option A' }] }];
     const done = handleStreamEvent(
-      { type: "agent_question", requestId: "req_1", questions },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'agent_question', requestId: 'req_1', questions },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
     expect(done).toBe(false);
     expect(actions.completeNonTaskTools).toHaveBeenCalled();
-    expect(actions.agentQuestion).toHaveBeenCalledWith("req_1", questions);
+    expect(actions.agentQuestion).toHaveBeenCalledWith('req_1', questions);
   });
 
   // ─── Unknown events ─────────────────────────────────────────────
 
-  it("unknown event type returns false without side effects", () => {
+  it('unknown event type returns false without side effects', () => {
     const done = handleStreamEvent(
-      { type: "unknown_event", data: "whatever" },
-      "sess1",
-      "msg1",
-      actions,
-      cancelRef,
+      { type: 'unknown_event', data: 'whatever' },
+      'sess1', 'msg1', actions, cancelRef,
     );
 
     expect(done).toBe(false);

@@ -1,14 +1,14 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "@/bridge/react";
-import { useOrgStore } from "@/ui/stores/useOrgStore";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Plus, Settings, Check } from "lucide-react";
-import { CreateOrgDialog } from "./CreateOrgDialog";
-import { OrgSettings } from "./OrgSettings";
-import type { Org } from "@/services/types";
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTRPC } from '@/bridge/react';
+import { useOrgStore } from '@/ui/stores/useOrgStore';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Plus, Settings, Check } from 'lucide-react';
+import { CreateOrgDialog } from './CreateOrgDialog';
+import { OrgSettings } from './OrgSettings';
+import type { Org } from '@/services/types';
 
 export function OrgListView() {
   const trpc = useTRPC();
@@ -18,13 +18,15 @@ export function OrgListView() {
   const [createOpen, setCreateOpen] = useState(false);
   const [settingsOrg, setSettingsOrg] = useState<Org | null>(null);
 
-  const { data: orgs = [] } = useQuery(trpc.org.list.queryOptions());
+  const { data: orgs = [] } = useQuery(
+    trpc.org.list.queryOptions(),
+  );
 
   const activateMutation = useMutation(
     trpc.org.activate.mutationOptions({
       onSuccess: (org) => {
         setCurrentOrgId(org.id);
-        queryClient.invalidateQueries({ queryKey: ["org"] });
+        queryClient.invalidateQueries({ queryKey: ['org'] });
       },
     }),
   );
@@ -34,7 +36,9 @@ export function OrgListView() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Organizations</h2>
-          <p className="text-xs text-neutral-fg-subtle">Manage your organizations</p>
+          <p className="text-xs text-neutral-fg-subtle">
+            Manage your organizations
+          </p>
         </div>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="h-3.5 w-3.5 mr-1.5" />
@@ -61,7 +65,7 @@ export function OrgListView() {
               <Card
                 key={org.id}
                 className={`cursor-pointer transition-colors hover:border-palette-primary/50 ${
-                  isActive ? "border-palette-primary ring-1 ring-primary/20" : ""
+                  isActive ? 'border-palette-primary ring-1 ring-primary/20' : ''
                 }`}
                 onClick={() => activateMutation.mutate({ id: org.id })}
               >
@@ -108,9 +112,7 @@ export function OrgListView() {
         <OrgSettings
           org={settingsOrg}
           open={!!settingsOrg}
-          onOpenChange={(open) => {
-            if (!open) setSettingsOrg(null);
-          }}
+          onOpenChange={(open) => { if (!open) setSettingsOrg(null); }}
         />
       )}
     </div>

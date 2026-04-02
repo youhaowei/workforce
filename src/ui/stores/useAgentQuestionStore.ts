@@ -1,5 +1,5 @@
-import { create } from "zustand";
-import type { AgentQuestion } from "@/services/types";
+import { create } from 'zustand';
+import type { AgentQuestion } from '@/services/types';
 
 interface PendingQuestion {
   requestId: string;

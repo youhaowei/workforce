@@ -3,30 +3,30 @@
  * Shows goal, state badge, progress indicator, child count, and quick actions.
  */
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pause, Play, XCircle, Users } from "lucide-react";
-import { stateVariant } from "@/ui/lib/stateVariant";
-import type { SessionLifecycle, SessionSummary } from "@/services/types";
+} from '@/components/ui/dropdown-menu';
+import { MoreHorizontal, Pause, Play, XCircle, Users } from 'lucide-react';
+import { stateVariant } from '@/ui/lib/stateVariant';
+import type { SessionLifecycle, SessionSummary } from '@/services/types';
 
 export interface AgentCardProps {
   session: SessionSummary;
   onClick?: (sessionId: string) => void;
-  onAction?: (sessionId: string, action: "pause" | "resume" | "cancel") => void;
+  onAction?: (sessionId: string, action: 'pause' | 'resume' | 'cancel') => void;
 }
 
 export function AgentCard({ session, onClick, onAction }: AgentCardProps) {
   const lifecycle = session.metadata?.lifecycle as SessionLifecycle | undefined;
-  const state = lifecycle?.state ?? "created";
-  const goal = (session.metadata?.goal as string) ?? "No goal set";
+  const state = lifecycle?.state ?? 'created';
+  const goal = (session.metadata?.goal as string) ?? 'No goal set';
   const templateId = session.metadata?.templateId as string | undefined;
   const childCount = (session.metadata?.childCount as number) ?? 0;
   const progress = (session.metadata?.progress as number) ?? undefined;
@@ -43,7 +43,7 @@ export function AgentCard({ session, onClick, onAction }: AgentCardProps) {
             <Badge {...stateVariant(state)} className="text-[10px]">
               {state}
             </Badge>
-            {onAction && (state === "active" || state === "paused") && (
+            {onAction && (state === 'active' || state === 'paused') && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="icon" className="h-6 w-6">
@@ -51,20 +51,20 @@ export function AgentCard({ session, onClick, onAction }: AgentCardProps) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                  {state === "active" && (
-                    <DropdownMenuItem onClick={() => onAction(session.id, "pause")}>
+                  {state === 'active' && (
+                    <DropdownMenuItem onClick={() => onAction(session.id, 'pause')}>
                       <Pause className="h-3 w-3 mr-2" />
                       Pause
                     </DropdownMenuItem>
                   )}
-                  {state === "paused" && (
-                    <DropdownMenuItem onClick={() => onAction(session.id, "resume")}>
+                  {state === 'paused' && (
+                    <DropdownMenuItem onClick={() => onAction(session.id, 'resume')}>
                       <Play className="h-3 w-3 mr-2" />
                       Resume
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem
-                    onClick={() => onAction(session.id, "cancel")}
+                    onClick={() => onAction(session.id, 'cancel')}
                     className="text-palette-danger"
                   >
                     <XCircle className="h-3 w-3 mr-2" />
@@ -77,7 +77,7 @@ export function AgentCard({ session, onClick, onAction }: AgentCardProps) {
         </div>
 
         {/* Progress bar for active agents */}
-        {state === "active" && progress !== undefined && (
+        {state === 'active' && progress !== undefined && (
           <Progress value={progress} className="h-1 mb-2" />
         )}
 
@@ -85,7 +85,9 @@ export function AgentCard({ session, onClick, onAction }: AgentCardProps) {
           <code className="bg-neutral-bg-dim px-1.5 py-0.5 rounded text-[10px]">
             {session.id.slice(0, 12)}
           </code>
-          {templateId && <span className="truncate">{templateId}</span>}
+          {templateId && (
+            <span className="truncate">{templateId}</span>
+          )}
           {childCount > 0 && (
             <Badge variant="outline" className="text-[10px] h-4 px-1 gap-0.5">
               <Users className="h-2.5 w-2.5" />

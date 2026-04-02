@@ -1,7 +1,7 @@
-import { WifiOff } from "lucide-react";
-import type { ReactNode } from "react";
-import { Surface } from "@/components/ui/surface";
-import { StageFloatingPill } from "./StageFloatingPill";
+import { WifiOff } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Surface } from '@/components/ui/surface';
+import { StageFloatingPill } from './StageFloatingPill';
 
 interface MainContentColumnProps {
   serverConnected: boolean;
@@ -25,21 +25,14 @@ export function MainContentColumn({
   children,
 }: MainContentColumnProps) {
   return (
-    <Surface
-      variant="stage"
-      className="flex-1 flex flex-col min-w-[480px] overflow-hidden rounded-[10px] shadow-[var(--surface-shadow)] relative isolate"
-    >
+    <Surface variant="stage" className="flex-1 flex flex-col min-w-[480px] overflow-hidden rounded-[10px] shadow-[var(--surface-shadow)] relative isolate">
       {!serverConnected && (
         <div className="px-4 py-3 bg-neutral-bg-dim/50 border-b flex items-center gap-3">
           <WifiOff className="h-4 w-4 text-neutral-fg-subtle" />
           <div>
             <p className="text-sm font-medium">Server not connected</p>
             <p className="text-xs text-neutral-fg-subtle">
-              Run{" "}
-              <code className="bg-neutral-bg-dim px-1.5 py-0.5 rounded text-xs font-mono">
-                bun run server
-              </code>{" "}
-              to start
+              Run <code className="bg-neutral-bg-dim px-1.5 py-0.5 rounded text-xs font-mono">bun run server</code> to start
             </p>
           </div>
         </div>
@@ -55,7 +48,9 @@ export function MainContentColumn({
         />
       )}
 
-      <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {children}
+      </main>
     </Surface>
   );
 }

@@ -4,11 +4,11 @@
  * Mode-aware: System shows Light+Dark tabs, Light/Dark shows just that mode.
  */
 
-import { useState, useCallback, useEffect, useMemo } from "react";
-import { X, RotateCcw, Sun, Moon, Monitor, ChevronRight } from "lucide-react";
-import { Surface } from "@/components/ui/surface";
-import { Button } from "@/components/ui/button";
-import { usePlatform } from "@/ui/context/PlatformProvider";
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { X, RotateCcw, Sun, Moon, Monitor, ChevronRight } from 'lucide-react';
+import { Surface } from '@/components/ui/surface';
+import { Button } from '@/components/ui/button';
+import { usePlatform } from '@/ui/context/PlatformProvider';
 import {
   useThemeStore,
   hasModeOverrides,
@@ -18,9 +18,9 @@ import {
   type ModeOverrides,
   type ResolvedMode,
   type SurfaceTintStyle,
-} from "@/ui/stores/useThemeStore";
-import { ColorPicker } from "./ColorPicker";
-import { NeutralPicker } from "./NeutralPicker";
+} from '@/ui/stores/useThemeStore';
+import { ColorPicker } from './ColorPicker';
+import { NeutralPicker } from './NeutralPicker';
 import {
   DEFAULT_PALETTE_LIGHT,
   DEFAULT_PALETTE_DARK,
@@ -28,31 +28,31 @@ import {
   DEFAULT_SURFACE_DARK,
   PREVIEW_LEVELS_LIGHT,
   PREVIEW_LEVELS_DARK,
-} from "./theme-defaults";
+} from './theme-defaults';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const PALETTE_ENTRIES: { key: PaletteColor; label: string }[] = [
-  { key: "primary", label: "Primary" },
-  { key: "secondary", label: "Secondary" },
-  { key: "success", label: "Success" },
-  { key: "danger", label: "Danger" },
-  { key: "warning", label: "Warning" },
-  { key: "info", label: "Info" },
+  { key: 'primary', label: 'Primary' },
+  { key: 'secondary', label: 'Secondary' },
+  { key: 'success', label: 'Success' },
+  { key: 'danger', label: 'Danger' },
+  { key: 'warning', label: 'Warning' },
+  { key: 'info', label: 'Info' },
 ];
 
 const MODE_OPTIONS: { value: ThemeMode; icon: typeof Sun; label: string }[] = [
-  { value: "system", icon: Monitor, label: "System" },
-  { value: "light", icon: Sun, label: "Light" },
-  { value: "dark", icon: Moon, label: "Dark" },
+  { value: 'system', icon: Monitor, label: 'System' },
+  { value: 'light', icon: Sun, label: 'Light' },
+  { value: 'dark', icon: Moon, label: 'Dark' },
 ];
 
 const SURFACE_TINT_STYLES: { value: SurfaceTintStyle; label: string }[] = [
-  { value: "solid", label: "Solid" },
-  { value: "gradient2", label: "2-Stop" },
-  { value: "gradient3", label: "3-Stop" },
+  { value: 'solid', label: 'Solid' },
+  { value: 'gradient2', label: '2-Stop' },
+  { value: 'gradient3', label: '3-Stop' },
 ];
-const SURFACE_TINT_STYLE_ORDER: SurfaceTintStyle[] = ["solid", "gradient2", "gradient3"];
+const SURFACE_TINT_STYLE_ORDER: SurfaceTintStyle[] = ['solid', 'gradient2', 'gradient3'];
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -70,18 +70,15 @@ export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
   const setPreviewMode = useThemeStore((s) => s.setPreviewMode);
 
   // For system mode, which variant tab is active
-  const [activeVariantTab, setActiveVariantTab] = useState<ResolvedMode>(() =>
-    resolveIsDark(mode) ? "dark" : "light",
+  const [activeVariantTab, setActiveVariantTab] = useState<ResolvedMode>(
+    () => resolveIsDark(mode) ? 'dark' : 'light',
   );
 
   // Preview mode: temporarily show the selected variant when in system mode
-  const handleVariantTab = useCallback(
-    (v: ResolvedMode) => {
-      setActiveVariantTab(v);
-      setPreviewMode(v);
-    },
-    [setPreviewMode],
-  );
+  const handleVariantTab = useCallback((v: ResolvedMode) => {
+    setActiveVariantTab(v);
+    setPreviewMode(v);
+  }, [setPreviewMode]);
 
   // Clear preview mode when panel closes
   useEffect(() => {
@@ -90,32 +87,34 @@ export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
 
   // Clear preview when leaving system mode
   useEffect(() => {
-    if (mode !== "system") setPreviewMode(null);
+    if (mode !== 'system') setPreviewMode(null);
   }, [mode, setPreviewMode]);
 
   const hasAnyOverrides = hasModeOverrides(overrides.light) || hasModeOverrides(overrides.dark);
 
   // Which modes to show controls for
-  const visibleModes: ResolvedMode[] =
-    mode === "system" ? ["light", "dark"] : [mode as ResolvedMode];
+  const visibleModes: ResolvedMode[] = mode === 'system'
+    ? ['light', 'dark']
+    : [mode as ResolvedMode];
 
   return (
     <Surface
       variant="main"
       data-collapsed={!isOpen}
       className={`flex-shrink-0 flex flex-col select-none rounded-[var(--surface-radius)] m-[0_var(--surface-inset)_var(--surface-inset)_0] transition-[width,margin,opacity] duration-200 ease-in-out ${
-        isOpen ? "w-72 opacity-100" : "w-0 opacity-0 !m-0 !rounded-none"
+        isOpen ? 'w-72 opacity-100' : 'w-0 opacity-0 !m-0 !rounded-none'
       }`}
       aria-hidden={!isOpen}
       inert={!isOpen ? true : undefined}
     >
       {/* Header */}
       <div className="flex items-center h-10 px-3 gap-2 shrink-0">
-        <h2 className="text-sm font-semibold text-neutral-fg flex-1 select-none">Appearance</h2>
+        <h2 className="text-sm font-semibold text-neutral-fg flex-1 select-none">
+          Appearance
+        </h2>
         {hasAnyOverrides && (
           <Button
-            variant="ghost"
-            size="icon"
+            variant="ghost" size="icon"
             className="h-6 w-6 shrink-0 text-neutral-fg-subtle hover:text-neutral-fg"
             onClick={resetOverrides}
             aria-label="Reset to defaults"
@@ -124,8 +123,7 @@ export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
           </Button>
         )}
         <Button
-          variant="ghost"
-          size="icon"
+          variant="ghost" size="icon"
           className="h-6 w-6 shrink-0 text-neutral-fg-subtle hover:text-neutral-fg"
           onClick={onClose}
           aria-label="Close theme panel"
@@ -137,6 +135,7 @@ export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto min-h-0 text-sm">
         <div className="p-3 space-y-4">
+
           {/* ── Theme Mode ────────────────────────────── */}
           <div>
             <SectionLabel>Theme</SectionLabel>
@@ -144,8 +143,8 @@ export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
               {MODE_OPTIONS.map(({ value, icon: Icon, label }) => (
                 <Button
                   key={value}
-                  variant={mode === value ? "solid" : "outline"}
-                  color={mode === value ? "primary" : "neutral"}
+                  variant={mode === value ? 'solid' : 'outline'}
+                  color={mode === value ? 'primary' : 'neutral'}
                   size="sm"
                   className="flex-1 gap-1.5"
                   onClick={() => setMode(value)}
@@ -158,22 +157,22 @@ export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
           </div>
 
           {/* ── Variant tabs (system mode only) ───────── */}
-          {mode === "system" && (
+          {mode === 'system' && (
             <>
               <div className="flex gap-1">
-                {(["light", "dark"] as ResolvedMode[]).map((v) => {
-                  const Icon = v === "light" ? Sun : Moon;
+                {(['light', 'dark'] as ResolvedMode[]).map((v) => {
+                  const Icon = v === 'light' ? Sun : Moon;
                   return (
                     <Button
                       key={v}
-                      variant={activeVariantTab === v ? "soft" : "ghost"}
+                      variant={activeVariantTab === v ? 'soft' : 'ghost'}
                       color="neutral"
                       size="sm"
                       className="flex-1 gap-1"
                       onClick={() => handleVariantTab(v)}
                     >
                       <Icon className="h-3 w-3" />
-                      {v === "light" ? "Light" : "Dark"}
+                      {v === 'light' ? 'Light' : 'Dark'}
                     </Button>
                   );
                 })}
@@ -187,15 +186,14 @@ export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
           )}
 
           {/* ── Single mode controls ──────────────────── */}
-          {mode !== "system" &&
-            visibleModes.map((modeKey) => (
-              <ModeControls
-                key={modeKey}
-                modeKey={modeKey}
-                overrides={overrides}
-                setOverrides={setOverrides}
-              />
-            ))}
+          {mode !== 'system' && visibleModes.map((modeKey) => (
+            <ModeControls
+              key={modeKey}
+              modeKey={modeKey}
+              overrides={overrides}
+              setOverrides={setOverrides}
+            />
+          ))}
         </div>
       </div>
     </Surface>
@@ -210,24 +208,23 @@ function ModeControls({
   setOverrides,
 }: {
   modeKey: ResolvedMode;
-  overrides: import("@/ui/stores/useThemeStore").ThemeOverrides;
-  setOverrides: (o: import("@/ui/stores/useThemeStore").ThemeOverrides) => void;
+  overrides: import('@/ui/stores/useThemeStore').ThemeOverrides;
+  setOverrides: (o: import('@/ui/stores/useThemeStore').ThemeOverrides) => void;
 }) {
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
   const modeOverrides = overrides[modeKey] ?? {};
-  const defaultPalette = modeKey === "light" ? DEFAULT_PALETTE_LIGHT : DEFAULT_PALETTE_DARK;
-  const defaultSurface = modeKey === "light" ? DEFAULT_SURFACE_LIGHT : DEFAULT_SURFACE_DARK;
-  const previewLevels = modeKey === "light" ? PREVIEW_LEVELS_LIGHT : PREVIEW_LEVELS_DARK;
-  const surfaceTintStyle = modeOverrides.surfaceTintStyle ?? "solid";
+  const defaultPalette = modeKey === 'light' ? DEFAULT_PALETTE_LIGHT : DEFAULT_PALETTE_DARK;
+  const defaultSurface = modeKey === 'light' ? DEFAULT_SURFACE_LIGHT : DEFAULT_SURFACE_DARK;
+  const previewLevels = modeKey === 'light' ? PREVIEW_LEVELS_LIGHT : PREVIEW_LEVELS_DARK;
+  const surfaceTintStyle = modeOverrides.surfaceTintStyle ?? 'solid';
   const { isDesktop } = usePlatform();
-  const surfaceTintBounds =
-    modeKey === "dark"
-      ? { maxChroma: 0.07, hueStripChroma: 0.06, minLightness: 0.16, maxLightness: 0.42 }
-      : { maxChroma: 0.07, hueStripChroma: 0.06, minLightness: 0.62, maxLightness: 0.95 };
+  const surfaceTintBounds = modeKey === 'dark'
+    ? { maxChroma: 0.07, hueStripChroma: 0.06, minLightness: 0.16, maxLightness: 0.42 }
+    : { maxChroma: 0.07, hueStripChroma: 0.06, minLightness: 0.62, maxLightness: 0.95 };
   const surfaceTintPreviewBackground = isDesktop
-    ? "var(--shell-bg-vibrancy, var(--shell-bg))"
-    : "var(--shell-bg)";
+    ? 'var(--shell-bg-vibrancy, var(--shell-bg))'
+    : 'var(--shell-bg)';
 
   const neutralHue = modeOverrides.neutralHue ?? 0;
   const neutralChroma = modeOverrides.neutralChroma ?? 0;
@@ -235,7 +232,7 @@ function ModeControls({
   // Only colors the user has actually customized (overrides only, not defaults)
   const usedColors = useMemo(() => {
     const result: { light: string[]; dark: string[] } = { light: [], dark: [] };
-    for (const m of ["light", "dark"] as const) {
+    for (const m of ['light', 'dark'] as const) {
       const mo = overrides[m] ?? {};
       if (mo.palette) {
         for (const v of Object.values(mo.palette)) {
@@ -269,7 +266,7 @@ function ModeControls({
   );
 
   const toggleSection = useCallback((section: string) => {
-    setExpandedSection((prev) => (prev === section ? null : section));
+    setExpandedSection((prev) => prev === section ? null : section);
   }, []);
   const cycleSurfaceTintStyle = useCallback(() => {
     const currentIndex = SURFACE_TINT_STYLE_ORDER.indexOf(surfaceTintStyle);
@@ -282,8 +279,8 @@ function ModeControls({
       {/* ── Accent Colors ─────────────────────────── */}
       <CollapsibleSection
         label="Accent Colors"
-        expanded={expandedSection === "palette"}
-        onToggle={() => toggleSection("palette")}
+        expanded={expandedSection === 'palette'}
+        onToggle={() => toggleSection('palette')}
       >
         <div className="space-y-2">
           {PALETTE_ENTRIES.map(({ key, label }) => (
@@ -301,8 +298,8 @@ function ModeControls({
       {/* ── Neutral Tones ─────────────────────────── */}
       <CollapsibleSection
         label="Neutral Tones"
-        expanded={expandedSection === "neutrals"}
-        onToggle={() => toggleSection("neutrals")}
+        expanded={expandedSection === 'neutrals'}
+        onToggle={() => toggleSection('neutrals')}
       >
         <NeutralPicker
           hue={neutralHue}
@@ -310,7 +307,7 @@ function ModeControls({
           onHueChange={(v) => updateModeOverride({ neutralHue: v })}
           onChromaChange={(v) => updateModeOverride({ neutralChroma: v })}
           previewLevels={previewLevels}
-          isDark={modeKey === "dark"}
+          isDark={modeKey === 'dark'}
         />
       </CollapsibleSection>
 
@@ -337,8 +334,8 @@ function ModeControls({
           {SURFACE_TINT_STYLES.map(({ value, label }) => (
             <Button
               key={value}
-              variant={surfaceTintStyle === value ? "soft" : "outline"}
-              color={surfaceTintStyle === value ? "primary" : "neutral"}
+              variant={surfaceTintStyle === value ? 'soft' : 'outline'}
+              color={surfaceTintStyle === value ? 'primary' : 'neutral'}
               size="sm"
               className="flex-1"
               onClick={() => updateModeOverride({ surfaceTintStyle: value })}
@@ -355,7 +352,11 @@ function ModeControls({
 // ── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <label className="text-xs font-medium text-neutral-fg-subtle">{children}</label>;
+  return (
+    <label className="text-xs font-medium text-neutral-fg-subtle">
+      {children}
+    </label>
+  );
 }
 
 function CollapsibleSection({
@@ -377,17 +378,19 @@ function CollapsibleSection({
         className="flex items-center gap-1.5 w-full py-1 text-xs font-medium text-neutral-fg-subtle cursor-pointer hover:text-neutral-fg transition-colors"
       >
         <ChevronRight
-          className={`h-3 w-3 transition-transform duration-150 ${expanded ? "rotate-90" : ""}`}
+          className={`h-3 w-3 transition-transform duration-150 ${expanded ? 'rotate-90' : ''}`}
         />
         {label}
       </button>
       <div
         className={`grid transition-[grid-template-rows] duration-200 ease-in-out ${
-          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          expanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
         }`}
       >
         <div className="overflow-hidden">
-          <div className="pt-1 pb-2">{children}</div>
+          <div className="pt-1 pb-2">
+            {children}
+          </div>
         </div>
       </div>
     </div>

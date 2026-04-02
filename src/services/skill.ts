@@ -8,17 +8,17 @@
  * - Markdown frontmatter parsing
  */
 
-import { readFile, readdir, stat } from "fs/promises";
-import { join } from "path";
-import type { SkillService, Skill } from "./types";
-import { getDataDir } from "./data-dir";
+import { readFile, readdir, stat } from 'fs/promises';
+import { join } from 'path';
+import type { SkillService, Skill } from './types';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const SKILLS_DIR = join(getDataDir(), "skills");
-const SKILL_EXTENSION = ".md";
+const SKILLS_DIR = join(getDataDir(), 'skills');
+const SKILL_EXTENSION = '.md';
 
 // =============================================================================
 // Skill Parsing
@@ -52,8 +52,8 @@ function parseSkillFile(content: string, filename: string): Skill {
   if (!frontmatterMatch) {
     // No frontmatter - use filename as name
     return {
-      name: filename.replace(SKILL_EXTENSION, ""),
-      description: "",
+      name: filename.replace(SKILL_EXTENSION, ''),
+      description: '',
       content: content.trim(),
     };
   }
@@ -62,8 +62,8 @@ function parseSkillFile(content: string, filename: string): Skill {
   const frontmatter = parseFrontmatter(frontmatterRaw);
 
   return {
-    name: frontmatter.name || filename.replace(SKILL_EXTENSION, ""),
-    description: frontmatter.description || "",
+    name: frontmatter.name || filename.replace(SKILL_EXTENSION, ''),
+    description: frontmatter.description || '',
     content: body.trim(),
     tags: frontmatter.tags,
   };
@@ -74,8 +74,8 @@ function parseSkillFile(content: string, filename: string): Skill {
  * Supports: name, description, version, tags (as array)
  */
 function parseFrontmatter(raw: string): SkillFrontmatter {
-  const result: SkillFrontmatter = { name: "" };
-  const lines = raw.split("\n");
+  const result: SkillFrontmatter = { name: '' };
+  const lines = raw.split('\n');
 
   for (const line of lines) {
     const match = line.match(/^(\w+):\s*(.+)$/);
@@ -83,21 +83,21 @@ function parseFrontmatter(raw: string): SkillFrontmatter {
 
     const [, key, value] = match;
     switch (key) {
-      case "name":
+      case 'name':
         result.name = value.trim();
         break;
-      case "description":
+      case 'description':
         result.description = value.trim();
         break;
-      case "version":
+      case 'version':
         result.version = parseInt(value.trim(), 10);
         break;
-      case "tags":
+      case 'tags':
         // Parse [tag1, tag2, tag3] format
         const tagsMatch = value.match(/\[(.*)\]/);
         if (tagsMatch) {
           result.tags = tagsMatch[1]
-            .split(",")
+            .split(',')
             .map((t) => t.trim())
             .filter(Boolean);
         }
@@ -130,7 +130,7 @@ class SkillServiceImpl implements SkillService {
     const filePath = join(this.skillsDir, `${name}${SKILL_EXTENSION}`);
 
     try {
-      const content = await readFile(filePath, "utf-8");
+      const content = await readFile(filePath, 'utf-8');
       const skill = parseSkillFile(content, `${name}${SKILL_EXTENSION}`);
       skill.loadedAt = Date.now();
 
@@ -138,7 +138,7 @@ class SkillServiceImpl implements SkillService {
       return skill;
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
-      if (error.code === "ENOENT") {
+      if (error.code === 'ENOENT') {
         throw new Error(`Skill not found: ${name}`);
       }
       throw new Error(`Failed to load skill ${name}: ${error.message}`);
@@ -162,10 +162,10 @@ class SkillServiceImpl implements SkillService {
       const entries = await readdir(this.skillsDir, { withFileTypes: true });
       return entries
         .filter((entry) => entry.isFile() && entry.name.endsWith(SKILL_EXTENSION))
-        .map((entry) => entry.name.replace(SKILL_EXTENSION, ""));
+        .map((entry) => entry.name.replace(SKILL_EXTENSION, ''));
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
-      if (error.code === "ENOENT") {
+      if (error.code === 'ENOENT') {
         // Skills directory doesn't exist yet
         return [];
       }
@@ -187,15 +187,14 @@ class SkillServiceImpl implements SkillService {
   getInjection(): string {
     const skills = this.getLoaded();
     if (skills.length === 0) {
-      return "";
+      return '';
     }
 
     const sections = skills.map(
-      (s) =>
-        `<skill name="${s.name}"${s.description ? ` description="${s.description}"` : ""}>\n${s.content}\n</skill>`,
+      (s) => `<skill name="${s.name}"${s.description ? ` description="${s.description}"` : ''}>\n${s.content}\n</skill>`
     );
 
-    return `<loaded-skills>\n${sections.join("\n\n")}\n</loaded-skills>`;
+    return `<loaded-skills>\n${sections.join('\n\n')}\n</loaded-skills>`;
   }
 
   /**

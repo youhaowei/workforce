@@ -2,10 +2,10 @@
  * AgentAudit - Audit tab showing the full audit timeline for an agent.
  */
 
-import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "@/bridge/react";
-import { AuditTimeline } from "../Audit";
-import type { AuditEntry } from "@/services/types";
+import { useQuery } from '@tanstack/react-query';
+import { useTRPC } from '@/bridge/react';
+import { AuditTimeline } from '../Audit';
+import type { AuditEntry } from '@/services/types';
 
 interface AgentAuditProps {
   sessionId: string;
@@ -16,7 +16,9 @@ export function AgentAudit({ sessionId, orgId }: AgentAuditProps) {
   const trpc = useTRPC();
 
   const { data: entries = [], isLoading } = useQuery(
-    trpc.audit.session.queryOptions({ sessionId, orgId }),
+    trpc.audit.session.queryOptions(
+      { sessionId, orgId },
+    ),
   );
 
   if (isLoading) {

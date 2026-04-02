@@ -6,13 +6,13 @@
  * yields a snapshot of accumulated state followed by live events.
  */
 
-import { getAgentService } from "@/services/agent";
-import { getSessionService } from "@/services/session";
-import { createLogger } from "tracey";
-import type { ContentBlock, ToolActivity, AgentStreamEvent, AgentQuestion } from "@/services/types";
+import { getAgentService } from '@/services/agent';
+import { getSessionService } from '@/services/session';
+import { createLogger } from 'tracey';
+import type { ContentBlock, ToolActivity, AgentStreamEvent, AgentQuestion } from '@/services/types';
 
-const log = createLogger("AgentRunner");
-const streamLog = createLogger("Stream");
+const log = createLogger('AgentRunner');
+const streamLog = createLogger('Stream');
 
 // =============================================================================
 // Block accumulation (shared with agent router for processEvent)
@@ -25,14 +25,11 @@ export interface BlockAccumulator {
 
 export function findToolBlock(acc: BlockAccumulator, toolUseId: string) {
   return acc.blocks.find(
-    (b): b is ContentBlock & { type: "tool_use" } => b.type === "tool_use" && b.id === toolUseId,
+    (b): b is ContentBlock & { type: 'tool_use' } => b.type === 'tool_use' && b.id === toolUseId,
   );
 }
 
-export function accumulateToolStart(
-  acc: BlockAccumulator,
-  event: AgentStreamEvent & { type: "tool_start" },
-) {
+export function accumulateToolStart(acc: BlockAccumulator, event: AgentStreamEvent & { type: 'tool_start' }) {
   const existing = findToolBlock(acc, event.toolUseId);
   if (existing) {
     existing.input = event.input;
@@ -40,80 +37,60 @@ export function accumulateToolStart(
     existing.inputRaw = event.inputRaw;
   } else {
     completePreviousBlock(acc);
-    acc.blocks.push({
-      type: "tool_use",
-      id: event.toolUseId,
-      name: event.name,
-      input: event.input,
-      inputRaw: event.inputRaw,
-      status: "running",
-    });
+    acc.blocks.push({ type: 'tool_use', id: event.toolUseId, name: event.name, input: event.input, inputRaw: event.inputRaw, status: 'running' });
   }
   acc.activities.push({ name: event.name, input: event.input });
 }
 
-export function accumulateToolResult(
-  acc: BlockAccumulator,
-  event: AgentStreamEvent & { type: "tool_result" },
-) {
+export function accumulateToolResult(acc: BlockAccumulator, event: AgentStreamEvent & { type: 'tool_result' }) {
   const block = findToolBlock(acc, event.toolUseId);
   if (!block) return;
-  block.status = event.isError ? "error" : "complete";
-  if (event.isError)
-    block.error = typeof event.result === "string" ? event.result : JSON.stringify(event.result);
+  block.status = event.isError ? 'error' : 'complete';
+  if (event.isError) block.error = typeof event.result === 'string' ? event.result : JSON.stringify(event.result);
   else block.result = event.result;
 }
 
 export function completePreviousBlock(acc: BlockAccumulator) {
   const prev = acc.blocks[acc.blocks.length - 1];
-  if (prev && (prev.type === "text" || prev.type === "thinking") && prev.status === "running") {
-    prev.status = "complete";
+  if (prev && (prev.type === 'text' || prev.type === 'thinking') && prev.status === 'running') {
+    prev.status = 'complete';
   }
 }
 
-export function accumulateContentBlockStart(
-  acc: BlockAccumulator,
-  event: AgentStreamEvent & { type: "content_block_start" },
-) {
+export function accumulateContentBlockStart(acc: BlockAccumulator, event: AgentStreamEvent & { type: 'content_block_start' }) {
   completePreviousBlock(acc);
-  if (event.blockType === "text") {
-    acc.blocks.push({ type: "text", text: "", status: "running" });
-  } else if (event.blockType === "tool_use" && event.id && event.name) {
-    acc.blocks.push({
-      type: "tool_use",
-      id: event.id,
-      name: event.name,
-      input: "",
-      status: "running",
-    });
-  } else if (event.blockType === "thinking") {
-    acc.blocks.push({ type: "thinking", text: "", status: "running" });
+  if (event.blockType === 'text') {
+    acc.blocks.push({ type: 'text', text: '', status: 'running' });
+  } else if (event.blockType === 'tool_use' && event.id && event.name) {
+    acc.blocks.push({ type: 'tool_use', id: event.id, name: event.name, input: '', status: 'running' });
+  } else if (event.blockType === 'thinking') {
+    acc.blocks.push({ type: 'thinking', text: '', status: 'running' });
   }
 }
 
 export function accumulateTokenText(acc: BlockAccumulator, token: string) {
   const last = acc.blocks[acc.blocks.length - 1];
-  if (last && last.type === "text") {
-    (last as { type: "text"; text: string }).text += token;
+  if (last && last.type === 'text') {
+    (last as { type: 'text'; text: string }).text += token;
   } else {
-    acc.blocks.push({ type: "text", text: token, status: "running" });
+    acc.blocks.push({ type: 'text', text: token, status: 'running' });
   }
 }
 
 export function accumulateThinkingDelta(acc: BlockAccumulator, text: string) {
   const last = acc.blocks[acc.blocks.length - 1];
-  if (last && last.type === "thinking") {
-    (last as { type: "thinking"; text: string }).text += text;
+  if (last && last.type === 'thinking') {
+    (last as { type: 'thinking'; text: string }).text += text;
   } else {
-    acc.blocks.push({ type: "thinking", text, status: "running" });
+    acc.blocks.push({ type: 'thinking', text, status: 'running' });
   }
 }
 
 export function accumulateContentBlockStop(acc: BlockAccumulator) {
   for (let i = acc.blocks.length - 1; i >= 0; i--) {
     const block = acc.blocks[i];
-    if ((block.type === "text" || block.type === "thinking") && block.status === "running") {
-      block.status = "complete";
+    if ((block.type === 'text' || block.type === 'thinking') && block.status === 'running') {
+      block.status = 'complete';
       break;
     }
   }
@@ -121,8 +98,8 @@ export function accumulateContentBlockStop(acc: BlockAccumulator) {
 
 export function completeRunningBlocks(acc: BlockAccumulator) {
   for (const block of acc.blocks) {
-    if (block.status === "running") {
-      block.status = "complete";
+    if (block.status === 'running') {
+      block.status = 'complete';
     }
   }
 }
@@ -133,18 +110,17 @@ export function recordSubmittedQuestionAnswer(
   answers: Record<string, string[]>,
 ): boolean {
   const questionBlocks = blocks.filter(
-    (block): block is ContentBlock & { type: "tool_use" } =>
-      block.type === "tool_use" && block.name === "AskUserQuestion",
+    (block): block is ContentBlock & { type: 'tool_use' } =>
+      block.type === 'tool_use' && block.name === 'AskUserQuestion',
   );
   if (questionBlocks.length === 0) return false;
 
-  const target =
-    [...questionBlocks].reverse().find((block) => block.id === requestId) ??
-    [...questionBlocks].reverse().find((block) => block.result == null);
+  const target = [...questionBlocks].reverse().find((block) => block.id === requestId)
+    ?? [...questionBlocks].reverse().find((block) => block.result == null);
   if (!target) return false;
 
   target.result = answers;
-  if (target.status === "running") target.status = "complete";
+  if (target.status === 'running') target.status = 'complete';
   return true;
 }
 
@@ -153,25 +129,19 @@ export function recordSubmittedQuestionAnswer(
 // =============================================================================
 
 export type SSEEvent =
-  | { type: "token"; data: string }
-  | { type: "turn_complete" }
-  | { type: "tool_start"; name: string; input: string; toolUseId: string; inputRaw: unknown }
-  | { type: "tool_result"; toolUseId: string; toolName: string; result: unknown; isError: boolean }
-  | { type: "content_block_start"; index: number; blockType: string; id?: string; name?: string }
-  | { type: "thinking_delta"; data: string }
-  | { type: "content_block_stop"; index: number }
-  | { type: "status"; data: string }
-  | { type: "plan_ready"; path: string }
-  | { type: "agent_question"; requestId: string; questions: AgentQuestion[] }
-  | {
-      type: "snapshot";
-      blocks: ContentBlock[];
-      fullText: string;
-      activities: ToolActivity[];
-      pendingQuestion?: { requestId: string; questions: AgentQuestion[] };
-    }
-  | { type: "done"; data: string }
-  | { type: "error"; data: string };
+  | { type: 'token'; data: string }
+  | { type: 'turn_complete' }
+  | { type: 'tool_start'; name: string; input: string; toolUseId: string; inputRaw: unknown }
+  | { type: 'tool_result'; toolUseId: string; toolName: string; result: unknown; isError: boolean }
+  | { type: 'content_block_start'; index: number; blockType: string; id?: string; name?: string }
+  | { type: 'thinking_delta'; data: string }
+  | { type: 'content_block_stop'; index: number }
+  | { type: 'status'; data: string }
+  | { type: 'plan_ready'; path: string }
+  | { type: 'agent_question'; requestId: string; questions: AgentQuestion[] }
+  | { type: 'snapshot'; blocks: ContentBlock[]; fullText: string; activities: ToolActivity[]; pendingQuestion?: { requestId: string; questions: AgentQuestion[] } }
+  | { type: 'done'; data: string }
+  | { type: 'error'; data: string };
 
 export function* processEvent(
   event: AgentStreamEvent,
@@ -179,69 +149,45 @@ export function* processEvent(
   snapshotBlocks: () => void,
 ): Generator<SSEEvent> {
   switch (event.type) {
-    case "token":
-      yield { type: "token", data: event.token };
+    case 'token':
+      yield { type: 'token', data: event.token };
       break;
-    case "turn_complete":
+    case 'turn_complete':
       snapshotBlocks();
-      yield { type: "turn_complete" };
+      yield { type: 'turn_complete' };
       break;
-    case "tool_start":
+    case 'tool_start':
       accumulateToolStart(acc, event);
-      streamLog.info({ name: event.name, toolUseId: event.toolUseId }, "tool start");
-      yield {
-        type: "tool_start",
-        name: event.name,
-        input: event.input,
-        toolUseId: event.toolUseId,
-        inputRaw: event.inputRaw,
-      };
+      streamLog.info({ name: event.name, toolUseId: event.toolUseId }, 'tool start');
+      yield { type: 'tool_start', name: event.name, input: event.input, toolUseId: event.toolUseId, inputRaw: event.inputRaw };
       break;
-    case "tool_result":
+    case 'tool_result':
       accumulateToolResult(acc, event);
-      streamLog.info(
-        { toolName: event.toolName, toolUseId: event.toolUseId, isError: event.isError },
-        "tool result",
-      );
+      streamLog.info({ toolName: event.toolName, toolUseId: event.toolUseId, isError: event.isError }, 'tool result');
       snapshotBlocks();
-      yield {
-        type: "tool_result",
-        toolUseId: event.toolUseId,
-        toolName: event.toolName,
-        result: event.result,
-        isError: event.isError,
-      };
+      yield { type: 'tool_result', toolUseId: event.toolUseId, toolName: event.toolName, result: event.result, isError: event.isError };
       break;
-    case "thinking_delta":
+    case 'thinking_delta':
       accumulateThinkingDelta(acc, event.text);
-      yield { type: "thinking_delta", data: event.text };
+      yield { type: 'thinking_delta', data: event.text };
       break;
-    case "content_block_start":
+    case 'content_block_start':
       accumulateContentBlockStart(acc, event);
-      yield {
-        type: "content_block_start",
-        index: event.index,
-        blockType: event.blockType,
-        id: event.id,
-        name: event.name,
-      };
+      yield { type: 'content_block_start', index: event.index, blockType: event.blockType, id: event.id, name: event.name };
       break;
-    case "content_block_stop":
+    case 'content_block_stop':
       accumulateContentBlockStop(acc);
-      yield { type: "content_block_stop", index: event.index };
+      yield { type: 'content_block_stop', index: event.index };
       break;
-    case "status":
-      yield { type: "status", data: event.message };
+    case 'status':
+      yield { type: 'status', data: event.message };
       break;
-    case "plan_ready":
-      yield { type: "plan_ready", path: event.path };
+    case 'plan_ready':
+      yield { type: 'plan_ready', path: event.path };
       break;
-    case "agent_question":
-      streamLog.info(
-        { requestId: event.requestId, questionCount: event.questions.length },
-        "agent question",
-      );
-      yield { type: "agent_question", requestId: event.requestId, questions: event.questions };
+    case 'agent_question':
+      streamLog.info({ requestId: event.requestId, questionCount: event.questions.length }, 'agent question');
+      yield { type: 'agent_question', requestId: event.requestId, questions: event.questions };
       break;
   }
 }
@@ -268,26 +214,16 @@ interface ActiveRun {
 const SNAPSHOT_INTERVAL = 100;
 
 async function persistStreamEnd(
-  sessionId: string,
-  messageId: string,
-  fullText: string,
-  stopReason: string,
-  acc: BlockAccumulator,
+  sessionId: string, messageId: string, fullText: string, stopReason: string, acc: BlockAccumulator,
 ): Promise<void> {
   try {
     await getSessionService().recordStreamEnd(
-      sessionId,
-      messageId,
-      fullText.trim(),
-      stopReason,
+      sessionId, messageId, fullText.trim(), stopReason,
       acc.activities.length > 0 ? acc.activities : undefined,
       acc.blocks.length > 0 ? acc.blocks : undefined,
     );
   } catch (err) {
-    log.error(
-      { sessionId, messageId, error: err instanceof Error ? err.message : String(err) },
-      "persistStreamEnd failed",
-    );
+    log.error({ sessionId, messageId, error: err instanceof Error ? err.message : String(err) }, 'persistStreamEnd failed');
   }
 }
 
@@ -300,11 +236,7 @@ class AgentRunnerImpl {
 
   getState(): { running: boolean; sessionId?: string; messageId?: string } {
     if (!this.activeRun || this.activeRun.done) return { running: false };
-    return {
-      running: true,
-      sessionId: this.activeRun.sessionId,
-      messageId: this.activeRun.messageId,
-    };
+    return { running: true, sessionId: this.activeRun.sessionId, messageId: this.activeRun.messageId };
   }
 
   /**
@@ -315,19 +247,19 @@ class AgentRunnerImpl {
     prompt: string;
     model?: string;
     maxThinkingTokens?: number;
-    permissionMode?: "plan" | "default" | "acceptEdits" | "bypassPermissions";
+    permissionMode?: 'plan' | 'default' | 'acceptEdits' | 'bypassPermissions';
     sessionId?: string;
     messageId?: string;
   }): void {
     if (this.activeRun && !this.activeRun.done) {
-      throw new Error("A run is already in progress");
+      throw new Error('A run is already in progress');
     }
 
     const run: ActiveRun = {
       sessionId: input.sessionId,
       messageId: input.messageId,
       done: false,
-      fullText: "",
+      fullText: '',
       tokenCount: 0,
       acc: { blocks: [], activities: [] },
       listeners: new Set(),
@@ -336,10 +268,7 @@ class AgentRunnerImpl {
 
     // Fire-and-forget — the run continues independently of SSE connections
     this.executeRun(run, input).catch((err) => {
-      log.error(
-        { error: err instanceof Error ? err.message : String(err) },
-        "executeRun unhandled error",
-      );
+      log.error({ error: err instanceof Error ? err.message : String(err) }, 'executeRun unhandled error');
     });
   }
 
@@ -349,13 +278,13 @@ class AgentRunnerImpl {
    */
   async *observe(): AsyncGenerator<SSEEvent> {
     const run = this.activeRun;
-    streamLog.info({ hasActiveRun: !!run, done: run?.done ?? true }, "observer connected");
+    streamLog.info({ hasActiveRun: !!run, done: run?.done ?? true }, 'observer connected');
     if (!run || run.done) {
       // If the run just finished, yield any final event
       if (run?.error) {
-        yield { type: "error", data: run.error };
+        yield { type: 'error', data: run.error };
       } else {
-        yield { type: "done", data: "" };
+        yield { type: 'done', data: '' };
       }
       return;
     }
@@ -363,7 +292,7 @@ class AgentRunnerImpl {
     // Yield a snapshot of current accumulated state (including any pending question)
     const pendingQ = getAgentService().getPendingQuestion() ?? undefined;
     yield {
-      type: "snapshot",
+      type: 'snapshot',
       blocks: structuredClone(run.acc.blocks),
       fullText: run.fullText,
       activities: [...run.acc.activities],
@@ -390,20 +319,15 @@ class AgentRunnerImpl {
           const event = queue.shift()!;
           yield event;
           // Terminal events end observation
-          if (event.type === "done" || event.type === "error") return;
+          if (event.type === 'done' || event.type === 'error') return;
         }
         // Wait for more events
         if (run.done && queue.length === 0) return;
-        await new Promise<void>((r) => {
-          resolve = r;
-        });
+        await new Promise<void>((r) => { resolve = r; });
       }
     } finally {
       run.listeners.delete(listener);
-      streamLog.info(
-        { sessionId: run.sessionId, remainingObservers: run.listeners.size },
-        "observer disconnected",
-      );
+      streamLog.info({ sessionId: run.sessionId, remainingObservers: run.listeners.size }, 'observer disconnected');
     }
   }
 
@@ -428,37 +352,21 @@ class AgentRunnerImpl {
 
   private snapshotBlocks(run: ActiveRun): void {
     if (!run.sessionId || !run.messageId || run.acc.blocks.length === 0) return;
-    getSessionService()
-      .recordStreamBlocks(
-        run.sessionId,
-        run.messageId,
-        [...run.acc.blocks],
-        run.acc.activities.length > 0 ? [...run.acc.activities] : undefined,
-      )
-      .catch(() => {
-        /* best-effort */
-      });
+    getSessionService().recordStreamBlocks(
+      run.sessionId, run.messageId, [...run.acc.blocks],
+      run.acc.activities.length > 0 ? [...run.acc.activities] : undefined,
+    ).catch(() => {/* best-effort */});
   }
 
   private async executeRun(
     run: ActiveRun,
-    input: {
-      prompt: string;
-      model?: string;
-      maxThinkingTokens?: number;
-      permissionMode?: string;
-      sessionId?: string;
-      messageId?: string;
-    },
+    input: { prompt: string; model?: string; maxThinkingTokens?: number; permissionMode?: string; sessionId?: string; messageId?: string },
   ): Promise<void> {
-    log.info(
-      {
-        prompt: input.prompt.slice(0, 100),
-        model: input.model,
-        sessionId: input.sessionId,
-      },
-      "run started",
-    );
+    log.info({
+      prompt: input.prompt.slice(0, 100),
+      model: input.model,
+      sessionId: input.sessionId,
+    }, 'run started');
 
     const agent = getAgentService();
     let tokensSinceSnapshot = 0;
@@ -472,19 +380,14 @@ class AgentRunnerImpl {
       for await (const event of agent.run(input.prompt, {
         model: input.model,
         maxThinkingTokens: input.maxThinkingTokens,
-        permissionMode: input.permissionMode as
-          | "plan"
-          | "default"
-          | "acceptEdits"
-          | "bypassPermissions"
-          | undefined,
+        permissionMode: input.permissionMode as 'plan' | 'default' | 'acceptEdits' | 'bypassPermissions' | undefined,
       })) {
         // Process event → accumulate blocks + generate SSE events
         for (const sseEvent of processEvent(event, run.acc, () => this.snapshotBlocks(run))) {
           this.broadcast(run, sseEvent);
         }
 
-        if (event.type === "token") {
+        if (event.type === 'token') {
           run.tokenCount++;
           run.fullText += event.token;
           accumulateTokenText(run.acc, event.token);
@@ -498,24 +401,20 @@ class AgentRunnerImpl {
 
       completeRunningBlocks(run.acc);
       if (input.sessionId && input.messageId) {
-        await persistStreamEnd(input.sessionId, input.messageId, run.fullText, "end_turn", run.acc);
+        await persistStreamEnd(input.sessionId, input.messageId, run.fullText, 'end_turn', run.acc);
       }
 
-      log.info({ totalTokens: run.tokenCount }, "run complete");
-      this.broadcast(run, { type: "done", data: "" });
+      log.info({ totalTokens: run.tokenCount }, 'run complete');
+      this.broadcast(run, { type: 'done', data: '' });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      log.error({ error: message }, "run error");
+      log.error({ error: message }, 'run error');
       run.error = message;
 
-      if (
-        input.sessionId &&
-        input.messageId &&
-        (run.fullText.length > 0 || run.acc.blocks.length > 0)
-      ) {
-        await persistStreamEnd(input.sessionId, input.messageId, run.fullText, "error", run.acc);
+      if (input.sessionId && input.messageId && (run.fullText.length > 0 || run.acc.blocks.length > 0)) {
+        await persistStreamEnd(input.sessionId, input.messageId, run.fullText, 'error', run.acc);
       }
-      this.broadcast(run, { type: "error", data: message });
+      this.broadcast(run, { type: 'error', data: message });
     } finally {
       run.done = true;
       // Clear the reference after a brief window so late reconnections can still

@@ -3,48 +3,51 @@
  * Uses tRPC queries for CRUD, shadcn components for layout.
  */
 
-import { useState, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "@/bridge/react";
-import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Search, Blocks } from "lucide-react";
-import { TemplateCard } from "./TemplateCard";
-import { TemplateEditor } from "./TemplateEditor";
-import { LaunchFromTemplateDialog } from "./LaunchFromTemplateDialog";
-import type { AgentTemplate } from "@/services/types";
+import { useState, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTRPC } from '@/bridge/react';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Plus, Search, Blocks } from 'lucide-react';
+import { TemplateCard } from './TemplateCard';
+import { TemplateEditor } from './TemplateEditor';
+import { LaunchFromTemplateDialog } from './LaunchFromTemplateDialog';
+import type { AgentTemplate } from '@/services/types';
 
 export function TemplateListView() {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const orgId = useRequiredOrgId();
-  const [keyword, setKeyword] = useState("");
+  const [keyword, setKeyword] = useState('');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<AgentTemplate | null>(null);
   const [launchTemplate, setLaunchTemplate] = useState<AgentTemplate | null>(null);
   const [launchOpen, setLaunchOpen] = useState(false);
 
-  const { data: templates = [], isLoading } = useQuery(trpc.template.list.queryOptions({ orgId }));
+  const { data: templates = [], isLoading } = useQuery(
+    trpc.template.list.queryOptions(
+      { orgId },
+    ),
+  );
 
   const duplicateMutation = useMutation(
     trpc.template.duplicate.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["template"] }),
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['template'] }),
     }),
   );
 
   const archiveMutation = useMutation(
     trpc.template.archive.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["template"] }),
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['template'] }),
     }),
   );
 
   const filtered = keyword
-    ? templates.filter(
-        (t: AgentTemplate) =>
-          t.name.toLowerCase().includes(keyword.toLowerCase()) ||
-          t.description.toLowerCase().includes(keyword.toLowerCase()),
+    ? templates.filter((t: AgentTemplate) =>
+        t.name.toLowerCase().includes(keyword.toLowerCase()) ||
+        t.description.toLowerCase().includes(keyword.toLowerCase()),
       )
     : templates;
 
@@ -63,19 +66,13 @@ export function TemplateListView() {
     setLaunchOpen(true);
   }, []);
 
-  const handleDuplicate = useCallback(
-    (t: AgentTemplate) => {
-      duplicateMutation.mutate({ orgId, id: t.id });
-    },
-    [orgId, duplicateMutation],
-  );
+  const handleDuplicate = useCallback((t: AgentTemplate) => {
+    duplicateMutation.mutate({ orgId, id: t.id });
+  }, [orgId, duplicateMutation]);
 
-  const handleArchive = useCallback(
-    (t: AgentTemplate) => {
-      archiveMutation.mutate({ orgId, id: t.id });
-    },
-    [orgId, archiveMutation],
-  );
+  const handleArchive = useCallback((t: AgentTemplate) => {
+    archiveMutation.mutate({ orgId, id: t.id });
+  }, [orgId, archiveMutation]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">
@@ -83,7 +80,7 @@ export function TemplateListView() {
         <div>
           <h2 className="text-lg font-semibold">Agent Templates</h2>
           <p className="text-xs text-neutral-fg-subtle">
-            {filtered.length} template{filtered.length !== 1 ? "s" : ""}
+            {filtered.length} template{filtered.length !== 1 ? 's' : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -125,12 +122,10 @@ export function TemplateListView() {
           <div className="text-center py-12">
             <Blocks className="h-8 w-8 mx-auto mb-3 text-neutral-fg-subtle" />
             <p className="text-sm font-medium">
-              {keyword ? "No matching templates" : "No templates yet"}
+              {keyword ? 'No matching templates' : 'No templates yet'}
             </p>
             <p className="text-xs text-neutral-fg-subtle mt-1">
-              {keyword
-                ? "Try a different search"
-                : "Create your first agent template to get started"}
+              {keyword ? 'Try a different search' : 'Create your first agent template to get started'}
             </p>
             {!keyword && (
               <Button variant="outline" className="mt-4" onClick={handleNew}>
@@ -142,7 +137,11 @@ export function TemplateListView() {
         )}
       </ScrollArea>
 
-      <TemplateEditor template={editingTemplate} open={editorOpen} onOpenChange={setEditorOpen} />
+      <TemplateEditor
+        template={editingTemplate}
+        open={editorOpen}
+        onOpenChange={setEditorOpen}
+      />
       <LaunchFromTemplateDialog
         template={launchTemplate}
         open={launchOpen}

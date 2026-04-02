@@ -1,7 +1,7 @@
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "@/bridge/react";
-import type { SessionSummary } from "@/services/types";
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useTRPC } from '@/bridge/react';
+import type { SessionSummary } from '@/services/types';
 
 interface UseActiveSessionTitleParams {
   orgId?: string;
@@ -16,7 +16,10 @@ export function useActiveSessionTitle({
 }: UseActiveSessionTitleParams): string | undefined {
   const trpc = useTRPC();
   const { data: sessionList } = useQuery(
-    trpc.session.list.queryOptions(orgId ? { orgId } : undefined, { enabled: serverConnected }),
+    trpc.session.list.queryOptions(
+      orgId ? { orgId } : undefined,
+      { enabled: serverConnected },
+    ),
   );
 
   return useMemo(() => {

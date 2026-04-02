@@ -1,1 +1,1 @@
-export { default as ToolOutput } from "./ToolOutput";
+export { default as ToolOutput } from './ToolOutput';

@@ -8,18 +8,18 @@
  * This is a single-user service (one user per installation).
  */
 
-import { readFile, writeFile, mkdir, unlink } from "fs/promises";
-import { join, dirname } from "path";
-import type { User, UserService } from "./types";
-import { getDataDir } from "./data-dir";
-import { colorFromName } from "@/shared/palette";
-import { getLogService } from "./log";
+import { readFile, writeFile, mkdir, unlink } from 'fs/promises';
+import { join, dirname } from 'path';
+import type { User, UserService } from './types';
+import { getDataDir } from './data-dir';
+import { colorFromName } from '@/shared/palette';
+import { getLogService } from './log';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const USER_FILE = join(getDataDir(), "user.json");
+const USER_FILE = join(getDataDir(), 'user.json');
 
 // =============================================================================
 // Helpers
@@ -50,12 +50,12 @@ class UserServiceImpl implements UserService {
 
   private async doInit(): Promise<void> {
     try {
-      const raw = await readFile(this.filePath, "utf-8");
+      const raw = await readFile(this.filePath, 'utf-8');
       this.user = JSON.parse(raw) as User;
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
-      if (error.code !== "ENOENT") {
-        getLogService().error("general", "Failed to load user", { error: String(error) });
+      if (error.code !== 'ENOENT') {
+        getLogService().error('general', 'Failed to load user', { error: String(error) });
       }
       // No user file yet — that's fine
     }
@@ -65,7 +65,7 @@ class UserServiceImpl implements UserService {
   private async save(): Promise<void> {
     if (!this.user) return;
     await mkdir(dirname(this.filePath), { recursive: true });
-    await writeFile(this.filePath, JSON.stringify(this.user, null, 2), "utf-8");
+    await writeFile(this.filePath, JSON.stringify(this.user, null, 2), 'utf-8');
   }
 
   async get(): Promise<User | null> {
@@ -77,7 +77,7 @@ class UserServiceImpl implements UserService {
     await this.ensureInitialized();
 
     if (this.user) {
-      throw new Error("User already exists. Use update() to change the display name.");
+      throw new Error('User already exists. Use update() to change the display name.');
     }
 
     const now = Date.now();
@@ -93,11 +93,11 @@ class UserServiceImpl implements UserService {
     return this.user;
   }
 
-  async update(updates: Partial<Pick<User, "displayName">>): Promise<User> {
+  async update(updates: Partial<Pick<User, 'displayName'>>): Promise<User> {
     await this.ensureInitialized();
 
     if (!this.user) {
-      throw new Error("No user exists. Call create() first.");
+      throw new Error('No user exists. Call create() first.');
     }
 
     this.user = {
@@ -124,8 +124,8 @@ class UserServiceImpl implements UserService {
       await unlink(this.filePath);
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
-      if (error.code !== "ENOENT") {
-        getLogService().error("general", "Failed to delete user file", { error: String(error) });
+      if (error.code !== 'ENOENT') {
+        getLogService().error('general', 'Failed to delete user file', { error: String(error) });
       }
     }
   }

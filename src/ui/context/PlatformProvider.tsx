@@ -6,7 +6,7 @@
  *   - 'web': browser with no native actions
  */
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from 'react';
 
 interface ElectronPlatform {
   platformType: "electron";
@@ -37,7 +37,11 @@ export function PlatformProvider({
   actions: PlatformActions;
   children: ReactNode;
 }) {
-  return <PlatformContext.Provider value={actions}>{children}</PlatformContext.Provider>;
+  return (
+    <PlatformContext.Provider value={actions}>
+      {children}
+    </PlatformContext.Provider>
+  );
 }
 
 export function usePlatform(): PlatformActions {

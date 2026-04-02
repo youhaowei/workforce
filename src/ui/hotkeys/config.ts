@@ -18,70 +18,70 @@ export type HotkeyDefinition = {
 export const HOTKEYS = {
   // Input actions
   paste: {
-    keys: ["Meta", "v"],
-    description: "Paste from clipboard",
+    keys: ['Meta', 'v'],
+    description: 'Paste from clipboard',
     global: true,
   },
   pasteCtrl: {
-    keys: ["Control", "v"],
-    description: "Paste from clipboard (Ctrl)",
+    keys: ['Control', 'v'],
+    description: 'Paste from clipboard (Ctrl)',
     global: true,
   },
 
   // Chat actions
   sendMessage: {
-    keys: ["Enter"],
-    description: "Send message",
+    keys: ['Enter'],
+    description: 'Send message',
   },
   newLine: {
-    keys: ["Shift", "Enter"],
-    description: "New line in message",
+    keys: ['Shift', 'Enter'],
+    description: 'New line in message',
   },
   cancelStream: {
-    keys: ["Escape"],
-    description: "Cancel streaming / Clear input",
+    keys: ['Escape'],
+    description: 'Cancel streaming / Clear input',
   },
 
   // Navigation
   focusInput: {
-    keys: ["Meta", "/"],
-    description: "Focus chat input",
+    keys: ['Meta', '/'],
+    description: 'Focus chat input',
     global: true,
   },
   focusInputCtrl: {
-    keys: ["Control", "/"],
-    description: "Focus chat input (Ctrl)",
+    keys: ['Control', '/'],
+    description: 'Focus chat input (Ctrl)',
     global: true,
   },
 
   // Panels
   toggleHistory: {
-    keys: ["Meta", "Shift", "h"],
-    description: "Toggle history panel",
+    keys: ['Meta', 'Shift', 'h'],
+    description: 'Toggle history panel',
     global: true,
   },
   toggleTasks: {
-    keys: ["Meta", "Shift", "t"],
-    description: "Toggle tasks panel",
+    keys: ['Meta', 'Shift', 't'],
+    description: 'Toggle tasks panel',
     global: true,
   },
 
   // Session
   newChat: {
-    keys: ["Meta", "n"],
-    description: "New chat session",
+    keys: ['Meta', 'n'],
+    description: 'New chat session',
     global: true,
   },
   newChatCtrl: {
-    keys: ["Control", "n"],
-    description: "New chat session (Ctrl)",
+    keys: ['Control', 'n'],
+    description: 'New chat session (Ctrl)',
     global: true,
   },
 
   // App
   refresh: {
-    keys: ["Meta", "r"],
-    description: "Refresh app",
+    keys: ['Meta', 'r'],
+    description: 'Refresh app',
     global: true,
   },
 } as const;

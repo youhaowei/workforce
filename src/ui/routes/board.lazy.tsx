@@ -1,6 +1,6 @@
-import { createLazyFileRoute } from "@tanstack/react-router";
-import { BoardView } from "../components/Board";
-import { useShell } from "../context/ShellContext";
+import {createLazyFileRoute} from '@tanstack/react-router';
+import {BoardView} from '../components/Board';
+import {useShell} from '../context/ShellContext';
 
 function BoardRoute() {
   const { onSelectAgent, boardKeyword, boardStatusFilter } = useShell();
@@ -14,6 +14,6 @@ function BoardRoute() {
   );
 }
 
-export const Route = createLazyFileRoute("/board")({
+export const Route = createLazyFileRoute('/board')({
   component: BoardRoute,
 });

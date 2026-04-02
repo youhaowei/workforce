@@ -2,16 +2,16 @@
  * TaskPanel - Side panel for task management.
  */
 
-import { useState, useMemo, useCallback, type FormEvent } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Surface } from "@/components/ui/surface";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { X, Plus } from "lucide-react";
-import type { TaskStatus } from "../../../services/types";
-import { useTRPC } from "@/bridge/react";
-import { TaskList } from "./TaskList";
+import { useState, useMemo, useCallback, type FormEvent } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Surface } from '@/components/ui/surface';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { X, Plus } from 'lucide-react';
+import type { TaskStatus } from '../../../services/types';
+import { useTRPC } from '@/bridge/react';
+import { TaskList } from './TaskList';
 
 export interface TaskPanelProps {
   isOpen: boolean;
@@ -21,12 +21,12 @@ export interface TaskPanelProps {
 export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskTitle, setNewTaskTitle] = useState('');
 
   const { data: tasks = [] } = useQuery(
     trpc.task.list.queryOptions(undefined, {
       enabled: isOpen,
-    }),
+    })
   );
 
   const invalidateTasks = useCallback(() => {
@@ -36,57 +36,50 @@ export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
   const createMutation = useMutation(
     trpc.task.create.mutationOptions({
       onSuccess: invalidateTasks,
-    }),
+    })
   );
 
   const updateStatusMutation = useMutation(
     trpc.task.updateStatus.mutationOptions({
       onSuccess: invalidateTasks,
-    }),
+    })
   );
 
   const deleteMutation = useMutation(
     trpc.task.delete.mutationOptions({
       onSuccess: invalidateTasks,
-    }),
+    })
   );
 
-  const handleStatusChange = useCallback(
-    (taskId: string, status: TaskStatus) => {
-      updateStatusMutation.mutate({ id: taskId, status });
-    },
-    [updateStatusMutation],
-  );
+  const handleStatusChange = useCallback((taskId: string, status: TaskStatus) => {
+    updateStatusMutation.mutate({ id: taskId, status });
+  }, [updateStatusMutation]);
 
-  const handleDelete = useCallback(
-    (taskId: string) => {
-      deleteMutation.mutate({ id: taskId });
-    },
-    [deleteMutation],
-  );
+  const handleDelete = useCallback((taskId: string) => {
+    deleteMutation.mutate({ id: taskId });
+  }, [deleteMutation]);
 
-  const handleAddTask = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
-      e.preventDefault();
-      const title = newTaskTitle.trim();
-      if (!title) return;
+  const handleAddTask = useCallback((e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const title = newTaskTitle.trim();
+    if (!title) return;
 
-      createMutation.mutate({ title });
-      setNewTaskTitle("");
-    },
-    [newTaskTitle, createMutation],
-  );
+    createMutation.mutate({ title });
+    setNewTaskTitle('');
+  }, [newTaskTitle, createMutation]);
 
   const pendingCount = useMemo(
-    () => tasks.filter((t) => t.status === "pending" || t.status === "in_progress").length,
-    [tasks],
+    () =>
+      tasks.filter((t) => t.status === 'pending' || t.status === 'in_progress')
+        .length,
+    [tasks]
   );
 
   return (
     <Surface
       data-collapsed={!isOpen}
       className={`flex-shrink-0 flex flex-col bg-neutral-bg/90 saturate-[1.2] rounded-[var(--surface-radius)] shadow-[var(--surface-shadow)] transition-[width,margin] duration-200 ease-in-out m-[var(--surface-inset)] ml-0 select-none ${
-        isOpen ? "w-80" : "w-0 !m-0 !shadow-none !rounded-none"
+        isOpen ? 'w-80' : 'w-0 !m-0 !shadow-none !rounded-none'
       }`}
       aria-hidden={!isOpen}
       inert={!isOpen ? true : undefined}
@@ -96,9 +89,7 @@ export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
         <h2 className="font-semibold text-neutral-fg flex items-center gap-2">
           Tasks
           {pendingCount > 0 && (
-            <Badge variant="soft" className="text-xs">
-              {pendingCount}
-            </Badge>
+            <Badge variant="soft" className="text-xs">{pendingCount}</Badge>
           )}
         </h2>
         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} title="Close">
@@ -124,7 +115,11 @@ export function TaskPanel({ isOpen, onClose }: TaskPanelProps) {
       </form>
 
       {/* Task list */}
-      <TaskList tasks={tasks} onStatusChange={handleStatusChange} onDelete={handleDelete} />
+      <TaskList
+        tasks={tasks}
+        onStatusChange={handleStatusChange}
+        onDelete={handleDelete}
+      />
     </Surface>
   );
 }

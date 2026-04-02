@@ -19,12 +19,13 @@ export default function StatusBar({
         <div className="flex items-center gap-3">
           {(cumulativeUsage.inputTokens > 0 || cumulativeUsage.outputTokens > 0) && (
             <span title="Input / Output tokens">
-              {cumulativeUsage.inputTokens.toLocaleString()} in ·{" "}
-              {cumulativeUsage.outputTokens.toLocaleString()} out
+              {cumulativeUsage.inputTokens.toLocaleString()} in · {cumulativeUsage.outputTokens.toLocaleString()} out
             </span>
           )}
           {cumulativeUsage.totalCostUsd > 0 && (
-            <span title="Estimated cost">${cumulativeUsage.totalCostUsd.toFixed(4)}</span>
+            <span title="Estimated cost">
+              ${cumulativeUsage.totalCostUsd.toFixed(4)}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-3">

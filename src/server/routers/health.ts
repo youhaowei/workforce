@@ -1,8 +1,8 @@
-import { z } from "zod";
-import { router, publicProcedure } from "../trpc";
-import { getRecentLogs } from "tracey";
-import { existsSync, readFileSync } from "fs";
-import { homedir } from "os";
+import { z } from 'zod';
+import { router, publicProcedure } from '../trpc';
+import { getRecentLogs } from 'tracey';
+import { existsSync, readFileSync } from 'fs';
+import { homedir } from 'os';
 
 export const healthRouter = router({
   check: publicProcedure.query(() => ({ ok: true })),
@@ -30,7 +30,7 @@ export const healthRouter = router({
 
     if (result.hasCredentialsFile) {
       try {
-        const content = readFileSync(credPath, "utf-8");
+        const content = readFileSync(credPath, 'utf-8');
         const creds = JSON.parse(content);
         result.credentialsFileReadable = true;
         if (creds.claudeAiOauth) {
@@ -47,4 +47,5 @@ export const healthRouter = router({
     const authenticated = !!(result.hasCredentialsFile || result.hasApiKey || result.hasAuthToken);
     return { authenticated, ...result };
   }),
+
 });

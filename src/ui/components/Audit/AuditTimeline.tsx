@@ -2,9 +2,9 @@
  * AuditTimeline - Vertical timeline of audit entries.
  */
 
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { AuditEntryItem } from "./AuditEntryItem";
-import type { AuditEntry } from "@/services/types";
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { AuditEntryItem } from './AuditEntryItem';
+import type { AuditEntry } from '@/services/types';
 
 interface AuditTimelineProps {
   entries: AuditEntry[];
@@ -12,7 +12,9 @@ interface AuditTimelineProps {
 
 export function AuditTimeline({ entries }: AuditTimelineProps) {
   if (entries.length === 0) {
-    return <p className="text-sm text-neutral-fg-subtle text-center py-8">No audit entries</p>;
+    return (
+      <p className="text-sm text-neutral-fg-subtle text-center py-8">No audit entries</p>
+    );
   }
 
   return (

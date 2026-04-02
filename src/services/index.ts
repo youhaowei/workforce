@@ -91,32 +91,32 @@ export type {
   AuditEntry,
   AuditEntryType,
   AuditService,
-} from "./types";
+} from './types';
 
 // Service getters (lazy singletons)
-import { getAgentService, resetAgentService } from "./agent";
-import { getSessionService, resetSessionService } from "./session";
-import { getToolService, resetToolService } from "./tool";
-import { getOrchestratorService, resetOrchestratorService } from "./orchestrator";
-import { getSkillService, resetSkillService } from "./skill";
-import { getHookService, resetHookService } from "./hook";
-import { getBackgroundService, resetBackgroundService } from "./background";
-import { getTaskService, resetTaskService } from "./task";
-import { getOrgService, resetOrgService } from "./org";
-import { getUserService, resetUserService } from "./user";
-import { getProjectService, resetProjectService } from "./project";
-import { getTemplateService, resetTemplateService } from "./template";
-import { getWorktreeService, resetWorktreeService } from "./worktree";
-import { getArtifactService, resetArtifactService } from "./artifact";
+import { getAgentService, resetAgentService } from './agent';
+import { getSessionService, resetSessionService } from './session';
+import { getToolService, resetToolService } from './tool';
+import { getOrchestratorService, resetOrchestratorService } from './orchestrator';
+import { getSkillService, resetSkillService } from './skill';
+import { getHookService, resetHookService } from './hook';
+import { getBackgroundService, resetBackgroundService } from './background';
+import { getTaskService, resetTaskService } from './task';
+import { getOrgService, resetOrgService } from './org';
+import { getUserService, resetUserService } from './user';
+import { getProjectService, resetProjectService } from './project';
+import { getTemplateService, resetTemplateService } from './template';
+import { getWorktreeService, resetWorktreeService } from './worktree';
+import { getArtifactService, resetArtifactService } from './artifact';
 
 // Factory functions (for services that require composition)
-import { createOrchestrationService } from "./orchestration";
-import { createWorkflowService } from "./workflow";
-import { createReviewService } from "./review";
-import { createAuditService } from "./audit";
+import { createOrchestrationService } from './orchestration';
+import { createWorkflowService } from './workflow';
+import { createReviewService } from './review';
+import { createAuditService } from './audit';
 
 // Router-level factory-cached services (orchestration, workflow, review, audit)
-import { resetRouterServices } from "../server/routers/_services";
+import { resetRouterServices } from '../server/routers/_services';
 
 export {
   getAgentService,

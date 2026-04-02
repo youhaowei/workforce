@@ -16,9 +16,9 @@
  * The <ConfirmDialog /> component (mounted once in Shell) reads from this store.
  */
 
-import { create } from "zustand";
+import { create } from 'zustand';
 
-export type DialogVariant = "default" | "destructive";
+export type DialogVariant = 'default' | 'destructive';
 
 export interface ConfirmOptions {
   title: string;
@@ -36,8 +36,8 @@ interface DialogState {
 }
 
 const DEFAULT_OPTIONS: ConfirmOptions = {
-  title: "",
-  description: "",
+  title: '',
+  description: '',
 };
 
 // Module-level ref for the resolve callback — kept outside Zustand state

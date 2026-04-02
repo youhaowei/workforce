@@ -5,12 +5,12 @@
  * and brightness is secondary. Chroma is kept low (tint-appropriate).
  */
 
-import { useCallback, useEffect, useRef } from "react";
-import { RotateCcw } from "lucide-react";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { parseOklch, formatOklch, oklchToHex } from "@/ui/lib/oklch";
-import { addRecentColor } from "@/ui/stores/useThemeStore";
-import { usePlatform } from "@/ui/context/PlatformProvider";
+import { useCallback, useEffect, useRef } from 'react';
+import { RotateCcw } from 'lucide-react';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { parseOklch, formatOklch, oklchToHex } from '@/ui/lib/oklch';
+import { addRecentColor } from '@/ui/stores/useThemeStore';
+import { usePlatform } from '@/ui/context/PlatformProvider';
 
 const WHEEL_SIZE = 160;
 const WHEEL_RADIUS = WHEEL_SIZE / 2;
@@ -29,15 +29,11 @@ interface TintPickerProps {
 export function TintPicker({ value, onChange, showHexValue = true }: TintPickerProps) {
   const { isDesktop } = usePlatform();
   const effectivePreviewBackground = isDesktop
-    ? "var(--shell-bg-vibrancy, var(--shell-bg))"
-    : "var(--shell-bg)";
+    ? 'var(--shell-bg-vibrancy, var(--shell-bg))'
+    : 'var(--shell-bg)';
 
   let lch = { l: 0.8, c: TINT_CHROMA, h: 0 };
-  try {
-    lch = parseOklch(value);
-  } catch {
-    /* keep default */
-  }
+  try { lch = parseOklch(value); } catch { /* keep default */ }
 
   const snapshotRef = useRef<string | null>(null);
   const chromaStrength = Math.max(0, Math.min(1, lch.c / 0.08));
@@ -53,16 +49,13 @@ export function TintPicker({ value, onChange, showHexValue = true }: TintPickerP
     if (snapshotRef.current != null) onChange(snapshotRef.current);
   }, [onChange]);
 
-  const handleOpenChange = useCallback(
-    (open: boolean) => {
-      if (open) {
-        snapshotRef.current = value;
-      } else {
-        addRecentColor(value);
-      }
-    },
-    [value],
-  );
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (open) {
+      snapshotRef.current = value;
+    } else {
+      addRecentColor(value);
+    }
+  }, [value]);
 
   return (
     <div className="flex items-center gap-2">
@@ -75,7 +68,11 @@ export function TintPicker({ value, onChange, showHexValue = true }: TintPickerP
             aria-label="Pick surface tint"
           />
         </PopoverTrigger>
-        <PopoverContent side="left" align="start" className="w-auto p-3 space-y-3">
+        <PopoverContent
+          side="left"
+          align="start"
+          className="w-auto p-3 space-y-3"
+        >
           <HueWheel
             hue={lch.h}
             previewBackground={effectivePreviewBackground}
@@ -137,7 +134,7 @@ function HueWheel({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const dpr = window.devicePixelRatio || 1;
@@ -161,11 +158,11 @@ function HueWheel({
     }
 
     // Mask center to transparent
-    ctx.globalCompositeOperation = "destination-out";
+    ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
     ctx.arc(WHEEL_RADIUS, WHEEL_RADIUS, INNER_RADIUS, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalCompositeOperation = "source-over";
+    ctx.globalCompositeOperation = 'source-over';
   }, [ringChroma]);
 
   const angleFromEvent = useCallback((e: React.PointerEvent | PointerEvent) => {
@@ -198,7 +195,7 @@ function HueWheel({
   );
 
   // Handle position on the ring
-  const handleAngle = (hue / 360) * Math.PI * 2 - Math.PI / 2;
+  const handleAngle = ((hue / 360) * Math.PI * 2) - Math.PI / 2;
   const handleDist = INNER_RADIUS + RING_WIDTH / 2;
   const handleX = WHEEL_RADIUS + Math.cos(handleAngle) * handleDist;
   const handleY = WHEEL_RADIUS + Math.sin(handleAngle) * handleDist;
@@ -209,9 +206,7 @@ function HueWheel({
       className="relative cursor-crosshair"
       style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}
       onPointerDown={startDrag}
-      onPointerMove={(e) => {
-        if (e.buttons > 0) handlePointer(e);
-      }}
+      onPointerMove={(e) => { if (e.buttons > 0) handlePointer(e); }}
     >
       <canvas
         ref={canvasRef as React.RefObject<HTMLCanvasElement>}
@@ -232,7 +227,7 @@ function HueWheel({
       {/* Ring handle */}
       <div
         className="absolute pointer-events-none"
-        style={{ left: handleX, top: handleY, transform: "translate(-50%, -50%)" }}
+        style={{ left: handleX, top: handleY, transform: 'translate(-50%, -50%)' }}
       >
         <div className="w-4 h-4 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3),0_1px_3px_rgba(0,0,0,0.4)]" />
       </div>
@@ -289,13 +284,11 @@ function BrightnessSlider({
         background: `linear-gradient(to right, ${darkHex}, ${midHex}, ${lightHex})`,
       }}
       onPointerDown={startDrag}
-      onPointerMove={(e) => {
-        if (e.buttons > 0) handlePointer(e);
-      }}
+      onPointerMove={(e) => { if (e.buttons > 0) handlePointer(e); }}
     >
       <div
         className="absolute top-0 pointer-events-none"
-        style={{ left: `${lightness * 100}%`, transform: "translateX(-50%)" }}
+        style={{ left: `${lightness * 100}%`, transform: 'translateX(-50%)' }}
       >
         <div
           className="rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"

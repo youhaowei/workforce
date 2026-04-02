@@ -3,11 +3,11 @@
  * Debounces start to prevent file handle leaks on rapid session switches.
  */
 
-import { watch } from "fs/promises";
-import { getEventBus } from "@/shared/event-bus";
-import { createLogger } from "tracey";
+import { watch } from 'fs/promises';
+import { getEventBus } from '@/shared/event-bus';
+import { createLogger } from 'tracey';
 
-const log = createLogger("Session");
+const log = createLogger('Session');
 const DEBOUNCE_MS = 300;
 
 export class CCSourceWatcher {
@@ -27,19 +27,19 @@ export class CCSourceWatcher {
         try {
           const watcher = watch(ccSourcePath, { signal: abort.signal });
           for await (const event of watcher) {
-            if (event.eventType === "change") {
-              log.info({ sessionId }, "CC source file changed");
+            if (event.eventType === 'change') {
+              log.info({ sessionId }, 'CC source file changed');
               getEventBus().emit({
-                type: "SessionChange",
+                type: 'SessionChange',
                 sessionId,
-                action: "cc_source_changed",
+                action: 'cc_source_changed',
                 timestamp: Date.now(),
               });
             }
           }
         } catch (err) {
-          if ((err as Error).name !== "AbortError") {
-            log.warn({ sessionId, err }, "CC source watcher error");
+          if ((err as Error).name !== 'AbortError') {
+            log.warn({ sessionId, err }, 'CC source watcher error');
           }
         }
       })();

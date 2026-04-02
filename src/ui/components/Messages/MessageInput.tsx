@@ -5,22 +5,22 @@
  *   last user message's agentConfig → localStorage('agent-config-last') → DEFAULT_AGENT_CONFIG
  */
 
-import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Send, Square } from "lucide-react";
-import { useTRPC } from "@/bridge/react";
-import type { AgentConfig, AgentPermissionMode, ThinkingLevel } from "@/services/types";
-import { useMessagesStore } from "@/ui/stores/useMessagesStore";
-import { useSdkStore } from "@/ui/stores/useSdkStore";
-import { Card } from "@/components/ui/card";
-import AgentConfigToolbar from "./AgentConfigToolbar";
+import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Send, Square } from 'lucide-react';
+import { useTRPC } from '@/bridge/react';
+import type { AgentConfig, AgentPermissionMode, ThinkingLevel } from '@/services/types';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
+import { useSdkStore } from '@/ui/stores/useSdkStore';
+import { Card } from '@/components/ui/card';
+import AgentConfigToolbar from './AgentConfigToolbar';
 import {
   AGENT_CONFIG_LAST_KEY,
   DEFAULT_AGENT_CONFIG,
   cacheModels,
   getModelsFromCache,
   parseStoredAgentConfig,
-} from "./agentConfig";
+} from './agentConfig';
 
 interface MessageInputProps {
   onSubmit: (submission: { content: string; agentConfig: AgentConfig }) => void;
@@ -31,7 +31,7 @@ interface MessageInputProps {
   placeholder?: string;
   sessionId?: string | null;
   messages?: Array<{
-    role: "user" | "assistant" | "system";
+    role: 'user' | 'assistant' | 'system';
     agentConfig?: AgentConfig;
   }>;
   /** Optional banner rendered above the input card, inside the same max-width container. */
@@ -39,14 +39,14 @@ interface MessageInputProps {
 }
 
 function getInitialConfig(
-  messages?: MessageInputProps["messages"],
+  messages?: MessageInputProps['messages'],
   sessionId?: string | null,
   orgDefaults?: { model: string; thinkingLevel: ThinkingLevel } | null,
 ): AgentConfig {
   // Priority 1: last user message's agentConfig in the current session
   if (sessionId && messages) {
     for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === "user" && messages[i].agentConfig) {
+      if (messages[i].role === 'user' && messages[i].agentConfig) {
         return messages[i].agentConfig!;
       }
     }
@@ -82,7 +82,7 @@ export default function MessageInput({
   const messageCount = useMessagesStore((s) => s.messages.length);
   const cumulativeUsage = useSdkStore((s) => s.cumulativeUsage);
   const currentQueryStats = useSdkStore((s) => s.currentQueryStats);
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Fetch org-level defaults for initial config cascade
@@ -95,9 +95,7 @@ export default function MessageInput({
   const [initialConfig] = useState(() => getInitialConfig(messages, sessionId));
   const [model, setModel] = useState(initialConfig.model);
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(initialConfig.thinkingLevel);
-  const [permissionMode, setPermissionMode] = useState<AgentPermissionMode>(
-    initialConfig.permissionMode,
-  );
+  const [permissionMode, setPermissionMode] = useState<AgentPermissionMode>(initialConfig.permissionMode);
 
   // Apply org defaults once they resolve, but only if no higher-priority config was set.
   // orgDefaults intentionally NOT in the restore effect deps — this one-shot effect handles
@@ -107,14 +105,10 @@ export default function MessageInput({
     if (!orgDefaults || orgDefaultsAppliedRef.current) return;
     orgDefaultsAppliedRef.current = true;
     // Only apply if current config matches hardcoded defaults (no session/localStorage override)
-    if (
-      model === DEFAULT_AGENT_CONFIG.model &&
-      thinkingLevel === DEFAULT_AGENT_CONFIG.thinkingLevel
-    ) {
-      const validModel =
-        models.length > 0 && !models.some((m) => m.id === orgDefaults.model)
-          ? models[0].id
-          : orgDefaults.model;
+    if (model === DEFAULT_AGENT_CONFIG.model && thinkingLevel === DEFAULT_AGENT_CONFIG.thinkingLevel) {
+      const validModel = models.length > 0 && !models.some((m) => m.id === orgDefaults.model)
+        ? models[0].id
+        : orgDefaults.model;
       setModel(validModel);
       setThinkingLevel(orgDefaults.thinkingLevel);
     }
@@ -153,10 +147,7 @@ export default function MessageInput({
   // so we apply localStorage fallback immediately, then re-apply from session history
   // once messages arrive.
   // Model is validated against current list to handle stale/deprecated model IDs.
-  const sessionConfigRef = useRef<{
-    sessionId: string | null | undefined;
-    appliedWithMessages: boolean;
-  }>({
+  const sessionConfigRef = useRef<{ sessionId: string | null | undefined; appliedWithMessages: boolean }>({
     sessionId: undefined,
     appliedWithMessages: false,
   });
@@ -167,8 +158,9 @@ export default function MessageInput({
     if (sessionChanged) {
       sessionConfigRef.current = { sessionId: sessionId ?? null, appliedWithMessages: hasMessages };
       const cfg = getInitialConfig(messages, sessionId);
-      const validModel =
-        models.length > 0 && !models.some((m) => m.id === cfg.model) ? models[0].id : cfg.model;
+      const validModel = models.length > 0 && !models.some((m) => m.id === cfg.model)
+        ? models[0].id
+        : cfg.model;
       setModel(validModel);
       setThinkingLevel(cfg.thinkingLevel);
       setPermissionMode(cfg.permissionMode);
@@ -176,13 +168,14 @@ export default function MessageInput({
       // Same session: messages just loaded — re-apply to pick up session-specific agentConfig
       sessionConfigRef.current = { ...prev, appliedWithMessages: true };
       const cfg = getInitialConfig(messages, sessionId);
-      const validModel =
-        models.length > 0 && !models.some((m) => m.id === cfg.model) ? models[0].id : cfg.model;
+      const validModel = models.length > 0 && !models.some((m) => m.id === cfg.model)
+        ? models[0].id
+        : cfg.model;
       setModel(validModel);
       setThinkingLevel(cfg.thinkingLevel);
       setPermissionMode(cfg.permissionMode);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, messages, models]);
 
   // Consume draft input set by rewind/fork — populate textarea once, then clear.
@@ -200,7 +193,7 @@ export default function MessageInput({
   const adjustHeight = useCallback(() => {
     const el = textareaRef.current;
     if (el) {
-      el.style.height = "auto";
+      el.style.height = 'auto';
       el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
     }
   }, []);
@@ -219,23 +212,23 @@ export default function MessageInput({
         // ignore
       }
       onSubmit({ content: trimmed, agentConfig });
-      setValue("");
+      setValue('');
       if (textareaRef.current) {
-        textareaRef.current.style.height = "auto";
+        textareaRef.current.style.height = 'auto';
       }
     }
   }, [value, isStreaming, model, thinkingLevel, permissionMode, onSubmit]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) {
+      if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         handleSubmit();
-      } else if (e.key === "Escape") {
+      } else if (e.key === 'Escape') {
         if (isStreaming && onCancel) {
           onCancel();
         } else {
-          setValue("");
+          setValue('');
         }
       }
     },
@@ -260,11 +253,7 @@ export default function MessageInput({
               value={value}
               onChange={(e) => setValue(e.currentTarget.value)}
               onKeyDown={handleKeyDown}
-              placeholder={
-                disabled && disabledMessage
-                  ? disabledMessage
-                  : (placeholder ?? "Ask Workforce anything...")
-              }
+              placeholder={disabled && disabledMessage ? disabledMessage : placeholder ?? 'Ask Workforce anything...'}
               disabled={isStreaming || disabled}
               rows={3}
               className="w-full bg-transparent text-neutral-fg placeholder:text-neutral-fg-subtle/30 resize-none outline-none text-[15px] min-h-[72px] max-h-[200px] disabled:opacity-50"
@@ -287,7 +276,7 @@ export default function MessageInput({
               {isStreaming && (
                 <span className="text-[11px] text-neutral-fg-subtle/40 flex items-center gap-1.5 ml-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-neutral-fg/25 animate-pulse" />
-                  {currentTool ? `Using ${currentTool}` : "Thinking..."}
+                  {currentTool ? `Using ${currentTool}` : 'Thinking...'}
                 </span>
               )}
             </div>

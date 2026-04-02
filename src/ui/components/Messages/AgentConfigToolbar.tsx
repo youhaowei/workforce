@@ -1,4 +1,4 @@
-import { ChevronDown } from "lucide-react";
+import { ChevronDown } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,10 +7,10 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { cn } from "@/ui/lib/utils";
-import type { AgentModelInfo, AgentPermissionMode, ThinkingLevel } from "@/services/types";
-import { THINKING_LEVELS, PERMISSION_OPTIONS } from "./agentConfig";
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/ui/lib/utils';
+import type { AgentModelInfo, AgentPermissionMode, ThinkingLevel } from '@/services/types';
+import { THINKING_LEVELS, PERMISSION_OPTIONS } from './agentConfig';
 
 interface PillProps {
   label: string;
@@ -24,10 +24,10 @@ function Pill({ label, disabled, children }: PillProps) {
       <DropdownMenuTrigger
         disabled={disabled}
         className={cn(
-          "inline-flex items-center gap-1 h-[22px] px-2 rounded-md text-[11px]",
-          "text-neutral-fg-subtle/70 hover:text-neutral-fg-subtle transition-colors outline-none",
-          "focus-visible:ring-1 focus-visible:ring-neutral-ring",
-          "disabled:opacity-30 disabled:cursor-not-allowed",
+          'inline-flex items-center gap-1 h-[22px] px-2 rounded-md text-[11px]',
+          'text-neutral-fg-subtle/70 hover:text-neutral-fg-subtle transition-colors outline-none',
+          'focus-visible:ring-1 focus-visible:ring-neutral-ring',
+          'disabled:opacity-30 disabled:cursor-not-allowed',
         )}
       >
         {label}
@@ -61,12 +61,9 @@ export default function AgentConfigToolbar({
   onPermissionChange,
   disabled,
 }: AgentConfigToolbarProps) {
-  const modelLabel =
-    models.find((m) => m.id === model)?.displayName ?? model.replace(/^claude-/, "");
-  const thinkingLabel =
-    THINKING_LEVELS.find((l) => l.value === thinkingLevel)?.label ?? thinkingLevel;
-  const permissionLabel =
-    PERMISSION_OPTIONS.find((p) => p.value === permissionMode)?.label ?? permissionMode;
+  const modelLabel = models.find((m) => m.id === model)?.displayName ?? model.replace(/^claude-/, '');
+  const thinkingLabel = THINKING_LEVELS.find((l) => l.value === thinkingLevel)?.label ?? thinkingLevel;
+  const permissionLabel = PERMISSION_OPTIONS.find((p) => p.value === permissionMode)?.label ?? permissionMode;
 
   return (
     <div className="flex items-center gap-1.5">
@@ -75,15 +72,9 @@ export default function AgentConfigToolbar({
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup value={model} onValueChange={onModelChange}>
           {models.map((m) => (
-            <DropdownMenuRadioItem
-              key={m.id}
-              value={m.id}
-              className="text-xs flex-col items-start gap-0"
-            >
+            <DropdownMenuRadioItem key={m.id} value={m.id} className="text-xs flex-col items-start gap-0">
               <span>{m.displayName}</span>
-              {m.description && (
-                <span className="text-neutral-fg-subtle font-normal">{m.description}</span>
-              )}
+              {m.description && <span className="text-neutral-fg-subtle font-normal">{m.description}</span>}
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>

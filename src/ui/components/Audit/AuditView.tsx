@@ -3,41 +3,41 @@
  * Shows all audit entries with type filtering.
  */
 
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "@/bridge/react";
-import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useTRPC } from '@/bridge/react';
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { History } from "lucide-react";
-import { AuditEntryItem } from "./AuditEntryItem";
-import type { AuditEntry, AuditEntryType } from "@/services/types";
+} from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { History } from 'lucide-react';
+import { AuditEntryItem } from './AuditEntryItem';
+import type { AuditEntry, AuditEntryType } from '@/services/types';
 
 const AUDIT_TYPES: Array<{ value: string; label: string }> = [
-  { value: "all", label: "All types" },
-  { value: "state_change", label: "State Changes" },
-  { value: "tool_use", label: "Tool Use" },
-  { value: "review_decision", label: "Review Decisions" },
-  { value: "agent_spawn", label: "Agent Spawns" },
-  { value: "worktree_action", label: "Worktree Actions" },
+  { value: 'all', label: 'All types' },
+  { value: 'state_change', label: 'State Changes' },
+  { value: 'tool_use', label: 'Tool Use' },
+  { value: 'review_decision', label: 'Review Decisions' },
+  { value: 'agent_spawn', label: 'Agent Spawns' },
+  { value: 'worktree_action', label: 'Worktree Actions' },
 ];
 
 export function AuditView() {
   const trpc = useTRPC();
   const orgId = useRequiredOrgId();
-  const [typeFilter, setTypeFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState('all');
 
   const { data: entries = [], isLoading } = useQuery(
     trpc.audit.org.queryOptions(
       {
         orgId,
-        type: typeFilter !== "all" ? (typeFilter as AuditEntryType) : undefined,
+        type: typeFilter !== 'all' ? (typeFilter as AuditEntryType) : undefined,
         limit: 200,
       },
       {},
@@ -49,7 +49,9 @@ export function AuditView() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Audit Log</h2>
-          <p className="text-xs text-neutral-fg-subtle">{entries.length} entries</p>
+          <p className="text-xs text-neutral-fg-subtle">
+            {entries.length} entries
+          </p>
         </div>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
           <SelectTrigger className="w-48 h-9">
@@ -57,15 +59,15 @@ export function AuditView() {
           </SelectTrigger>
           <SelectContent>
             {AUDIT_TYPES.map((t) => (
-              <SelectItem key={t.value} value={t.value}>
-                {t.label}
-              </SelectItem>
+              <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
             ))}
           </SelectContent>
         </Select>
       </div>
 
-      {isLoading && <p className="text-sm text-neutral-fg-subtle text-center py-12">Loading...</p>}
+      {isLoading && (
+        <p className="text-sm text-neutral-fg-subtle text-center py-12">Loading...</p>
+      )}
       {!isLoading && entries.length > 0 && (
         <ScrollArea className="flex-1">
           <div className="space-y-0.5 max-w-3xl">
@@ -79,7 +81,9 @@ export function AuditView() {
         <div className="text-center py-12">
           <History className="h-8 w-8 mx-auto mb-3 text-neutral-fg-subtle" />
           <p className="text-sm font-medium">No audit entries</p>
-          <p className="text-xs text-neutral-fg-subtle mt-1">Agent activity will appear here</p>
+          <p className="text-xs text-neutral-fg-subtle mt-1">
+            Agent activity will appear here
+          </p>
         </div>
       )}
     </div>

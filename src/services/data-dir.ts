@@ -7,9 +7,9 @@
  * allows tests to redirect writes to a temp directory.
  */
 
-import { join } from "path";
-import { homedir } from "os";
+import { join } from 'path';
+import { homedir } from 'os';
 
 export function getDataDir(): string {
-  return process.env.WORKFORCE_DATA_DIR || join(homedir(), ".workforce");
+  return process.env.WORKFORCE_DATA_DIR || join(homedir(), '.workforce');
 }

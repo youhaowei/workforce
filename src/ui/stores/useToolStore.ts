@@ -5,14 +5,14 @@
  * EventBus subscription is handled by useEventBusInit.
  */
 
-import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
+import { create } from 'zustand';
+import { immer } from 'zustand/middleware/immer';
 
 // =============================================================================
 // Types (re-exported for consumers)
 // =============================================================================
 
-export type ToolUIStatus = "pending" | "running" | "success" | "failed" | "cancelled";
+export type ToolUIStatus = 'pending' | 'running' | 'success' | 'failed' | 'cancelled';
 
 export interface ToolUIState {
   id: string;
@@ -31,18 +31,8 @@ interface ToolStore {
   activeToolIds: string[];
 
   // Event handlers (called by useEventBusInit)
-  handleToolStart: (event: {
-    toolId: string;
-    toolName: string;
-    args: unknown;
-    timestamp: number;
-  }) => void;
-  handleToolEnd: (event: {
-    toolId: string;
-    result: unknown;
-    duration: number;
-    timestamp: number;
-  }) => void;
+  handleToolStart: (event: { toolId: string; toolName: string; args: unknown; timestamp: number }) => void;
+  handleToolEnd: (event: { toolId: string; result: unknown; duration: number; timestamp: number }) => void;
 
   // Actions
   markToolFailed: (toolId: string, error: string) => void;
@@ -65,7 +55,7 @@ export const useToolStore = create<ToolStore>()(
           id: event.toolId,
           name: event.toolName,
           args: event.args,
-          status: "running",
+          status: 'running',
           startTime: event.timestamp,
         };
         if (!s.activeToolIds.includes(event.toolId)) {
@@ -78,7 +68,7 @@ export const useToolStore = create<ToolStore>()(
       set((s) => {
         const tool = s.tools[event.toolId];
         if (tool) {
-          tool.status = "success";
+          tool.status = 'success';
           tool.result = event.result;
           tool.duration = event.duration;
           tool.endTime = event.timestamp;
@@ -94,7 +84,7 @@ export const useToolStore = create<ToolStore>()(
       set((s) => {
         const tool = s.tools[toolId];
         if (tool) {
-          tool.status = "failed";
+          tool.status = 'failed';
           tool.error = error;
           tool.endTime = Date.now();
           tool.duration = tool.endTime - tool.startTime;
@@ -110,7 +100,7 @@ export const useToolStore = create<ToolStore>()(
       set((s) => {
         const tool = s.tools[toolId];
         if (tool) {
-          tool.status = "cancelled";
+          tool.status = 'cancelled';
           tool.endTime = Date.now();
           tool.duration = tool.endTime - tool.startTime;
         }

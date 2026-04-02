@@ -1,4 +1,4 @@
-export * from "./event-types";
+export * from './event-types';
 
 import type {
   BusEvent,
@@ -6,8 +6,8 @@ import type {
   WildcardType,
   SubscribableEventType,
   EventPayload,
-} from "./event-types";
-import { EventType } from "./event-types";
+} from './event-types';
+import { EventType } from './event-types';
 
 export type SyncListener<T extends BusEvent = BusEvent> = (event: T) => void;
 export type AsyncListener<T extends BusEvent = BusEvent> = (event: T) => Promise<void>;
@@ -52,18 +52,25 @@ export class EventBus {
   on<T extends EventTypeName>(
     eventType: T,
     listener: Listener<EventPayload<T>>,
-    options?: ListenerOptions,
+    options?: ListenerOptions
   ): Unsubscribe;
-  on(eventType: WildcardType, listener: Listener<BusEvent>, options?: ListenerOptions): Unsubscribe;
+  on(
+    eventType: WildcardType,
+    listener: Listener<BusEvent>,
+    options?: ListenerOptions
+  ): Unsubscribe;
   on(
     eventType: SubscribableEventType,
     listener: Listener<BusEvent>,
-    options: ListenerOptions = {},
+    options: ListenerOptions = {}
   ): Unsubscribe {
     return this.addListener(eventType, listener, options);
   }
 
-  once<T extends EventTypeName>(eventType: T, listener: Listener<EventPayload<T>>): Unsubscribe;
+  once<T extends EventTypeName>(
+    eventType: T,
+    listener: Listener<EventPayload<T>>
+  ): Unsubscribe;
   once(eventType: WildcardType, listener: Listener<BusEvent>): Unsubscribe;
   once(eventType: SubscribableEventType, listener: Listener<BusEvent>): Unsubscribe {
     return this.addListener(eventType, listener, { once: true });
@@ -72,7 +79,7 @@ export class EventBus {
   private addListener(
     eventType: SubscribableEventType,
     listener: Listener,
-    options: ListenerOptions = {},
+    options: ListenerOptions = {}
   ): Unsubscribe {
     const resolvedOptions: Required<ListenerOptions> = {
       once: options.once ?? false,
@@ -214,7 +221,7 @@ export class EventBus {
   private dispatchToType(
     eventType: SubscribableEventType,
     event: BusEvent,
-    toRemove: Array<{ type: SubscribableEventType; listener: Listener }>,
+    toRemove: Array<{ type: SubscribableEventType; listener: Listener }>
   ): void {
     const entries = this.listeners.get(eventType);
     if (!entries) return;
@@ -244,7 +251,7 @@ export class EventBus {
     eventType: SubscribableEventType,
     event: BusEvent,
     toRemove: Array<{ type: SubscribableEventType; listener: Listener }>,
-    promises: Promise<void>[],
+    promises: Promise<void>[]
   ): void {
     const entries = this.listeners.get(eventType);
     if (!entries) return;
@@ -259,7 +266,7 @@ export class EventBus {
           promises.push(
             result.catch((err) => {
               console.error(`[EventBus] Async listener error for ${event.type}:`, err);
-            }),
+            })
           );
         }
       } catch (err) {

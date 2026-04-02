@@ -5,17 +5,17 @@
  * with auto-scroll and "jump to bottom" affordance.
  */
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
-import { Button } from "@/components/ui/button";
-import { AlertCircle } from "lucide-react";
-import { useMessagesStore } from "@/ui/stores/useMessagesStore";
-import MessageItem, { type ForkInfo } from "./MessageItem";
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
+import { Button } from '@/components/ui/button';
+import { AlertCircle } from 'lucide-react';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
+import MessageItem, { type ForkInfo } from './MessageItem';
 
 interface MessageListProps {
   messages: Array<{
     id: string;
-    role: "user" | "assistant" | "system";
+    role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: number;
     isStreaming: boolean;
@@ -34,15 +34,7 @@ interface MessageListProps {
 }
 
 export default function MessageList({
-  messages,
-  isStreaming,
-  forksMap,
-  error,
-  onDismissError,
-  onRewind,
-  onFork,
-  onSelectSession,
-  onJumpToBottom,
+  messages, isStreaming, forksMap, error, onDismissError, onRewind, onFork, onSelectSession, onJumpToBottom,
 }: MessageListProps) {
   const BOTTOM_SETTLE_THRESHOLD_PX = 8;
   const BOTTOM_SETTLE_FRAMES = 4;
@@ -107,8 +99,8 @@ export default function MessageList({
     // "render item N" which progressively measures real heights on each call.
     virtuosoRef.current?.scrollToIndex({
       index: messagesLengthRef.current - 1,
-      align: "end",
-      behavior: "auto",
+      align: 'end',
+      behavior: 'auto',
     });
   }, []);
 
@@ -184,16 +176,19 @@ export default function MessageList({
     }, 500);
   }, [scrollToBottomNow]);
 
-  const handleAtBottomStateChange = useCallback((atBottom: boolean) => {
-    isAtBottomRef.current = atBottom;
-    if (atBottom) {
-      userScrolledUpRef.current = false;
-      needsScrollToBottomRef.current = false;
-      // Don't stop an active jump loop here — it manages its own lifecycle.
-      // Stopping it on a premature atBottom (estimated heights) is the bug.
-    }
-    setShowJumpButton(!atBottom);
-  }, []);
+  const handleAtBottomStateChange = useCallback(
+    (atBottom: boolean) => {
+      isAtBottomRef.current = atBottom;
+      if (atBottom) {
+        userScrolledUpRef.current = false;
+        needsScrollToBottomRef.current = false;
+        // Don't stop an active jump loop here — it manages its own lifecycle.
+        // Stopping it on a premature atBottom (estimated heights) is the bug.
+      }
+      setShowJumpButton(!atBottom);
+    },
+    [],
+  );
 
   // Detect user scroll-up intent synchronously via wheel/touch events.
   // Shows the jump-to-bottom button immediately (Virtuoso's atBottomStateChange
@@ -215,11 +210,11 @@ export default function MessageList({
       userScrolledUpRef.current = true;
       setShowJumpButton(true);
     };
-    scroller.addEventListener("wheel", onWheel, { passive: true });
-    scroller.addEventListener("touchmove", onTouchMove, { passive: true });
+    scroller.addEventListener('wheel', onWheel, { passive: true });
+    scroller.addEventListener('touchmove', onTouchMove, { passive: true });
     return () => {
-      scroller.removeEventListener("wheel", onWheel);
-      scroller.removeEventListener("touchmove", onTouchMove);
+      scroller.removeEventListener('wheel', onWheel);
+      scroller.removeEventListener('touchmove', onTouchMove);
     };
   }, [stopJumpToBottomLoop]);
 
@@ -234,8 +229,8 @@ export default function MessageList({
       if (isAtBottomRef.current && !userScrolledUpRef.current) {
         virtuosoRef.current?.scrollToIndex({
           index: messages.length - 1,
-          align: "end",
-          behavior: "auto",
+          align: 'end',
+          behavior: 'auto',
         });
       }
       rafId = requestAnimationFrame(tick);
@@ -289,35 +284,27 @@ export default function MessageList({
     [forksMap, onRewind, onFork, onSelectSession],
   );
 
-  const virtuosoComponents = useMemo(
-    () => ({
-      Header: () => (
-        <>
-          <div className="h-14" />
-          {error && (
-            <div className="mx-4 mb-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-palette-danger shrink-0" />
-                <span className="text-sm text-palette-danger">{error}</span>
-              </div>
-              {onDismissError && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onDismissError}
-                  className="text-palette-danger h-7 shrink-0"
-                >
-                  Dismiss
-                </Button>
-              )}
+  const virtuosoComponents = useMemo(() => ({
+    Header: () => (
+      <>
+        <div className="h-14" />
+        {error && (
+          <div className="mx-4 mb-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-palette-danger shrink-0" />
+              <span className="text-sm text-palette-danger">{error}</span>
             </div>
-          )}
-        </>
-      ),
-      Footer: () => <div className="h-52" />,
-    }),
-    [error, onDismissError],
-  );
+            {onDismissError && (
+              <Button variant="ghost" size="sm" onClick={onDismissError} className="text-palette-danger h-7 shrink-0">
+                Dismiss
+              </Button>
+            )}
+          </div>
+        )}
+      </>
+    ),
+    Footer: () => <div className="h-52" />,
+  }), [error, onDismissError]);
 
   // Empty state is handled by the parent (SessionsView)
   if (messages.length === 0 && !isStreaming) {
@@ -333,9 +320,7 @@ export default function MessageList({
       <Virtuoso
         key={virtuosoKey}
         ref={virtuosoRef}
-        scrollerRef={(ref) => {
-          scrollerRef.current = ref as HTMLElement;
-        }}
+        scrollerRef={(ref) => { scrollerRef.current = ref as HTMLElement; }}
         data={messages}
         computeItemKey={(_, message) => message.id}
         defaultItemHeight={96}
@@ -354,6 +339,7 @@ export default function MessageList({
         itemContent={renderItem}
         className="flex-1"
       />
+
     </div>
   );
 }

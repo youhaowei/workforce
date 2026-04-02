@@ -2,20 +2,20 @@
  * MergeDialog - Confirmation dialog for merging a worktree.
  */
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "@/bridge/react";
+import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTRPC } from '@/bridge/react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { GitMerge } from "lucide-react";
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { GitMerge } from 'lucide-react';
 
 interface MergeDialogProps {
   sessionId: string;
@@ -27,13 +27,13 @@ interface MergeDialogProps {
 export function MergeDialog({ sessionId, branch, open, onOpenChange }: MergeDialogProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const [strategy, setStrategy] = useState<"merge" | "rebase">("merge");
+  const [strategy, setStrategy] = useState<'merge' | 'rebase'>('merge');
 
   const mergeMutation = useMutation(
     trpc.worktree.merge.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["worktree"] });
-        queryClient.invalidateQueries({ queryKey: ["session"] });
+        queryClient.invalidateQueries({ queryKey: ['worktree'] });
+        queryClient.invalidateQueries({ queryKey: ['session'] });
         onOpenChange(false);
       },
     }),
@@ -54,39 +54,32 @@ export function MergeDialog({ sessionId, branch, open, onOpenChange }: MergeDial
             <Label>Strategy</Label>
             <div className="flex gap-2">
               <Badge
-                {...(strategy === "merge"
-                  ? { color: "primary" as const }
-                  : { variant: "outline" as const })}
+                {...(strategy === 'merge' ? { color: 'primary' as const } : { variant: 'outline' as const })}
                 className="cursor-pointer"
-                onClick={() => setStrategy("merge")}
+                onClick={() => setStrategy('merge')}
               >
                 Merge
               </Badge>
               <Badge
-                {...(strategy === "rebase"
-                  ? { color: "primary" as const }
-                  : { variant: "outline" as const })}
+                {...(strategy === 'rebase' ? { color: 'primary' as const } : { variant: 'outline' as const })}
                 className="cursor-pointer"
-                onClick={() => setStrategy("rebase")}
+                onClick={() => setStrategy('rebase')}
               >
                 Rebase
               </Badge>
             </div>
           </div>
           {mergeMutation.error && (
-            <p className="text-xs text-palette-danger">{mergeMutation.error.message}</p>
+            <p className="text-xs text-palette-danger">
+              {mergeMutation.error.message}
+            </p>
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            onClick={() => mergeMutation.mutate({ sessionId, strategy })}
-            disabled={mergeMutation.isPending}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button onClick={() => mergeMutation.mutate({ sessionId, strategy })} disabled={mergeMutation.isPending}>
             <GitMerge className="h-3 w-3 mr-1.5" />
-            {mergeMutation.isPending ? "Merging..." : "Merge"}
+            {mergeMutation.isPending ? 'Merging...' : 'Merge'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -5,7 +5,7 @@
  * Services follow the lazy singleton pattern with explicit dispose().
  */
 
-import type { BusEvent } from "@/shared/event-bus";
+import type { BusEvent } from '@/shared/event-bus';
 
 // =============================================================================
 // Common Types
@@ -17,7 +17,9 @@ export interface Disposable {
 }
 
 /** Result type for operations that can fail */
-export type Result<T, E = Error> = { ok: true; value: T } | { ok: false; error: E };
+export type Result<T, E = Error> =
+  | { ok: true; value: T }
+  | { ok: false; error: E };
 
 /** Async generator for streaming results */
 export type StreamResult<T> = AsyncGenerator<T, void, unknown>;
@@ -26,10 +28,10 @@ export type StreamResult<T> = AsyncGenerator<T, void, unknown>;
 // Agent Configuration Types
 // =============================================================================
 
-export type ThinkingLevel = "off" | "auto" | "low" | "medium" | "high";
+export type ThinkingLevel = 'off' | 'auto' | 'low' | 'medium' | 'high';
 
-export type AgentTone = "friendly" | "professional" | "direct" | "technical";
-export type VerboseLevel = "concise" | "balanced" | "thorough" | "exhaustive";
+export type AgentTone = 'friendly' | 'professional' | 'direct' | 'technical';
+export type VerboseLevel = 'concise' | 'balanced' | 'thorough' | 'exhaustive';
 
 /** Org/template-level defaults for WorkAgent behavior. */
 export interface AgentDefaults {
@@ -39,7 +41,11 @@ export interface AgentDefaults {
   verboseLevel: VerboseLevel;
 }
 
-export type AgentPermissionMode = "plan" | "default" | "acceptEdits" | "bypassPermissions";
+export type AgentPermissionMode =
+  | 'plan'
+  | 'default'
+  | 'acceptEdits'
+  | 'bypassPermissions';
 
 export interface AgentConfig {
   model: string;
@@ -84,18 +90,9 @@ export interface ToolActivity {
 
 /** Structured content block for interleaved text/tool rendering. */
 export type ContentBlock =
-  | { type: "text"; text: string; status?: "running" | "complete" }
-  | {
-      type: "tool_use";
-      id: string;
-      name: string;
-      input: string;
-      inputRaw?: unknown;
-      result?: unknown;
-      error?: string;
-      status: "running" | "complete" | "error";
-    }
-  | { type: "thinking"; text: string; status?: "running" | "complete" };
+  | { type: 'text'; text: string; status?: 'running' | 'complete' }
+  | { type: 'tool_use'; id: string; name: string; input: string; inputRaw?: unknown; result?: unknown; error?: string; status: 'running' | 'complete' | 'error' }
+  | { type: 'thinking'; text: string; status?: 'running' | 'complete' };
 
 /** A structured question the agent asks the user. */
 export interface AgentQuestion {
@@ -110,42 +107,36 @@ export interface AgentQuestion {
 
 /** Events yielded by AgentService.run() through the stream. */
 export type AgentStreamEvent =
-  | { type: "token"; token: string }
-  | { type: "thinking_delta"; text: string }
-  | { type: "turn_complete" }
-  | { type: "tool_start"; name: string; input: string; toolUseId: string; inputRaw: unknown }
-  | { type: "tool_result"; toolUseId: string; toolName: string; result: unknown; isError: boolean }
-  | { type: "content_block_start"; index: number; blockType: string; id?: string; name?: string }
-  | { type: "content_block_stop"; index: number }
-  | { type: "status"; message: string }
-  | { type: "plan_ready"; path: string }
-  | { type: "agent_question"; requestId: string; questions: AgentQuestion[] };
+  | { type: 'token'; token: string }
+  | { type: 'thinking_delta'; text: string }
+  | { type: 'turn_complete' }
+  | { type: 'tool_start'; name: string; input: string; toolUseId: string; inputRaw: unknown }
+  | { type: 'tool_result'; toolUseId: string; toolName: string; result: unknown; isError: boolean }
+  | { type: 'content_block_start'; index: number; blockType: string; id?: string; name?: string }
+  | { type: 'content_block_stop'; index: number }
+  | { type: 'status'; message: string }
+  | { type: 'plan_ready'; path: string }
+  | { type: 'agent_question'; requestId: string; questions: AgentQuestion[] };
 
 // =============================================================================
 // Artifact Types
 // =============================================================================
 
 export type ArtifactMimeType =
-  | "text/markdown"
-  | "text/html"
-  | "text/csv"
-  | "application/json"
-  | "image/svg+xml"
-  | "text/plain";
+  | 'text/markdown'
+  | 'text/html'
+  | 'text/csv'
+  | 'application/json'
+  | 'image/svg+xml'
+  | 'text/plain';
 
-export type ArtifactStatus =
-  | "draft"
-  | "pending_review"
-  | "approved"
-  | "rejected"
-  | "executing"
-  | "archived";
+export type ArtifactStatus = 'draft' | 'pending_review' | 'approved' | 'rejected' | 'executing' | 'archived';
 
 export interface ArtifactComment {
   id: string;
   artifactId: string;
   content: string;
-  severity: "suggestion" | "issue" | "question" | "praise";
+  severity: 'suggestion' | 'issue' | 'question' | 'praise';
   anchor?: { line?: number; startCol?: number; endCol?: number; section?: string };
   author: Author;
   createdAt: number;
@@ -195,7 +186,7 @@ export interface ArtifactFilter {
   sessionId?: string;
 }
 
-export type ArtifactPatch = Partial<Pick<Artifact, "title" | "status" | "content" | "metadata">>;
+export type ArtifactPatch = Partial<Pick<Artifact, 'title' | 'status' | 'content' | 'metadata'>>;
 
 export interface ArtifactService extends Disposable {
   ensureInitialized(): Promise<void>;
@@ -216,14 +207,8 @@ export interface ArtifactService extends Disposable {
   update(artifactId: string, patch: ArtifactPatch): Promise<Artifact>;
   delete(artifactId: string): Promise<void>;
   linkToSession(artifactId: string, sessionId: string): Promise<void>;
-  addComment(
-    artifactId: string,
-    comment: Omit<ArtifactComment, "id" | "createdAt">,
-  ): Promise<ArtifactComment>;
-  submitReview(
-    artifactId: string,
-    review: Omit<ArtifactReview, "id" | "createdAt">,
-  ): Promise<ArtifactReview>;
+  addComment(artifactId: string, comment: Omit<ArtifactComment, 'id' | 'createdAt'>): Promise<ArtifactComment>;
+  submitReview(artifactId: string, review: Omit<ArtifactReview, 'id' | 'createdAt'>): Promise<ArtifactReview>;
 }
 
 // =============================================================================
@@ -255,7 +240,7 @@ export interface AgentResponse {
     outputTokens: number;
   };
   /** Stop reason */
-  stopReason: "end_turn" | "tool_use" | "max_tokens" | "cancelled";
+  stopReason: 'end_turn' | 'tool_use' | 'max_tokens' | 'cancelled';
 }
 
 export interface AgentService extends Disposable {
@@ -289,16 +274,22 @@ export interface AgentService extends Disposable {
 // Session Lifecycle Types (declared before SessionService which references them)
 // =============================================================================
 
-export type SessionType = "chat" | "workagent";
+export type SessionType = 'chat' | 'workagent';
 
-export type LifecycleState = "created" | "active" | "paused" | "completed" | "failed" | "cancelled";
+export type LifecycleState =
+  | 'created'
+  | 'active'
+  | 'paused'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
 
 export interface StateTransition {
   from: LifecycleState;
   to: LifecycleState;
   reason: string;
   timestamp: number;
-  actor: "system" | "user" | "agent";
+  actor: 'system' | 'user' | 'agent';
 }
 
 export interface SessionLifecycle {
@@ -324,9 +315,9 @@ export interface WorkAgentConfig {
 
 /** Valid lifecycle state transitions */
 export const VALID_TRANSITIONS: Record<LifecycleState, LifecycleState[]> = {
-  created: ["active"],
-  active: ["paused", "completed", "failed", "cancelled"],
-  paused: ["active", "cancelled"],
+  created: ['active'],
+  active: ['paused', 'completed', 'failed', 'cancelled'],
+  paused: ['active', 'cancelled'],
   completed: [],
   failed: [],
   cancelled: [],
@@ -338,7 +329,7 @@ export const VALID_TRANSITIONS: Record<LifecycleState, LifecycleState[]> = {
 
 export interface Message {
   id: string;
-  role: "user" | "assistant" | "system";
+  role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
   model?: string;
@@ -394,9 +385,9 @@ export interface SessionSavePatch {
 
 /** Universal author identity for action records. */
 export type Author =
-  | { type: "user"; id: string }
-  | { type: "agent"; sessionId: string; actionId: string }
-  | { type: "system" };
+  | { type: 'user'; id: string }
+  | { type: 'agent'; sessionId: string; actionId: string }
+  | { type: 'system' };
 
 /** Git repository context snapshot. */
 export interface GitContext {
@@ -417,7 +408,7 @@ export interface TokenUsage {
 /** File operation within a file_change record. */
 export interface FileOperation {
   path: string;
-  operation: "create" | "modify" | "delete" | "rename";
+  operation: 'create' | 'modify' | 'delete' | 'rename';
   oldPath?: string;
   diff?: string;
 }
@@ -428,7 +419,7 @@ export interface FileOperation {
 
 /** Session identity + base metadata — always the first line in a .jsonl file. */
 export interface JournalHeader {
-  t: "header";
+  t: 'header';
   v: string;
   seq: number;
   ts: number;
@@ -446,11 +437,11 @@ export interface JournalHeader {
 
 /** A complete non-streaming message (user or system). */
 export interface JournalMessage {
-  t: "message";
+  t: 'message';
   seq: number;
   ts: number;
   id: string;
-  role: "user" | "assistant" | "system";
+  role: 'user' | 'assistant' | 'system';
   content: string;
   author?: Author;
   agentConfig?: AgentConfig;
@@ -462,18 +453,18 @@ export interface JournalMessage {
 
 /** Marks the start of an assistant streaming response. */
 export interface JournalMessageStart {
-  t: "message_start";
+  t: 'message_start';
   seq: number;
   ts: number;
   id: string;
-  role: "assistant";
+  role: 'assistant';
   model?: string;
   usage?: TokenUsage;
 }
 
 /** A single token/chunk delta for an in-progress stream. */
 export interface JournalMessageDelta {
-  t: "message_delta";
+  t: 'message_delta';
   seq: number;
   ts: number;
   id: string;
@@ -482,7 +473,7 @@ export interface JournalMessageDelta {
 
 /** Thinking block delta for an in-progress stream. */
 export interface JournalThinkingDelta {
-  t: "thinking_delta";
+  t: 'thinking_delta';
   seq: number;
   ts: number;
   id: string;
@@ -491,7 +482,7 @@ export interface JournalThinkingDelta {
 
 /** Snapshot of content blocks during streaming (survives page refresh). */
 export interface JournalMessageBlocks {
-  t: "message_blocks";
+  t: 'message_blocks';
   seq: number;
   ts: number;
   id: string;
@@ -501,11 +492,11 @@ export interface JournalMessageBlocks {
 
 /** Authoritative final content for a completed assistant message. */
 export interface JournalMessageFinal {
-  t: "message_final";
+  t: 'message_final';
   seq: number;
   ts: number;
   id: string;
-  role: "assistant";
+  role: 'assistant';
   content: string;
   stopReason: string;
   model?: string;
@@ -518,7 +509,7 @@ export interface JournalMessageFinal {
 
 /** Stream aborted/interrupted marker. */
 export interface JournalMessageAbort {
-  t: "message_abort";
+  t: 'message_abort';
   seq: number;
   ts: number;
   id: string;
@@ -527,7 +518,7 @@ export interface JournalMessageAbort {
 
 /** Tool invocation by the agent. */
 export interface JournalToolCall {
-  t: "tool_call";
+  t: 'tool_call';
   seq: number;
   ts: number;
   actionId: string;
@@ -538,7 +529,7 @@ export interface JournalToolCall {
 
 /** Tool execution result. */
 export interface JournalToolResult {
-  t: "tool_result";
+  t: 'tool_result';
   seq: number;
   ts: number;
   actionId: string;
@@ -551,7 +542,7 @@ export interface JournalToolResult {
 
 /** Long-running tool progress update. */
 export interface JournalToolProgress {
-  t: "tool_progress";
+  t: 'tool_progress';
   seq: number;
   ts: number;
   actionId: string;
@@ -563,21 +554,21 @@ export interface JournalToolProgress {
 
 /** Hook execution (collapsed — single record per hook invocation). */
 export interface JournalHook {
-  t: "hook";
+  t: 'hook';
   seq: number;
   ts: number;
   hookId: string;
   hookName: string;
   hookEvent: string;
   actionId?: string;
-  outcome: "success" | "error" | "cancelled";
+  outcome: 'success' | 'error' | 'cancelled';
   output?: string;
   durationMs?: number;
 }
 
 /** Files modified by a tool call. */
 export interface JournalFileChange {
-  t: "file_change";
+  t: 'file_change';
   seq: number;
   ts: number;
   actionId: string;
@@ -586,7 +577,7 @@ export interface JournalFileChange {
 
 /** Task created or updated within this session. */
 export interface JournalTaskUpdate {
-  t: "task_update";
+  t: 'task_update';
   seq: number;
   ts: number;
   taskId: string;
@@ -602,11 +593,11 @@ export interface JournalTaskUpdate {
 
 /** Session interaction with a workspace-level artifact. */
 export interface JournalArtifactLink {
-  t: "artifact_link";
+  t: 'artifact_link';
   seq: number;
   ts: number;
   artifactId: string;
-  action: "create" | "open" | "modify" | "close" | "link" | "unlink";
+  action: 'create' | 'open' | 'modify' | 'close' | 'link' | 'unlink';
   author: Author;
   actionId?: string;
   snapshot?: { title: string; type: string; status?: ArtifactStatus };
@@ -614,7 +605,7 @@ export interface JournalArtifactLink {
 
 /** Review comment on an artifact. */
 export interface JournalReviewComment {
-  t: "review_comment";
+  t: 'review_comment';
   seq: number;
   ts: number;
   artifactId: string;
@@ -626,7 +617,7 @@ export interface JournalReviewComment {
 
 /** Review batch submitted. */
 export interface JournalReviewSubmit {
-  t: "review_submit";
+  t: 'review_submit';
   seq: number;
   ts: number;
   artifactId: string;
@@ -638,7 +629,7 @@ export interface JournalReviewSubmit {
 
 /** Subagent spawned from this session. */
 export interface JournalSubagentSpawn {
-  t: "subagent_spawn";
+  t: 'subagent_spawn';
   seq: number;
   ts: number;
   childSessionId: string;
@@ -649,29 +640,29 @@ export interface JournalSubagentSpawn {
 
 /** Subagent completed/failed. */
 export interface JournalSubagentResult {
-  t: "subagent_result";
+  t: 'subagent_result';
   seq: number;
   ts: number;
   childSessionId: string;
-  outcome: "completed" | "failed" | "cancelled";
+  outcome: 'completed' | 'failed' | 'cancelled';
   summary?: string;
   durationMs?: number;
 }
 
 /** Explicit git state capture (before/after commits, branch changes). */
 export interface JournalGitSnapshot {
-  t: "git_snapshot";
+  t: 'git_snapshot';
   seq: number;
   ts: number;
   context: GitContext;
-  trigger: "commit" | "checkout" | "merge" | "manual";
+  trigger: 'commit' | 'checkout' | 'merge' | 'manual';
   actionId?: string;
   commitMessage?: string;
 }
 
 /** End-of-turn statistics. */
 export interface JournalQueryResult {
-  t: "query_result";
+  t: 'query_result';
   seq: number;
   ts: number;
   messageId: string;
@@ -682,7 +673,7 @@ export interface JournalQueryResult {
 
 /** Metadata patch (title change, lifecycle transition, etc.). */
 export interface JournalMeta {
-  t: "meta";
+  t: 'meta';
   seq: number;
   ts: number;
   patch: Record<string, unknown>;
@@ -726,7 +717,7 @@ export type JournalRecord =
 export type AnyJournalRecord = JournalRecord | JournalUnknown;
 
 /** Runtime-only hydration status for a session (not persisted on Session type). */
-export type HydrationStatus = "cold" | "rehydrating" | "consolidating" | "ready" | "failed";
+export type HydrationStatus = 'cold' | 'rehydrating' | 'consolidating' | 'ready' | 'failed';
 
 export interface SessionService extends Disposable {
   /**
@@ -773,12 +764,7 @@ export interface SessionService extends Disposable {
    * Intentionally excludes full `messages` history for responsiveness in list UIs.
    * Use `getMessages`, `get`, or `search` for deep/history-aware operations.
    */
-  list(options?: {
-    limit?: number;
-    offset?: number;
-    orgId?: string;
-    projectId?: string;
-  }): Promise<SessionSummary[]>;
+  list(options?: { limit?: number; offset?: number; orgId?: string; projectId?: string }): Promise<SessionSummary[]>;
 
   /**
    * Search sessions by content.
@@ -813,7 +799,7 @@ export interface SessionService extends Disposable {
     sessionId: string,
     newState: LifecycleState,
     reason: string,
-    actor?: "system" | "user" | "agent",
+    actor?: 'system' | 'user' | 'agent'
   ): Promise<Session>;
 
   /**
@@ -839,48 +825,22 @@ export interface SessionService extends Disposable {
   recordStreamStart(sessionId: string, messageId: string): Promise<void>;
 
   /** Record a streaming token delta. */
-  recordStreamDelta(
-    sessionId: string,
-    messageId: string,
-    delta: string,
-    seq: number,
-  ): Promise<void>;
+  recordStreamDelta(sessionId: string, messageId: string, delta: string, seq: number): Promise<void>;
 
   /** Record multiple deltas in a single I/O operation (batch flush). */
-  recordStreamDeltaBatch(
-    sessionId: string,
-    messageId: string,
-    deltas: Array<{ delta: string; seq: number }>,
-  ): Promise<void>;
+  recordStreamDeltaBatch(sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>): Promise<void>;
 
   /** Record the finalized assistant message. Source of truth on replay. */
-  recordStreamEnd(
-    sessionId: string,
-    messageId: string,
-    fullContent: string,
-    stopReason: string,
-    toolActivities?: ToolActivity[],
-    contentBlocks?: ContentBlock[],
-  ): Promise<void>;
+  recordStreamEnd(sessionId: string, messageId: string, fullContent: string, stopReason: string, toolActivities?: ToolActivity[], contentBlocks?: ContentBlock[]): Promise<void>;
 
   /** Snapshot in-progress content blocks (best-effort, for crash recovery). */
-  recordStreamBlocks(
-    sessionId: string,
-    messageId: string,
-    contentBlocks: ContentBlock[],
-    toolActivities?: ToolActivity[],
-  ): Promise<void>;
+  recordStreamBlocks(sessionId: string, messageId: string, contentBlocks: ContentBlock[], toolActivities?: ToolActivity[]): Promise<void>;
 
   /** Record an aborted assistant stream. */
   recordStreamAbort(sessionId: string, messageId: string, reason: string): Promise<void>;
 
   /** Update the result field on a content block (e.g. cold-replay question answers). */
-  updateBlockResult(
-    sessionId: string,
-    messageId: string,
-    blockId: string,
-    result: unknown,
-  ): Promise<void>;
+  updateBlockResult(sessionId: string, messageId: string, blockId: string, result: unknown): Promise<void>;
 
   /**
    * Read messages for a session with optional pagination.
@@ -955,7 +915,7 @@ export interface ToolService extends Disposable {
   execute<T = unknown>(
     name: string,
     args: Record<string, unknown>,
-    context: ToolExecutionContext,
+    context: ToolExecutionContext
   ): Promise<ToolExecutionResult<T>>;
 
   /**
@@ -971,7 +931,7 @@ export interface ToolService extends Disposable {
 
 export type ToolHandler = (
   args: Record<string, unknown>,
-  context: ToolExecutionContext,
+  context: ToolExecutionContext
 ) => Promise<unknown> | unknown;
 
 // =============================================================================
@@ -1103,7 +1063,7 @@ export interface PostHookResult {
 export type PreHook = (context: HookContext) => PreHookResult | Promise<PreHookResult>;
 export type PostHook = (
   context: HookContext,
-  result: unknown,
+  result: unknown
 ) => PostHookResult | Promise<PostHookResult>;
 
 export interface HookService extends Disposable {
@@ -1135,15 +1095,15 @@ export interface HookService extends Disposable {
   /**
    * List registered hooks.
    */
-  listHooks(): Array<{ name: string; type: "pre" | "post"; priority: number }>;
+  listHooks(): Array<{ name: string; type: 'pre' | 'post'; priority: number }>;
 }
 
 // =============================================================================
 // Background Service Types
 // =============================================================================
 
-export type BackgroundTaskPriority = "high" | "normal" | "low";
-export type BackgroundTaskStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
+export type BackgroundTaskPriority = 'high' | 'normal' | 'low';
+export type BackgroundTaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export interface BackgroundTask {
   id: string;
@@ -1167,7 +1127,10 @@ export interface BackgroundService extends Disposable {
   /**
    * Submit a task to run in background.
    */
-  submit<T>(fn: () => Promise<T>, options?: BackgroundTaskOptions): string;
+  submit<T>(
+    fn: () => Promise<T>,
+    options?: BackgroundTaskOptions
+  ): string;
 
   /**
    * Get task status and result.
@@ -1199,7 +1162,7 @@ export interface BackgroundService extends Disposable {
 // Task Service Types
 // =============================================================================
 
-export type TaskStatus = "pending" | "in_progress" | "completed" | "cancelled";
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
 
 export interface Task {
   id: string;
@@ -1226,7 +1189,7 @@ export interface TaskService extends Disposable {
   get(taskId: string): Promise<Task | null>;
 
   /** Update a task. */
-  update(taskId: string, updates: Partial<Omit<Task, "id" | "createdAt">>): Promise<Task | null>;
+  update(taskId: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>): Promise<Task | null>;
 
   /** Delete a task. */
   delete(taskId: string): Promise<boolean>;
@@ -1280,7 +1243,7 @@ export interface OrgSettings {
 export interface OrgService extends Disposable {
   create(name: string): Promise<Org>;
   get(id: string): Promise<Org | null>;
-  update(id: string, updates: Partial<Omit<Org, "id" | "createdAt">>): Promise<Org>;
+  update(id: string, updates: Partial<Omit<Org, 'id' | 'createdAt'>>): Promise<Org>;
   list(): Promise<Org[]>;
   delete(id: string): Promise<void>;
   getCurrent(): Promise<Org | null>;
@@ -1302,7 +1265,7 @@ export interface User {
 export interface UserService extends Disposable {
   get(): Promise<User | null>;
   create(displayName: string): Promise<User>;
-  update(updates: Partial<Pick<User, "displayName">>): Promise<User>;
+  update(updates: Partial<Pick<User, 'displayName'>>): Promise<User>;
   delete(): Promise<void>;
   exists(): Promise<boolean>;
 }
@@ -1325,22 +1288,14 @@ export interface Project {
 }
 
 export class ProjectNotFound {
-  readonly _tag = "ProjectNotFound";
+  readonly _tag = 'ProjectNotFound';
   constructor(readonly projectId: string) {}
 }
 
 export interface ProjectService extends Disposable {
-  create(
-    orgId: string,
-    name: string,
-    rootPath: string,
-    opts?: { color?: string; icon?: string },
-  ): Promise<Project>;
+  create(orgId: string, name: string, rootPath: string, opts?: { color?: string; icon?: string }): Promise<Project>;
   get(id: string): Promise<Project | null>;
-  update(
-    id: string,
-    updates: Partial<Omit<Project, "id" | "orgId" | "createdAt">>,
-  ): Promise<Result<Project, ProjectNotFound>>;
+  update(id: string, updates: Partial<Omit<Project, 'id' | 'orgId' | 'createdAt'>>): Promise<Result<Project, ProjectNotFound>>;
   list(orgId?: string): Promise<Project[]>;
   delete(id: string): Promise<void>;
 }
@@ -1360,7 +1315,7 @@ export interface AgentTemplate {
   tools: string[];
   /** Natural-language constraints */
   constraints: string[];
-  reasoningIntensity: "low" | "medium" | "high" | "max";
+  reasoningIntensity: 'low' | 'medium' | 'high' | 'max';
   maxTokens?: number;
   temperature?: number;
   archived: boolean;
@@ -1377,7 +1332,7 @@ export interface TemplateValidation {
 export interface TemplateService extends Disposable {
   create(
     orgId: string,
-    template: Omit<AgentTemplate, "id" | "createdAt" | "updatedAt" | "archived">,
+    template: Omit<AgentTemplate, 'id' | 'createdAt' | 'updatedAt' | 'archived'>
   ): Promise<AgentTemplate>;
   get(orgId: string, id: string): Promise<AgentTemplate | null>;
   update(orgId: string, id: string, updates: Partial<AgentTemplate>): Promise<AgentTemplate>;
@@ -1393,7 +1348,7 @@ export interface TemplateService extends Disposable {
 // Workflow Template Types
 // =============================================================================
 
-export type StepType = "agent" | "review_gate" | "parallel_group";
+export type StepType = 'agent' | 'review_gate' | 'parallel_group';
 
 export interface WorkflowStep {
   id: string;
@@ -1441,7 +1396,7 @@ export interface WorkflowExecution {
 export interface WorkflowService extends Disposable {
   create(
     orgId: string,
-    template: Omit<WorkflowTemplate, "id" | "createdAt" | "updatedAt" | "archived">,
+    template: Omit<WorkflowTemplate, 'id' | 'createdAt' | 'updatedAt' | 'archived'>
   ): Promise<WorkflowTemplate>;
   get(orgId: string, id: string): Promise<WorkflowTemplate | null>;
   update(orgId: string, id: string, updates: Partial<WorkflowTemplate>): Promise<WorkflowTemplate>;
@@ -1456,7 +1411,7 @@ export interface WorkflowService extends Disposable {
 // Review Queue Types
 // =============================================================================
 
-export type ReviewAction = "approve" | "reject" | "edit" | "clarify";
+export type ReviewAction = 'approve' | 'reject' | 'edit' | 'clarify';
 
 export interface ReviewItem {
   id: string;
@@ -1465,13 +1420,13 @@ export interface ReviewItem {
   orgId: string;
   workflowId?: string;
   workflowStepId?: string;
-  type: "approval" | "clarification" | "review";
+  type: 'approval' | 'clarification' | 'review';
   title: string;
   summary: string;
   recommendation?: string;
   /** Additional context: diffs, artifact references, etc. */
   context: Record<string, unknown>;
-  status: "pending" | "resolved";
+  status: 'pending' | 'resolved';
   resolution?: {
     action: ReviewAction;
     comment?: string;
@@ -1482,10 +1437,10 @@ export interface ReviewItem {
 }
 
 export interface ReviewService extends Disposable {
-  create(item: Omit<ReviewItem, "id" | "status" | "createdAt" | "updatedAt">): Promise<ReviewItem>;
+  create(item: Omit<ReviewItem, 'id' | 'status' | 'createdAt' | 'updatedAt'>): Promise<ReviewItem>;
   get(id: string, orgId: string): Promise<ReviewItem | null>;
   listPending(orgId: string): Promise<ReviewItem[]>;
-  list(options?: { status?: "pending" | "resolved"; orgId?: string }): Promise<ReviewItem[]>;
+  list(options?: { status?: 'pending' | 'resolved'; orgId?: string }): Promise<ReviewItem[]>;
   resolve(id: string, orgId: string, action: ReviewAction, comment?: string): Promise<ReviewItem>;
   pendingCount(orgId: string): Promise<number>;
 }
@@ -1495,11 +1450,11 @@ export interface ReviewService extends Disposable {
 // =============================================================================
 
 export type AuditEntryType =
-  | "state_change"
-  | "tool_use"
-  | "review_decision"
-  | "agent_spawn"
-  | "worktree_action";
+  | 'state_change'
+  | 'tool_use'
+  | 'review_decision'
+  | 'agent_spawn'
+  | 'worktree_action';
 
 export interface AuditEntry {
   id: string;
@@ -1512,11 +1467,11 @@ export interface AuditEntry {
 }
 
 export interface AuditService extends Disposable {
-  record(entry: Omit<AuditEntry, "id" | "timestamp">): Promise<AuditEntry>;
+  record(entry: Omit<AuditEntry, 'id' | 'timestamp'>): Promise<AuditEntry>;
   getForSession(sessionId: string, orgId: string): Promise<AuditEntry[]>;
   getForOrg(
     orgId: string,
-    options?: { limit?: number; offset?: number; type?: AuditEntryType },
+    options?: { limit?: number; offset?: number; type?: AuditEntryType }
   ): Promise<AuditEntry[]>;
 }
 
@@ -1531,16 +1486,13 @@ export interface WorktreeInfo {
   /** Original repository root that this worktree was created from */
   repoRoot: string;
   createdAt: number;
-  status: "active" | "merged" | "archived" | "deleted";
+  status: 'active' | 'merged' | 'archived' | 'deleted';
 }
 
 export interface WorktreeService extends Disposable {
   create(sessionId: string, repoRoot: string, branchName?: string): Promise<WorktreeInfo>;
   list(repoRoot: string): Promise<WorktreeInfo[]>;
-  merge(
-    sessionId: string,
-    strategy?: "merge" | "rebase",
-  ): Promise<{ success: boolean; conflicts?: string[] }>;
+  merge(sessionId: string, strategy?: 'merge' | 'rebase'): Promise<{ success: boolean; conflicts?: string[] }>;
   archive(sessionId: string): Promise<void>;
   delete(sessionId: string): Promise<void>;
   getForSession(sessionId: string): WorktreeInfo | null;

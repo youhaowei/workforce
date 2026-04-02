@@ -2,8 +2,8 @@
  * AgentMessages - Messages tab showing the agent's conversation history.
  */
 
-import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Session } from "@/services/types";
+import { ScrollArea } from '@/components/ui/scroll-area';
+import type { Session } from '@/services/types';
 
 interface AgentMessagesProps {
   session: Session;
@@ -17,7 +17,7 @@ export function AgentMessages({ session }: AgentMessagesProps) {
           <div
             key={msg.id}
             className={`p-3 rounded-lg text-sm ${
-              msg.role === "user" ? "bg-palette-primary/5 ml-8" : "bg-neutral-bg-dim mr-8"
+              msg.role === 'user' ? 'bg-palette-primary/5 ml-8' : 'bg-neutral-bg-dim mr-8'
             }`}
           >
             <span className="text-[10px] font-medium text-neutral-fg-subtle">{msg.role}</span>
@@ -26,7 +26,7 @@ export function AgentMessages({ session }: AgentMessagesProps) {
               <div className="mt-2 space-y-1">
                 {msg.toolCalls.map((tc) => (
                   <div key={tc.id} className="text-xs font-mono bg-neutral-bg/50 px-2 py-1 rounded">
-                    {tc.name}({Object.keys(tc.args).join(", ")})
+                    {tc.name}({Object.keys(tc.args).join(', ')})
                   </div>
                 ))}
               </div>

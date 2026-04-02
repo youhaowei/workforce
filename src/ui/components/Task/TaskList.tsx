@@ -2,9 +2,9 @@
  * TaskList - Filtered list of tasks with tab-based filtering.
  */
 
-import { useState, useMemo } from "react";
-import type { Task, TaskStatus } from "../../../services/types";
-import { TaskItem } from "./TaskItem";
+import { useState, useMemo } from 'react';
+import type { Task, TaskStatus } from '../../../services/types';
+import { TaskItem } from './TaskItem';
 
 export interface TaskListProps {
   tasks: Task[];
@@ -12,41 +12,46 @@ export interface TaskListProps {
   onDelete?: (taskId: string) => void;
 }
 
-type FilterTab = "all" | "active" | "completed";
+type FilterTab = 'all' | 'active' | 'completed';
 
 export function TaskList({ tasks, onStatusChange, onDelete }: TaskListProps) {
-  const [activeTab, setActiveTab] = useState<FilterTab>("active");
+  const [activeTab, setActiveTab] = useState<FilterTab>('active');
 
   const filteredTasks = useMemo(() => {
     switch (activeTab) {
-      case "active":
-        return tasks.filter((t) => t.status === "pending" || t.status === "in_progress");
-      case "completed":
-        return tasks.filter((t) => t.status === "completed" || t.status === "cancelled");
+      case 'active':
+        return tasks.filter(
+          (t) => t.status === 'pending' || t.status === 'in_progress'
+        );
+      case 'completed':
+        return tasks.filter(
+          (t) => t.status === 'completed' || t.status === 'cancelled'
+        );
       default:
         return tasks;
     }
   }, [activeTab, tasks]);
 
-  const counts = useMemo(
-    () => ({
-      all: tasks.length,
-      active: tasks.filter((t) => t.status === "pending" || t.status === "in_progress").length,
-      completed: tasks.filter((t) => t.status === "completed" || t.status === "cancelled").length,
-    }),
-    [tasks],
-  );
+  const counts = useMemo(() => ({
+    all: tasks.length,
+    active: tasks.filter(
+      (t) => t.status === 'pending' || t.status === 'in_progress'
+    ).length,
+    completed: tasks.filter(
+      (t) => t.status === 'completed' || t.status === 'cancelled'
+    ).length,
+  }), [tasks]);
 
   const tabs: { key: FilterTab; label: string }[] = [
-    { key: "active", label: "Active" },
-    { key: "completed", label: "Done" },
-    { key: "all", label: "All" },
+    { key: 'active', label: 'Active' },
+    { key: 'completed', label: 'Done' },
+    { key: 'all', label: 'All' },
   ];
 
   function getEmptyMessage(): string {
-    if (activeTab === "active") return "No active tasks";
-    if (activeTab === "completed") return "No completed tasks";
-    return "No tasks yet";
+    if (activeTab === 'active') return 'No active tasks';
+    if (activeTab === 'completed') return 'No completed tasks';
+    return 'No tasks yet';
   }
 
   return (
@@ -58,8 +63,8 @@ export function TaskList({ tasks, onStatusChange, onDelete }: TaskListProps) {
             key={tab.key}
             className={`px-3 py-2 text-sm font-medium ${
               activeTab === tab.key
-                ? "border-b-2 border-palette-primary text-neutral-fg"
-                : "text-neutral-fg-subtle hover:text-neutral-fg"
+                ? 'border-b-2 border-palette-primary text-neutral-fg'
+                : 'text-neutral-fg-subtle hover:text-neutral-fg'
             }`}
             onClick={() => setActiveTab(tab.key)}
           >
@@ -83,7 +88,9 @@ export function TaskList({ tasks, onStatusChange, onDelete }: TaskListProps) {
             ))}
           </div>
         ) : (
-          <div className="p-4 text-center text-neutral-fg-subtle">{getEmptyMessage()}</div>
+          <div className="p-4 text-center text-neutral-fg-subtle">
+            {getEmptyMessage()}
+          </div>
         )}
       </div>
     </div>

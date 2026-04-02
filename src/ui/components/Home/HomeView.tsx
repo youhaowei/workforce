@@ -2,16 +2,23 @@
  * HomeView - Default landing page with overview stats and quick actions.
  */
 
-import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "@/bridge/react";
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useTRPC } from '@/bridge/react';
 
-import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { LayoutDashboard, MessageSquare, Bot, AlertCircle, Plus, ArrowRight } from "lucide-react";
-import type { SessionLifecycle } from "@/services/types";
-import type { ViewType } from "../Shell/Shell";
+import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Bot,
+  AlertCircle,
+  Plus,
+  ArrowRight,
+} from 'lucide-react';
+import type { SessionLifecycle } from '@/services/types';
+import type { ViewType } from '../Shell/Shell';
 
 interface HomeViewProps {
   onStartChat: () => void;
@@ -24,18 +31,26 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
   const orgId = useRequiredOrgId();
 
   // No refetchInterval — SSE event invalidation (useServerEventInvalidation) handles freshness.
-  const { data: sessions = [] } = useQuery(trpc.session.list.queryOptions({ orgId }));
+  const { data: sessions = [] } = useQuery(
+    trpc.session.list.queryOptions({ orgId }),
+  );
 
   // No refetchInterval — SSE event invalidation handles freshness.
-  const { data: pendingReviews = 0 } = useQuery(trpc.review.count.queryOptions({ orgId }));
+  const { data: pendingReviews = 0 } = useQuery(
+    trpc.review.count.queryOptions({ orgId }),
+  );
 
-  const { data: user } = useQuery(trpc.user.get.queryOptions(undefined, { staleTime: 5 * 60_000 }));
+  const { data: user } = useQuery(
+    trpc.user.get.queryOptions(undefined, { staleTime: 5 * 60_000 }),
+  );
 
   const stats = useMemo(() => {
-    const agents = sessions.filter((s) => s.metadata?.type === "workagent");
+    const agents = sessions.filter(
+      (s) => s.metadata?.type === 'workagent',
+    );
     const activeAgents = agents.filter((s) => {
       const lifecycle = s.metadata?.lifecycle as SessionLifecycle | undefined;
-      return lifecycle?.state === "active";
+      return lifecycle?.state === 'active';
     });
     return {
       totalSessions: sessions.length,
@@ -45,7 +60,9 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
   }, [sessions, pendingReviews]);
 
   const recentSessions = useMemo(() => {
-    return [...sessions].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 5);
+    return [...sessions]
+      .sort((a, b) => b.updatedAt - a.updatedAt)
+      .slice(0, 5);
   }, [sessions]);
 
   return (
@@ -53,9 +70,11 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
       {/* Welcome */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold">
-          {user?.displayName ? `Welcome back, ${user.displayName}` : "Welcome to Workforce"}
+          {user?.displayName ? `Welcome back, ${user.displayName}` : 'Welcome to Workforce'}
         </h1>
-        <p className="text-sm text-neutral-fg-subtle mt-1">Your agent orchestration dashboard</p>
+        <p className="text-sm text-neutral-fg-subtle mt-1">
+          Your agent orchestration dashboard
+        </p>
       </div>
 
       {/* Stats */}
@@ -103,7 +122,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
           <Plus className="h-4 w-4 mr-1.5" />
           New Chat
         </Button>
-        <Button variant="outline" onClick={() => onNavigate("board")}>
+        <Button variant="outline" onClick={() => onNavigate('board')}>
           <LayoutDashboard className="h-4 w-4 mr-1.5" />
           View Board
         </Button>
@@ -118,7 +137,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
               variant="ghost"
               size="sm"
               className="text-xs"
-              onClick={() => onNavigate("sessions")}
+              onClick={() => onNavigate('sessions')}
             >
               View all
               <ArrowRight className="h-3 w-3 ml-1" />
@@ -133,7 +152,7 @@ export function HomeView({ onStartChat, onNavigate, onSelectSession }: HomeViewP
               >
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">
-                    {session.title || (session.metadata?.goal as string) || "Untitled Session"}
+                    {session.title || (session.metadata?.goal as string) || 'Untitled Session'}
                   </p>
                   <p className="text-xs text-neutral-fg-subtle truncate">
                     {session.messageCount} messages

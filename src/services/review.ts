@@ -10,17 +10,17 @@
  * Persistence: ~/.workforce/orgs/{orgId}/reviews/{id}.json
  */
 
-import { readFile, writeFile, readdir, mkdir } from "fs/promises";
-import { join } from "path";
-import type { ReviewItem, ReviewAction, ReviewService } from "./types";
-import { getEventBus } from "@/shared/event-bus";
-import { getDataDir } from "./data-dir";
+import { readFile, writeFile, readdir, mkdir } from 'fs/promises';
+import { join } from 'path';
+import type { ReviewItem, ReviewAction, ReviewService } from './types';
+import { getEventBus } from '@/shared/event-bus';
+import { getDataDir } from './data-dir';
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const DEFAULT_ORGS_DIR = join(getDataDir(), "orgs");
+const DEFAULT_ORGS_DIR = join(getDataDir(), 'orgs');
 
 // =============================================================================
 // Helpers
@@ -43,7 +43,7 @@ class ReviewServiceImpl implements ReviewService {
   }
 
   private reviewDir(orgId: string): string {
-    return join(this.orgsDir, orgId, "reviews");
+    return join(this.orgsDir, orgId, 'reviews');
   }
 
   private reviewPath(orgId: string, id: string): string {
@@ -55,13 +55,13 @@ class ReviewServiceImpl implements ReviewService {
   }
 
   async create(
-    item: Omit<ReviewItem, "id" | "status" | "createdAt" | "updatedAt">,
+    item: Omit<ReviewItem, 'id' | 'status' | 'createdAt' | 'updatedAt'>
   ): Promise<ReviewItem> {
     const now = Date.now();
     const reviewItem: ReviewItem = {
       ...item,
       id: generateId(),
-      status: "pending",
+      status: 'pending',
       createdAt: now,
       updatedAt: now,
     };
@@ -70,17 +70,17 @@ class ReviewServiceImpl implements ReviewService {
     await writeFile(
       this.reviewPath(item.orgId, reviewItem.id),
       JSON.stringify(reviewItem, null, 2),
-      "utf-8",
+      'utf-8'
     );
 
     this.cache.set(this.cacheKey(item.orgId, reviewItem.id), reviewItem);
 
     getEventBus().emit({
-      type: "ReviewItemChange",
+      type: 'ReviewItemChange',
       reviewItemId: reviewItem.id,
       sessionId: reviewItem.sessionId,
       orgId: reviewItem.orgId,
-      action: "created",
+      action: 'created',
       timestamp: now,
     });
 
@@ -94,7 +94,7 @@ class ReviewServiceImpl implements ReviewService {
     }
 
     try {
-      const raw = await readFile(this.reviewPath(orgId, id), "utf-8");
+      const raw = await readFile(this.reviewPath(orgId, id), 'utf-8');
       const item = JSON.parse(raw) as ReviewItem;
       this.cache.set(key, item);
       return item;
@@ -105,14 +105,16 @@ class ReviewServiceImpl implements ReviewService {
 
   async listPending(orgId: string): Promise<ReviewItem[]> {
     const all = await this.loadAll(orgId);
-    return all.filter((item) => item.status === "pending");
+    return all.filter((item) => item.status === 'pending');
   }
 
-  async list(options?: { status?: "pending" | "resolved"; orgId?: string }): Promise<ReviewItem[]> {
+  async list(
+    options?: { status?: 'pending' | 'resolved'; orgId?: string }
+  ): Promise<ReviewItem[]> {
     if (!options?.orgId) {
       // Without orgId, we can only return cached items
       return Array.from(this.cache.values()).filter(
-        (item) => !options?.status || item.status === options.status,
+        (item) => !options?.status || item.status === options.status
       );
     }
 
@@ -127,31 +129,35 @@ class ReviewServiceImpl implements ReviewService {
     id: string,
     orgId: string,
     action: ReviewAction,
-    comment?: string,
+    comment?: string
   ): Promise<ReviewItem> {
     const item = await this.get(id, orgId);
     if (!item) {
       throw new Error(`Review item not found: ${id}`);
     }
 
-    if (item.status === "resolved") {
-      throw new Error("Review item already resolved");
+    if (item.status === 'resolved') {
+      throw new Error('Review item already resolved');
     }
 
     const now = Date.now();
-    item.status = "resolved";
+    item.status = 'resolved';
     item.resolution = { action, comment, resolvedAt: now };
     item.updatedAt = now;
 
-    await writeFile(this.reviewPath(orgId, id), JSON.stringify(item, null, 2), "utf-8");
+    await writeFile(
+      this.reviewPath(orgId, id),
+      JSON.stringify(item, null, 2),
+      'utf-8'
+    );
     this.cache.set(this.cacheKey(orgId, id), item);
 
     getEventBus().emit({
-      type: "ReviewItemChange",
+      type: 'ReviewItemChange',
       reviewItemId: id,
       sessionId: item.sessionId,
       orgId,
-      action: "resolved",
+      action: 'resolved',
       timestamp: now,
     });
 
@@ -178,9 +184,9 @@ class ReviewServiceImpl implements ReviewService {
       const items: ReviewItem[] = [];
 
       for (const file of files) {
-        if (!file.endsWith(".json")) continue;
+        if (!file.endsWith('.json')) continue;
         try {
-          const raw = await readFile(join(dir, file), "utf-8");
+          const raw = await readFile(join(dir, file), 'utf-8');
           const item = JSON.parse(raw) as ReviewItem;
           items.push(item);
           this.cache.set(this.cacheKey(orgId, item.id), item);

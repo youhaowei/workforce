@@ -2,15 +2,15 @@
  * AgentOverview - Overview tab showing state history, children, and worktree info.
  */
 
-import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "@/bridge/react";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { ArrowRight, GitBranch } from "lucide-react";
-import { stateVariant } from "@/ui/lib/stateVariant";
-import { WorktreePanel } from "../Worktree";
-import type { Session, SessionLifecycle } from "@/services/types";
+import { useQuery } from '@tanstack/react-query';
+import { useTRPC } from '@/bridge/react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { ArrowRight, GitBranch } from 'lucide-react';
+import { stateVariant } from '@/ui/lib/stateVariant';
+import { WorktreePanel } from '../Worktree';
+import type { Session, SessionLifecycle } from '@/services/types';
 
 interface AgentOverviewProps {
   session: Session;
@@ -22,15 +22,16 @@ export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
   const orgId = session.metadata?.orgId as string | undefined;
 
   const { data: children = [] } = useQuery(
-    trpc.session.children.queryOptions({ sessionId: session.id }, { enabled: !!session.id }),
+    trpc.session.children.queryOptions(
+      { sessionId: session.id },
+      { enabled: !!session.id },
+    ),
   );
 
   const lifecycle = session.metadata?.lifecycle as SessionLifecycle | undefined;
   const worktreePath = session.metadata?.worktreePath as string | undefined;
   const templateId = session.metadata?.templateId as string | undefined;
-  const workflowId = (session.metadata as Record<string, unknown>)?.workflowId as
-    | string
-    | undefined;
+  const workflowId = (session.metadata as Record<string, unknown>)?.workflowId as string | undefined;
 
   return (
     <ScrollArea className="h-full">
@@ -104,7 +105,7 @@ export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
             <div className="space-y-2">
               {(children as Session[]).map((child) => {
                 const childLifecycle = child.metadata?.lifecycle as SessionLifecycle | undefined;
-                const childState = childLifecycle?.state ?? "created";
+                const childState = childLifecycle?.state ?? 'created';
                 const childGoal = (child.metadata?.goal as string) ?? child.id;
                 return (
                   <Card
@@ -117,9 +118,7 @@ export function AgentOverview({ session, onChildClick }: AgentOverviewProps) {
                         {childState}
                       </Badge>
                       <span className="text-sm flex-1 truncate">{childGoal}</span>
-                      <code className="text-[10px] text-neutral-fg-subtle">
-                        {child.id.slice(0, 8)}
-                      </code>
+                      <code className="text-[10px] text-neutral-fg-subtle">{child.id.slice(0, 8)}</code>
                     </CardContent>
                   </Card>
                 );

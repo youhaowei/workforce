@@ -1,5 +1,5 @@
 export interface ToolStartEvent {
-  type: "ToolStart";
+  type: 'ToolStart';
   toolId: string;
   toolName: string;
   args: unknown;
@@ -7,7 +7,7 @@ export interface ToolStartEvent {
 }
 
 export interface ToolEndEvent {
-  type: "ToolEnd";
+  type: 'ToolEnd';
   toolId: string;
   toolName: string;
   result: unknown;
@@ -16,23 +16,23 @@ export interface ToolEndEvent {
 }
 
 export interface TaskUpdateEvent {
-  type: "TaskUpdate";
+  type: 'TaskUpdate';
   taskId: string;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   progress?: number;
   message?: string;
   timestamp: number;
 }
 
 export interface SessionChangeEvent {
-  type: "SessionChange";
+  type: 'SessionChange';
   sessionId: string;
-  action: "created" | "updated" | "resumed" | "suspended" | "terminated" | "cc_source_changed";
+  action: 'created' | 'updated' | 'resumed' | 'suspended' | 'terminated' | 'cc_source_changed';
   timestamp: number;
 }
 
 export interface BridgeErrorEvent {
-  type: "BridgeError";
+  type: 'BridgeError';
   source: string;
   error: string;
   code?: string;
@@ -40,7 +40,7 @@ export interface BridgeErrorEvent {
 }
 
 export interface AskUserEvent {
-  type: "AskUser";
+  type: 'AskUser';
   requestId: string;
   question: string;
   options?: string[];
@@ -48,7 +48,7 @@ export interface AskUserEvent {
 }
 
 export interface AskUserResponseEvent {
-  type: "AskUserResponse";
+  type: 'AskUserResponse';
   requestId: string;
   response: string;
   selectedOption?: number;
@@ -61,10 +61,10 @@ export interface AskUserResponseEvent {
 
 /** Content block lifecycle events */
 export interface ContentBlockStartEvent {
-  type: "ContentBlockStart";
+  type: 'ContentBlockStart';
   index: number;
   contentBlock: {
-    type: "text" | "tool_use" | "thinking";
+    type: 'text' | 'tool_use' | 'thinking';
     id?: string;
     name?: string;
     text?: string;
@@ -73,14 +73,14 @@ export interface ContentBlockStartEvent {
 }
 
 export interface ContentBlockStopEvent {
-  type: "ContentBlockStop";
+  type: 'ContentBlockStop';
   index: number;
   timestamp: number;
 }
 
 /** Thinking block delta (extended thinking) */
 export interface ThinkingDeltaEvent {
-  type: "ThinkingDelta";
+  type: 'ThinkingDelta';
   thinking: string;
   index: number;
   timestamp: number;
@@ -88,7 +88,7 @@ export interface ThinkingDeltaEvent {
 
 /** Message lifecycle events */
 export interface MessageStartEvent {
-  type: "MessageStart";
+  type: 'MessageStart';
   messageId: string;
   model: string;
   stopReason: string | null;
@@ -102,7 +102,7 @@ export interface MessageStartEvent {
 }
 
 export interface MessageStopEvent {
-  type: "MessageStop";
+  type: 'MessageStop';
   messageId: string;
   stopReason: string;
   timestamp: number;
@@ -110,7 +110,7 @@ export interface MessageStopEvent {
 
 /** Full assistant message (after streaming completes) */
 export interface AssistantMessageEvent {
-  type: "AssistantMessage";
+  type: 'AssistantMessage';
   messageId: string;
   uuid: string;
   sessionId: string;
@@ -123,7 +123,7 @@ export interface AssistantMessageEvent {
     cacheCreationInputTokens?: number;
   };
   content: Array<{
-    type: "text" | "tool_use" | "thinking";
+    type: 'text' | 'tool_use' | 'thinking';
     text?: string;
     id?: string;
     name?: string;
@@ -136,13 +136,8 @@ export interface AssistantMessageEvent {
 
 /** Query result with final statistics */
 export interface QueryResultEvent {
-  type: "QueryResult";
-  subtype:
-    | "success"
-    | "error_during_execution"
-    | "error_max_turns"
-    | "error_max_budget_usd"
-    | "error_max_structured_output_retries";
+  type: 'QueryResult';
+  subtype: 'success' | 'error_during_execution' | 'error_max_turns' | 'error_max_budget_usd' | 'error_max_structured_output_retries';
   durationMs: number;
   durationApiMs: number;
   numTurns: number;
@@ -155,26 +150,23 @@ export interface QueryResultEvent {
     cacheReadInputTokens: number;
     cacheCreationInputTokens: number;
   };
-  modelUsage: Record<
-    string,
-    {
-      inputTokens: number;
-      outputTokens: number;
-      cacheReadInputTokens: number;
-      cacheCreationInputTokens: number;
-      webSearchRequests: number;
-      costUSD: number;
-      contextWindow: number;
-      maxOutputTokens: number;
-    }
-  >;
+  modelUsage: Record<string, {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+    webSearchRequests: number;
+    costUSD: number;
+    contextWindow: number;
+    maxOutputTokens: number;
+  }>;
   errors?: string[];
   timestamp: number;
 }
 
 /** System initialization info */
 export interface SystemInitEvent {
-  type: "SystemInit";
+  type: 'SystemInit';
   claudeCodeVersion: string;
   cwd: string;
   model: string;
@@ -189,15 +181,15 @@ export interface SystemInitEvent {
 
 /** System status changes */
 export interface SystemStatusEvent {
-  type: "SystemStatus";
-  status: "compacting" | null;
+  type: 'SystemStatus';
+  status: 'compacting' | null;
   permissionMode?: string;
   timestamp: number;
 }
 
 /** Tool progress updates */
 export interface ToolProgressEvent {
-  type: "ToolProgress";
+  type: 'ToolProgress';
   toolUseId: string;
   toolName: string;
   elapsedTimeSeconds: number;
@@ -206,7 +198,7 @@ export interface ToolProgressEvent {
 
 /** Tool use summary */
 export interface ToolUseSummaryEvent {
-  type: "ToolUseSummary";
+  type: 'ToolUseSummary';
   summary: string;
   precedingToolUseIds: string[];
   timestamp: number;
@@ -214,7 +206,7 @@ export interface ToolUseSummaryEvent {
 
 /** Hook lifecycle events */
 export interface HookStartedEvent {
-  type: "HookStarted";
+  type: 'HookStarted';
   hookId: string;
   hookName: string;
   hookEvent: string;
@@ -222,7 +214,7 @@ export interface HookStartedEvent {
 }
 
 export interface HookProgressEvent {
-  type: "HookProgress";
+  type: 'HookProgress';
   hookId: string;
   hookName: string;
   hookEvent: string;
@@ -233,11 +225,11 @@ export interface HookProgressEvent {
 }
 
 export interface HookResponseEvent {
-  type: "HookResponse";
+  type: 'HookResponse';
   hookId: string;
   hookName: string;
   hookEvent: string;
-  outcome: "success" | "error" | "cancelled";
+  outcome: 'success' | 'error' | 'cancelled';
   output: string;
   exitCode?: number;
   timestamp: number;
@@ -245,9 +237,9 @@ export interface HookResponseEvent {
 
 /** Task notifications (for background tasks) */
 export interface TaskNotificationEvent {
-  type: "TaskNotification";
+  type: 'TaskNotification';
   taskId: string;
-  status: "completed" | "failed" | "stopped";
+  status: 'completed' | 'failed' | 'stopped';
   outputFile: string;
   summary: string;
   timestamp: number;
@@ -255,7 +247,7 @@ export interface TaskNotificationEvent {
 
 /** Auth status changes */
 export interface AuthStatusEvent {
-  type: "AuthStatus";
+  type: 'AuthStatus';
   isAuthenticating: boolean;
   output: string[];
   error?: string;
@@ -264,7 +256,7 @@ export interface AuthStatusEvent {
 
 /** Raw SDK message passthrough for advanced use cases */
 export interface RawSdkMessageEvent {
-  type: "RawSdkMessage";
+  type: 'RawSdkMessage';
   sdkMessageType: string;
   payload: unknown;
   timestamp: number;
@@ -276,53 +268,53 @@ export interface RawSdkMessageEvent {
 
 /** Org lifecycle events */
 export interface OrgChangeEvent {
-  type: "OrgChange";
+  type: 'OrgChange';
   orgId: string;
-  action: "created" | "updated" | "deleted" | "switched";
+  action: 'created' | 'updated' | 'deleted' | 'switched';
   timestamp: number;
 }
 
 /** Project lifecycle events */
 export interface ProjectChangeEvent {
-  type: "ProjectChange";
+  type: 'ProjectChange';
   projectId: string;
-  action: "created" | "updated" | "deleted";
+  action: 'created' | 'updated' | 'deleted';
   timestamp: number;
 }
 
 /** Session lifecycle state transitions */
 export interface LifecycleTransitionEvent {
-  type: "LifecycleTransition";
+  type: 'LifecycleTransition';
   sessionId: string;
   from: string;
   to: string;
   reason: string;
-  actor: "system" | "user" | "agent";
+  actor: 'system' | 'user' | 'agent';
   timestamp: number;
 }
 
 /** Review queue item changes */
 export interface ReviewItemChangeEvent {
-  type: "ReviewItemChange";
+  type: 'ReviewItemChange';
   reviewItemId: string;
   sessionId: string;
   orgId: string;
-  action: "created" | "resolved";
+  action: 'created' | 'resolved';
   timestamp: number;
 }
 
 /** Git worktree lifecycle events */
 export interface WorktreeChangeEvent {
-  type: "WorktreeChange";
+  type: 'WorktreeChange';
   sessionId: string;
   worktreePath: string;
-  action: "created" | "merged" | "archived" | "deleted";
+  action: 'created' | 'merged' | 'archived' | 'deleted';
   timestamp: number;
 }
 
 /** Agent spawned notification */
 export interface AgentSpawnedEvent {
-  type: "AgentSpawned";
+  type: 'AgentSpawned';
   sessionId: string;
   parentSessionId?: string;
   templateId: string;
@@ -333,21 +325,21 @@ export interface AgentSpawnedEvent {
 
 /** Session rehydration started (background full replay begins) */
 export interface SessionRehydrateStartedEvent {
-  type: "SessionRehydrateStarted";
+  type: 'SessionRehydrateStarted';
   sessionId: string;
   timestamp: number;
 }
 
 /** Session rehydration completed (full replay + consolidation done) */
 export interface SessionRehydrateDoneEvent {
-  type: "SessionRehydrateDone";
+  type: 'SessionRehydrateDone';
   sessionId: string;
   timestamp: number;
 }
 
 /** Session rehydration failed */
 export interface SessionRehydrateFailedEvent {
-  type: "SessionRehydrateFailed";
+  type: 'SessionRehydrateFailed';
   sessionId: string;
   error: string;
   timestamp: number;
@@ -355,14 +347,14 @@ export interface SessionRehydrateFailedEvent {
 
 /** Session consolidation phase started (after replay, before file rewrite) */
 export interface SessionConsolidationStartedEvent {
-  type: "SessionConsolidationStarted";
+  type: 'SessionConsolidationStarted';
   sessionId: string;
   timestamp: number;
 }
 
 /** Audit entry recorded */
 export interface AuditEntryEvent {
-  type: "AuditEntry";
+  type: 'AuditEntry';
   entryId: string;
   sessionId: string;
   orgId: string;
@@ -412,48 +404,48 @@ export type BusEvent =
   | SessionConsolidationStartedEvent;
 
 export const EventType = {
-  ToolStart: "ToolStart",
-  ToolEnd: "ToolEnd",
-  TaskUpdate: "TaskUpdate",
-  SessionChange: "SessionChange",
-  BridgeError: "BridgeError",
-  AskUser: "AskUser",
-  AskUserResponse: "AskUserResponse",
+  ToolStart: 'ToolStart',
+  ToolEnd: 'ToolEnd',
+  TaskUpdate: 'TaskUpdate',
+  SessionChange: 'SessionChange',
+  BridgeError: 'BridgeError',
+  AskUser: 'AskUser',
+  AskUserResponse: 'AskUserResponse',
   // SDK message events (verbose mode)
-  ContentBlockStart: "ContentBlockStart",
-  ContentBlockStop: "ContentBlockStop",
-  ThinkingDelta: "ThinkingDelta",
-  MessageStart: "MessageStart",
-  MessageStop: "MessageStop",
-  AssistantMessage: "AssistantMessage",
-  QueryResult: "QueryResult",
-  SystemInit: "SystemInit",
-  SystemStatus: "SystemStatus",
-  ToolProgress: "ToolProgress",
-  ToolUseSummary: "ToolUseSummary",
-  HookStarted: "HookStarted",
-  HookProgress: "HookProgress",
-  HookResponse: "HookResponse",
-  TaskNotification: "TaskNotification",
-  AuthStatus: "AuthStatus",
-  RawSdkMessage: "RawSdkMessage",
+  ContentBlockStart: 'ContentBlockStart',
+  ContentBlockStop: 'ContentBlockStop',
+  ThinkingDelta: 'ThinkingDelta',
+  MessageStart: 'MessageStart',
+  MessageStop: 'MessageStop',
+  AssistantMessage: 'AssistantMessage',
+  QueryResult: 'QueryResult',
+  SystemInit: 'SystemInit',
+  SystemStatus: 'SystemStatus',
+  ToolProgress: 'ToolProgress',
+  ToolUseSummary: 'ToolUseSummary',
+  HookStarted: 'HookStarted',
+  HookProgress: 'HookProgress',
+  HookResponse: 'HookResponse',
+  TaskNotification: 'TaskNotification',
+  AuthStatus: 'AuthStatus',
+  RawSdkMessage: 'RawSdkMessage',
   // Workforce orchestration events
-  OrgChange: "OrgChange",
-  ProjectChange: "ProjectChange",
-  LifecycleTransition: "LifecycleTransition",
-  ReviewItemChange: "ReviewItemChange",
-  WorktreeChange: "WorktreeChange",
-  AgentSpawned: "AgentSpawned",
-  AuditEntry: "AuditEntry",
+  OrgChange: 'OrgChange',
+  ProjectChange: 'ProjectChange',
+  LifecycleTransition: 'LifecycleTransition',
+  ReviewItemChange: 'ReviewItemChange',
+  WorktreeChange: 'WorktreeChange',
+  AgentSpawned: 'AgentSpawned',
+  AuditEntry: 'AuditEntry',
   // Session rehydration events
-  SessionRehydrateStarted: "SessionRehydrateStarted",
-  SessionRehydrateDone: "SessionRehydrateDone",
-  SessionRehydrateFailed: "SessionRehydrateFailed",
-  SessionConsolidationStarted: "SessionConsolidationStarted",
-  Wildcard: "*",
+  SessionRehydrateStarted: 'SessionRehydrateStarted',
+  SessionRehydrateDone: 'SessionRehydrateDone',
+  SessionRehydrateFailed: 'SessionRehydrateFailed',
+  SessionConsolidationStarted: 'SessionConsolidationStarted',
+  Wildcard: '*',
 } as const;
 
-export type EventTypeName = BusEvent["type"];
+export type EventTypeName = BusEvent['type'];
 export type WildcardType = typeof EventType.Wildcard;
 export type SubscribableEventType = EventTypeName | WildcardType;
 export type EventPayload<T extends EventTypeName> = Extract<BusEvent, { type: T }>;

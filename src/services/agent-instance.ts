@@ -1,10 +1,10 @@
-import { createSession } from "unifai";
-import type { AgentEvent } from "unifai";
-import { homedir } from "os";
-import type { StreamResult, AgentStreamEvent } from "./types";
-import { getEventBus } from "@/shared/event-bus";
-import { formatToolInput } from "./agent";
-import { resolveClaudeCliPath } from "./agent-cli-path";
+import { createSession } from 'unifai';
+import type { AgentEvent } from 'unifai';
+import { homedir } from 'os';
+import type { StreamResult, AgentStreamEvent } from './types';
+import { getEventBus } from '@/shared/event-bus';
+import { formatToolInput } from './agent';
+import { resolveClaudeCliPath } from './agent-cli-path';
 
 /**
  * Build environment variables for the SDK subprocess.
@@ -32,13 +32,13 @@ export function isAuthError(err: unknown): boolean {
   if (!(err instanceof Error)) return false;
   const msg = err.message.toLowerCase();
   return (
-    msg.includes("authentication") ||
-    msg.includes("unauthorized") ||
-    msg.includes("401") ||
-    msg.includes("invalid api key") ||
-    msg.includes("api key") ||
-    msg.includes("not authenticated") ||
-    msg.includes("credential")
+    msg.includes('authentication') ||
+    msg.includes('unauthorized') ||
+    msg.includes('401') ||
+    msg.includes('invalid api key') ||
+    msg.includes('api key') ||
+    msg.includes('not authenticated') ||
+    msg.includes('credential')
   );
 }
 
@@ -46,21 +46,21 @@ export class AgentError extends Error {
   constructor(
     message: string,
     public readonly code: AgentErrorCode,
-    public readonly cause?: unknown,
+    public readonly cause?: unknown
   ) {
     super(message);
-    this.name = "AgentError";
+    this.name = 'AgentError';
   }
 }
 
 export type AgentErrorCode =
-  | "AUTH_ERROR"
-  | "RATE_LIMIT"
-  | "NETWORK_ERROR"
-  | "STREAM_FAILED"
-  | "CANCELLED"
-  | "TOOL_ERROR"
-  | "UNKNOWN";
+  | 'AUTH_ERROR'
+  | 'RATE_LIMIT'
+  | 'NETWORK_ERROR'
+  | 'STREAM_FAILED'
+  | 'CANCELLED'
+  | 'TOOL_ERROR'
+  | 'UNKNOWN';
 
 export interface AgentInstanceOptions {
   cwd: string;
@@ -81,14 +81,14 @@ export class AgentInstance {
 
   constructor(
     public readonly sessionId: string,
-    private options: AgentInstanceOptions,
+    private options: AgentInstanceOptions
   ) {
     this.abortController = new AbortController();
   }
 
   async *run(prompt: string): StreamResult<AgentStreamEvent> {
     if (this.runInProgress) {
-      throw new AgentError("Query already in progress for this instance", "UNKNOWN");
+      throw new AgentError('Query already in progress for this instance', 'UNKNOWN');
     }
 
     this.runInProgress = true;
@@ -101,8 +101,8 @@ export class AgentInstance {
         ? `${this.options.systemPrompt}\n\n${prompt}`
         : prompt;
 
-      const session = createSession("claude", {
-        model: "sonnet",
+      const session = createSession('claude', {
+        model: 'sonnet',
         cwd: this.options.cwd,
         env: this.options.env ?? buildSdkEnv(),
         pathToClaudeCodeExecutable: resolveClaudeCliPath(),
@@ -115,19 +115,19 @@ export class AgentInstance {
       try {
         for await (const event of session.send(fullPrompt)) {
           yield* this.handleEvent(event, bus, tokenIndex);
-          if (event.type === "text_delta") tokenIndex++;
+          if (event.type === 'text_delta') tokenIndex++;
         }
       } finally {
         session.close();
       }
     } catch (err) {
       if (this.abortController.signal.aborted) {
-        yield { type: "token" as const, token: " [cancelled]" };
+        yield { type: 'token' as const, token: ' [cancelled]' };
       } else {
         throw new AgentError(
           err instanceof Error ? err.message : String(err),
-          isAuthError(err) ? "AUTH_ERROR" : "STREAM_FAILED",
-          err,
+          isAuthError(err) ? 'AUTH_ERROR' : 'STREAM_FAILED',
+          err
         );
       }
     } finally {
@@ -135,17 +135,13 @@ export class AgentInstance {
     }
   }
 
-  private *handleEvent(
-    event: AgentEvent,
-    bus: ReturnType<typeof getEventBus>,
-    _tokenIndex: number,
-  ): Generator<AgentStreamEvent> {
+  private *handleEvent(event: AgentEvent, bus: ReturnType<typeof getEventBus>, _tokenIndex: number): Generator<AgentStreamEvent> {
     const now = Date.now();
 
     // Pass through raw SDK messages for advanced consumers
-    if (event.type === "raw") {
+    if (event.type === 'raw') {
       bus.emit({
-        type: "RawSdkMessage",
+        type: 'RawSdkMessage',
         sdkMessageType: event.eventType,
         payload: event.data,
         timestamp: now,
@@ -153,53 +149,35 @@ export class AgentInstance {
       return;
     }
 
-    if (event.type === "text_delta") {
-      yield { type: "token", token: event.text };
+    if (event.type === 'text_delta') {
+      yield { type: 'token', token: event.text };
       return;
     }
 
-    if (event.type === "tool_start") {
-      yield {
-        type: "tool_start",
-        name: event.toolName,
-        input: formatToolInput(event.toolName, event.input),
-        toolUseId: event.toolUseId,
-        inputRaw: event.input,
-      };
+    if (event.type === 'tool_start') {
+      yield { type: 'tool_start', name: event.toolName, input: formatToolInput(event.toolName, event.input), toolUseId: event.toolUseId, inputRaw: event.input };
     }
 
-    if (event.type === "tool_result") {
-      yield {
-        type: "tool_result",
-        toolUseId: event.toolUseId,
-        toolName: event.toolName,
-        result: event.result,
-        isError: event.isError,
-      };
+    if (event.type === 'tool_result') {
+      yield { type: 'tool_result', toolUseId: event.toolUseId, toolName: event.toolName, result: event.result, isError: event.isError };
     }
 
-    if (event.type === "content_block_start") {
-      yield {
-        type: "content_block_start",
-        index: event.index,
-        blockType: event.blockType,
-        id: event.id,
-        name: event.name,
-      };
+    if (event.type === 'content_block_start') {
+      yield { type: 'content_block_start', index: event.index, blockType: event.blockType, id: event.id, name: event.name };
     }
 
-    if (event.type === "content_block_stop") {
-      yield { type: "content_block_stop", index: event.index };
+    if (event.type === 'content_block_stop') {
+      yield { type: 'content_block_stop', index: event.index };
     }
 
-    if (event.type === "status") {
-      yield { type: "status", message: event.message };
+    if (event.type === 'status') {
+      yield { type: 'status', message: event.message };
     }
 
-    if (event.type === "session_complete") {
+    if (event.type === 'session_complete') {
       bus.emit({
-        type: "QueryResult",
-        subtype: (event.subtype ?? "success") as "success",
+        type: 'QueryResult',
+        subtype: (event.subtype ?? 'success') as 'success',
         durationMs: event.durationMs,
         durationApiMs: event.durationApiMs ?? 0,
         numTurns: event.numTurns,
@@ -226,7 +204,7 @@ export class AgentInstance {
                   contextWindow: mu.contextWindow ?? 0,
                   maxOutputTokens: mu.maxOutputTokens ?? 0,
                 },
-              ]),
+              ])
             )
           : {},
         errors: event.errors,

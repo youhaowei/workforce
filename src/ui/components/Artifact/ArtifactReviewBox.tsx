@@ -5,17 +5,17 @@
  * (Submit Review / Approve / Request Changes), and a generated prompt preview.
  */
 
-import { useState, useMemo, useCallback } from "react";
-import { ChevronDown, ChevronUp, Check, X, Send } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useMemo, useCallback } from 'react';
+import { ChevronDown, ChevronUp, Check, X, Send } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import type { ArtifactComment, AgentPermissionMode } from "@/services/types";
-import { generateReviewPrompt } from "@/ui/lib/artifact-utils";
+} from '@/components/ui/dropdown-menu';
+import type { ArtifactComment, AgentPermissionMode } from '@/services/types';
+import { generateReviewPrompt } from '@/ui/lib/artifact-utils';
 
 interface ArtifactReviewBoxProps {
   comments: ArtifactComment[];
@@ -26,14 +26,10 @@ interface ArtifactReviewBoxProps {
   onReject: () => void;
 }
 
-const PERMISSION_OPTIONS: Array<{
-  value: AgentPermissionMode;
-  label: string;
-  description: string;
-}> = [
-  { value: "default", label: "Ask", description: "Prompt before each tool use" },
-  { value: "acceptEdits", label: "Auto-Edit", description: "Auto-approve file edits" },
-  { value: "bypassPermissions", label: "Full Auto", description: "Skip all permission checks" },
+const PERMISSION_OPTIONS: Array<{ value: AgentPermissionMode; label: string; description: string }> = [
+  { value: 'default', label: 'Ask', description: 'Prompt before each tool use' },
+  { value: 'acceptEdits', label: 'Auto-Edit', description: 'Auto-approve file edits' },
+  { value: 'bypassPermissions', label: 'Full Auto', description: 'Skip all permission checks' },
 ];
 
 export function ArtifactReviewBox({
@@ -44,9 +40,9 @@ export function ArtifactReviewBox({
   onApprove,
   onReject,
 }: ArtifactReviewBoxProps) {
-  const [summary, setSummary] = useState("");
+  const [summary, setSummary] = useState('');
   const [promptExpanded, setPromptExpanded] = useState(false);
-  const [selectedPermission, setSelectedPermission] = useState<AgentPermissionMode>("acceptEdits");
+  const [selectedPermission, setSelectedPermission] = useState<AgentPermissionMode>('acceptEdits');
 
   const prompt = useMemo(
     () => generateReviewPrompt(artifactTitle, comments, summary),
@@ -55,11 +51,10 @@ export function ArtifactReviewBox({
 
   const handleSubmit = useCallback(() => {
     onSubmitReview(summary.trim());
-    setSummary("");
+    setSummary('');
   }, [summary, onSubmitReview]);
 
-  const selectedOption =
-    PERMISSION_OPTIONS.find((o) => o.value === selectedPermission) ?? PERMISSION_OPTIONS[1];
+  const selectedOption = PERMISSION_OPTIONS.find((o) => o.value === selectedPermission) ?? PERMISSION_OPTIONS[1];
 
   return (
     <div className="border-t border-neutral-border bg-neutral-bg flex-shrink-0">
@@ -67,9 +62,7 @@ export function ArtifactReviewBox({
       <div className="flex items-center justify-between px-3 pt-2 pb-1">
         <span className="text-xs font-semibold text-neutral-fg">Your Review</span>
         <span className="text-[10px] text-neutral-fg-subtle">
-          {comments.length > 0
-            ? `${comments.length} comment${comments.length === 1 ? "" : "s"}`
-            : "No comments yet"}
+          {comments.length > 0 ? `${comments.length} comment${comments.length === 1 ? '' : 's'}` : 'No comments yet'}
         </span>
       </div>
 
@@ -120,11 +113,7 @@ export function ArtifactReviewBox({
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button
-                  size="xs"
-                  color="success"
-                  className="rounded-l-none border-l border-palette-success-fg/20 px-1"
-                >
+                <Button size="xs" color="success" className="rounded-l-none border-l border-palette-success-fg/20 px-1">
                   <ChevronDown className="h-3 w-3" />
                 </Button>
               </DropdownMenuTrigger>
@@ -144,7 +133,7 @@ export function ArtifactReviewBox({
           </div>
         ) : (
           /* Regular artifact: simple approve */
-          <Button size="xs" color="success" className="gap-1" onClick={() => onApprove("default")}>
+          <Button size="xs" color="success" className="gap-1" onClick={() => onApprove('default')}>
             <Check className="h-3 w-3" />
             Approve
           </Button>
@@ -165,11 +154,7 @@ export function ArtifactReviewBox({
             onClick={() => setPromptExpanded(!promptExpanded)}
             className="flex items-center gap-1 px-3 py-1 text-[9px] text-neutral-fg-subtle uppercase tracking-wider hover:text-neutral-fg transition-colors w-full"
           >
-            {promptExpanded ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronUp className="h-3 w-3" />
-            )}
+            {promptExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
             Generated prompt
           </button>
           {promptExpanded && (

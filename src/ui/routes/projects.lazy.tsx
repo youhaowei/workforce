@@ -1,6 +1,6 @@
-import { createLazyFileRoute } from "@tanstack/react-router";
-import { ProjectView } from "../components/Project";
-import { useShell } from "../context/ShellContext";
+import {createLazyFileRoute} from '@tanstack/react-router';
+import {ProjectView} from '../components/Project';
+import {useShell} from '../context/ShellContext';
 
 function ProjectsRoute() {
   const { selectedProjectId, onSelectProject, onStartChat, onSelectSession } = useShell();
@@ -15,6 +15,6 @@ function ProjectsRoute() {
   );
 }
 
-export const Route = createLazyFileRoute("/projects")({
+export const Route = createLazyFileRoute('/projects')({
   component: ProjectsRoute,
 });

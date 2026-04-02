@@ -18,6 +18,7 @@ import { AgentQuestionDialog } from "./AgentQuestionDialog";
 import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
 import { useHotkey } from "@/ui/hotkeys";
 import { usePlatform } from "@/ui/context/PlatformProvider";
+import { getServerPort } from "@/bridge/config";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
 import { useTRPC } from "@/bridge/react";
@@ -87,8 +88,8 @@ export default function Shell() {
 
   // Local state for session/project selection
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(() =>
-    localStorage.getItem(SELECTED_SESSION_STORAGE_KEY),
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(
+    () => localStorage.getItem(SELECTED_SESSION_STORAGE_KEY),
   );
   const [projectsPanelCollapsed, setProjectsPanelCollapsed] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -108,7 +109,9 @@ export default function Shell() {
   const loadMessages = useMessagesStore((s) => s.loadMessages);
   const setCurrentTool = useMessagesStore((s) => s.setCurrentTool);
 
-  const { data: projects = [] } = useQuery(trpc.project.list.queryOptions({ orgId }));
+  const { data: projects = [] } = useQuery(
+    trpc.project.list.queryOptions({ orgId }),
+  );
 
   const activeSessionTitle = useActiveSessionTitle({
     orgId,
@@ -116,12 +119,12 @@ export default function Shell() {
     serverConnected,
   });
 
-  const showSessionsView = pathname.startsWith("/sessions");
+  const showSessionsView = pathname.startsWith('/sessions');
 
   // Dev mode: include git branch + port in document.title for multi-instance debugging.
   useEffect(() => {
     const branch = import.meta.env.VITE_GIT_BRANCH;
-    const port = import.meta.env.VITE_API_PORT;
+    const port = getServerPort();
     const devPrefix = branch ? `[${branch}${port ? ` :${port}` : ""}] ` : "";
     const pageTitle = activeSessionTitle || "Workforce";
     document.title = devPrefix + pageTitle;
@@ -132,22 +135,17 @@ export default function Shell() {
     setNewSessionProjectId(null);
   }, [orgId, setNewSessionProjectId]);
 
-  const navigateToDetail = useCallback(
-    (sessionId: string) => {
-      setSelectedAgentId(sessionId);
-      navigate({ to: `/agent/${sessionId}` });
-    },
-    [navigate],
-  );
+  const navigateToDetail = useCallback((sessionId: string) => {
+    setSelectedAgentId(sessionId);
+    navigate({ to: `/agent/${sessionId}` });
+  }, [navigate]);
   const navigateBack = useCallback(() => {
     setSelectedAgentId(null);
-    navigate({ to: "/board" });
+    navigate({ to: '/board' });
   }, [navigate]);
 
   const cancelActiveStream = useCallback(() => {
-    trpcClient.agent.cancel.mutate().catch(() => {
-      /* best-effort */
-    });
+    trpcClient.agent.cancel.mutate().catch(() => { /* best-effort */ });
     if (cancelStreamRef.current) {
       cancelStreamRef.current();
       cancelStreamRef.current = null;
@@ -163,9 +161,7 @@ export default function Shell() {
     if (sessId && msgId) {
       trpcClient.session.streamAbort
         .mutate({ sessionId: sessId, messageId: msgId, reason: "user_cancelled" })
-        .catch(() => {
-          /* best-effort */
-        });
+        .catch(() => { /* best-effort */ });
     }
     finishStreamingMessage();
   }, [cancelActiveStream, finishStreamingMessage]);
@@ -221,20 +217,12 @@ export default function Shell() {
       setSelectedSessionId(sessionId);
       activeSessionRef.current = sessionId;
       lastLoadedSessionRef.current = null;
-      navigate({ to: "/sessions/$id", params: { id: sessionId } });
+      navigate({ to: '/sessions/$id', params: { id: sessionId } });
       queryClient.invalidateQueries({
         queryKey: trpc.session.messages.queryKey({ sessionId }),
       });
     },
-    [
-      cancelActiveStream,
-      finishStreamingMessage,
-      setNewSessionProjectId,
-      clearMessages,
-      setActiveSession,
-      trpc,
-      navigate,
-    ],
+    [cancelActiveStream, finishStreamingMessage, setNewSessionProjectId, clearMessages, setActiveSession, trpc, navigate],
   );
 
   const handleDeleteSession = useCallback(
@@ -262,19 +250,10 @@ export default function Shell() {
     setNewSessionProjectId(currentView === "projects" ? selectedProjectId : null);
     activeSessionRef.current = null;
     lastLoadedSessionRef.current = null;
-    navigate({ to: "/sessions" });
+    navigate({ to: '/sessions' });
     setSessionsPanelCollapsed(false);
     localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, "false");
-  }, [
-    cancelActiveStream,
-    clearMessages,
-    setActiveSession,
-    setNewSessionProjectId,
-    currentView,
-    selectedProjectId,
-    navigate,
-    setSessionsPanelCollapsed,
-  ]);
+  }, [cancelActiveStream, clearMessages, setActiveSession, setNewSessionProjectId, currentView, selectedProjectId, navigate, setSessionsPanelCollapsed]);
 
   const { forksMap, handleRewind, handleFork } = useForkActions({
     selectedSessionId,
@@ -289,12 +268,7 @@ export default function Shell() {
   useHotkey("cancelStream", handleCancel, isStreaming);
   useHotkey("refresh", () => window.location.reload());
 
-  useEffect(
-    () => () => {
-      cancelStreamRef.current?.();
-    },
-    [],
-  );
+  useEffect(() => () => { cancelStreamRef.current?.(); }, []);
 
   useEffect(() => {
     localStorage.setItem(VIEW_STORAGE_KEY, currentView);
@@ -321,8 +295,7 @@ export default function Shell() {
     if (
       lastLoadedSessionRef.current === selectedSessionId &&
       useMessagesStore.getState().messages.length > 0
-    )
-      return;
+    ) return;
     lastLoadedSessionRef.current = selectedSessionId;
     setActiveSession(selectedSessionId);
     activeSessionRef.current = selectedSessionId;
@@ -354,7 +327,7 @@ export default function Shell() {
     lastLoadedSessionRef.current = null;
     setActiveSession(null);
     clearMessages();
-    navigate({ to: "/" });
+    navigate({ to: '/' });
     localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
   }, [restoreError, setActiveSession, clearMessages, navigate]);
 
@@ -374,18 +347,8 @@ export default function Shell() {
 
   // Plan mode
   const {
-    isPlanMode,
-    planPanelOpen,
-    planTitle,
-    planFilePath,
-    planStatus,
-    planContent,
-    planLoadError,
-    planArtifactId,
-    handlePlanReady,
-    handlePlanApprove,
-    handlePlanReject,
-    handlePlanClose,
+    isPlanMode, planPanelOpen, planTitle, planFilePath, planStatus, planContent, planLoadError, planArtifactId,
+    handlePlanReady, handlePlanApprove, handlePlanReject, handlePlanClose,
   } = usePlanMode({
     orgId,
     selectedSessionId,
@@ -403,12 +366,9 @@ export default function Shell() {
     onReject: handlePlanReject,
   });
 
-  const handleProjectDialogOpenChange = useCallback(
-    (open: boolean) => {
-      setCreateProjectDialog(open, open ? createProjectDialogSource : null);
-    },
-    [createProjectDialogSource, setCreateProjectDialog],
-  );
+  const handleProjectDialogOpenChange = useCallback((open: boolean) => {
+    setCreateProjectDialog(open, open ? createProjectDialogSource : null);
+  }, [createProjectDialogSource, setCreateProjectDialog]);
 
   const handleProjectCreated = useCallback(
     (projectId: string) => {
@@ -455,120 +415,119 @@ export default function Shell() {
   return (
     <ShellProvider value={shellContextValue}>
       <TooltipProvider>
-        <div
-          className="h-screen flex overflow-hidden shell-ground"
-          data-desktop={isDesktop || undefined}
-        >
-          {/* Tauri: window dragging handled by data-tauri-drag-region on AppHeader.
-            No overlay div needed — Tauri intercepts drag at the native WKWebView level.
-            (The old z-40 overlay with -webkit-app-region: drag was Chromium/Electron-only.) */}
+      <div
+        className="h-screen flex overflow-hidden shell-ground"
+        data-desktop={isDesktop || undefined}
+      >
+        {/* Window dragging: Electron uses CSS -webkit-app-region: drag via the
+            .titlebar-drag-region class in AppHeader and sidebar spacer.
+            Interactive elements opt out via app-region: no-drag (set in index.html <style>). */}
 
-          <AppSidebar mode={sidebarMode} onToggleSize={toggleSidebarSize} />
+        <AppSidebar
+          mode={sidebarMode}
+          onToggleSize={toggleSidebarSize}
+        />
 
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <TopBar
-              currentView={currentView}
-              sessionTitle={activeSessionTitle}
-              onBack={currentView === "detail" ? navigateBack : undefined}
-              sessionsPanelCollapsed={sessionsPanelCollapsed}
-              onToggleSessionsPanel={toggleSessionsPanel}
-              projectsPanelCollapsed={projectsPanelCollapsed}
-              onToggleProjectsPanel={toggleProjectsPanel}
-              onQuickCreate={handleCreateSession}
-              themePanelOpen={themePanelOpen}
-              onToggleThemePanel={() => setThemePanelOpen(!themePanelOpen)}
-              boardKeyword={boardKeyword}
-              onBoardKeywordChange={setBoardKeyword}
-              boardStatusFilter={boardStatusFilter}
-              onBoardStatusFilterChange={setBoardStatusFilter}
-            />
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <TopBar
+            currentView={currentView}
+            sessionTitle={activeSessionTitle}
+            onBack={currentView === "detail" ? navigateBack : undefined}
+            sessionsPanelCollapsed={sessionsPanelCollapsed}
+            onToggleSessionsPanel={toggleSessionsPanel}
+            projectsPanelCollapsed={projectsPanelCollapsed}
+            onToggleProjectsPanel={toggleProjectsPanel}
+            onQuickCreate={handleCreateSession}
+            themePanelOpen={themePanelOpen}
+            onToggleThemePanel={() => setThemePanelOpen(!themePanelOpen)}
+            boardKeyword={boardKeyword}
+            onBoardKeywordChange={setBoardKeyword}
+            boardStatusFilter={boardStatusFilter}
+            onBoardStatusFilterChange={setBoardStatusFilter}
+          />
 
-            <div className="flex-1 flex min-h-0 overflow-hidden">
-              <Surface
-                variant="main"
-                className="flex min-w-0 flex-1 m-[0_var(--surface-inset)_var(--surface-inset)_0] rounded-[var(--surface-radius)] [contain:paint]"
+          <div className="flex-1 flex min-h-0 overflow-hidden">
+            <Surface variant="main" className="flex min-w-0 flex-1 m-[0_var(--surface-inset)_var(--surface-inset)_0] rounded-[var(--surface-radius)] [contain:paint]">
+            {showSessionsView && (
+              <SessionsPanel
+                collapsed={sessionsPanelCollapsed}
+                activeSessionId={selectedSessionId ?? undefined}
+                onSelectSession={handleSelectSession}
+                onDeleteSession={handleDeleteSession}
+                onCreateSession={handleCreateSession}
+              />
+            )}
+
+            {currentView === "projects" && (
+              <ProjectsPanel
+                collapsed={projectsPanelCollapsed}
+                selectedProjectId={selectedProjectId}
+                onCollapse={toggleProjectsPanel}
+                onSelectProject={setSelectedProjectId}
+                onClearSelection={() => setSelectedProjectId(null)}
+                onCreateProject={() => {
+                  setCreateProjectDialog(true, "projects-panel");
+                }}
+              />
+            )}
+
+            {/* Stage: chat + artifact grouped so sessions resize pushes both */}
+            <div className="flex-1 flex min-w-0 overflow-hidden">
+              <MainContentColumn
+                serverConnected={serverConnected}
+                showFloatingPill={showSessionsView}
+                sessionTitle={activeSessionTitle}
+                sessionsPanelOpen={!sessionsPanelCollapsed}
+                infoPanelOpen={showChatInfo}
+                onToggleSessions={toggleSessionsPanel}
+                onToggleInfo={toggleInfoPanel}
               >
-                {showSessionsView && (
-                  <SessionsPanel
-                    collapsed={sessionsPanelCollapsed}
-                    activeSessionId={selectedSessionId ?? undefined}
-                    onSelectSession={handleSelectSession}
-                    onDeleteSession={handleDeleteSession}
-                    onCreateSession={handleCreateSession}
-                  />
-                )}
+                <Outlet />
+              </MainContentColumn>
 
-                {currentView === "projects" && (
-                  <ProjectsPanel
-                    collapsed={projectsPanelCollapsed}
-                    selectedProjectId={selectedProjectId}
-                    onCollapse={toggleProjectsPanel}
-                    onSelectProject={setSelectedProjectId}
-                    onClearSelection={() => setSelectedProjectId(null)}
-                    onCreateProject={() => {
-                      setCreateProjectDialog(true, "projects-panel");
-                    }}
-                  />
-                )}
-
-                {/* Stage: chat + artifact grouped so sessions resize pushes both */}
-                <div className="flex-1 flex min-w-0 overflow-hidden">
-                  <MainContentColumn
-                    serverConnected={serverConnected}
-                    showFloatingPill={showSessionsView}
-                    sessionTitle={activeSessionTitle}
-                    sessionsPanelOpen={!sessionsPanelCollapsed}
-                    infoPanelOpen={showChatInfo}
-                    onToggleSessions={toggleSessionsPanel}
-                    onToggleInfo={toggleInfoPanel}
-                  >
-                    <Outlet />
-                  </MainContentColumn>
-
-                  <ArtifactPanel
-                    isOpen={planPanelOpen || artifactPanel.panelOpen}
-                    isPlanMode={isPlanMode}
-                    isPlanArtifact={!!planArtifactId && !artifactPanel.panelOpen}
-                    title={artifactPanel.artifact?.title ?? planTitle}
-                    filePath={artifactPanel.artifact?.filePath ?? planFilePath}
-                    status={artifactPanel.artifact?.status ?? planStatus}
-                    content={
-                      artifactPanel.panelOpen
-                        ? (artifactPanel.artifact?.content ?? "")
-                        : (artifactPanel.artifact?.content ?? planContent)
-                    }
-                    loadError={planLoadError}
-                    comments={artifactPanel.pendingComments}
-                    sessionArtifacts={artifactPanel.sessionArtifacts}
-                    activeArtifactId={artifactPanel.activeArtifactId}
-                    onAddComment={artifactPanel.addComment}
-                    onSubmitReview={artifactPanel.submitReview}
-                    onApprove={artifactPanel.handleApprove}
-                    onReject={artifactPanel.handleReject}
-                    onClose={artifactPanel.panelOpen ? artifactPanel.closePanel : handlePlanClose}
-                    onSelectArtifact={artifactPanel.openArtifact}
-                  />
-                </div>
-
-                <ChatInfoPanel
-                  isOpen={showChatInfo}
-                  sessionId={selectedSessionId}
-                  onOpenArtifact={artifactPanel.openArtifact}
-                />
-              </Surface>
-
-              <ThemePanel isOpen={themePanelOpen} onClose={() => setThemePanelOpen(false)} />
+              <ArtifactPanel
+                isOpen={planPanelOpen || artifactPanel.panelOpen}
+                isPlanMode={isPlanMode}
+                isPlanArtifact={!!planArtifactId && !artifactPanel.panelOpen}
+                title={artifactPanel.artifact?.title ?? planTitle}
+                filePath={artifactPanel.artifact?.filePath ?? planFilePath}
+                status={artifactPanel.artifact?.status ?? planStatus}
+                content={artifactPanel.panelOpen ? (artifactPanel.artifact?.content ?? '') : (artifactPanel.artifact?.content ?? planContent)}
+                loadError={planLoadError}
+                comments={artifactPanel.pendingComments}
+                sessionArtifacts={artifactPanel.sessionArtifacts}
+                activeArtifactId={artifactPanel.activeArtifactId}
+                onAddComment={artifactPanel.addComment}
+                onSubmitReview={artifactPanel.submitReview}
+                onApprove={artifactPanel.handleApprove}
+                onReject={artifactPanel.handleReject}
+                onClose={artifactPanel.panelOpen ? artifactPanel.closePanel : handlePlanClose}
+                onSelectArtifact={artifactPanel.openArtifact}
+              />
             </div>
+
+            <ChatInfoPanel
+              isOpen={showChatInfo}
+              sessionId={selectedSessionId}
+              onOpenArtifact={artifactPanel.openArtifact}
+            />
+          </Surface>
+
+          <ThemePanel
+            isOpen={themePanelOpen}
+            onClose={() => setThemePanelOpen(false)}
+          />
           </div>
         </div>
+      </div>
 
-        <CreateProjectDialog
-          open={createProjectDialogOpen}
-          onOpenChange={handleProjectDialogOpenChange}
-          onCreated={handleProjectCreated}
-        />
-        <ConfirmDialog />
-        <AgentQuestionDialog />
+      <CreateProjectDialog
+        open={createProjectDialogOpen}
+        onOpenChange={handleProjectDialogOpenChange}
+        onCreated={handleProjectCreated}
+      />
+      <ConfirmDialog />
+      <AgentQuestionDialog />
       </TooltipProvider>
     </ShellProvider>
   );

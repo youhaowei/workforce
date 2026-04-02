@@ -8,19 +8,19 @@
  * component reactive to cache invalidations from mutations (cancel/pause/resume).
  */
 
-import { useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useTRPC } from "@/bridge/react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Pause, Play, XCircle, Plus } from "lucide-react";
-import { stateVariant } from "@/ui/lib/stateVariant";
-import { AgentOverview } from "./AgentOverview";
-import { AgentMessages } from "./AgentMessages";
-import { AgentActions } from "./AgentActions";
-import { AgentAudit } from "./AgentAudit";
-import type { SessionLifecycle } from "@/services/types";
+import { useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTRPC } from '@/bridge/react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Pause, Play, XCircle, Plus } from 'lucide-react';
+import { stateVariant } from '@/ui/lib/stateVariant';
+import { AgentOverview } from './AgentOverview';
+import { AgentMessages } from './AgentMessages';
+import { AgentActions } from './AgentActions';
+import { AgentAudit } from './AgentAudit';
+import type { SessionLifecycle } from '@/services/types';
 
 export interface AgentDetailViewProps {
   sessionId: string;
@@ -32,57 +32,56 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
-  const { data: session } = useQuery(trpc.session.get.queryOptions({ sessionId }));
+  const { data: session } = useQuery(
+    trpc.session.get.queryOptions({ sessionId }),
+  );
 
   const lifecycle = session?.metadata?.lifecycle as SessionLifecycle | undefined;
-  const state = lifecycle?.state ?? "created";
-  const goal = (session?.metadata?.goal as string) ?? "No goal set";
+  const state = lifecycle?.state ?? 'created';
+  const goal = (session?.metadata?.goal as string) ?? 'No goal set';
   const templateId = session?.metadata?.templateId as string | undefined;
   const orgId = session?.metadata?.orgId as string | undefined;
 
   const cancelMutation = useMutation(
     trpc.orchestration.cancelAgent.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["session"] }),
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
     }),
   );
 
   const pauseMutation = useMutation(
     trpc.orchestration.pauseAgent.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["session"] }),
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
     }),
   );
 
   const resumeMutation = useMutation(
     trpc.orchestration.resumeAgent.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["session"] }),
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
     }),
   );
 
   const spawnMutation = useMutation(
     trpc.orchestration.spawn.mutationOptions({
-      onSuccess: () => queryClient.invalidateQueries({ queryKey: ["session"] }),
+      onSuccess: () => queryClient.invalidateQueries({ queryKey: ['session'] }),
     }),
   );
 
-  const handleAction = useCallback(
-    (action: string) => {
-      if (action === "cancel") {
-        cancelMutation.mutate({ sessionId, reason: "User cancelled" });
-      } else if (action === "pause") {
-        pauseMutation.mutate({ sessionId, reason: "User paused" });
-      } else if (action === "resume") {
-        resumeMutation.mutate({ sessionId });
-      }
-    },
-    [sessionId, cancelMutation, pauseMutation, resumeMutation],
-  );
+  const handleAction = useCallback((action: string) => {
+    if (action === 'cancel') {
+      cancelMutation.mutate({ sessionId, reason: 'User cancelled' });
+    } else if (action === 'pause') {
+      pauseMutation.mutate({ sessionId, reason: 'User paused' });
+    } else if (action === 'resume') {
+      resumeMutation.mutate({ sessionId });
+    }
+  }, [sessionId, cancelMutation, pauseMutation, resumeMutation]);
 
   const handleSpawnChild = useCallback(() => {
     if (!orgId || !templateId) return;
     spawnMutation.mutate({
       orgId,
       templateId,
-      goal: "Sub-task",
+      goal: 'Sub-task',
       parentSessionId: sessionId,
     });
   }, [orgId, templateId, sessionId, spawnMutation]);
@@ -115,37 +114,27 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
       </div>
 
       {/* Action buttons */}
-      {(state === "active" || state === "paused") && (
+      {(state === 'active' || state === 'paused') && (
         <div className="flex gap-2 mb-4 ml-10">
-          {state === "active" && (
+          {state === 'active' && (
             <>
-              <Button variant="outline" size="sm" onClick={() => handleAction("pause")}>
+              <Button variant="outline" size="sm" onClick={() => handleAction('pause')}>
                 <Pause className="h-3 w-3 mr-1.5" />
                 Pause
               </Button>
-              <Button
-                variant="solid"
-                color="danger"
-                size="sm"
-                onClick={() => handleAction("cancel")}
-              >
+              <Button variant="solid" color="danger" size="sm" onClick={() => handleAction('cancel')}>
                 <XCircle className="h-3 w-3 mr-1.5" />
                 Cancel
               </Button>
             </>
           )}
-          {state === "paused" && (
+          {state === 'paused' && (
             <>
-              <Button size="sm" onClick={() => handleAction("resume")}>
+              <Button size="sm" onClick={() => handleAction('resume')}>
                 <Play className="h-3 w-3 mr-1.5" />
                 Resume
               </Button>
-              <Button
-                variant="solid"
-                color="danger"
-                size="sm"
-                onClick={() => handleAction("cancel")}
-              >
+              <Button variant="solid" color="danger" size="sm" onClick={() => handleAction('cancel')}>
                 <XCircle className="h-3 w-3 mr-1.5" />
                 Cancel
               </Button>

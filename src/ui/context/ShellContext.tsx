@@ -1,6 +1,6 @@
-import { createContext, useContext, type ReactNode } from "react";
-import type { Project, AgentConfig } from "@/services/types";
-import type { ForkInfo } from "../components/Messages/MessageItem";
+import { createContext, useContext, type ReactNode } from 'react';
+import type { Project, AgentConfig } from '@/services/types';
+import type { ForkInfo } from '../components/Messages/MessageItem';
 
 export interface ShellContextValue {
   // Session state
@@ -12,7 +12,7 @@ export interface ShellContextValue {
   // Messages
   messages: Array<{
     id: string;
-    role: "user" | "assistant" | "system";
+    role: 'user' | 'assistant' | 'system';
     content: string;
     timestamp: number;
     isStreaming: boolean;
@@ -50,20 +50,14 @@ export interface ShellContextValue {
 
 const ShellContext = createContext<ShellContextValue | null>(null);
 
-export function ShellProvider({
-  children,
-  value,
-}: {
-  children: ReactNode;
-  value: ShellContextValue;
-}) {
+export function ShellProvider({ children, value }: { children: ReactNode; value: ShellContextValue }) {
   return <ShellContext.Provider value={value}>{children}</ShellContext.Provider>;
 }
 
 export function useShell() {
   const context = useContext(ShellContext);
   if (!context) {
-    throw new Error("useShell must be used within ShellProvider");
+    throw new Error('useShell must be used within ShellProvider');
   }
   return context;
 }

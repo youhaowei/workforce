@@ -1,11 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import type { ContentBlock } from "@/services/types";
-import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
-import { useMessagesStore } from "@/ui/stores/useMessagesStore";
-import QuestionCard from "./QuestionCard";
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import type { ContentBlock } from '@/services/types';
+import { useAgentQuestionStore } from '@/ui/stores/useAgentQuestionStore';
+import { useMessagesStore } from '@/ui/stores/useMessagesStore';
+import QuestionCard from './QuestionCard';
 
-vi.mock("@/bridge/trpc", () => ({
+vi.mock('@/bridge/trpc', () => ({
   trpc: {
     agent: {
       submitAnswer: { mutate: vi.fn() },
@@ -22,9 +22,9 @@ class MockIntersectionObserver {
   disconnect() {}
 }
 
-describe("QuestionCard", () => {
+describe('QuestionCard', () => {
   beforeEach(() => {
-    vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+    vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
     useAgentQuestionStore.setState({
       pending: null,
       cardVisible: false,
@@ -34,7 +34,7 @@ describe("QuestionCard", () => {
     useMessagesStore.setState({
       messages: [],
       activeSessionId: null,
-      streamingContent: "",
+      streamingContent: '',
       streamingBlocks: [],
       streamingMessageId: null,
       isStreaming: false,
@@ -44,38 +44,38 @@ describe("QuestionCard", () => {
     });
   });
 
-  it("keeps previously answered question blocks in answered state when another question is pending", () => {
-    const block: ContentBlock & { type: "tool_use" } = {
-      type: "tool_use",
-      id: "old_question",
-      name: "AskUserQuestion",
-      input: "",
-      status: "complete",
+  it('keeps previously answered question blocks in answered state when another question is pending', () => {
+    const block: ContentBlock & { type: 'tool_use' } = {
+      type: 'tool_use',
+      id: 'old_question',
+      name: 'AskUserQuestion',
+      input: '',
+      status: 'complete',
       inputRaw: {
         questions: [
           {
-            id: "scope",
-            header: "Scope",
-            question: "What should this cover?",
+            id: 'scope',
+            header: 'Scope',
+            question: 'What should this cover?',
             freeform: false,
-            options: [{ label: "Docs", description: "Update docs" }],
+            options: [{ label: 'Docs', description: 'Update docs' }],
           },
         ],
       },
-      result: { scope: ["Docs"] },
+      result: { scope: ['Docs'] },
     };
 
     useAgentQuestionStore.setState({
       pending: {
-        requestId: "live_question",
-        sessionId: "sess_1",
+        requestId: 'live_question',
+        sessionId: 'sess_1',
         questions: [
           {
-            id: "priority",
-            header: "Priority",
-            question: "How urgent is this?",
+            id: 'priority',
+            header: 'Priority',
+            question: 'How urgent is this?',
             freeform: false,
-            options: [{ label: "High", description: "Ship it quickly" }],
+            options: [{ label: 'High', description: 'Ship it quickly' }],
             secret: false,
           },
         ],
@@ -87,10 +87,10 @@ describe("QuestionCard", () => {
 
     render(<QuestionCard block={block} />);
 
-    expect(screen.getByText("Question Answered")).toBeInTheDocument();
-    expect(screen.getByText("What should this cover?")).toBeInTheDocument();
-    expect(screen.getByText("Docs")).toBeInTheDocument();
-    expect(screen.queryByText("Agent Question")).not.toBeInTheDocument();
-    expect(screen.queryByText("How urgent is this?")).not.toBeInTheDocument();
+    expect(screen.getByText('Question Answered')).toBeInTheDocument();
+    expect(screen.getByText('What should this cover?')).toBeInTheDocument();
+    expect(screen.getByText('Docs')).toBeInTheDocument();
+    expect(screen.queryByText('Agent Question')).not.toBeInTheDocument();
+    expect(screen.queryByText('How urgent is this?')).not.toBeInTheDocument();
   });
 });

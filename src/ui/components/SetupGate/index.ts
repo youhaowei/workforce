@@ -1,1 +1,1 @@
-export { SetupGate } from "./SetupGate";
+export { SetupGate } from './SetupGate';

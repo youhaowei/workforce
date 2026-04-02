@@ -5,48 +5,34 @@
  * Supports grouping by created date, last active, project, or status.
  */
 
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { Virtuoso } from "react-virtuoso";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Virtuoso } from 'react-virtuoso';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Search,
-  Plus,
-  X,
-  ChevronDown,
-  ChevronRight,
-  FolderGit2,
-  Activity,
-  Shapes,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Calendar,
-  Clock,
-  Folder,
-} from "lucide-react";
-import type { Project, SessionSummary } from "@/services/types";
-import { SessionItem } from "./SessionItem";
-import { filterSessions, groupSessions } from "./sessionListHelpers";
-import type { GroupByMode, SortDirection, SessionGroup } from "./sessionListHelpers";
-import { FilterDropdown } from "./SessionListUIHelpers";
-import { renderEmptyState } from "./renderEmptyState";
+} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Search, Plus, X, ChevronDown, ChevronRight, FolderGit2, Activity, Shapes, ArrowUpDown, ArrowUp, ArrowDown, Calendar, Clock, Folder } from 'lucide-react';
+import type { Project, SessionSummary } from '@/services/types';
+import { SessionItem } from './SessionItem';
+import { filterSessions, groupSessions } from './sessionListHelpers';
+import type { GroupByMode, SortDirection, SessionGroup } from './sessionListHelpers';
+import { FilterDropdown } from './SessionListUIHelpers';
+import { renderEmptyState } from './renderEmptyState';
 
-const GROUP_BY_STORAGE_KEY = "workforce:sessions-group-by";
+
+const GROUP_BY_STORAGE_KEY = 'workforce:sessions-group-by';
 
 const GROUP_BY_OPTIONS: { value: GroupByMode; label: string; icon: typeof Calendar }[] = [
-  { value: "date", label: "Created", icon: Calendar },
-  { value: "active", label: "Active", icon: Clock },
-  { value: "project", label: "Project", icon: Folder },
-  { value: "status", label: "Status", icon: Activity },
+  { value: 'date', label: 'Created', icon: Calendar },
+  { value: 'active', label: 'Active', icon: Clock },
+  { value: 'project', label: 'Project', icon: Folder },
+  { value: 'status', label: 'Status', icon: Activity },
 ];
 
 const VALID_GROUP_BY_MODES: ReadonlySet<GroupByMode> = new Set(
@@ -61,69 +47,60 @@ function getInitialGroupBy(groupByProp: GroupByMode): GroupByMode {
   if (VALID_GROUP_BY_MODES.has(groupByProp)) {
     return groupByProp;
   }
-  return "date";
+  return 'date';
 }
 
-export type { GroupByMode } from "./sessionListHelpers";
+export type { GroupByMode } from './sessionListHelpers';
 
 // =============================================================================
 // Filter Types
 // =============================================================================
 
-type SortField = "default" | "created" | "active" | "title" | "messages";
+type SortField = 'default' | 'created' | 'active' | 'title' | 'messages';
 
 const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
-  { value: "default", label: "Same as group" },
-  { value: "created", label: "Created" },
-  { value: "active", label: "Last active" },
-  { value: "title", label: "Title" },
-  { value: "messages", label: "Messages" },
+  { value: 'default', label: 'Same as group' },
+  { value: 'created', label: 'Created' },
+  { value: 'active', label: 'Last active' },
+  { value: 'title', label: 'Title' },
+  { value: 'messages', label: 'Messages' },
 ];
 
-type StatusFilter = "all" | "active" | "completed" | "failed";
-type TypeFilterMode = "all" | "chat" | "workagent" | "external";
+type StatusFilter = 'all' | 'active' | 'completed' | 'failed';
+type TypeFilterMode = 'all' | 'chat' | 'workagent' | 'external';
 
-const FILTERS_STORAGE_KEY = "workforce:sessions-filters";
-const SORT_STORAGE_KEY = "workforce:sessions-sort";
+const FILTERS_STORAGE_KEY = 'workforce:sessions-filters';
+const SORT_STORAGE_KEY = 'workforce:sessions-sort';
 
-const VALID_STATUS = new Set<StatusFilter>(["all", "active", "completed", "failed"]);
-const VALID_TYPE = new Set<TypeFilterMode>(["all", "chat", "workagent", "external"]);
-const VALID_SORT_FIELDS = new Set<SortField>(["default", "created", "active", "title", "messages"]);
-const VALID_SORT_DIRS = new Set<SortDirection>(["asc", "desc"]);
+const VALID_STATUS = new Set<StatusFilter>(['all', 'active', 'completed', 'failed']);
+const VALID_TYPE = new Set<TypeFilterMode>(['all', 'chat', 'workagent', 'external']);
+const VALID_SORT_FIELDS = new Set<SortField>(['default', 'created', 'active', 'title', 'messages']);
+const VALID_SORT_DIRS = new Set<SortDirection>(['asc', 'desc']);
 
 function getInitialFilters(): { status: StatusFilter; type: TypeFilterMode } {
   try {
-    const parsed = JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) ?? "");
-    if (parsed && typeof parsed === "object") {
+    const parsed = JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) ?? '');
+    if (parsed && typeof parsed === 'object') {
       return {
-        status: VALID_STATUS.has(parsed.status) ? parsed.status : "all",
-        type: VALID_TYPE.has(parsed.type) ? parsed.type : "all",
+        status: VALID_STATUS.has(parsed.status) ? parsed.status : 'all',
+        type: VALID_TYPE.has(parsed.type) ? parsed.type : 'all',
       };
     }
-  } catch {
-    /* ignore */
-  }
-  return { status: "all", type: "all" };
+  } catch { /* ignore */ }
+  return { status: 'all', type: 'all' };
 }
 
-function getInitialSort(): {
-  dir: SortDirection;
-  secondary: { field: SortField; dir: SortDirection };
-} {
+function getInitialSort(): { dir: SortDirection; secondary: { field: SortField; dir: SortDirection } } {
   try {
-    const parsed = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) ?? "");
-    if (parsed && typeof parsed === "object") {
-      const dir = VALID_SORT_DIRS.has(parsed.dir) ? parsed.dir : "desc";
-      const secField = VALID_SORT_FIELDS.has(parsed.secondary?.field)
-        ? parsed.secondary.field
-        : "default";
-      const secDir = VALID_SORT_DIRS.has(parsed.secondary?.dir) ? parsed.secondary.dir : "desc";
+    const parsed = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) ?? '');
+    if (parsed && typeof parsed === 'object') {
+      const dir = VALID_SORT_DIRS.has(parsed.dir) ? parsed.dir : 'desc';
+      const secField = VALID_SORT_FIELDS.has(parsed.secondary?.field) ? parsed.secondary.field : 'default';
+      const secDir = VALID_SORT_DIRS.has(parsed.secondary?.dir) ? parsed.secondary.dir : 'desc';
       return { dir, secondary: { field: secField, dir: secDir } };
     }
-  } catch {
-    /* ignore */
-  }
-  return { dir: "desc", secondary: { field: "default", dir: "desc" } };
+  } catch { /* ignore */ }
+  return { dir: 'desc', secondary: { field: 'default', dir: 'desc' } };
 }
 
 // =============================================================================
@@ -131,39 +108,21 @@ function getInitialSort(): {
 // =============================================================================
 
 type FlatItem =
-  | {
-      kind: "header";
-      label: string;
-      key: string;
-      count: number;
-      collapsible: boolean;
-      collapsed: boolean;
-    }
-  | { kind: "session"; session: SessionSummary };
+  | { kind: 'header'; label: string; key: string; count: number; collapsible: boolean; collapsed: boolean }
+  | { kind: 'session'; session: SessionSummary };
 
-function compareByField(
-  a: SessionSummary,
-  b: SessionSummary,
-  field: SortField,
-  dir: SortDirection,
-  groupBy: GroupByMode,
-): number {
-  const mul = dir === "desc" ? -1 : 1;
+function compareByField(a: SessionSummary, b: SessionSummary, field: SortField, dir: SortDirection, groupBy: GroupByMode): number {
+  const mul = dir === 'desc' ? -1 : 1;
   let resolvedField = field;
-  if (field === "default") {
-    resolvedField = groupBy === "active" ? "active" : "created";
+  if (field === 'default') {
+    resolvedField = groupBy === 'active' ? 'active' : 'created';
   }
   switch (resolvedField) {
-    case "created":
-      return mul * (a.createdAt - b.createdAt);
-    case "active":
-      return mul * (a.updatedAt - b.updatedAt);
-    case "title":
-      return mul * (a.title ?? "").localeCompare(b.title ?? "");
-    case "messages":
-      return mul * (a.messageCount - b.messageCount);
-    default:
-      return 0;
+    case 'created': return mul * (a.createdAt - b.createdAt);
+    case 'active': return mul * (a.updatedAt - b.updatedAt);
+    case 'title': return mul * (a.title ?? '').localeCompare(b.title ?? '');
+    case 'messages': return mul * (a.messageCount - b.messageCount);
+    default: return 0;
   }
 }
 
@@ -176,26 +135,17 @@ function flattenGroups(
   if (!groups) return [];
 
   const items: FlatItem[] = [];
-  const collapsible = groupBy !== "date";
+  const collapsible = groupBy !== 'date';
 
   for (const group of groups) {
     const collapsed = collapsible && collapsedGroups.has(group.key);
     const sorted = secondary
-      ? [...group.sessions].sort((a, b) =>
-          compareByField(a, b, secondary.field, secondary.dir, groupBy),
-        )
+      ? [...group.sessions].sort((a, b) => compareByField(a, b, secondary.field, secondary.dir, groupBy))
       : group.sessions;
-    items.push({
-      kind: "header",
-      label: group.label,
-      key: group.key,
-      count: sorted.length,
-      collapsible,
-      collapsed,
-    });
+    items.push({ kind: 'header', label: group.label, key: group.key, count: sorted.length, collapsible, collapsed });
     if (!collapsed) {
       for (const session of sorted) {
-        items.push({ kind: "session", session });
+        items.push({ kind: 'session', session });
       }
     }
   }
@@ -221,32 +171,27 @@ export interface SessionListProps {
 export function SessionList({
   sessions,
   activeSessionId,
-  typeFilter = "all",
-  stateFilter = "all",
-  groupBy: groupByProp = "date",
+  typeFilter = 'all',
+  stateFilter = 'all',
+  groupBy: groupByProp = 'date',
   projectMap,
   onSelect,
   onDelete,
   onCreate,
 }: SessionListProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [groupBy, setGroupBy] = useState<GroupByMode>(() => getInitialGroupBy(groupByProp));
   const [filters, setFilters] = useState(getInitialFilters);
   const [{ dir: initialDir, secondary: initialSecondary }] = useState(getInitialSort);
   const [sortDir, setSortDir] = useState<SortDirection>(initialDir);
-  const [secondarySort, setSecondarySort] = useState<{ field: SortField; dir: SortDirection }>(
-    initialSecondary,
-  );
+  const [secondarySort, setSecondarySort] = useState<{ field: SortField; dir: SortDirection }>(initialSecondary);
 
-  const persistSort = useCallback(
-    (dir: SortDirection, secondary: { field: SortField; dir: SortDirection }) => {
-      localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify({ dir, secondary }));
-    },
-    [],
-  );
+  const persistSort = useCallback((dir: SortDirection, secondary: { field: SortField; dir: SortDirection }) => {
+    localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify({ dir, secondary }));
+  }, []);
 
   const handleGroupByChange = useCallback((mode: string) => {
     if (!VALID_GROUP_BY_MODES.has(mode as GroupByMode)) return;
@@ -255,16 +200,13 @@ export function SessionList({
     setCollapsedGroups(new Set());
   }, []);
 
-  const updateFilter = useCallback(
-    <K extends keyof typeof filters>(key: K, value: (typeof filters)[K]) => {
-      setFilters((prev) => {
-        const next = { ...prev, [key]: value };
-        localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(next));
-        return next;
-      });
-    },
-    [],
-  );
+  const updateFilter = useCallback(<K extends keyof typeof filters>(key: K, value: (typeof filters)[K]) => {
+    setFilters((prev) => {
+      const next = { ...prev, [key]: value };
+      localStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(searchQuery), 300);
@@ -274,20 +216,20 @@ export function SessionList({
   const filteredSessions = useMemo(() => {
     let result = filterSessions(sessions, typeFilter, stateFilter, debouncedQuery);
 
-    if (filters.status !== "all") {
+    if (filters.status !== 'all') {
       result = result.filter((s) => {
         const lifecycle = s.metadata?.lifecycle as { state?: string } | undefined;
-        const state = lifecycle?.state ?? "created";
-        if (filters.status === "active") return state === "active" || state === "created";
-        if (filters.status === "completed") return state === "completed";
-        if (filters.status === "failed") return state === "failed";
+        const state = lifecycle?.state ?? 'created';
+        if (filters.status === 'active') return state === 'active' || state === 'created';
+        if (filters.status === 'completed') return state === 'completed';
+        if (filters.status === 'failed') return state === 'failed';
         return true;
       });
     }
-    if (filters.type !== "all") {
+    if (filters.type !== 'all') {
       result = result.filter((s) => {
-        if (filters.type === "external") return s.metadata?.source === "claude-code";
-        const sessionType = (s.metadata?.type as string) ?? "chat";
+        if (filters.type === 'external') return s.metadata?.source === 'claude-code';
+        const sessionType = (s.metadata?.type as string) ?? 'chat';
         return sessionType === filters.type;
       });
     }
@@ -301,15 +243,9 @@ export function SessionList({
   );
 
   const flatItems = useMemo(
-    () =>
-      groups !== null
-        ? flattenGroups(
-            groups,
-            groupBy,
-            collapsedGroups,
-            secondarySort.field !== "default" ? secondarySort : undefined,
-          )
-        : filteredSessions.map((s): FlatItem => ({ kind: "session", session: s })),
+    () => groups !== null
+      ? flattenGroups(groups, groupBy, collapsedGroups, secondarySort.field !== 'default' ? secondarySort : undefined)
+      : filteredSessions.map((s): FlatItem => ({ kind: 'session', session: s })),
     [groups, groupBy, collapsedGroups, filteredSessions, secondarySort],
   );
 
@@ -329,68 +265,55 @@ export function SessionList({
   }, []);
 
   const clearSearch = () => {
-    setSearchQuery("");
-    setDebouncedQuery("");
+    setSearchQuery('');
+    setDebouncedQuery('');
     searchInputRef.current?.focus();
   };
 
-  const renderItem = useCallback(
-    (_index: number, item: FlatItem) => {
-      if (item.kind === "header") {
-        if (!item.collapsible) {
-          return (
-            <div className="px-3 py-2 text-[11px] font-medium text-neutral-fg-subtle/60 tracking-wider select-none">
-              {item.label}
-            </div>
-          );
-        }
+  const renderItem = useCallback((_index: number, item: FlatItem) => {
+    if (item.kind === 'header') {
+      if (!item.collapsible) {
         return (
-          <button
-            onClick={() => toggleGroup(item.key)}
-            aria-expanded={!item.collapsed}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-neutral-fg-subtle hover:bg-neutral-bg-dim/50 transition-colors"
-          >
-            {item.collapsed ? (
-              <ChevronRight className="h-3 w-3" />
-            ) : (
-              <ChevronDown className="h-3 w-3" />
-            )}
-            {groupBy === "project" && <FolderGit2 className="h-3 w-3 shrink-0" />}
-            <span className="truncate">{item.label}</span>
-            <span className="ml-auto text-[10px]">{item.count}</span>
-          </button>
+          <div className="px-3 py-2 text-[11px] font-medium text-neutral-fg-subtle/60 tracking-wider select-none">
+            {item.label}
+          </div>
         );
       }
-
-      const session = item.session;
-      const projectId = session.metadata?.projectId as string | undefined;
-      const cwd = session.metadata?.cwd as string | undefined;
-      const project =
-        (projectId ? projectMap?.get(projectId) : undefined) ??
-        (cwd ? cwdToProject.get(cwd) : undefined);
-      const cwdPath = !project && cwd ? cwd : undefined;
       return (
-        <SessionItem
-          session={session}
-          isActive={session.id === activeSessionId}
-          projectName={project?.name || cwdPath}
-          projectColor={project?.color}
-          isCwdFolder={!project && !!cwdPath}
-          timeField={groupBy === "date" ? "createdAt" : "updatedAt"}
-          onSelect={onSelect}
-          onDelete={onDelete}
-        />
+        <button
+          onClick={() => toggleGroup(item.key)}
+          aria-expanded={!item.collapsed}
+          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-neutral-fg-subtle hover:bg-neutral-bg-dim/50 transition-colors"
+        >
+          {item.collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+          {groupBy === 'project' && <FolderGit2 className="h-3 w-3 shrink-0" />}
+          <span className="truncate">{item.label}</span>
+          <span className="ml-auto text-[10px]">{item.count}</span>
+        </button>
       );
-    },
-    [activeSessionId, groupBy, projectMap, cwdToProject, onSelect, onDelete, toggleGroup],
-  );
+    }
 
-  const emptyState = renderEmptyState(
-    filteredSessions.length,
-    sessions.length,
-    debouncedQuery,
-    onCreate,
-  );
+    const session = item.session;
+    const projectId = session.metadata?.projectId as string | undefined;
+    const cwd = session.metadata?.cwd as string | undefined;
+    const project = (projectId ? projectMap?.get(projectId) : undefined)
+      ?? (cwd ? cwdToProject.get(cwd) : undefined);
+    const cwdPath = !project && cwd ? cwd : undefined;
+    return (
+      <SessionItem
+        session={session}
+        isActive={session.id === activeSessionId}
+        projectName={project?.name || cwdPath}
+        projectColor={project?.color}
+        isCwdFolder={!project && !!cwdPath}
+        timeField={groupBy === 'date' ? 'createdAt' : 'updatedAt'}
+        onSelect={onSelect}
+        onDelete={onDelete}
+      />
+    );
+  }, [activeSessionId, groupBy, projectMap, cwdToProject, onSelect, onDelete, toggleGroup]);
+
+  const emptyState = renderEmptyState(filteredSessions.length, sessions.length, debouncedQuery, onCreate);
 
   return (
     <div className="flex flex-col h-full min-w-0">
@@ -430,7 +353,7 @@ export function SessionList({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-1 h-6 px-1.5 rounded text-[11px] text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-dim/50 transition-colors shrink-0">
-              {GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? "Group"}
+              {GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? 'Group'}
               <ChevronDown className="h-2.5 w-2.5" />
             </button>
           </DropdownMenuTrigger>
@@ -457,27 +380,17 @@ export function SessionList({
               <p className="text-[10px] text-neutral-fg-subtle mb-1">Group order</p>
               <div className="flex gap-1">
                 <button
-                  onClick={() => {
-                    setSortDir("desc");
-                    persistSort("desc", secondarySort);
-                  }}
+                  onClick={() => { setSortDir('desc'); persistSort('desc', secondarySort); }}
                   className={`flex-1 flex items-center justify-center gap-1 h-7 rounded text-xs transition-colors ${
-                    sortDir === "desc"
-                      ? "bg-neutral-bg-subtle text-neutral-fg font-medium"
-                      : "text-neutral-fg-subtle hover:bg-neutral-bg-dim/50"
+                    sortDir === 'desc' ? 'bg-neutral-bg-subtle text-neutral-fg font-medium' : 'text-neutral-fg-subtle hover:bg-neutral-bg-dim/50'
                   }`}
                 >
                   <ArrowDown className="h-3 w-3" /> Newest
                 </button>
                 <button
-                  onClick={() => {
-                    setSortDir("asc");
-                    persistSort("asc", secondarySort);
-                  }}
+                  onClick={() => { setSortDir('asc'); persistSort('asc', secondarySort); }}
                   className={`flex-1 flex items-center justify-center gap-1 h-7 rounded text-xs transition-colors ${
-                    sortDir === "asc"
-                      ? "bg-neutral-bg-subtle text-neutral-fg font-medium"
-                      : "text-neutral-fg-subtle hover:bg-neutral-bg-dim/50"
+                    sortDir === 'asc' ? 'bg-neutral-bg-subtle text-neutral-fg font-medium' : 'text-neutral-fg-subtle hover:bg-neutral-bg-dim/50'
                   }`}
                 >
                   <ArrowUp className="h-3 w-3" /> Oldest
@@ -489,35 +402,18 @@ export function SessionList({
               <div className="flex gap-1">
                 <select
                   value={secondarySort.field}
-                  onChange={(e) => {
-                    const next = { ...secondarySort, field: e.target.value as SortField };
-                    setSecondarySort(next);
-                    persistSort(sortDir, next);
-                  }}
+                  onChange={(e) => { const next = { ...secondarySort, field: e.target.value as SortField }; setSecondarySort(next); persistSort(sortDir, next); }}
                   className="flex-1 h-7 rounded border border-neutral-border bg-transparent text-xs px-1.5"
                 >
                   {SORT_FIELD_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
                   ))}
                 </select>
                 <button
-                  onClick={() => {
-                    const next = {
-                      ...secondarySort,
-                      dir: (secondarySort.dir === "desc" ? "asc" : "desc") as SortDirection,
-                    };
-                    setSecondarySort(next);
-                    persistSort(sortDir, next);
-                  }}
+                  onClick={() => { const next = { ...secondarySort, dir: (secondarySort.dir === 'desc' ? 'asc' : 'desc') as SortDirection }; setSecondarySort(next); persistSort(sortDir, next); }}
                   className="h-7 w-7 flex items-center justify-center rounded text-neutral-fg-subtle hover:bg-neutral-bg-dim/50 transition-colors"
                 >
-                  {secondarySort.dir === "desc" ? (
-                    <ArrowDown className="h-3 w-3" />
-                  ) : (
-                    <ArrowUp className="h-3 w-3" />
-                  )}
+                  {secondarySort.dir === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
                 </button>
               </div>
             </div>
@@ -533,31 +429,37 @@ export function SessionList({
           icon={Activity}
           value={filters.status}
           options={[
-            { value: "all", label: "All" },
-            { value: "active", label: "Active" },
-            { value: "completed", label: "Done" },
-            { value: "failed", label: "Failed" },
+            { value: 'all', label: 'All' },
+            { value: 'active', label: 'Active' },
+            { value: 'completed', label: 'Done' },
+            { value: 'failed', label: 'Failed' },
           ]}
-          onChange={(v) => updateFilter("status", v)}
+          onChange={(v) => updateFilter('status', v)}
         />
         <FilterDropdown<TypeFilterMode>
           label="Type"
           icon={Shapes}
           value={filters.type}
           options={[
-            { value: "all", label: "All" },
-            { value: "chat", label: "Chat" },
-            { value: "workagent", label: "Agent" },
-            { value: "external", label: "External" },
+            { value: 'all', label: 'All' },
+            { value: 'chat', label: 'Chat' },
+            { value: 'workagent', label: 'Agent' },
+            { value: 'external', label: 'External' },
           ]}
-          onChange={(v) => updateFilter("type", v)}
+          onChange={(v) => updateFilter('type', v)}
         />
       </div>
 
       {/* Session list (virtualized) */}
       <div className="flex-1">
         {emptyState}
-        {!emptyState && <Virtuoso data={flatItems} itemContent={renderItem} className="h-full" />}
+        {!emptyState && (
+          <Virtuoso
+            data={flatItems}
+            itemContent={renderItem}
+            className="h-full [scrollbar-gutter:stable]"
+          />
+        )}
       </div>
     </div>
   );

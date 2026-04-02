@@ -1,6 +1,6 @@
-import { createLazyFileRoute } from "@tanstack/react-router";
-import { WorkflowListView } from "../components/Workflows";
+import {createLazyFileRoute} from '@tanstack/react-router';
+import {WorkflowListView} from '../components/Workflows';
 
-export const Route = createLazyFileRoute("/workflows")({
+export const Route = createLazyFileRoute('/workflows')({
   component: WorkflowListView,
 });

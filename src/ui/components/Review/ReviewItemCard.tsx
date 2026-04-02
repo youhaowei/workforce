@@ -2,26 +2,22 @@
  * ReviewItemCard - A single review item in the queue.
  */
 
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ReviewActions } from "./ReviewActions";
-import type { ReviewItem } from "@/services/types";
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ReviewActions } from './ReviewActions';
+import type { ReviewItem } from '@/services/types';
 
 export interface ReviewItemCardProps {
   item: ReviewItem;
   onResolve: (action: string, comment?: string) => void;
 }
 
-function typeVariant(type: string): { variant?: "soft" | "outline"; color?: "primary" } {
+function typeVariant(type: string): { variant?: 'soft' | 'outline'; color?: 'primary' } {
   switch (type) {
-    case "approval":
-      return { color: "primary" };
-    case "clarification":
-      return { variant: "soft" };
-    case "review":
-      return { variant: "outline" };
-    default:
-      return { variant: "outline" };
+    case 'approval': return { color: 'primary' };
+    case 'clarification': return { variant: 'soft' };
+    case 'review': return { variant: 'outline' };
+    default: return { variant: 'outline' };
   }
 }
 

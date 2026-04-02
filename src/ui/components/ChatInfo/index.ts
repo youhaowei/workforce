@@ -1,1 +1,1 @@
-export { ChatInfoPanel } from "./ChatInfoPanel";
+export { ChatInfoPanel } from './ChatInfoPanel';

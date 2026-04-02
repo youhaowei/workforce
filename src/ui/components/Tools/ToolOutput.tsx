@@ -2,53 +2,38 @@
  * ToolOutput - Expandable tool execution status and output display.
  */
 
-import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, ChevronDown, ChevronRight } from "lucide-react";
-import type { ToolUIStatus } from "@/ui/stores/useToolStore";
-import { formatToolResult } from "@/ui/formatters";
+import { useState, useMemo, useEffect, useCallback, type KeyboardEvent } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, ChevronDown, ChevronRight } from 'lucide-react';
+import type { ToolUIStatus } from '@/ui/stores/useToolStore';
+import { formatToolResult } from '@/ui/formatters';
 
 interface ToolOutputProps {
   toolName: string;
   args: unknown;
   result?: unknown;
   error?: string;
-  status: ToolUIStatus | "success" | "running";
+  status: ToolUIStatus | 'success' | 'running';
   duration?: number;
   startTime?: number;
 }
 
-function statusVariant(status: ToolOutputProps["status"]): {
-  variant?: "outline";
-  color?: "primary" | "success" | "danger";
-} {
+function statusVariant(status: ToolOutputProps['status']): { variant?: 'outline'; color?: 'primary' | 'success' | 'danger' } {
   switch (status) {
-    case "running":
-      return { color: "primary" };
-    case "success":
-      return { color: "success" };
-    case "failed":
-    case "cancelled":
-      return { color: "danger" };
-    default:
-      return { variant: "outline" };
+    case 'running': return { color: 'primary' };
+    case 'success': return { color: 'success' };
+    case 'failed':
+    case 'cancelled': return { color: 'danger' };
+    default: return { variant: 'outline' };
   }
 }
 
-export default function ToolOutput({
-  toolName,
-  args,
-  result,
-  error,
-  status,
-  duration,
-  startTime,
-}: ToolOutputProps) {
-  const [isExpanded, setIsExpanded] = useState(status === "failed");
+export default function ToolOutput({ toolName, args, result, error, status, duration, startTime }: ToolOutputProps) {
+  const [isExpanded, setIsExpanded] = useState(status === 'failed');
   const [elapsedTime, setElapsedTime] = useState(0);
 
   useEffect(() => {
-    if (status === "running" && startTime) {
+    if (status === 'running' && startTime) {
       const interval = setInterval(() => {
         setElapsedTime(Date.now() - startTime);
       }, 100);
@@ -57,14 +42,14 @@ export default function ToolOutput({
   }, [status, startTime]);
 
   const formattedResult = useMemo(() => {
-    if (error) return { summary: "", detail: "", isError: true };
-    if (result === undefined) return { summary: "", detail: "", isError: false };
+    if (error) return { summary: '', detail: '', isError: true };
+    if (result === undefined) return { summary: '', detail: '', isError: false };
     return formatToolResult(toolName, result);
   }, [error, result, toolName]);
 
   const formattedArgs = useMemo(() => {
     try {
-      if (!args || Object.keys(args as object).length === 0) return "";
+      if (!args || Object.keys(args as object).length === 0) return '';
       return JSON.stringify(args, null, 2);
     } catch {
       return String(args);
@@ -73,22 +58,19 @@ export default function ToolOutput({
 
   const displayDuration = useMemo(() => {
     if (duration !== undefined) return `${duration}ms`;
-    if (status === "running" && elapsedTime > 0) return `${Math.round(elapsedTime / 100) / 10}s`;
+    if (status === 'running' && elapsedTime > 0) return `${Math.round(elapsedTime / 100) / 10}s`;
     return null;
   }, [duration, status, elapsedTime]);
 
   const hasContent = Boolean(formattedArgs || formattedResult.detail || error);
 
   const toggle = useCallback(() => setIsExpanded((prev) => !prev), []);
-  const handleKeyDown = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggle();
-      }
-    },
-    [toggle],
-  );
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggle();
+    }
+  }, [toggle]);
 
   return (
     <div className="border rounded-md overflow-hidden text-sm bg-neutral-bg-subtle">
@@ -103,24 +85,13 @@ export default function ToolOutput({
         onKeyDown={handleKeyDown}
       >
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          {status === "running" && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
-          <span className="font-mono font-medium truncate" title={toolName}>
-            {toolName}
-          </span>
-          <Badge {...statusVariant(status)} className="text-[10px]">
-            {status}
-          </Badge>
+          {status === 'running' && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
+          <span className="font-mono font-medium truncate" title={toolName}>{toolName}</span>
+          <Badge {...statusVariant(status)} className="text-[10px]">{status}</Badge>
         </div>
         <div className="flex items-center gap-2">
-          {displayDuration && (
-            <span className="text-xs text-neutral-fg-subtle">{displayDuration}</span>
-          )}
-          {hasContent &&
-            (isExpanded ? (
-              <ChevronDown className="h-3 w-3 text-neutral-fg-subtle" />
-            ) : (
-              <ChevronRight className="h-3 w-3 text-neutral-fg-subtle" />
-            ))}
+          {displayDuration && <span className="text-xs text-neutral-fg-subtle">{displayDuration}</span>}
+          {hasContent && (isExpanded ? <ChevronDown className="h-3 w-3 text-neutral-fg-subtle" /> : <ChevronRight className="h-3 w-3 text-neutral-fg-subtle" />)}
         </div>
       </div>
 
@@ -133,21 +104,15 @@ export default function ToolOutput({
 
           {formattedArgs && (
             <details className="mb-2">
-              <summary className="cursor-pointer text-xs text-neutral-fg-subtle hover:text-neutral-fg">
-                Arguments
-              </summary>
-              <pre className="font-mono text-xs text-neutral-fg-subtle overflow-x-auto whitespace-pre-wrap mt-1">
-                {formattedArgs}
-              </pre>
+              <summary className="cursor-pointer text-xs text-neutral-fg-subtle hover:text-neutral-fg">Arguments</summary>
+              <pre className="font-mono text-xs text-neutral-fg-subtle overflow-x-auto whitespace-pre-wrap mt-1">{formattedArgs}</pre>
             </details>
           )}
 
           {error && <div className="text-xs text-palette-danger font-medium">{error}</div>}
 
           {!error && formattedResult.detail && (
-            <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">
-              {formattedResult.detail}
-            </pre>
+            <pre className="font-mono text-xs overflow-x-auto whitespace-pre-wrap max-h-64 overflow-y-auto">{formattedResult.detail}</pre>
           )}
         </div>
       )}

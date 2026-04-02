@@ -6,13 +6,13 @@
  * submit handling, and the dialog chrome (title, footer buttons).
  */
 
-import { useState, useMemo } from "react";
-import { FolderOpen, Check } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { PALETTE, colorFromName } from "@/shared/palette";
-import { useDirectoryPicker } from "@/ui/hooks/useDirectoryPicker";
+import { useState, useMemo } from 'react';
+import { FolderOpen, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { PALETTE, colorFromName } from '@/shared/palette';
+import { useDirectoryPicker } from '@/ui/hooks/useDirectoryPicker';
 
 export interface ProjectFormValues {
   name: string;
@@ -38,13 +38,15 @@ export function ProjectForm({
   onSubmit,
   isPending = false,
   disabled = false,
-  submitLabel = "Create",
-  pendingLabel = "Creating...",
+  submitLabel = 'Create',
+  pendingLabel = 'Creating...',
   onCancel,
 }: ProjectFormProps) {
-  const [name, setName] = useState(initialValues?.name ?? "");
-  const [rootPath, setRootPath] = useState(initialValues?.rootPath ?? "");
-  const [selectedColor, setSelectedColor] = useState<string | null>(initialValues?.color ?? null);
+  const [name, setName] = useState(initialValues?.name ?? '');
+  const [rootPath, setRootPath] = useState(initialValues?.rootPath ?? '');
+  const [selectedColor, setSelectedColor] = useState<string | null>(
+    initialValues?.color ?? null,
+  );
 
   const { pick, isPicking } = useDirectoryPicker();
 
@@ -103,7 +105,9 @@ export function ProjectForm({
             </Button>
           )}
         </div>
-        <p className="text-xs text-neutral-fg-subtle">Absolute path to the project directory</p>
+        <p className="text-xs text-neutral-fg-subtle">
+          Absolute path to the project directory
+        </p>
       </div>
 
       <div className="space-y-2">
@@ -118,7 +122,9 @@ export function ProjectForm({
               style={{ backgroundColor: color }}
               aria-label={`Select color ${color}`}
             >
-              {color === activeColor && <Check className="h-3.5 w-3.5 text-white" />}
+              {color === activeColor && (
+                <Check className="h-3.5 w-3.5 text-white" />
+              )}
             </button>
           ))}
         </div>
@@ -128,7 +134,10 @@ export function ProjectForm({
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={!name.trim() || !rootPath.trim() || isPending || disabled}>
+        <Button
+          type="submit"
+          disabled={!name.trim() || !rootPath.trim() || isPending || disabled}
+        >
           {isPending ? pendingLabel : submitLabel}
         </Button>
       </div>

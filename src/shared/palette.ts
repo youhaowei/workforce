@@ -6,18 +6,9 @@
  */
 
 export const PALETTE = [
-  "#E57373",
-  "#81C784",
-  "#64B5F6",
-  "#FFB74D",
-  "#BA68C8",
-  "#4DB6AC",
-  "#F06292",
-  "#AED581",
-  "#7986CB",
-  "#FFD54F",
-  "#A1887F",
-  "#90A4AE",
+  '#E57373', '#81C784', '#64B5F6', '#FFB74D', '#BA68C8',
+  '#4DB6AC', '#F06292', '#AED581', '#7986CB', '#FFD54F',
+  '#A1887F', '#90A4AE',
 ];
 
 export function colorFromName(name: string): string {

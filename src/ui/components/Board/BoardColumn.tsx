@@ -2,27 +2,21 @@
  * BoardColumn - A single status column in the Board view.
  */
 
-import { AgentCard } from "./AgentCard";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { stateVariant } from "@/ui/lib/stateVariant";
-import type { SessionSummary } from "@/services/types";
+import { AgentCard } from './AgentCard';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { stateVariant } from '@/ui/lib/stateVariant';
+import type { SessionSummary } from '@/services/types';
 
 export interface BoardColumnProps {
   title: string;
   sessions: SessionSummary[];
   state: string;
   onCardClick?: (sessionId: string) => void;
-  onCardAction?: (sessionId: string, action: "pause" | "resume" | "cancel") => void;
+  onCardAction?: (sessionId: string, action: 'pause' | 'resume' | 'cancel') => void;
 }
 
-export function BoardColumn({
-  title,
-  sessions,
-  state,
-  onCardClick,
-  onCardAction,
-}: BoardColumnProps) {
+export function BoardColumn({ title, sessions, state, onCardClick, onCardAction }: BoardColumnProps) {
   return (
     <div className="flex-1 min-w-[240px] flex flex-col">
       <div className="flex items-center gap-2 px-3 py-2 mb-3 rounded-lg bg-neutral-bg-dim">
