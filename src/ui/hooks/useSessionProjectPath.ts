@@ -4,7 +4,6 @@ import { useTRPC } from "@/bridge/react";
 import type { Project } from "@/services/types";
 
 interface UseSessionProjectPathParams {
-  orgId?: string;
   sessionId: string | null;
   projects: Project[];
   serverConnected: boolean;

@@ -9,7 +9,10 @@ import { GitService } from "@/services/git";
 
 const relativePath = z
   .string()
-  .refine((f) => !isAbsolute(f) && !f.includes(".."), "file paths must be relative within repo");
+  .refine(
+    (f) => !isAbsolute(f) && !f.split("/").includes(".."),
+    "file paths must be relative within repo",
+  );
 
 function assertAbsolute(cwd: string): string {
   if (!isAbsolute(cwd)) {
@@ -78,7 +81,7 @@ export const gitRouter = router({
     .input(
       z.object({
         cwd: z.string(),
-        file: z.string().optional(),
+        file: relativePath.optional(),
         staged: z.boolean().optional().default(false),
       }),
     )

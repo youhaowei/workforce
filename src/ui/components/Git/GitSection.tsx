@@ -70,6 +70,9 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
           setActionError(result.error ?? "Commit failed");
         }
       },
+      onError: (err) => {
+        setActionError(err instanceof Error ? err.message : "Commit failed");
+      },
     }),
   );
 
