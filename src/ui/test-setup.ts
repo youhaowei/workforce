@@ -29,8 +29,27 @@ class MemoryStorage implements Storage {
   }
 }
 
-const localStorageMock = new MemoryStorage();
-const sessionStorageMock = new MemoryStorage();
+// Wrap in Proxy to support index access (storage["key"] = "val") like real Storage.
+function createStorageMock(): Storage {
+  const storage = new MemoryStorage();
+  return new Proxy(storage, {
+    get(target, prop: string) {
+      if (prop in target) return (target as unknown as Record<string, unknown>)[prop];
+      return target.getItem(prop);
+    },
+    set(target, prop: string, value: string) {
+      target.setItem(prop, value);
+      return true;
+    },
+    deleteProperty(target, prop: string) {
+      target.removeItem(prop);
+      return true;
+    },
+  });
+}
+
+const localStorageMock = createStorageMock();
+const sessionStorageMock = createStorageMock();
 
 beforeEach(() => {
   localStorageMock.clear();

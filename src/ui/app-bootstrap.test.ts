@@ -2,9 +2,32 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createPlatformActions,
+  detectMacOS,
   detectPlatformType,
   initializeClientRuntime,
 } from "./app-bootstrap";
+
+describe("detectMacOS", () => {
+  it("detects macOS from userAgentData.platform", () => {
+    expect(detectMacOS({ userAgentData: { platform: "macOS" }, platform: "" })).toBe(true);
+  });
+
+  it("detects macOS from navigator.platform", () => {
+    expect(detectMacOS({ platform: "MacIntel" })).toBe(true);
+  });
+
+  it("returns false for non-Mac platforms", () => {
+    expect(detectMacOS({ platform: "Win32" })).toBe(false);
+    expect(detectMacOS({ platform: "Linux x86_64" })).toBe(false);
+  });
+
+  it("uses global navigator when called with no argument", () => {
+    // In the test env (macOS), detectMacOS() reads the real navigator.
+    // This test verifies the auto-detection path works.
+    const result = detectMacOS();
+    expect(typeof result).toBe("boolean");
+  });
+});
 
 describe("detectPlatformType", () => {
   it("detects Electron from the preload bridge", () => {

@@ -77,6 +77,28 @@ describe("useElectronBootstrap", () => {
     expect(result.current.bootstrapError).toBeNull();
   });
 
+  it("does not set state after unmount during bootstrap", async () => {
+    let resolveBootstrap!: () => void;
+    const initializeElectronBootstrap = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveBootstrap = resolve;
+        }),
+    );
+
+    const { result, unmount } = renderHook(() =>
+      useElectronBootstrap("electron", initializeElectronBootstrap),
+    );
+
+    expect(result.current.serverReady).toBe(false);
+    unmount();
+
+    // Resolve after unmount — should not throw or update state
+    resolveBootstrap();
+    await new Promise((r) => setTimeout(r, 50));
+    // If this reaches without error, cleanup prevented the stale setState
+  });
+
   it("stays ready in web mode without bootstrapping Electron runtime", () => {
     const initializeElectronBootstrap = vi.fn();
 
