@@ -81,6 +81,10 @@ Desktop.ini
 .claude/worktrees/
 CLAUDE.local.md
 
+# Local tool state
+.codex/
+.pnpm-store/
+
 # Misc
 *.pem
 *.key
