@@ -136,7 +136,7 @@ function AnsweredCard({
 }) {
   const result = block.result as Record<string, unknown> | null;
   // Backfilled from follow-up user message — extract and show just the answer portion
-  if (result && "_fromFollowUp" in result) {
+  if (result && typeof result === "object" && "_fromFollowUp" in result) {
     const raw = String(result.answer ?? "");
     // formatColdReplayAnswer produces "Question\nAnswer: selection" — extract answer lines
     const answerLines = raw
