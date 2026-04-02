@@ -170,7 +170,7 @@ function AnsweredCard({
   // Live SDK path: result is the raw answer string
   if (typeof result === "string") {
     // Format: 'User has answered your questions: "Q"="A". ...' — extract answer pairs
-    const pairs = [...result.matchAll(/"([^"]+)"="([^"]+)"/g)];
+    const pairs = [...result.matchAll(/"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"/g)];
     const answer = pairs.length > 0 ? pairs.map(([, , a]) => a).join(", ") : result;
     return (
       <CardShell headerLabel="Question Answered">
