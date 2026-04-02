@@ -4,16 +4,16 @@
  * Pre-fills org name from user display name.
  */
 
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { trpc as trpcClient } from '@/bridge/trpc';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ArrowRight, Loader2 } from 'lucide-react';
-import type { Org } from '@/services/types';
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { trpc as trpcClient } from "@/bridge/trpc";
+import { useOrgStore } from "@/ui/stores/useOrgStore";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowRight, Loader2 } from "lucide-react";
+import type { Org } from "@/services/types";
 
 interface CreateOrgStepProps {
   userName: string;
@@ -34,11 +34,14 @@ export function CreateOrgStep({ userName, onComplete }: CreateOrgStepProps) {
         try {
           await trpcClient.org.activate.mutate({ id: org.id });
         } catch (err) {
-          console.warn('[SetupGate] Failed to activate org on server:', err);
+          console.warn("[SetupGate] Failed to activate org on server:", err);
         }
         // Synchronously update cache to avoid stale-data window where
         // orgList is still [] during refetch (causes CreateOrgStep re-mount)
-        queryClient.setQueryData(trpc.org.list.queryKey(), (old: Org[] | undefined) => [...(old ?? []), org]);
+        queryClient.setQueryData(trpc.org.list.queryKey(), (old: Org[] | undefined) => [
+          ...(old ?? []),
+          org,
+        ]);
         queryClient.setQueryData(trpc.org.getCurrent.queryKey(), org);
         setCurrentOrgId(org.id);
         onComplete();
@@ -78,7 +81,7 @@ export function CreateOrgStep({ userName, onComplete }: CreateOrgStepProps) {
 
         {createMutation.isError && (
           <p className="text-sm text-palette-danger">
-            {createMutation.error?.message ?? 'Something went wrong. Please try again.'}
+            {createMutation.error?.message ?? "Something went wrong. Please try again."}
           </p>
         )}
 

@@ -8,7 +8,7 @@
  * a WF journal record or explicitly skipped (counted in stats).
  */
 
-import { readFile } from 'fs/promises';
+import { readFile } from "fs/promises";
 import type {
   JournalRecord,
   JournalHeader,
@@ -20,7 +20,7 @@ import type {
   JournalQueryResult,
   JournalMeta,
   TokenUsage,
-} from './types';
+} from "./types";
 
 // =============================================================================
 // Public API
@@ -44,14 +44,21 @@ export interface CCImportResult {
 }
 
 // Re-export discovery API from dedicated module
-export { discoverCCSessions, projectPathToSlug, type CCSessionSummary } from './cc-discovery';
+export { discoverCCSessions, projectPathToSlug, type CCSessionSummary } from "./cc-discovery";
 
-export async function readCCSession(filePath: string, skipLines = 0): Promise<CCImportResult | null> {
+export async function readCCSession(
+  filePath: string,
+  skipLines = 0,
+): Promise<CCImportResult | null> {
   let raw: string;
-  try { raw = await readFile(filePath, 'utf-8'); }
-  catch (err) { if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null; throw err; }
+  try {
+    raw = await readFile(filePath, "utf-8");
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw err;
+  }
 
-  const allLines = raw.split('\n').filter((l) => l.trim().length > 0);
+  const allLines = raw.split("\n").filter((l) => l.trim().length > 0);
   if (allLines.length === 0) return null;
   const lines = skipLines > 0 ? allLines.slice(skipLines) : allLines;
   if (lines.length === 0) return null;
@@ -76,9 +83,9 @@ interface CCBase {
 }
 
 interface CCUser extends CCBase {
-  type: 'user';
+  type: "user";
   message: {
-    role: 'user';
+    role: "user";
     content: string | CCContentBlock[];
   };
   toolUseResult?: {
@@ -88,11 +95,11 @@ interface CCUser extends CCBase {
 }
 
 interface CCAssistant extends CCBase {
-  type: 'assistant';
+  type: "assistant";
   message: {
     id: string;
     model?: string;
-    role: 'assistant';
+    role: "assistant";
     content: CCContentBlock[];
     stop_reason: string | null;
     usage?: CCUsage;
@@ -119,7 +126,7 @@ interface CCUsage {
 }
 
 interface CCProgress extends CCBase {
-  type: 'progress';
+  type: "progress";
   data?: {
     type?: string;
     hookEvent?: string;
@@ -133,7 +140,7 @@ interface CCProgress extends CCBase {
 }
 
 interface CCSystem extends CCBase {
-  type: 'system';
+  type: "system";
   subtype?: string;
   durationMs?: number;
   hookCount?: number;
@@ -144,7 +151,7 @@ interface CCSystem extends CCBase {
 }
 
 interface CCFileHistorySnapshot extends CCBase {
-  type: 'file-history-snapshot';
+  type: "file-history-snapshot";
   messageId?: string;
   snapshot?: {
     messageId?: string;
@@ -154,20 +161,27 @@ interface CCFileHistorySnapshot extends CCBase {
 }
 
 interface CCQueueOperation extends CCBase {
-  type: 'queue-operation';
+  type: "queue-operation";
   operation: string;
   content?: string;
 }
 
 interface CCPrLink extends CCBase {
-  type: 'pr-link';
+  type: "pr-link";
   prNumber?: number;
   prUrl?: string;
   prRepository?: string;
 }
 
-type CCRecord = CCUser | CCAssistant | CCProgress | CCSystem
-  | CCFileHistorySnapshot | CCQueueOperation | CCPrLink | CCBase;
+type CCRecord =
+  | CCUser
+  | CCAssistant
+  | CCProgress
+  | CCSystem
+  | CCFileHistorySnapshot
+  | CCQueueOperation
+  | CCPrLink
+  | CCBase;
 
 // =============================================================================
 // Parser
@@ -219,7 +233,7 @@ function parseCCRecords(lines: string[], filePath: string): CCImportResult | nul
     // Skip assistant records — they're handled as groups
     if (assistantIndices.has(i)) {
       // Emit the group on the FIRST record of each message ID
-      if (rec.type === 'assistant') {
+      if (rec.type === "assistant") {
         const mid = (rec as CCAssistant).message.id;
         if (!emittedMessageIds.has(mid)) {
           emittedMessageIds.add(mid);
@@ -234,7 +248,7 @@ function parseCCRecords(lines: string[], filePath: string): CCImportResult | nul
     }
 
     const mapped = mapSingleRecord(rec, seq);
-    if (mapped === 'skip') {
+    if (mapped === "skip") {
       skippedRecords++;
     } else if (mapped) {
       wfRecords.push(mapped);
@@ -245,14 +259,14 @@ function parseCCRecords(lines: string[], filePath: string): CCImportResult | nul
   // Synthesize header
   const firstTs = parseTimestamp(first.timestamp);
   const header: JournalHeader = {
-    t: 'header',
-    v: '0.3.0',
+    t: "header",
+    v: "0.3.0",
     seq: 0,
     ts: firstTs,
     id: sessionId,
     createdAt: firstTs,
     metadata: {
-      source: 'claude-code',
+      source: "claude-code",
       ...ccMeta,
     },
   };
@@ -274,27 +288,38 @@ function parseCCRecords(lines: string[], filePath: string): CCImportResult | nul
 // Record Mappers
 // =============================================================================
 
-function mapSingleRecord(rec: CCRecord, seq: number): JournalRecord | 'skip' | null {
+function mapSingleRecord(rec: CCRecord, seq: number): JournalRecord | "skip" | null {
   switch (rec.type) {
-    case 'user': return mapUserRecord(rec as CCUser, seq);
-    case 'progress': return mapProgressRecord(rec as CCProgress, seq);
-    case 'system': return mapSystemRecord(rec as CCSystem, seq);
-    case 'file-history-snapshot': return mapFileHistorySnapshot(rec as CCFileHistorySnapshot, seq);
-    case 'queue-operation': return mapQueueOperation(rec as CCQueueOperation, seq);
-    case 'pr-link': return mapPrLink(rec as CCPrLink, seq);
-    case 'agent-color': return 'skip';
-    case 'last-prompt': return 'skip';
-    default: return 'skip';
+    case "user":
+      return mapUserRecord(rec as CCUser, seq);
+    case "progress":
+      return mapProgressRecord(rec as CCProgress, seq);
+    case "system":
+      return mapSystemRecord(rec as CCSystem, seq);
+    case "file-history-snapshot":
+      return mapFileHistorySnapshot(rec as CCFileHistorySnapshot, seq);
+    case "queue-operation":
+      return mapQueueOperation(rec as CCQueueOperation, seq);
+    case "pr-link":
+      return mapPrLink(rec as CCPrLink, seq);
+    case "agent-color":
+      return "skip";
+    case "last-prompt":
+      return "skip";
+    default:
+      return "skip";
   }
 }
 
-function mapUserRecord(rec: CCUser, seq: number): JournalRecord | 'skip' {
+function mapUserRecord(rec: CCUser, seq: number): JournalRecord | "skip" {
   const ts = parseTimestamp(rec.timestamp);
 
   // isMeta user records are metadata, not actual user messages
   if (rec.isMeta) {
     return {
-      t: 'meta', seq, ts,
+      t: "meta",
+      seq,
+      ts,
       patch: { userMeta: rec.message.content },
     } satisfies JournalMeta;
   }
@@ -304,9 +329,9 @@ function mapUserRecord(rec: CCUser, seq: number): JournalRecord | 'skip' {
   // Array content
   if (Array.isArray(content)) {
     // Check if this is a tool-result-only message (API plumbing, not a real user message)
-    const hasToolResults = content.some((b) => b.type === 'tool_result');
-    const hasText = content.some((b) => b.type === 'text');
-    const hasImage = content.some((b) => b.type === 'image');
+    const hasToolResults = content.some((b) => b.type === "tool_result");
+    const hasText = content.some((b) => b.type === "text");
+    const hasImage = content.some((b) => b.type === "image");
 
     if (hasToolResults && !hasText && !hasImage) {
       // Tool-result-only → emit JournalToolResult records
@@ -316,14 +341,16 @@ function mapUserRecord(rec: CCUser, seq: number): JournalRecord | 'skip' {
 
     // Real user message with content blocks (may include images)
     const textParts = content
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text ?? '')
-      .join('\n');
+      .filter((b) => b.type === "text")
+      .map((b) => b.text ?? "")
+      .join("\n");
 
     return {
-      t: 'message', seq, ts,
+      t: "message",
+      seq,
+      ts,
       id: rec.uuid ?? `cc-user-${seq}`,
-      role: 'user',
+      role: "user",
       content: textParts,
       contentBlocks: content.map(mapContentBlock),
     } satisfies JournalMessage;
@@ -331,24 +358,28 @@ function mapUserRecord(rec: CCUser, seq: number): JournalRecord | 'skip' {
 
   // Simple string content
   return {
-    t: 'message', seq, ts,
+    t: "message",
+    seq,
+    ts,
     id: rec.uuid ?? `cc-user-${seq}`,
-    role: 'user',
-    content: typeof content === 'string' ? content : '',
+    role: "user",
+    content: typeof content === "string" ? content : "",
   } satisfies JournalMessage;
 }
 
 function mapToolResultBlocks(blocks: CCContentBlock[], rec: CCUser, seq: number): JournalRecord {
   // For each tool_result block, emit metadata about the result
   const results = blocks
-    .filter((b) => b.type === 'tool_result')
+    .filter((b) => b.type === "tool_result")
     .map((b) => ({
       toolUseId: b.tool_use_id,
-      content: typeof b.content === 'string' ? b.content.slice(0, 500) : undefined,
+      content: typeof b.content === "string" ? b.content.slice(0, 500) : undefined,
     }));
 
   return {
-    t: 'meta', seq, ts: parseTimestamp(rec.timestamp),
+    t: "meta",
+    seq,
+    ts: parseTimestamp(rec.timestamp),
     patch: { toolResults: results },
   } satisfies JournalMeta;
 }
@@ -370,14 +401,14 @@ function mapAssistantGroup(recs: CCAssistant[], startSeq: number): JournalRecord
   }
 
   // Extract tool_use blocks → JournalToolCall records
-  const toolUseBlocks = allBlocks.filter((b) => b.type === 'tool_use');
-  const textBlocks = allBlocks.filter((b) => b.type === 'text');
+  const toolUseBlocks = allBlocks.filter((b) => b.type === "tool_use");
+  const textBlocks = allBlocks.filter((b) => b.type === "text");
   // Assemble text content
-  const textContent = textBlocks.map((b) => b.text ?? '').join('');
+  const textContent = textBlocks.map((b) => b.text ?? "").join("");
 
   // Build contentBlocks for UI rendering (preserve all types)
   const contentBlocks = allBlocks
-    .filter((b) => b.type !== 'server_tool_use') // skip internal blocks
+    .filter((b) => b.type !== "server_tool_use") // skip internal blocks
     .map(mapContentBlock);
 
   // Map usage from last record
@@ -385,11 +416,13 @@ function mapAssistantGroup(recs: CCAssistant[], startSeq: number): JournalRecord
 
   // Emit the message_final
   const messageFinal: JournalMessageFinal = {
-    t: 'message_final', seq: seq++, ts,
+    t: "message_final",
+    seq: seq++,
+    ts,
     id: messageId,
-    role: 'assistant',
+    role: "assistant",
     content: textContent,
-    stopReason: last.message.stop_reason ?? 'end_turn',
+    stopReason: last.message.stop_reason ?? "end_turn",
     model: last.message.model,
     usage,
     ...(contentBlocks.length > 0 ? { contentBlocks } : {}),
@@ -400,7 +433,9 @@ function mapAssistantGroup(recs: CCAssistant[], startSeq: number): JournalRecord
   for (const toolBlock of toolUseBlocks) {
     if (!toolBlock.id || !toolBlock.name) continue;
     const toolCall: JournalToolCall = {
-      t: 'tool_call', seq: seq++, ts,
+      t: "tool_call",
+      seq: seq++,
+      ts,
       actionId: toolBlock.id,
       messageId,
       name: toolBlock.name,
@@ -412,61 +447,71 @@ function mapAssistantGroup(recs: CCAssistant[], startSeq: number): JournalRecord
   return result;
 }
 
-function mapProgressRecord(rec: CCProgress, seq: number): JournalRecord | 'skip' {
+function mapProgressRecord(rec: CCProgress, seq: number): JournalRecord | "skip" {
   const ts = parseTimestamp(rec.timestamp);
   const data = rec.data;
-  if (!data) return 'skip';
+  if (!data) return "skip";
 
   switch (data.type) {
-    case 'hook_progress': {
+    case "hook_progress": {
       return {
-        t: 'hook', seq, ts,
+        t: "hook",
+        seq,
+        ts,
         hookId: rec.uuid ?? `cc-hook-${seq}`,
-        hookName: data.hookName ?? 'unknown',
-        hookEvent: data.hookEvent ?? 'unknown',
+        hookName: data.hookName ?? "unknown",
+        hookEvent: data.hookEvent ?? "unknown",
         actionId: data.toolUseID ?? undefined,
-        outcome: 'success',
+        outcome: "success",
         output: data.output,
         durationMs: data.durationMs,
       } satisfies JournalHook;
     }
 
-    case 'agent_progress': {
+    case "agent_progress": {
       return {
-        t: 'meta', seq, ts,
+        t: "meta",
+        seq,
+        ts,
         patch: { agentProgress: data },
       } satisfies JournalMeta;
     }
 
-    case 'bash_progress':
-    case 'mcp_progress': {
+    case "bash_progress":
+    case "mcp_progress": {
       return {
-        t: 'tool_progress', seq, ts,
+        t: "tool_progress",
+        seq,
+        ts,
         actionId: data.toolUseID ?? `cc-progress-${seq}`,
         name: data.type,
         output: data.content ?? data.output,
       } satisfies JournalToolProgress;
     }
 
-    case 'waiting_for_task': {
+    case "waiting_for_task": {
       return {
-        t: 'meta', seq, ts,
+        t: "meta",
+        seq,
+        ts,
         patch: { waitingForTask: data },
       } satisfies JournalMeta;
     }
 
     default:
-      return 'skip';
+      return "skip";
   }
 }
 
-function mapSystemRecord(rec: CCSystem, seq: number): JournalRecord | 'skip' {
+function mapSystemRecord(rec: CCSystem, seq: number): JournalRecord | "skip" {
   const ts = parseTimestamp(rec.timestamp);
 
   switch (rec.subtype) {
-    case 'stop_hook_summary': {
+    case "stop_hook_summary": {
       return {
-        t: 'meta', seq, ts,
+        t: "meta",
+        seq,
+        ts,
         patch: {
           stopHookSummary: {
             hookCount: rec.hookCount,
@@ -476,18 +521,22 @@ function mapSystemRecord(rec: CCSystem, seq: number): JournalRecord | 'skip' {
       } satisfies JournalMeta;
     }
 
-    case 'turn_duration': {
+    case "turn_duration": {
       // Try to find the corresponding assistant message for usage
       return {
-        t: 'query_result', seq, ts,
+        t: "query_result",
+        seq,
+        ts,
         messageId: rec.parentUuid ?? `cc-turn-${seq}`,
         durationMs: rec.durationMs ?? 0,
       } satisfies JournalQueryResult;
     }
 
-    case 'compact_boundary': {
+    case "compact_boundary": {
       return {
-        t: 'meta', seq, ts,
+        t: "meta",
+        seq,
+        ts,
         patch: {
           compaction: {
             trigger: rec.compactMetadata?.trigger,
@@ -497,36 +546,42 @@ function mapSystemRecord(rec: CCSystem, seq: number): JournalRecord | 'skip' {
       } satisfies JournalMeta;
     }
 
-    case 'api_error': {
+    case "api_error": {
       return {
-        t: 'meta', seq, ts,
+        t: "meta",
+        seq,
+        ts,
         patch: { apiError: rec.content },
       } satisfies JournalMeta;
     }
 
-    case 'local_command':
-    case 'informational': {
+    case "local_command":
+    case "informational": {
       return {
-        t: 'meta', seq, ts,
+        t: "meta",
+        seq,
+        ts,
         patch: { [rec.subtype]: rec.content },
       } satisfies JournalMeta;
     }
 
-    case 'bridge_status':
-      return 'skip';
+    case "bridge_status":
+      return "skip";
 
     default:
-      return 'skip';
+      return "skip";
   }
 }
 
-function mapFileHistorySnapshot(rec: CCFileHistorySnapshot, seq: number): JournalRecord | 'skip' {
+function mapFileHistorySnapshot(rec: CCFileHistorySnapshot, seq: number): JournalRecord | "skip" {
   const backups = rec.snapshot?.trackedFileBackups;
   // Skip empty snapshots
-  if (!backups || Object.keys(backups).length === 0) return 'skip';
+  if (!backups || Object.keys(backups).length === 0) return "skip";
 
   return {
-    t: 'meta', seq, ts: parseTimestamp(rec.timestamp ?? rec.snapshot?.timestamp),
+    t: "meta",
+    seq,
+    ts: parseTimestamp(rec.timestamp ?? rec.snapshot?.timestamp),
     patch: {
       fileHistorySnapshot: {
         messageId: rec.messageId,
@@ -537,20 +592,24 @@ function mapFileHistorySnapshot(rec: CCFileHistorySnapshot, seq: number): Journa
   } satisfies JournalMeta;
 }
 
-function mapQueueOperation(rec: CCQueueOperation, seq: number): JournalRecord | 'skip' {
-  if (rec.operation === 'enqueue') {
+function mapQueueOperation(rec: CCQueueOperation, seq: number): JournalRecord | "skip" {
+  if (rec.operation === "enqueue") {
     return {
-      t: 'meta', seq, ts: parseTimestamp(rec.timestamp),
+      t: "meta",
+      seq,
+      ts: parseTimestamp(rec.timestamp),
       patch: { queueEnqueue: rec.content },
     } satisfies JournalMeta;
   }
   // dequeue, remove, popAll → skip
-  return 'skip';
+  return "skip";
 }
 
 function mapPrLink(rec: CCPrLink, seq: number): JournalRecord {
   return {
-    t: 'meta', seq, ts: parseTimestamp(rec.timestamp),
+    t: "meta",
+    seq,
+    ts: parseTimestamp(rec.timestamp),
     patch: {
       prLink: {
         prNumber: rec.prNumber,
@@ -569,7 +628,7 @@ function groupAssistantRecords(records: CCRecord[]): Map<string, number[]> {
   const groups = new Map<string, number[]>();
   for (let i = 0; i < records.length; i++) {
     const rec = records[i];
-    if (rec.type !== 'assistant') continue;
+    if (rec.type !== "assistant") continue;
     const mid = (rec as CCAssistant).message.id;
     if (!groups.has(mid)) groups.set(mid, []);
     groups.get(mid)!.push(i);
@@ -577,29 +636,29 @@ function groupAssistantRecords(records: CCRecord[]): Map<string, number[]> {
   return groups;
 }
 
-function mapContentBlock(block: CCContentBlock): import('./types').ContentBlock {
+function mapContentBlock(block: CCContentBlock): import("./types").ContentBlock {
   switch (block.type) {
-    case 'text':
-      return { type: 'text', text: block.text ?? '' };
-    case 'thinking':
-      return { type: 'thinking', text: block.thinking ?? '' };
-    case 'tool_use':
+    case "text":
+      return { type: "text", text: block.text ?? "" };
+    case "thinking":
+      return { type: "thinking", text: block.thinking ?? "" };
+    case "tool_use":
       return {
-        type: 'tool_use',
-        id: block.id ?? '',
-        name: block.name ?? '',
+        type: "tool_use",
+        id: block.id ?? "",
+        name: block.name ?? "",
         input: JSON.stringify(block.input ?? {}),
-        status: 'complete',
+        status: "complete",
       };
-    case 'tool_result':
+    case "tool_result":
       return {
-        type: 'text',
+        type: "text",
         text: `[Tool Result: ${block.tool_use_id}]`,
       };
-    case 'image':
-      return { type: 'text', text: '[Image]' };
+    case "image":
+      return { type: "text", text: "[Image]" };
     default:
-      return { type: 'text', text: `[${block.type}]` };
+      return { type: "text", text: `[${block.type}]` };
   }
 }
 

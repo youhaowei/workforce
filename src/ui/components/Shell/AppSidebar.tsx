@@ -90,7 +90,7 @@ export default function AppSidebar({ mode, onToggleSize }: AppSidebarProps) {
             <Link
               key={item.id}
               to={item.path}
-              className={`nav-glass-item relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 text-neutral-fg/50 hover:text-neutral-fg/80 hover:bg-neutral-bg/30 dark:hover:bg-white/5 ${
+              className={`nav-glass-item relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 text-neutral-fg/50 hover:text-neutral-fg/80 hover:bg-neutral-bg/30 dark:hover:bg-neutral-fg/5 ${
                 isCollapsed ? "px-0 py-2 justify-center" : "px-2.5 py-[7px]"
               }`}
               activeProps={{
@@ -127,7 +127,7 @@ export default function AppSidebar({ mode, onToggleSize }: AppSidebarProps) {
             <Tooltip delayDuration={0}>
               <TooltipTrigger asChild>
                 <button
-                  className="flex items-center justify-center w-full rounded-lg py-2 text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-neutral-bg/30 dark:hover:bg-white/5 transition-all duration-150"
+                  className="flex items-center justify-center w-full rounded-lg py-2 text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-neutral-bg/30 dark:hover:bg-neutral-fg/5 transition-all duration-150"
                   onClick={onToggleSize}
                   aria-label="Expand sidebar"
                 >
@@ -140,7 +140,7 @@ export default function AppSidebar({ mode, onToggleSize }: AppSidebarProps) {
             </Tooltip>
           ) : (
             <button
-              className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-[7px] text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-neutral-bg/30 dark:hover:bg-white/5 transition-all duration-150"
+              className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-[7px] text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-neutral-bg/30 dark:hover:bg-neutral-fg/5 transition-all duration-150"
               onClick={onToggleSize}
             >
               <PanelLeftClose className="h-4 w-4" />

@@ -1,6 +1,6 @@
-import {createLazyFileRoute} from '@tanstack/react-router';
-import {OrgListView} from '../components/Org/OrgListView';
+import { createLazyFileRoute } from "@tanstack/react-router";
+import { OrgListView } from "../components/Org/OrgListView";
 
-export const Route = createLazyFileRoute('/orgs')({
+export const Route = createLazyFileRoute("/orgs")({
   component: OrgListView,
 });

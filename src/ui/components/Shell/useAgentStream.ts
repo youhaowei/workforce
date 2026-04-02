@@ -13,12 +13,7 @@ import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
 import { trpc as trpcClient } from "@/bridge/trpc";
 import { queryClient } from "@/bridge/query-client";
-import type {
-  AgentConfig,
-  AgentQuestion,
-  ContentBlock,
-  SessionSummary,
-} from "@/services/types";
+import type { AgentConfig, AgentQuestion, ContentBlock, SessionSummary } from "@/services/types";
 import { THINKING_TOKENS, DEFAULT_AGENT_CONFIG } from "../Messages/agentConfig";
 import {
   SESSION_TITLE_MAX_LENGTH,
@@ -30,7 +25,9 @@ import {
 // ─── Shared stream-actions builder ──────────────────────────────────────────
 
 interface StreamActionDeps {
-  appendToStreamingMessage: ReturnType<typeof useMessagesStore.getState>["appendToStreamingMessage"];
+  appendToStreamingMessage: ReturnType<
+    typeof useMessagesStore.getState
+  >["appendToStreamingMessage"];
   appendToTextBlock: ReturnType<typeof useMessagesStore.getState>["appendToTextBlock"];
   appendToThinkingBlock: ReturnType<typeof useMessagesStore.getState>["appendToThinkingBlock"];
   addToolActivity: ReturnType<typeof useMessagesStore.getState>["addToolActivity"];
@@ -155,7 +152,12 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
             );
             if (projectIdForSession) {
               queryClient.setQueriesData<SessionSummary[]>(
-                { queryKey: opts.trpcQueryKeys.sessionList({ orgId: opts.orgId, projectId: projectIdForSession }) },
+                {
+                  queryKey: opts.trpcQueryKeys.sessionList({
+                    orgId: opts.orgId,
+                    projectId: projectIdForSession,
+                  }),
+                },
                 (old) => (old ? [summary, ...old] : [summary]),
               );
             }
@@ -169,9 +171,17 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
           trpcClient.session.addMessage
             .mutate({
               sessionId: sessId,
-              message: { id: userMsgId, role: "user" as const, content, timestamp: Date.now(), agentConfig },
+              message: {
+                id: userMsgId,
+                role: "user" as const,
+                content,
+                timestamp: Date.now(),
+                agentConfig,
+              },
             })
-            .catch(() => { /* best-effort */ });
+            .catch(() => {
+              /* best-effort */
+            });
         }
 
         const actions = buildStreamActions({ ...actionDeps, sessionId: sessId });
@@ -196,7 +206,9 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
             },
             onError: (err) => {
               handleStreamError(
-                err, sessId, assistantMsgId,
+                err,
+                sessId,
+                assistantMsgId,
                 { finishStreamingMessage, setError: opts.setError, completeRunningTools },
                 opts.cancelStreamRef,
               );
@@ -208,12 +220,24 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- stable refs and store selectors
     [
-      addUserMessage, startAssistantMessage, appendToStreamingMessage,
-      finishStreamingMessage, addToolActivity, setCurrentTool,
-      appendToTextBlock, appendToThinkingBlock, startContentBlock,
-      startToolBlock, setToolResult, completeRunningTools,
-      completeNonTaskTools, finishContentBlock,
-      opts.newSessionProjectId, opts.orgId, opts.selectedSessionId, setActiveSession,
+      addUserMessage,
+      startAssistantMessage,
+      appendToStreamingMessage,
+      finishStreamingMessage,
+      addToolActivity,
+      setCurrentTool,
+      appendToTextBlock,
+      appendToThinkingBlock,
+      startContentBlock,
+      startToolBlock,
+      setToolResult,
+      completeRunningTools,
+      completeNonTaskTools,
+      finishContentBlock,
+      opts.newSessionProjectId,
+      opts.orgId,
+      opts.selectedSessionId,
+      setActiveSession,
     ],
   );
 
@@ -240,7 +264,9 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
             const event = data as { type: string; [key: string]: unknown };
             if (event.type === "snapshot") {
               applySnapshot(event.blocks as ContentBlock[], event.fullText as string);
-              const pq = event.pendingQuestion as { requestId: string; questions: AgentQuestion[] } | undefined;
+              const pq = event.pendingQuestion as
+                | { requestId: string; questions: AgentQuestion[] }
+                | undefined;
               if (pq) {
                 useAgentQuestionStore.getState().setPending({
                   requestId: pq.requestId,
@@ -249,12 +275,20 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
                 });
               }
             } else {
-              handleStreamEvent(event, opts.selectedSessionId, messageId, actions, opts.cancelStreamRef);
+              handleStreamEvent(
+                event,
+                opts.selectedSessionId,
+                messageId,
+                actions,
+                opts.cancelStreamRef,
+              );
             }
           },
           onError: (err) => {
             handleStreamError(
-              err, opts.selectedSessionId, messageId,
+              err,
+              opts.selectedSessionId,
+              messageId,
               { finishStreamingMessage, setError: opts.setError, completeRunningTools },
               opts.cancelStreamRef,
             );
@@ -266,7 +300,9 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reconnect when session messages are restored
   }, [opts.selectedSessionId, opts.restoredMessages]);
 

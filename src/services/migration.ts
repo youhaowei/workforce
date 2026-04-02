@@ -13,11 +13,11 @@
  * - Individual item failures within a migration are non-fatal.
  */
 
-import { readFile, writeFile, mkdir, readdir, rename } from 'fs/promises';
-import { join } from 'path';
-import { createLogger } from 'tracey';
+import { readFile, writeFile, mkdir, readdir, rename } from "fs/promises";
+import { join } from "path";
+import { createLogger } from "tracey";
 
-const log = createLogger('Migration');
+const log = createLogger("Migration");
 
 // =============================================================================
 // Types
@@ -59,12 +59,12 @@ interface Ledger {
 // =============================================================================
 
 function ledgerPath(dataDir: string): string {
-  return join(dataDir, '_migrations.json');
+  return join(dataDir, "_migrations.json");
 }
 
 async function readLedger(dataDir: string): Promise<Ledger> {
   try {
-    const raw = await readFile(ledgerPath(dataDir), 'utf-8');
+    const raw = await readFile(ledgerPath(dataDir), "utf-8");
     return JSON.parse(raw) as Ledger;
   } catch {
     return { applied: [] };
@@ -74,8 +74,8 @@ async function readLedger(dataDir: string): Promise<Ledger> {
 async function writeLedger(dataDir: string, ledger: Ledger): Promise<void> {
   await mkdir(dataDir, { recursive: true });
   const finalPath = ledgerPath(dataDir);
-  const tmpPath = finalPath + '.tmp';
-  await writeFile(tmpPath, JSON.stringify(ledger, null, 2), 'utf-8');
+  const tmpPath = finalPath + ".tmp";
+  await writeFile(tmpPath, JSON.stringify(ledger, null, 2), "utf-8");
   await rename(tmpPath, finalPath);
 }
 
@@ -119,21 +119,46 @@ export async function runMigrations(dataDir: string): Promise<void> {
 
   for (const migration of pending) {
     const start = Date.now();
-    log.info({ id: migration.id, description: migration.description }, `Running: ${migration.id} — ${migration.description}`);
+    log.info(
+      { id: migration.id, description: migration.description },
+      `Running: ${migration.id} — ${migration.description}`,
+    );
 
     try {
       const result = await migration.run(dataDir);
       const durationMs = Date.now() - start;
 
       if (result.errors.length > 0) {
-        log.warn({ id: migration.id, migrated: result.migrated, skipped: result.skipped, failed: result.failed, durationMs, errors: result.errors }, `${migration.id}: ${result.migrated} migrated, ${result.skipped} skipped, ${result.failed} failed (${durationMs}ms)`);
+        log.warn(
+          {
+            id: migration.id,
+            migrated: result.migrated,
+            skipped: result.skipped,
+            failed: result.failed,
+            durationMs,
+            errors: result.errors,
+          },
+          `${migration.id}: ${result.migrated} migrated, ${result.skipped} skipped, ${result.failed} failed (${durationMs}ms)`,
+        );
       } else {
-        log.info({ id: migration.id, migrated: result.migrated, skipped: result.skipped, failed: result.failed, durationMs }, `${migration.id}: ${result.migrated} migrated, ${result.skipped} skipped, ${result.failed} failed (${durationMs}ms)`);
+        log.info(
+          {
+            id: migration.id,
+            migrated: result.migrated,
+            skipped: result.skipped,
+            failed: result.failed,
+            durationMs,
+          },
+          `${migration.id}: ${result.migrated} migrated, ${result.skipped} skipped, ${result.failed} failed (${durationMs}ms)`,
+        );
       }
 
       // Skip ledger recording if any items failed — migration will retry next run
       if (result.failed > 0) {
-        log.warn({ id: migration.id, failed: result.failed }, `${migration.id}: ${result.failed} failures — will retry next run`);
+        log.warn(
+          { id: migration.id, failed: result.failed },
+          `${migration.id}: ${result.failed} failures — will retry next run`,
+        );
         continue;
       }
 
@@ -148,7 +173,10 @@ export async function runMigrations(dataDir: string): Promise<void> {
       await writeLedger(dataDir, ledger);
     } catch (err) {
       // Migration-level failure: log and continue with next migration
-      log.error({ id: migration.id, error: err instanceof Error ? err.message : String(err) }, `${migration.id} FAILED`);
+      log.error(
+        { id: migration.id, error: err instanceof Error ? err.message : String(err) },
+        `${migration.id} FAILED`,
+      );
     }
   }
 }
@@ -169,7 +197,7 @@ export async function runMigrations(dataDir: string): Promise<void> {
  * On parse error: logs warning, increments `failed`, continues.
  */
 async function migrateSessionsJsonToJsonl(dataDir: string): Promise<MigrationResult> {
-  const sessionsDir = join(dataDir, 'sessions');
+  const sessionsDir = join(dataDir, "sessions");
   const result: MigrationResult = { migrated: 0, skipped: 0, failed: 0, errors: [] };
 
   let fileNames: string[];
@@ -181,17 +209,17 @@ async function migrateSessionsJsonToJsonl(dataDir: string): Promise<MigrationRes
   }
 
   const jsonFiles = fileNames.filter(
-    (name) => name.endsWith('.json') && !name.includes('.backup') && !name.includes('.migrated'),
+    (name) => name.endsWith(".json") && !name.includes(".backup") && !name.includes(".migrated"),
   );
 
   for (const fileName of jsonFiles) {
-    const sessionId = fileName.replace('.json', '');
+    const sessionId = fileName.replace(".json", "");
     const jsonPath = join(sessionsDir, fileName);
     const jsonlPath = join(sessionsDir, `${sessionId}.jsonl`);
 
     // Skip if JSONL already exists
     try {
-      await readFile(jsonlPath, 'utf-8');
+      await readFile(jsonlPath, "utf-8");
       result.skipped++;
       continue;
     } catch {
@@ -199,7 +227,7 @@ async function migrateSessionsJsonToJsonl(dataDir: string): Promise<MigrationRes
     }
 
     try {
-      const raw = await readFile(jsonPath, 'utf-8');
+      const raw = await readFile(jsonPath, "utf-8");
       const parsed = JSON.parse(raw) as { version: number; session: Record<string, unknown> };
       const session = parsed.session as {
         id: string;
@@ -207,7 +235,14 @@ async function migrateSessionsJsonToJsonl(dataDir: string): Promise<MigrationRes
         createdAt: number;
         updatedAt: number;
         parentId?: string;
-        messages: Array<{ id: string; role: string; content: string; timestamp: number; toolCalls?: unknown[]; toolResults?: unknown[] }>;
+        messages: Array<{
+          id: string;
+          role: string;
+          content: string;
+          timestamp: number;
+          toolCalls?: unknown[];
+          toolResults?: unknown[];
+        }>;
         metadata: Record<string, unknown>;
       };
 
@@ -215,31 +250,35 @@ async function migrateSessionsJsonToJsonl(dataDir: string): Promise<MigrationRes
       const lines: string[] = [];
 
       // Header line
-      lines.push(JSON.stringify({
-        t: 'header',
-        v: 2,
-        id: session.id,
-        title: session.title,
-        createdAt: session.createdAt,
-        updatedAt: session.updatedAt,
-        parentId: session.parentId,
-        metadata: session.metadata,
-      }));
+      lines.push(
+        JSON.stringify({
+          t: "header",
+          v: 2,
+          id: session.id,
+          title: session.title,
+          createdAt: session.createdAt,
+          updatedAt: session.updatedAt,
+          parentId: session.parentId,
+          metadata: session.metadata,
+        }),
+      );
 
       // Message lines
       for (const msg of session.messages) {
-        lines.push(JSON.stringify({
-          t: 'message',
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp,
-          toolCalls: msg.toolCalls,
-          toolResults: msg.toolResults,
-        }));
+        lines.push(
+          JSON.stringify({
+            t: "message",
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+            timestamp: msg.timestamp,
+            toolCalls: msg.toolCalls,
+            toolResults: msg.toolResults,
+          }),
+        );
       }
 
-      await writeFile(jsonlPath, lines.join('\n') + '\n', 'utf-8');
+      await writeFile(jsonlPath, lines.join("\n") + "\n", "utf-8");
 
       // Backup original
       const backupPath = `${jsonPath}.migrated.${Date.now()}`;
@@ -256,8 +295,8 @@ async function migrateSessionsJsonToJsonl(dataDir: string): Promise<MigrationRes
 }
 
 registerMigration({
-  id: '001_sessions_json_to_jsonl',
-  description: 'Convert legacy JSON session files to JSONL format',
+  id: "001_sessions_json_to_jsonl",
+  description: "Convert legacy JSON session files to JSONL format",
   run: migrateSessionsJsonToJsonl,
 });
 

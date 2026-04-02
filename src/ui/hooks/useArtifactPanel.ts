@@ -5,14 +5,14 @@
  * Generates structured prompt text from accumulated comments + general feedback.
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { trpc as trpcClient } from '@/bridge/trpc';
-import { useTRPC } from '@/bridge/react';
-import type { ArtifactComment, AgentPermissionMode } from '@/services/types';
-import { generateReviewPrompt } from '@/ui/lib/artifact-utils';
+import { useState, useCallback, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { trpc as trpcClient } from "@/bridge/trpc";
+import { useTRPC } from "@/bridge/react";
+import type { ArtifactComment, AgentPermissionMode } from "@/services/types";
+import { generateReviewPrompt } from "@/ui/lib/artifact-utils";
 
-type CommentSeverity = ArtifactComment['severity'];
+type CommentSeverity = ArtifactComment["severity"];
 
 interface UseArtifactPanelParams {
   planArtifactId: string | null;
@@ -69,27 +69,30 @@ export function useArtifactPanel({
         content: text,
         severity,
         anchor: { line },
-        author: { type: 'user', id: 'local' },
+        author: { type: "user", id: "local" },
         createdAt: Date.now(),
       };
       setPendingComments((prev) => [...prev, optimistic]);
 
       // Persist to server
-      trpcClient.artifact.addComment.mutate({
-        artifactId: activeArtifactId,
-        content: text,
-        severity,
-        anchor: { line },
-        author: { type: 'user', id: 'local' },
-      }).then((serverComment) => {
-        // Replace optimistic with server version
-        setPendingComments((prev) =>
-          prev.map((c) => (c.id === optimistic.id ? serverComment : c)),
-        );
-      }).catch((err) => {
-        console.warn('[ArtifactPanel] addComment failed:', err);
-        setPendingComments((prev) => prev.filter((c) => c.id !== optimistic.id));
-      });
+      trpcClient.artifact.addComment
+        .mutate({
+          artifactId: activeArtifactId,
+          content: text,
+          severity,
+          anchor: { line },
+          author: { type: "user", id: "local" },
+        })
+        .then((serverComment) => {
+          // Replace optimistic with server version
+          setPendingComments((prev) =>
+            prev.map((c) => (c.id === optimistic.id ? serverComment : c)),
+          );
+        })
+        .catch((err) => {
+          console.warn("[ArtifactPanel] addComment failed:", err);
+          setPendingComments((prev) => prev.filter((c) => c.id !== optimistic.id));
+        });
     },
     [activeArtifactId],
   );
@@ -98,19 +101,25 @@ export function useArtifactPanel({
     (summary: string) => {
       if (!activeArtifactId) return;
       const id = activeArtifactId;
-      const title = artifact?.title ?? 'artifact';
+      const title = artifact?.title ?? "artifact";
       const comments = pendingCommentsRef.current;
       const prompt = generateReviewPrompt(title, comments, summary);
 
-      trpcClient.artifact.submitReview.mutate({
-        artifactId: id,
-        action: 'edit',
-        comments: comments.map((c) => ({
-          artifactId: id, content: c.content, severity: c.severity, anchor: c.anchor, author: c.author,
-        })),
-        summary,
-        author: { type: 'user', id: 'local' },
-      }).catch((err) => console.warn('[ArtifactPanel] mutation failed:', err));
+      trpcClient.artifact.submitReview
+        .mutate({
+          artifactId: id,
+          action: "edit",
+          comments: comments.map((c) => ({
+            artifactId: id,
+            content: c.content,
+            severity: c.severity,
+            anchor: c.anchor,
+            author: c.author,
+          })),
+          summary,
+          author: { type: "user", id: "local" },
+        })
+        .catch((err) => console.warn("[ArtifactPanel] mutation failed:", err));
 
       setPendingComments([]);
       onSubmitPrompt?.(prompt);
@@ -123,14 +132,20 @@ export function useArtifactPanel({
       const id = activeArtifactId;
       const comments = pendingCommentsRef.current;
       if (id) {
-        trpcClient.artifact.submitReview.mutate({
-          artifactId: id,
-          action: 'approve',
-          comments: comments.map((c) => ({
-            artifactId: id, content: c.content, severity: c.severity, anchor: c.anchor, author: c.author,
-          })),
-          author: { type: 'user', id: 'local' },
-        }).catch((err) => console.warn('[ArtifactPanel] mutation failed:', err));
+        trpcClient.artifact.submitReview
+          .mutate({
+            artifactId: id,
+            action: "approve",
+            comments: comments.map((c) => ({
+              artifactId: id,
+              content: c.content,
+              severity: c.severity,
+              anchor: c.anchor,
+              author: c.author,
+            })),
+            author: { type: "user", id: "local" },
+          })
+          .catch((err) => console.warn("[ArtifactPanel] mutation failed:", err));
       }
       setPendingComments([]);
       onApprove?.(permission);
@@ -142,14 +157,20 @@ export function useArtifactPanel({
     const id = activeArtifactId;
     const comments = pendingCommentsRef.current;
     if (id) {
-      trpcClient.artifact.submitReview.mutate({
-        artifactId: id,
-        action: 'reject',
-        comments: comments.map((c) => ({
-          artifactId: id, content: c.content, severity: c.severity, anchor: c.anchor, author: c.author,
-        })),
-        author: { type: 'user', id: 'local' },
-      }).catch((err) => console.warn('[ArtifactPanel] mutation failed:', err));
+      trpcClient.artifact.submitReview
+        .mutate({
+          artifactId: id,
+          action: "reject",
+          comments: comments.map((c) => ({
+            artifactId: id,
+            content: c.content,
+            severity: c.severity,
+            anchor: c.anchor,
+            author: c.author,
+          })),
+          author: { type: "user", id: "local" },
+        })
+        .catch((err) => console.warn("[ArtifactPanel] mutation failed:", err));
     }
     setPendingComments([]);
     onReject?.();

@@ -1,10 +1,10 @@
 /** tRPC client singleton + org resolution helpers for CLI commands. */
 
-import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from '@trpc/client';
-import superjson from 'superjson';
-import type { AppRouter } from '../server/routers';
+import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from "@trpc/client";
+import superjson from "superjson";
+import type { AppRouter } from "../server/routers";
 
-import { DEFAULT_SERVER_PORT } from '@/shared/ports';
+import { DEFAULT_SERVER_PORT } from "@/shared/ports";
 
 const BASE_URL = process.env.WORKFORCE_URL || `http://localhost:${DEFAULT_SERVER_PORT}/api/trpc`;
 
@@ -14,7 +14,7 @@ export function getClient() {
   client ??= createTRPCClient<AppRouter>({
     links: [
       splitLink({
-        condition: (op) => op.type === 'subscription',
+        condition: (op) => op.type === "subscription",
         true: httpSubscriptionLink({ url: BASE_URL, transformer: superjson }),
         false: httpBatchLink({ url: BASE_URL, transformer: superjson }),
       }),
@@ -37,7 +37,7 @@ export async function getCurrentOrgId(): Promise<string | undefined> {
 export async function resolveOrgId(opts: { org?: string }): Promise<string> {
   const orgId = opts.org ?? (await getCurrentOrgId());
   if (!orgId) {
-    console.error('Error: No active org. Create one first: workforce org create <name>');
+    console.error("Error: No active org. Create one first: workforce org create <name>");
     process.exit(1);
   }
   return orgId;

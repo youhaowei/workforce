@@ -3,24 +3,24 @@
  * Reuses MessageList and MessageInput from the Messages components.
  */
 
-import { Button } from '@/components/ui/button';
-import { Alert } from '@/components/ui/alert';
+import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/alert";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { RefreshCcw, Loader2, ArrowDown } from 'lucide-react';
-import { useState, useCallback } from 'react';
-import type { Project } from '@/services/types';
-import { MessageList, MessageInput } from '../Messages';
-import { useCCSyncBanner } from '@/ui/hooks/useCCSyncBanner';
-import type { AgentConfig } from '@/services/types';
-import type { ForkInfo } from '../Messages/MessageItem';
+} from "@/components/ui/select";
+import { RefreshCcw, Loader2, ArrowDown } from "lucide-react";
+import { useState, useCallback } from "react";
+import type { Project } from "@/services/types";
+import { MessageList, MessageInput } from "../Messages";
+import { useCCSyncBanner } from "@/ui/hooks/useCCSyncBanner";
+import type { AgentConfig } from "@/services/types";
+import type { ForkInfo } from "../Messages/MessageItem";
 
-const NO_PROJECT_VALUE = '__none__';
+const NO_PROJECT_VALUE = "__none__";
 
 interface SessionsViewProps {
   sessionId: string | null;
@@ -30,7 +30,7 @@ interface SessionsViewProps {
   onCreateProjectForSession: () => void;
   messages: Array<{
     id: string;
-    role: 'user' | 'assistant' | 'system';
+    role: "user" | "assistant" | "system";
     content: string;
     timestamp: number;
     isStreaming: boolean;
@@ -99,32 +99,36 @@ export function SessionsView({
               disabledMessage="Sync required — this session has new activity from Claude Code"
               sessionId={sessionId}
               messages={messages}
-              banner={<>
-                {jumpToBottom && (
-                  <div className="flex justify-end mb-2">
-                    <Button size="sm" onClick={jumpToBottom} className="rounded-full shadow-lg">
-                      <ArrowDown className="h-3.5 w-3.5 mr-1.5" />
-                      Jump to bottom
-                    </Button>
-                  </div>
-                )}
-                {hasUpdate && (
-                  <Alert color="warning" surface="glass" className="flex items-center gap-2 mb-2">
-                    <span><RefreshCcw className="h-3.5 w-3.5 shrink-0" /></span>
-                    <span className="flex-1 truncate">New activity from Claude Code</span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-6 px-2 text-xs text-[var(--alert-color)] hover:opacity-80 hover:bg-[var(--alert-color)]/10 shrink-0"
-                      onClick={handleSync}
-                      disabled={isSyncing}
-                    >
-                      {isSyncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-                      {isSyncing ? 'Syncing...' : 'Sync'}
-                    </Button>
-                  </Alert>
-                )}
-              </>}
+              banner={
+                <>
+                  {jumpToBottom && (
+                    <div className="flex justify-end mb-2">
+                      <Button size="sm" onClick={jumpToBottom} className="rounded-full shadow-lg">
+                        <ArrowDown className="h-3.5 w-3.5 mr-1.5" />
+                        Jump to bottom
+                      </Button>
+                    </div>
+                  )}
+                  {hasUpdate && (
+                    <Alert color="warning" surface="glass" className="flex items-center gap-2 mb-2">
+                      <span>
+                        <RefreshCcw className="h-3.5 w-3.5 shrink-0" />
+                      </span>
+                      <span className="flex-1 truncate">New activity from Claude Code</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-xs text-[var(--alert-color)] hover:opacity-80 hover:bg-[var(--alert-color)]/10 shrink-0"
+                        onClick={handleSync}
+                        disabled={isSyncing}
+                      >
+                        {isSyncing ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                        {isSyncing ? "Syncing..." : "Sync"}
+                      </Button>
+                    </Alert>
+                  )}
+                </>
+              }
             />
           </div>
         </div>
@@ -138,7 +142,7 @@ export function SessionsView({
       <div className="w-full max-w-3xl">
         <div className="text-center mb-6">
           <p className="text-[13px] text-neutral-fg-subtle/50">
-            {sessionId ? 'Send a message to continue' : 'What would you like to work on?'}
+            {sessionId ? "Send a message to continue" : "What would you like to work on?"}
           </p>
         </div>
         {!sessionId && (
@@ -159,7 +163,9 @@ export function SessionsView({
                 <SelectContent>
                   <SelectItem value={NO_PROJECT_VALUE}>No project</SelectItem>
                   {projects.map((project) => (
-                    <SelectItem key={project.id} value={project.id}>{project.name}</SelectItem>
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

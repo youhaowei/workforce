@@ -1,5 +1,5 @@
-import { createTRPCContext } from '@trpc/tanstack-react-query';
-import type { AppRouter } from '../server/routers';
+import { createTRPCContext } from "@trpc/tanstack-react-query";
+import type { AppRouter } from "../server/routers";
 
 /**
  * React Query integration for tRPC.

@@ -7,9 +7,9 @@
  * - Memoized for streaming performance
  */
 
-import { useMemo } from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import { useMemo } from "react";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 
 // Configure marked for GFM
 marked.setOptions({
@@ -24,14 +24,14 @@ interface MarkdownProps {
 
 export default function Markdown({ content, className }: MarkdownProps) {
   const html = useMemo(() => {
-    if (!content) return '';
+    if (!content) return "";
     const parsed = marked.parse(content, { async: false }) as string;
     return DOMPurify.sanitize(parsed);
   }, [content]);
 
   return (
     <div
-      className={`markdown-content ${className ?? ''}`}
+      className={`markdown-content ${className ?? ""}`}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );

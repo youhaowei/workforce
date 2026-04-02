@@ -6,9 +6,15 @@
  * to avoid re-rendering the message list during token accumulation.
  */
 
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
-import type { AgentConfig, ContentBlock, ToolActivity, ToolCall, ToolResult } from '@/services/types';
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
+import type {
+  AgentConfig,
+  ContentBlock,
+  ToolActivity,
+  ToolCall,
+  ToolResult,
+} from "@/services/types";
 
 // =============================================================================
 // Types
@@ -16,7 +22,7 @@ import type { AgentConfig, ContentBlock, ToolActivity, ToolCall, ToolResult } fr
 
 export interface MessageState {
   id: string;
-  role: 'user' | 'assistant' | 'system';
+  role: "user" | "assistant" | "system";
   content: string;
   timestamp: number;
   isStreaming: boolean;
@@ -51,7 +57,19 @@ interface MessagesStore {
   clearMessages: () => void;
   setActiveSession: (sessionId: string | null) => void;
   setDraftInput: (value: string | null) => void;
-  loadMessages: (messages: Array<{ id: string; role: string; content: string; timestamp: number; agentConfig?: AgentConfig; toolCalls?: ToolCall[]; toolResults?: ToolResult[]; toolActivities?: ToolActivity[]; contentBlocks?: ContentBlock[] }>) => void;
+  loadMessages: (
+    messages: Array<{
+      id: string;
+      role: string;
+      content: string;
+      timestamp: number;
+      agentConfig?: AgentConfig;
+      toolCalls?: ToolCall[];
+      toolResults?: ToolResult[];
+      toolActivities?: ToolActivity[];
+      contentBlocks?: ContentBlock[];
+    }>,
+  ) => void;
 
   // Reconnection actions
   resumeStreaming: (messageId: string) => void;
@@ -84,7 +102,7 @@ export const useMessagesStore = create<MessagesStore>()(
   immer((set) => ({
     messages: [],
     activeSessionId: null,
-    streamingContent: '',
+    streamingContent: "",
     streamingBlocks: [],
     streamingMessageId: null,
     isStreaming: false,
@@ -97,7 +115,7 @@ export const useMessagesStore = create<MessagesStore>()(
       set((state) => {
         state.messages.push({
           id,
-          role: 'user',
+          role: "user",
           content,
           timestamp: Date.now(),
           isStreaming: false,
@@ -112,13 +130,13 @@ export const useMessagesStore = create<MessagesStore>()(
       set((state) => {
         state.messages.push({
           id,
-          role: 'assistant',
-          content: '',
+          role: "assistant",
+          content: "",
           timestamp: Date.now(),
           isStreaming: true,
         });
         state.streamingMessageId = id;
-        state.streamingContent = '';
+        state.streamingContent = "";
         state.streamingBlocks = [];
         state.isStreaming = true;
         state.pendingToolActivities = [];
@@ -151,7 +169,7 @@ export const useMessagesStore = create<MessagesStore>()(
           }
         }
         state.streamingMessageId = null;
-        state.streamingContent = '';
+        state.streamingContent = "";
         state.streamingBlocks = [];
         state.isStreaming = false;
         state.pendingToolActivities = [];
@@ -195,7 +213,7 @@ export const useMessagesStore = create<MessagesStore>()(
       set((state) => {
         state.messages = [];
         state.streamingMessageId = null;
-        state.streamingContent = '';
+        state.streamingContent = "";
         state.streamingBlocks = [];
         state.isStreaming = false;
         state.pendingToolActivities = [];
@@ -220,7 +238,7 @@ export const useMessagesStore = create<MessagesStore>()(
       set((state) => {
         state.messages = messages.map((m) => ({
           id: m.id,
-          role: m.role as 'user' | 'assistant' | 'system',
+          role: m.role as "user" | "assistant" | "system",
           content: m.content,
           timestamp: m.timestamp,
           isStreaming: false,
@@ -231,7 +249,7 @@ export const useMessagesStore = create<MessagesStore>()(
           // Persisted blocks may have stale 'running' status from mid-stream snapshots.
           // Since these messages are finalized, mark all blocks as complete.
           contentBlocks: m.contentBlocks?.map((b) =>
-            b.status === 'running' ? { ...b, status: 'complete' as const } : b,
+            b.status === "running" ? { ...b, status: "complete" as const } : b,
           ),
         }));
       });
@@ -248,14 +266,14 @@ export const useMessagesStore = create<MessagesStore>()(
         } else {
           state.messages.push({
             id: messageId,
-            role: 'assistant',
-            content: '',
+            role: "assistant",
+            content: "",
             timestamp: Date.now(),
             isStreaming: true,
           });
         }
         state.streamingMessageId = messageId;
-        state.streamingContent = '';
+        state.streamingContent = "";
         state.streamingBlocks = [];
         state.isStreaming = true;
         state.pendingToolActivities = [];
@@ -283,15 +301,19 @@ export const useMessagesStore = create<MessagesStore>()(
       set((state) => {
         // Mark the previous block complete if it was still running
         const prev = state.streamingBlocks[state.streamingBlocks.length - 1];
-        if (prev && (prev.type === 'text' || prev.type === 'thinking') && prev.status === 'running') {
-          prev.status = 'complete';
+        if (
+          prev &&
+          (prev.type === "text" || prev.type === "thinking") &&
+          prev.status === "running"
+        ) {
+          prev.status = "complete";
         }
-        if (blockType === 'text') {
-          state.streamingBlocks.push({ type: 'text', text: '', status: 'running' });
-        } else if (blockType === 'tool_use' && id && name) {
-          state.streamingBlocks.push({ type: 'tool_use', id, name, input: '', status: 'running' });
-        } else if (blockType === 'thinking') {
-          state.streamingBlocks.push({ type: 'thinking', text: '', status: 'running' });
+        if (blockType === "text") {
+          state.streamingBlocks.push({ type: "text", text: "", status: "running" });
+        } else if (blockType === "tool_use" && id && name) {
+          state.streamingBlocks.push({ type: "tool_use", id, name, input: "", status: "running" });
+        } else if (blockType === "thinking") {
+          state.streamingBlocks.push({ type: "thinking", text: "", status: "running" });
         }
       });
     },
@@ -299,11 +321,11 @@ export const useMessagesStore = create<MessagesStore>()(
     appendToTextBlock: (text) => {
       set((state) => {
         const last = state.streamingBlocks[state.streamingBlocks.length - 1];
-        if (last && last.type === 'text') {
+        if (last && last.type === "text") {
           last.text += text;
         } else {
           // No active text block — start one implicitly
-          state.streamingBlocks.push({ type: 'text', text, status: 'running' });
+          state.streamingBlocks.push({ type: "text", text, status: "running" });
         }
       });
     },
@@ -311,10 +333,10 @@ export const useMessagesStore = create<MessagesStore>()(
     appendToThinkingBlock: (text) => {
       set((state) => {
         const last = state.streamingBlocks[state.streamingBlocks.length - 1];
-        if (last && last.type === 'thinking') {
+        if (last && last.type === "thinking") {
           last.text += text;
         } else {
-          state.streamingBlocks.push({ type: 'thinking', text, status: 'running' });
+          state.streamingBlocks.push({ type: "thinking", text, status: "running" });
         }
       });
     },
@@ -323,7 +345,8 @@ export const useMessagesStore = create<MessagesStore>()(
       set((state) => {
         // content_block_start may have already created a block with this ID — merge instead of duplicating
         const existing = state.streamingBlocks.find(
-          (b): b is ContentBlock & { type: 'tool_use' } => b.type === 'tool_use' && b.id === toolUseId,
+          (b): b is ContentBlock & { type: "tool_use" } =>
+            b.type === "tool_use" && b.id === toolUseId,
         );
         if (existing) {
           existing.input = input;
@@ -332,10 +355,21 @@ export const useMessagesStore = create<MessagesStore>()(
         } else {
           // Mark the previous text/thinking block complete before adding a tool block
           const prev = state.streamingBlocks[state.streamingBlocks.length - 1];
-          if (prev && (prev.type === 'text' || prev.type === 'thinking') && prev.status === 'running') {
-            prev.status = 'complete';
+          if (
+            prev &&
+            (prev.type === "text" || prev.type === "thinking") &&
+            prev.status === "running"
+          ) {
+            prev.status = "complete";
           }
-          state.streamingBlocks.push({ type: 'tool_use', id: toolUseId, name, input, inputRaw, status: 'running' });
+          state.streamingBlocks.push({
+            type: "tool_use",
+            id: toolUseId,
+            name,
+            input,
+            inputRaw,
+            status: "running",
+          });
         }
       });
     },
@@ -343,12 +377,13 @@ export const useMessagesStore = create<MessagesStore>()(
     setToolResult: (toolUseId, result, isError) => {
       set((state) => {
         const block = state.streamingBlocks.find(
-          (b): b is ContentBlock & { type: 'tool_use' } => b.type === 'tool_use' && b.id === toolUseId,
+          (b): b is ContentBlock & { type: "tool_use" } =>
+            b.type === "tool_use" && b.id === toolUseId,
         );
         if (block) {
-          block.status = isError ? 'error' : 'complete';
+          block.status = isError ? "error" : "complete";
           if (isError) {
-            block.error = typeof result === 'string' ? result : JSON.stringify(result);
+            block.error = typeof result === "string" ? result : JSON.stringify(result);
           } else {
             block.result = result;
           }
@@ -359,8 +394,8 @@ export const useMessagesStore = create<MessagesStore>()(
     completeRunningTools: () => {
       set((state) => {
         for (const block of state.streamingBlocks) {
-          if (block.status === 'running') {
-            block.status = 'complete';
+          if (block.status === "running") {
+            block.status = "complete";
           }
         }
       });
@@ -368,10 +403,14 @@ export const useMessagesStore = create<MessagesStore>()(
 
     completeNonTaskTools: () => {
       set((state) => {
-        const taskLike = new Set(['Task', 'Agent', 'Explore', 'AskUserQuestion']);
+        const taskLike = new Set(["Task", "Agent", "Explore", "AskUserQuestion"]);
         for (const block of state.streamingBlocks) {
-          if (block.type === 'tool_use' && block.status === 'running' && !taskLike.has(block.name)) {
-            block.status = 'complete';
+          if (
+            block.type === "tool_use" &&
+            block.status === "running" &&
+            !taskLike.has(block.name)
+          ) {
+            block.status = "complete";
           }
         }
       });
@@ -383,8 +422,8 @@ export const useMessagesStore = create<MessagesStore>()(
         // We walk backwards to find it since content_block_stop doesn't carry block identity.
         for (let i = state.streamingBlocks.length - 1; i >= 0; i--) {
           const block = state.streamingBlocks[i];
-          if ((block.type === 'text' || block.type === 'thinking') && block.status === 'running') {
-            block.status = 'complete';
+          if ((block.type === "text" || block.type === "thinking") && block.status === "running") {
+            block.status = "complete";
             break;
           }
         }

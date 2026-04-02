@@ -3,10 +3,10 @@
  * Checks on mount AND listens for live file change events.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { trpc } from '@/bridge/trpc';
-import { useTRPC } from '@/bridge/react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect, useCallback } from "react";
+import { trpc } from "@/bridge/trpc";
+import { useTRPC } from "@/bridge/react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export function useCCSyncBanner(activeSessionId?: string) {
   const trpcUtils = useTRPC();
@@ -45,7 +45,11 @@ export function useCCSyncBanner(activeSessionId?: string) {
     const subscription = trpc.events.subscribe.subscribe(undefined, {
       onData: (event) => {
         const ev = event as { type: string; sessionId?: string; action?: string };
-        if (ev.type === 'SessionChange' && ev.sessionId === activeSessionId && ev.action === 'cc_source_changed') {
+        if (
+          ev.type === "SessionChange" &&
+          ev.sessionId === activeSessionId &&
+          ev.action === "cc_source_changed"
+        ) {
           setLiveUpdate(true);
           setDismissed(false);
         }
@@ -61,10 +65,10 @@ export function useCCSyncBanner(activeSessionId?: string) {
     trpcUtils.session.syncCC.mutationOptions({
       onSuccess: () => {
         setLiveUpdate(false);
-        void queryClient.invalidateQueries({ queryKey: ['session'] });
+        void queryClient.invalidateQueries({ queryKey: ["session"] });
       },
       onError: (err) => {
-        console.error('CC sync failed:', err);
+        console.error("CC sync failed:", err);
       },
       onSettled: () => {
         setIsSyncing(false);

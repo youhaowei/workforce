@@ -3,17 +3,12 @@
  * Uses the shared ProjectForm for the form fields.
  */
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { ProjectForm } from './ProjectForm';
-import type { ProjectFormValues } from './ProjectForm';
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ProjectForm } from "./ProjectForm";
+import type { ProjectFormValues } from "./ProjectForm";
 
 interface CreateProjectDialogProps {
   open: boolean;
@@ -31,9 +26,9 @@ export function CreateProjectDialog({ open, onOpenChange, onCreated }: CreatePro
     trpc.project.create.mutationOptions({
       onSuccess: (project) => {
         // Optimistic insert so the panel list updates immediately (before background refetch)
-        queryClient.setQueriesData<import('@/services/types').Project[]>(
+        queryClient.setQueriesData<import("@/services/types").Project[]>(
           { queryKey: trpc.project.list.queryKey(listInput) },
-          (old) => old ? [project, ...old] : [project],
+          (old) => (old ? [project, ...old] : [project]),
         );
         onCreated?.(project.id);
         void queryClient.invalidateQueries({ queryKey: trpc.project.list.queryKey(listInput) });

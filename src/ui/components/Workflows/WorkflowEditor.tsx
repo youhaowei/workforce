@@ -3,35 +3,35 @@
  * Manages a step list with dependency support.
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
+import { useState, useEffect, useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Plus } from 'lucide-react';
-import { WorkflowStepItem } from './WorkflowStepItem';
-import type { WorkflowTemplate, WorkflowStep, StepType } from '@/services/types';
+} from "@/components/ui/dropdown-menu";
+import { Plus } from "lucide-react";
+import { WorkflowStepItem } from "./WorkflowStepItem";
+import type { WorkflowTemplate, WorkflowStep, StepType } from "@/services/types";
 
 function saveButtonLabel(isPending: boolean, isEditing: boolean): string {
-  if (isPending) return 'Saving...';
-  return isEditing ? 'Update' : 'Create';
+  if (isPending) return "Saving...";
+  return isEditing ? "Update" : "Create";
 }
 
 interface WorkflowEditorProps {
@@ -41,8 +41,8 @@ interface WorkflowEditorProps {
 }
 
 function stepDefaultName(type: StepType, index: number): string {
-  if (type === 'review_gate') return 'Review Gate';
-  if (type === 'parallel_group') return 'Parallel Group';
+  if (type === "review_gate") return "Review Gate";
+  if (type === "parallel_group") return "Parallel Group";
   return `Step ${index + 1}`;
 }
 
@@ -53,9 +53,9 @@ function createStep(type: StepType, index: number): WorkflowStep {
     name: stepDefaultName(type, index),
     type,
     dependsOn: [],
-    goal: type === 'agent' ? '' : undefined,
-    reviewPrompt: type === 'review_gate' ? '' : undefined,
-    parallelStepIds: type === 'parallel_group' ? [] : undefined,
+    goal: type === "agent" ? "" : undefined,
+    reviewPrompt: type === "review_gate" ? "" : undefined,
+    parallelStepIds: type === "parallel_group" ? [] : undefined,
   };
 }
 
@@ -64,8 +64,8 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
   const queryClient = useQueryClient();
   const orgId = useRequiredOrgId();
 
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
 
   useEffect(() => {
@@ -74,8 +74,8 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
       setDescription(workflow.description);
       setSteps(workflow.steps);
     } else {
-      setName('');
-      setDescription('');
+      setName("");
+      setDescription("");
       setSteps([]);
     }
   }, [workflow, open]);
@@ -83,7 +83,7 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
   const createMutation = useMutation(
     trpc.workflow.create.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['workflow'] });
+        queryClient.invalidateQueries({ queryKey: ["workflow"] });
         onOpenChange(false);
       },
     }),
@@ -92,7 +92,7 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
   const updateMutation = useMutation(
     trpc.workflow.update.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['workflow'] });
+        queryClient.invalidateQueries({ queryKey: ["workflow"] });
         onOpenChange(false);
       },
     }),
@@ -131,7 +131,7 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[85vh]">
         <DialogHeader>
-          <DialogTitle>{workflow ? 'Edit Workflow' : 'New Workflow'}</DialogTitle>
+          <DialogTitle>{workflow ? "Edit Workflow" : "New Workflow"}</DialogTitle>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-4">
@@ -165,9 +165,13 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => addStep('agent')}>Agent Step</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => addStep('review_gate')}>Review Gate</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => addStep('parallel_group')}>Parallel Group</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => addStep("agent")}>Agent Step</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => addStep("review_gate")}>
+                      Review Gate
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => addStep("parallel_group")}>
+                      Parallel Group
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -192,7 +196,9 @@ export function WorkflowEditor({ workflow, open, onOpenChange }: WorkflowEditorP
           </div>
         </ScrollArea>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleSave} disabled={!name.trim() || isPending}>
             {saveButtonLabel(isPending, !!workflow)}
           </Button>

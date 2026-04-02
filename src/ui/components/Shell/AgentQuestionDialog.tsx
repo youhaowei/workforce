@@ -5,9 +5,9 @@
  * Only opens when `pending !== null && !cardVisible`.
  */
 
-import { useState, useCallback, useEffect } from 'react';
-import { trpc as trpcClient } from '@/bridge/trpc';
-import { useAgentQuestionStore } from '@/ui/stores/useAgentQuestionStore';
+import { useState, useCallback, useEffect } from "react";
+import { trpc as trpcClient } from "@/bridge/trpc";
+import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
 import {
   Dialog,
   DialogContent,
@@ -15,10 +15,10 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { QuestionField } from '../Messages/QuestionField';
-import { buildAnswerMap } from '../Messages/questionHelpers';
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { QuestionField } from "../Messages/QuestionField";
+import { buildAnswerMap } from "../Messages/questionHelpers";
 
 export function AgentQuestionDialog() {
   const pending = useAgentQuestionStore((s) => s.pending);
@@ -42,12 +42,17 @@ export function AgentQuestionDialog() {
     if (!pending) return;
     const mapped = buildAnswerMap(pending.questions, selections, feedbacks);
     submitStore(mapped);
-    trpcClient.agent.submitAnswer.mutate({ requestId: pending.requestId, answers: mapped })
-      .catch(() => {/* best-effort */});
+    trpcClient.agent.submitAnswer
+      .mutate({ requestId: pending.requestId, answers: mapped })
+      .catch(() => {
+        /* best-effort */
+      });
   }, [pending, selections, feedbacks, submitStore]);
 
   const handleDismiss = useCallback(() => {
-    trpcClient.agent.cancel.mutate().catch(() => {/* best-effort */});
+    trpcClient.agent.cancel.mutate().catch(() => {
+      /* best-effort */
+    });
     clear();
   }, [clear]);
 
@@ -63,11 +68,18 @@ export function AgentQuestionDialog() {
   });
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) handleDismiss(); }}>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) handleDismiss();
+      }}
+    >
       <DialogContent className="sm:max-w-md max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Agent Question</DialogTitle>
-          <DialogDescription className="sr-only">The agent is asking you a question</DialogDescription>
+          <DialogDescription className="sr-only">
+            The agent is asking you a question
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           {pending!.questions.map((q) => (
@@ -76,7 +88,7 @@ export function AgentQuestionDialog() {
               question={q}
               selected={selections[q.id] ?? []}
               onSelect={(vals) => setSelections((prev) => ({ ...prev, [q.id]: vals }))}
-              feedback={feedbacks[q.id] ?? ''}
+              feedback={feedbacks[q.id] ?? ""}
               onFeedbackChange={(val) => setFeedbacks((prev) => ({ ...prev, [q.id]: val }))}
               disabled={false}
             />

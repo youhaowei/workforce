@@ -4,14 +4,14 @@
  * Shows a name input with live avatar preview (initials + deterministic color).
  */
 
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ArrowRight, Loader2 } from 'lucide-react';
-import { colorFromName } from '@/shared/palette';
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowRight, Loader2 } from "lucide-react";
+import { colorFromName } from "@/shared/palette";
 
 function getInitials(name: string): string {
   return name
@@ -19,7 +19,7 @@ function getInitials(name: string): string {
     .filter(Boolean)
     .slice(0, 2)
     .map((w) => w[0].toUpperCase())
-    .join('');
+    .join("");
 }
 
 interface UserStepProps {
@@ -29,7 +29,7 @@ interface UserStepProps {
 export function UserStep({ onComplete }: UserStepProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-  const [name, setName] = useState('');
+  const [name, setName] = useState("");
 
   const createMutation = useMutation(
     trpc.user.create.mutationOptions({
@@ -41,7 +41,7 @@ export function UserStep({ onComplete }: UserStepProps) {
       },
       onError: (err) => {
         // User already exists (e.g., race with stale query) — update cache and advance
-        if (err.data?.code === 'CONFLICT') {
+        if (err.data?.code === "CONFLICT") {
           queryClient.setQueryData(trpc.user.exists.queryKey(), true);
           onComplete();
         }
@@ -57,7 +57,7 @@ export function UserStep({ onComplete }: UserStepProps) {
   };
 
   const initials = getInitials(name.trim());
-  const color = name.trim() ? colorFromName(name.trim()) : '#94a3b8';
+  const color = name.trim() ? colorFromName(name.trim()) : "#94a3b8";
 
   return (
     <div className="w-full max-w-md px-6">
@@ -73,7 +73,7 @@ export function UserStep({ onComplete }: UserStepProps) {
             className="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl font-semibold transition-colors"
             style={{ backgroundColor: color }}
           >
-            {initials || '?'}
+            {initials || "?"}
           </div>
         </div>
 
@@ -88,9 +88,9 @@ export function UserStep({ onComplete }: UserStepProps) {
           />
         </div>
 
-        {createMutation.isError && createMutation.error?.data?.code !== 'CONFLICT' && (
+        {createMutation.isError && createMutation.error?.data?.code !== "CONFLICT" && (
           <p className="text-sm text-palette-danger">
-            {createMutation.error?.message ?? 'Something went wrong. Please try again.'}
+            {createMutation.error?.message ?? "Something went wrong. Please try again."}
           </p>
         )}
 

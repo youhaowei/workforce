@@ -9,22 +9,22 @@
  * and console. Subscriptions log start only (streaming data is noisy).
  */
 
-import { initTRPC } from '@trpc/server';
-import superjson from 'superjson';
-import { createLogger } from 'tracey';
+import { initTRPC } from "@trpc/server";
+import superjson from "superjson";
+import { createLogger } from "tracey";
 
-const log = createLogger('tRPC');
+const log = createLogger("tRPC");
 
-export const isDev = process.env.NODE_ENV !== 'production';
+export const isDev = process.env.NODE_ENV !== "production";
 
 const ERROR_HINTS: Record<string, string> = {
-  NOT_FOUND: 'Check that the resource ID exists and the org is active.',
-  BAD_REQUEST: 'Verify your input matches the expected schema (use tRPC panel for reference).',
-  INTERNAL_SERVER_ERROR: 'Check debug.log (GET /debug-log) for server-side stack trace.',
-  UNAUTHORIZED: 'Ensure the server has valid Claude CLI credentials (~/.claude/.credentials.json).',
-  FORBIDDEN: 'This operation may require an active org to be selected first.',
-  TIMEOUT: 'The operation timed out. For long-running tasks, use the background task API.',
-  CONFLICT: 'The resource was modified concurrently. Refresh and retry.',
+  NOT_FOUND: "Check that the resource ID exists and the org is active.",
+  BAD_REQUEST: "Verify your input matches the expected schema (use tRPC panel for reference).",
+  INTERNAL_SERVER_ERROR: "Check debug.log (GET /debug-log) for server-side stack trace.",
+  UNAUTHORIZED: "Ensure the server has valid Claude CLI credentials (~/.claude/.credentials.json).",
+  FORBIDDEN: "This operation may require an active org to be selected first.",
+  TIMEOUT: "The operation timed out. For long-running tasks, use the background task API.",
+  CONFLICT: "The resource was modified concurrently. Refresh and retry.",
 };
 
 const t = initTRPC.create({
@@ -42,18 +42,18 @@ const t = initTRPC.create({
 
 /** Summarize procedure input for logging (avoid dumping huge payloads). */
 function summarizeInput(raw: unknown): string {
-  if (raw === undefined || raw === null) return '';
+  if (raw === undefined || raw === null) return "";
   const s = JSON.stringify(raw);
-  return s.length > 200 ? s.slice(0, 200) + '…' : s;
+  return s.length > 200 ? s.slice(0, 200) + "…" : s;
 }
 
 /** Summarize procedure result for logging. */
 function summarizeResult(raw: unknown): string {
-  if (raw === undefined || raw === null) return 'null';
+  if (raw === undefined || raw === null) return "null";
   if (Array.isArray(raw)) return `Array(${raw.length})`;
-  if (typeof raw === 'object') {
+  if (typeof raw === "object") {
     const keys = Object.keys(raw as Record<string, unknown>);
-    return `{${keys.slice(0, 5).join(',')}}`;
+    return `{${keys.slice(0, 5).join(",")}}`;
   }
   return String(raw).slice(0, 100);
 }
@@ -75,7 +75,5 @@ const devLoggingMiddleware = t.middleware(async ({ path, type, getRawInput, next
 });
 
 export const router = t.router;
-export const publicProcedure = isDev
-  ? t.procedure.use(devLoggingMiddleware)
-  : t.procedure;
+export const publicProcedure = isDev ? t.procedure.use(devLoggingMiddleware) : t.procedure;
 export const createCallerFactory = t.createCallerFactory;

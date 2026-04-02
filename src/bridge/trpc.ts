@@ -1,12 +1,7 @@
-import {
-  createTRPCClient,
-  httpBatchLink,
-  httpSubscriptionLink,
-  splitLink,
-} from '@trpc/client';
-import superjson from 'superjson';
-import type { AppRouter } from '../server/routers';
-import { getTrpcUrl } from './config';
+import { createTRPCClient, httpBatchLink, httpSubscriptionLink, splitLink } from "@trpc/client";
+import superjson from "superjson";
+import type { AppRouter } from "../server/routers";
+import { getTrpcUrl } from "./config";
 
 type TrpcClient = ReturnType<typeof createTRPCClient<AppRouter>>;
 
@@ -14,7 +9,7 @@ function createClient(): TrpcClient {
   return createTRPCClient<AppRouter>({
     links: [
       splitLink({
-        condition: (op) => op.type === 'subscription',
+        condition: (op) => op.type === "subscription",
         true: httpSubscriptionLink({ url: getTrpcUrl(), transformer: superjson }),
         false: httpBatchLink({ url: getTrpcUrl(), transformer: superjson }),
       }),
