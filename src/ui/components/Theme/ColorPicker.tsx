@@ -7,11 +7,11 @@
  * - Hex text input
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { RotateCcw } from 'lucide-react';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { parseOklch, formatOklch, oklchToHex, hexToOklch } from '@/ui/lib/oklch';
-import { safeOklchToHex, getRecentColors, addRecentColor } from '@/ui/stores/useThemeStore';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { RotateCcw } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { parseOklch, formatOklch, oklchToHex, hexToOklch } from "@/ui/lib/oklch";
+import { safeOklchToHex, getRecentColors, addRecentColor } from "@/ui/stores/useThemeStore";
 
 const AREA_W = 192;
 const AREA_H = 144;
@@ -74,13 +74,14 @@ export function ColorPicker({
     (l: number) => Math.max(lightnessLow, Math.min(lightnessHigh, l)),
     [lightnessLow, lightnessHigh],
   );
-  const clampChroma = useCallback(
-    (c: number) => Math.max(0, Math.min(maxChroma, c)),
-    [maxChroma],
-  );
+  const clampChroma = useCallback((c: number) => Math.max(0, Math.min(maxChroma, c)), [maxChroma]);
 
   let lch = { l: 0.5, c: 0.1, h: 0 };
-  try { lch = parseOklch(value); } catch { /* keep default */ }
+  try {
+    lch = parseOklch(value);
+  } catch {
+    /* keep default */
+  }
   const uiLch = {
     l: clampLightness(lch.l),
     c: clampChroma(lch.c),
@@ -88,13 +89,16 @@ export function ColorPicker({
   };
 
   const [hexText, setHexText] = useState(hex);
-  useEffect(() => { setHexText(hex); }, [hex]);
+  useEffect(() => {
+    setHexText(hex);
+  }, [hex]);
 
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const snapshotRef = useRef<string | null>(null);
 
   const emit = useCallback(
-    (l: number, c: number, h: number) => onChange(formatOklch(clampLightness(l), clampChroma(c), h)),
+    (l: number, c: number, h: number) =>
+      onChange(formatOklch(clampLightness(l), clampChroma(c), h)),
     [onChange, clampLightness, clampChroma],
   );
 
@@ -110,30 +114,30 @@ export function ColorPicker({
     [emit],
   );
 
-  const handleSwatchClick = useCallback(
-    (oklch: string) => onChange(oklch),
-    [onChange],
-  );
+  const handleSwatchClick = useCallback((oklch: string) => onChange(oklch), [onChange]);
 
   const handleReset = useCallback(() => {
     if (snapshotRef.current != null) onChange(snapshotRef.current);
   }, [onChange]);
 
-  const handleOpenChange = useCallback((open: boolean) => {
-    if (open) {
-      snapshotRef.current = value;
-      if (showRecentColors) {
-        setRecentColors(getRecentColors());
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (open) {
+        snapshotRef.current = value;
+        if (showRecentColors) {
+          setRecentColors(getRecentColors());
+        } else {
+          setRecentColors([]);
+        }
       } else {
-        setRecentColors([]);
+        if (showRecentColors) {
+          addRecentColor(value);
+          setRecentColors(getRecentColors());
+        }
       }
-    } else {
-      if (showRecentColors) {
-        addRecentColor(value);
-        setRecentColors(getRecentColors());
-      }
-    }
-  }, [value, showRecentColors]);
+    },
+    [value, showRecentColors],
+  );
 
   // Used colors minus current value; recent minus anything already in used/current
   const dedupedLight = usedColors?.light.filter((c) => c !== value);
@@ -144,23 +148,17 @@ export function ColorPicker({
 
   return (
     <div className="flex items-center gap-2">
-      {label && (
-        <span className="text-[11px] text-neutral-fg-subtle w-20 shrink-0">{label}</span>
-      )}
+      {label && <span className="text-[11px] text-neutral-fg-subtle w-20 shrink-0">{label}</span>}
       <Popover onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <button
             type="button"
             className="w-7 h-7 rounded-md border border-neutral-border shrink-0 cursor-pointer transition-shadow hover:ring-2 hover:ring-neutral-ring/30"
             style={{ background: previewBg }}
-            aria-label={`Pick ${label ?? 'color'}`}
+            aria-label={`Pick ${label ?? "color"}`}
           />
         </PopoverTrigger>
-        <PopoverContent
-          side="left"
-          align="start"
-          className="w-auto p-2 space-y-2"
-        >
+        <PopoverContent side="left" align="start" className="w-auto p-2 space-y-2">
           <GradientArea
             lightness={uiLch.l}
             chroma={uiLch.c}
@@ -210,7 +208,15 @@ export function ColorPicker({
 
 // ── Swatch Row ──────────────────────────────────────────────────────────────
 
-function SwatchRow({ label, colors, onPick }: { label: string; colors: string[]; onPick: (c: string) => void }) {
+function SwatchRow({
+  label,
+  colors,
+  onPick,
+}: {
+  label: string;
+  colors: string[];
+  onPick: (c: string) => void;
+}) {
   return (
     <div className="space-y-1">
       <span className="text-[10px] text-neutral-fg-subtle">{label}</span>
@@ -258,8 +264,8 @@ function PopoverControls({
           className="w-6 h-6 rounded-[4px] border border-neutral-border shrink-0"
           style={{ background: previewBg }}
         />
-        {previewBackground && (
-          onPreviewClick ? (
+        {previewBackground &&
+          (onPreviewClick ? (
             <button
               type="button"
               onClick={onPreviewClick}
@@ -273,8 +279,7 @@ function PopoverControls({
               style={{ background: previewBg }}
               title="Applied preview"
             />
-          )
-        )}
+          ))}
         {showHexValue && (
           <input
             type="text"
@@ -287,7 +292,7 @@ function PopoverControls({
         <button
           type="button"
           onClick={onReset}
-          className={`w-6 h-6 flex items-center justify-center rounded-md text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-subtle transition-colors ${showHexValue ? '' : 'ml-auto'}`}
+          className={`w-6 h-6 flex items-center justify-center rounded-md text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-subtle transition-colors ${showHexValue ? "" : "ml-auto"}`}
           title="Reset to value before opening"
         >
           <RotateCcw className="w-3 h-3" />
@@ -358,7 +363,7 @@ function GradientArea({
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const img = ctx.createImageData(AREA_W, AREA_H);
@@ -402,10 +407,7 @@ function GradientArea({
   // Handle position as percentages
   const handleX = Math.min(100, Math.max(0, (chroma / maxChroma) * 100));
   const lightnessRange = Math.max(0.0001, maxLightness - minLightness);
-  const handleY = Math.min(
-    100,
-    Math.max(0, ((maxLightness - lightness) / lightnessRange) * 100),
-  );
+  const handleY = Math.min(100, Math.max(0, ((maxLightness - lightness) / lightnessRange) * 100));
 
   return (
     <div
@@ -413,7 +415,9 @@ function GradientArea({
       className="relative cursor-crosshair rounded-md overflow-hidden border border-neutral-border"
       style={{ width: AREA_W, height: AREA_H }}
       onPointerDown={startDrag}
-      onPointerMove={(e) => { if (e.buttons > 0) handlePointer(e); }}
+      onPointerMove={(e) => {
+        if (e.buttons > 0) handlePointer(e);
+      }}
     >
       <canvas
         ref={canvasRef as React.RefObject<HTMLCanvasElement>}
@@ -424,7 +428,7 @@ function GradientArea({
       {/* Crosshair handle */}
       <div
         className="absolute pointer-events-none"
-        style={{ left: `${handleX}%`, top: `${handleY}%`, transform: 'translate(-50%, -50%)' }}
+        style={{ left: `${handleX}%`, top: `${handleY}%`, transform: "translate(-50%, -50%)" }}
       >
         <div className="w-3.5 h-3.5 rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3),0_1px_3px_rgba(0,0,0,0.4)]" />
       </div>
@@ -468,7 +472,7 @@ function HueStrip({
   const stops = Array.from({ length: 7 }, (_, i) => {
     const h = (i / 6) * 360;
     return `oklch(0.7 ${stripChroma} ${h})`;
-  }).join(', ');
+  }).join(", ");
 
   return (
     <div
@@ -476,11 +480,13 @@ function HueStrip({
       className="relative cursor-pointer rounded-full overflow-hidden border border-neutral-border"
       style={{ width: AREA_W, height: HUE_H, background: `linear-gradient(to right, ${stops})` }}
       onPointerDown={startDrag}
-      onPointerMove={(e) => { if (e.buttons > 0) handlePointer(e); }}
+      onPointerMove={(e) => {
+        if (e.buttons > 0) handlePointer(e);
+      }}
     >
       <div
         className="absolute top-0 pointer-events-none"
-        style={{ left: `${(hue / 360) * 100}%`, transform: 'translateX(-50%)' }}
+        style={{ left: `${(hue / 360) * 100}%`, transform: "translateX(-50%)" }}
       >
         <div
           className="rounded-full border-2 border-white shadow-[0_0_0_1px_rgba(0,0,0,0.3)]"

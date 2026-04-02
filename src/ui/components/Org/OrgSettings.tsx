@@ -3,38 +3,38 @@
  * Manages description, agent defaults, cost caps, and default template.
  */
 
-import { useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
+import { useState, useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
-import type { AgentTone, Org, ThinkingLevel, VerboseLevel } from '@/services/types';
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
+import type { AgentTone, Org, ThinkingLevel, VerboseLevel } from "@/services/types";
 import {
   SEED_MODELS,
   THINKING_LEVELS,
   TONE_OPTIONS,
   VERBOSE_OPTIONS,
   DEFAULT_AGENT_DEFAULTS,
-} from '../Messages/agentConfig';
-import { AppearanceSection } from '../Theme/AppearanceSection';
+} from "../Messages/agentConfig";
+import { AppearanceSection } from "../Theme/AppearanceSection";
 
 interface OrgSettingsProps {
   org: Org;
@@ -48,9 +48,9 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
 
   const defaults = org.settings.agentDefaults ?? DEFAULT_AGENT_DEFAULTS;
 
-  const [description, setDescription] = useState(org.description ?? '');
-  const [costWarning, setCostWarning] = useState(String(org.settings.costWarningThreshold ?? ''));
-  const [costCap, setCostCap] = useState(String(org.settings.costHardCap ?? ''));
+  const [description, setDescription] = useState(org.description ?? "");
+  const [costWarning, setCostWarning] = useState(String(org.settings.costWarningThreshold ?? ""));
+  const [costCap, setCostCap] = useState(String(org.settings.costHardCap ?? ""));
   const [hardCapEnabled, setHardCapEnabled] = useState(!!org.settings.costHardCap);
   const [model, setModel] = useState(defaults.model);
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(defaults.thinkingLevel);
@@ -59,9 +59,9 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
 
   useEffect(() => {
     const d = org.settings.agentDefaults ?? DEFAULT_AGENT_DEFAULTS;
-    setDescription(org.description ?? '');
-    setCostWarning(String(org.settings.costWarningThreshold ?? ''));
-    setCostCap(String(org.settings.costHardCap ?? ''));
+    setDescription(org.description ?? "");
+    setCostWarning(String(org.settings.costWarningThreshold ?? ""));
+    setCostCap(String(org.settings.costHardCap ?? ""));
     setHardCapEnabled(!!org.settings.costHardCap);
     setModel(d.model);
     setThinkingLevel(d.thinkingLevel);
@@ -72,7 +72,7 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
   const updateMutation = useMutation(
     trpc.org.update.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['org'] });
+        queryClient.invalidateQueries({ queryKey: ["org"] });
         onOpenChange(false);
       },
     }),
@@ -138,8 +138,8 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
                     onClick={() => setModel(m.id)}
                     className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-colors ${
                       model === m.id
-                        ? 'bg-palette-primary text-palette-primary-fg border-palette-primary'
-                        : 'bg-neutral-bg-subtle text-neutral-fg border-neutral-border hover:border-palette-primary/50'
+                        ? "bg-palette-primary text-palette-primary-fg border-palette-primary"
+                        : "bg-neutral-bg-subtle text-neutral-fg border-neutral-border hover:border-palette-primary/50"
                     }`}
                   >
                     {m.displayName}
@@ -151,13 +151,18 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label className="text-xs text-neutral-fg-subtle">Thinking</Label>
-                <Select value={thinkingLevel} onValueChange={(v) => setThinkingLevel(v as ThinkingLevel)}>
+                <Select
+                  value={thinkingLevel}
+                  onValueChange={(v) => setThinkingLevel(v as ThinkingLevel)}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {THINKING_LEVELS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -170,7 +175,9 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
                   </SelectTrigger>
                   <SelectContent>
                     {TONE_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -179,13 +186,18 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
 
             <div className="space-y-2">
               <Label className="text-xs text-neutral-fg-subtle">Detail Level</Label>
-              <Select value={verboseLevel} onValueChange={(v) => setVerboseLevel(v as VerboseLevel)}>
+              <Select
+                value={verboseLevel}
+                onValueChange={(v) => setVerboseLevel(v as VerboseLevel)}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {VERBOSE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -232,9 +244,11 @@ export function OrgSettings({ org, open, onOpenChange }: OrgSettingsProps) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleSave} disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? 'Saving...' : 'Save'}
+            {updateMutation.isPending ? "Saving..." : "Save"}
           </Button>
         </DialogFooter>
       </DialogContent>

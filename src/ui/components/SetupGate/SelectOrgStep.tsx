@@ -4,17 +4,17 @@
  * Migrated from OrgGate's org picker with inline create support.
  */
 
-import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { trpc as trpcClient } from '@/bridge/trpc';
-import { useOrgStore } from '@/ui/stores/useOrgStore';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Plus, Loader2, ArrowRight, ArrowLeft } from 'lucide-react';
-import type { Org } from '@/services/types';
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { trpc as trpcClient } from "@/bridge/trpc";
+import { useOrgStore } from "@/ui/stores/useOrgStore";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Plus, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
+import type { Org } from "@/services/types";
 
 interface SelectOrgStepProps {
   orgs: Org[];
@@ -26,7 +26,7 @@ export function SelectOrgStep({ orgs, onComplete }: SelectOrgStepProps) {
   const queryClient = useQueryClient();
   const setCurrentOrgId = useOrgStore((s) => s.setCurrentOrgId);
   const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState('');
+  const [newName, setNewName] = useState("");
 
   const activateMutation = useMutation(
     trpc.org.activate.mutationOptions({
@@ -44,9 +44,12 @@ export function SelectOrgStep({ orgs, onComplete }: SelectOrgStepProps) {
         try {
           await trpcClient.org.activate.mutate({ id: org.id });
         } catch (err) {
-          console.warn('[SetupGate] Failed to activate org on server:', err);
+          console.warn("[SetupGate] Failed to activate org on server:", err);
         }
-        queryClient.setQueryData(trpc.org.list.queryKey(), (old: Org[] | undefined) => [...(old ?? []), org]);
+        queryClient.setQueryData(trpc.org.list.queryKey(), (old: Org[] | undefined) => [
+          ...(old ?? []),
+          org,
+        ]);
         queryClient.setQueryData(trpc.org.getCurrent.queryKey(), org);
         setCurrentOrgId(org.id);
         onComplete();
@@ -106,16 +109,14 @@ export function SelectOrgStep({ orgs, onComplete }: SelectOrgStepProps) {
     <div className="w-full max-w-2xl px-6">
       <div className="text-center mb-8">
         <h1 className="text-2xl font-semibold mb-2">Select a Workspace</h1>
-        <p className="text-sm text-neutral-fg-subtle">
-          Choose a workspace to continue.
-        </p>
+        <p className="text-sm text-neutral-fg-subtle">Choose a workspace to continue.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         {orgs.map((org) => (
           <Card
             key={org.id}
-            className={`cursor-pointer transition-colors hover:border-palette-primary/50 ${activateMutation.isPending ? 'pointer-events-none opacity-60' : ''}`}
+            className={`cursor-pointer transition-colors hover:border-palette-primary/50 ${activateMutation.isPending ? "pointer-events-none opacity-60" : ""}`}
             onClick={() => activateMutation.mutate({ id: org.id })}
           >
             <CardHeader className="pb-2">

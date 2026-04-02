@@ -9,18 +9,18 @@
  * Persistence: ~/.workforce/orgs/{id}/org.json
  */
 
-import { readFile, writeFile, readdir, mkdir, rm } from 'fs/promises';
-import { join } from 'path';
-import type { Org, OrgSettings, OrgService } from './types';
-import { getEventBus } from '@/shared/event-bus';
-import { getLogService } from './log';
-import { getDataDir } from './data-dir';
+import { readFile, writeFile, readdir, mkdir, rm } from "fs/promises";
+import { join } from "path";
+import type { Org, OrgSettings, OrgService } from "./types";
+import { getEventBus } from "@/shared/event-bus";
+import { getLogService } from "./log";
+import { getDataDir } from "./data-dir";
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const ORGS_DIR = join(getDataDir(), 'orgs');
+const ORGS_DIR = join(getDataDir(), "orgs");
 
 // =============================================================================
 // Helpers
@@ -64,9 +64,9 @@ class OrgServiceImpl implements OrgService {
       const dirs = entries.filter((e) => e.isDirectory());
 
       for (const dir of dirs) {
-        const filePath = join(this.orgsDir, dir.name, 'org.json');
+        const filePath = join(this.orgsDir, dir.name, "org.json");
         try {
-          const raw = await readFile(filePath, 'utf-8');
+          const raw = await readFile(filePath, "utf-8");
           const org = JSON.parse(raw) as Org;
 
           // Migration: orgs created before SetupGate lack `initialized`.
@@ -78,21 +78,21 @@ class OrgServiceImpl implements OrgService {
 
           this.orgs.set(org.id, org);
         } catch (innerErr) {
-          getLogService().warn('general', `Skipping unreadable org file: ${filePath}`, { error: String(innerErr) });
+          getLogService().warn("general", `Skipping unreadable org file: ${filePath}`, {
+            error: String(innerErr),
+          });
         }
       }
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
-      if (error.code !== 'ENOENT') {
-        getLogService().error('general', 'Failed to initialize orgs', { error: String(error) });
+      if (error.code !== "ENOENT") {
+        getLogService().error("general", "Failed to initialize orgs", { error: String(error) });
       }
     }
 
     // Auto-select the most recently updated org so getCurrent() isn't null after restart
     if (!this.currentOrg && this.orgs.size > 0) {
-      const sorted = Array.from(this.orgs.values()).sort(
-        (a, b) => b.updatedAt - a.updatedAt,
-      );
+      const sorted = Array.from(this.orgs.values()).sort((a, b) => b.updatedAt - a.updatedAt);
       this.currentOrg = sorted[0];
     }
 
@@ -102,8 +102,8 @@ class OrgServiceImpl implements OrgService {
   private async saveOrg(org: Org): Promise<void> {
     const dir = join(this.orgsDir, org.id);
     await mkdir(dir, { recursive: true });
-    const filePath = join(dir, 'org.json');
-    await writeFile(filePath, JSON.stringify(org, null, 2), 'utf-8');
+    const filePath = join(dir, "org.json");
+    await writeFile(filePath, JSON.stringify(org, null, 2), "utf-8");
   }
 
   async create(name: string): Promise<Org> {
@@ -122,9 +122,9 @@ class OrgServiceImpl implements OrgService {
     await this.saveOrg(org);
 
     getEventBus().emit({
-      type: 'OrgChange',
+      type: "OrgChange",
       orgId: org.id,
-      action: 'created',
+      action: "created",
       timestamp: now,
     });
 
@@ -136,10 +136,7 @@ class OrgServiceImpl implements OrgService {
     return this.orgs.get(id) ?? null;
   }
 
-  async update(
-    id: string,
-    updates: Partial<Omit<Org, 'id' | 'createdAt'>>
-  ): Promise<Org> {
+  async update(id: string, updates: Partial<Omit<Org, "id" | "createdAt">>): Promise<Org> {
     await this.ensureInitialized();
 
     const org = this.orgs.get(id);
@@ -162,9 +159,9 @@ class OrgServiceImpl implements OrgService {
     await this.saveOrg(updated);
 
     getEventBus().emit({
-      type: 'OrgChange',
+      type: "OrgChange",
       orgId: id,
-      action: 'updated',
+      action: "updated",
       timestamp: updated.updatedAt,
     });
 
@@ -173,9 +170,7 @@ class OrgServiceImpl implements OrgService {
 
   async list(): Promise<Org[]> {
     await this.ensureInitialized();
-    return Array.from(this.orgs.values()).sort(
-      (a, b) => b.updatedAt - a.updatedAt
-    );
+    return Array.from(this.orgs.values()).sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
   async delete(id: string): Promise<void> {
@@ -197,9 +192,9 @@ class OrgServiceImpl implements OrgService {
     }
 
     getEventBus().emit({
-      type: 'OrgChange',
+      type: "OrgChange",
       orgId: id,
-      action: 'deleted',
+      action: "deleted",
       timestamp: Date.now(),
     });
   }
@@ -214,9 +209,9 @@ class OrgServiceImpl implements OrgService {
 
     if (org) {
       getEventBus().emit({
-        type: 'OrgChange',
+        type: "OrgChange",
         orgId: org.id,
-        action: 'switched',
+        action: "switched",
         timestamp: Date.now(),
       });
     }

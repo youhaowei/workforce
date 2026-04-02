@@ -10,9 +10,9 @@ import type {
   ContentBlock,
   JournalMessageFinal,
   JournalRecord,
-} from './types';
-import { appendRecord } from './session-journal';
-import { AppendLock } from './session-journal';
+} from "./types";
+import { appendRecord } from "./session-journal";
+import { AppendLock } from "./session-journal";
 
 export interface StreamingDeps {
   readonly sessions: Map<string, Session>;
@@ -24,24 +24,46 @@ export interface StreamingDeps {
 }
 
 export async function recordStreamStart(
-  deps: StreamingDeps, sessionId: string, messageId: string,
+  deps: StreamingDeps,
+  sessionId: string,
+  messageId: string,
 ): Promise<void> {
   await deps.ensureInitialized();
   if (!deps.sessions.has(sessionId)) throw new Error(`Session not found: ${sessionId}`);
-  await deps.writeRecords(sessionId, [{ t: 'message_start', seq: 0, ts: Date.now(), id: messageId, role: 'assistant' }]);
+  await deps.writeRecords(sessionId, [
+    { t: "message_start", seq: 0, ts: Date.now(), id: messageId, role: "assistant" },
+  ]);
 }
 
 export async function recordStreamDelta(
-  deps: StreamingDeps, sessionId: string, messageId: string, delta: string, seq: number,
+  deps: StreamingDeps,
+  sessionId: string,
+  messageId: string,
+  delta: string,
+  seq: number,
 ): Promise<void> {
-  await deps.writeRecords(sessionId, [{ t: 'message_delta', seq, ts: Date.now(), id: messageId, delta }]);
+  await deps.writeRecords(sessionId, [
+    { t: "message_delta", seq, ts: Date.now(), id: messageId, delta },
+  ]);
 }
 
 export async function recordStreamDeltaBatch(
-  deps: StreamingDeps, sessionId: string, messageId: string, deltas: Array<{ delta: string; seq: number }>,
+  deps: StreamingDeps,
+  sessionId: string,
+  messageId: string,
+  deltas: Array<{ delta: string; seq: number }>,
 ): Promise<void> {
   if (deltas.length === 0) return;
-  await deps.writeRecords(sessionId, deltas.map((d) => ({ t: 'message_delta' as const, seq: d.seq, ts: Date.now(), id: messageId, delta: d.delta })));
+  await deps.writeRecords(
+    sessionId,
+    deltas.map((d) => ({
+      t: "message_delta" as const,
+      seq: d.seq,
+      ts: Date.now(),
+      id: messageId,
+      delta: d.delta,
+    })),
+  );
 }
 
 export async function recordStreamEnd(
@@ -58,14 +80,23 @@ export async function recordStreamEnd(
 
   const now = Date.now();
   const record: JournalMessageFinal = {
-    t: 'message_final', seq: 0, ts: now, id: messageId, role: 'assistant', content: fullContent, stopReason,
+    t: "message_final",
+    seq: 0,
+    ts: now,
+    id: messageId,
+    role: "assistant",
+    content: fullContent,
+    stopReason,
     ...(toolActivities?.length ? { toolActivities } : {}),
     ...(contentBlocks?.length ? { contentBlocks } : {}),
   };
 
   await deps.appendLock.acquire(sessionId, async () => {
     session.messages.push({
-      id: messageId, role: 'assistant', content: fullContent, timestamp: now,
+      id: messageId,
+      role: "assistant",
+      content: fullContent,
+      timestamp: now,
       ...(toolActivities?.length ? { toolActivities } : {}),
       ...(contentBlocks?.length ? { contentBlocks } : {}),
     });
@@ -76,17 +107,31 @@ export async function recordStreamEnd(
 }
 
 export async function recordStreamBlocks(
-  deps: StreamingDeps, sessionId: string, messageId: string,
-  contentBlocks: ContentBlock[], toolActivities?: ToolActivity[],
+  deps: StreamingDeps,
+  sessionId: string,
+  messageId: string,
+  contentBlocks: ContentBlock[],
+  toolActivities?: ToolActivity[],
 ): Promise<void> {
-  await deps.writeRecords(sessionId, [{
-    t: 'message_blocks', seq: 0, ts: Date.now(), id: messageId, contentBlocks,
-    ...(toolActivities?.length ? { toolActivities } : {}),
-  }]);
+  await deps.writeRecords(sessionId, [
+    {
+      t: "message_blocks",
+      seq: 0,
+      ts: Date.now(),
+      id: messageId,
+      contentBlocks,
+      ...(toolActivities?.length ? { toolActivities } : {}),
+    },
+  ]);
 }
 
 export async function recordStreamAbort(
-  deps: StreamingDeps, sessionId: string, messageId: string, reason: string,
+  deps: StreamingDeps,
+  sessionId: string,
+  messageId: string,
+  reason: string,
 ): Promise<void> {
-  await deps.writeRecords(sessionId, [{ t: 'message_abort', seq: 0, ts: Date.now(), id: messageId, reason }]);
+  await deps.writeRecords(sessionId, [
+    { t: "message_abort", seq: 0, ts: Date.now(), id: messageId, reason },
+  ]);
 }

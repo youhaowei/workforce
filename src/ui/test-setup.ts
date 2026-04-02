@@ -1,5 +1,5 @@
-import '@testing-library/jest-dom/vitest';
-import { beforeEach } from 'vitest';
+import "@testing-library/jest-dom/vitest";
+import { beforeEach } from "vitest";
 
 class MemoryStorage implements Storage {
   private store = new Map<string, string>();
@@ -58,12 +58,12 @@ beforeEach(() => {
 
 // In jsdom window === globalThis, so a single defineProperty covers both.
 // In Node (non-jsdom), window is undefined — globalThis alone is sufficient.
-Object.defineProperty(globalThis, 'localStorage', {
+Object.defineProperty(globalThis, "localStorage", {
   value: localStorageMock,
   configurable: true,
 });
 
-Object.defineProperty(globalThis, 'sessionStorage', {
+Object.defineProperty(globalThis, "sessionStorage", {
   value: sessionStorageMock,
   configurable: true,
 });

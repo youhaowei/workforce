@@ -5,8 +5,8 @@
  * using mock dependencies.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createOrchestrationService } from './orchestration';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { createOrchestrationService } from "./orchestration";
 import type {
   OrchestrationService,
   SessionService,
@@ -16,7 +16,7 @@ import type {
   OrgService,
   Org,
   WorkflowTemplate,
-} from './types';
+} from "./types";
 import {
   resetIdCounter,
   createMockSessionService,
@@ -24,7 +24,7 @@ import {
   createMockWorktreeService,
   createMockWorkflowService,
   createMockOrgService,
-} from './__test__/orchestration-helpers';
+} from "./__test__/orchestration-helpers";
 
 // =============================================================================
 // Mock the AgentInstance to avoid real SDK calls
@@ -36,7 +36,7 @@ import {
  */
 let agentDelay = 0;
 
-vi.mock('./agent-instance', () => {
+vi.mock("./agent-instance", () => {
   return {
     AgentInstance: class MockAgentInstance {
       public readonly sessionId: string;
@@ -53,13 +53,19 @@ vi.mock('./agent-instance', () => {
           await new Promise((r) => setTimeout(r, delay));
         }
         if (this.cancelled) return;
-        yield { token: 'Hello ', index: 0 };
-        yield { token: 'World', index: 1 };
+        yield { token: "Hello ", index: 0 };
+        yield { token: "World", index: 1 };
       }
 
-      cancel() { this.cancelled = true; }
-      isRunning() { return false; }
-      dispose() { this.cancelled = true; }
+      cancel() {
+        this.cancelled = true;
+      }
+      isRunning() {
+        return false;
+      }
+      dispose() {
+        this.cancelled = true;
+      }
     },
     AgentError: class extends Error {
       code: string;
@@ -75,7 +81,7 @@ vi.mock('./agent-instance', () => {
 // Tests
 // =============================================================================
 
-describe('OrchestrationService', () => {
+describe("OrchestrationService", () => {
   let sessionService: SessionService;
   let templateService: TemplateService;
   let worktreeService: WorktreeService;
@@ -84,8 +90,8 @@ describe('OrchestrationService', () => {
   let service: OrchestrationService;
 
   const defaultOrg: Org = {
-    id: 'ws_1',
-    name: 'Test Org',
+    id: "ws_1",
+    name: "Test Org",
     createdAt: Date.now(),
     updatedAt: Date.now(),
     settings: { allowedTools: [] },
@@ -104,7 +110,7 @@ describe('OrchestrationService', () => {
       templateService,
       worktreeService,
       workflowService,
-      orgService
+      orgService,
     );
   });
 
@@ -117,51 +123,51 @@ describe('OrchestrationService', () => {
     orgService.dispose();
   });
 
-  describe('spawn', () => {
-    it('should create a WorkAgent session and return it', async () => {
+  describe("spawn", () => {
+    it("should create a WorkAgent session and return it", async () => {
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Write tests',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Write tests",
+        orgId: "ws_1",
       });
 
       expect(session.id).toBeTruthy();
       const meta = session.metadata as Record<string, unknown>;
-      expect(meta.type).toBe('workagent');
-      expect(meta.goal).toBe('Write tests');
+      expect(meta.type).toBe("workagent");
+      expect(meta.goal).toBe("Write tests");
     });
 
-    it('should transition session to active state', async () => {
+    it("should transition session to active state", async () => {
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Test goal',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Test goal",
+        orgId: "ws_1",
       });
 
       const meta = session.metadata as Record<string, unknown>;
       const lifecycle = meta.lifecycle as { state: string };
-      expect(lifecycle.state).toBe('active');
+      expect(lifecycle.state).toBe("active");
     });
 
-    it('should throw if template not found', async () => {
+    it("should throw if template not found", async () => {
       await expect(
         service.spawn({
-          templateId: 'tpl_nonexistent',
-          goal: 'Fail',
-          orgId: 'ws_1',
-        })
-      ).rejects.toThrow('Template not found');
+          templateId: "tpl_nonexistent",
+          goal: "Fail",
+          orgId: "ws_1",
+        }),
+      ).rejects.toThrow("Template not found");
     });
 
-    it('should set parentId when provided', async () => {
+    it("should set parentId when provided", async () => {
       // Create parent session first
-      const parent = await sessionService.create('Parent');
+      const parent = await sessionService.create("Parent");
 
       const child = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Child task',
+        templateId: "tpl_test",
+        goal: "Child task",
         parentSessionId: parent.id,
-        orgId: 'ws_1',
+        orgId: "ws_1",
       });
 
       // Re-fetch to verify parentId was persisted
@@ -169,11 +175,11 @@ describe('OrchestrationService', () => {
       expect(fetched?.parentId).toBe(parent.id);
     });
 
-    it('should create worktree when isolateWorktree is true', async () => {
+    it("should create worktree when isolateWorktree is true", async () => {
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Isolated task',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Isolated task",
+        orgId: "ws_1",
         isolateWorktree: true,
       });
 
@@ -187,11 +193,11 @@ describe('OrchestrationService', () => {
       expect(meta.worktreePath).toBeTruthy();
     });
 
-    it('should use process.cwd() for worktree isolation', async () => {
+    it("should use process.cwd() for worktree isolation", async () => {
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Isolated task',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Isolated task",
+        orgId: "ws_1",
         isolateWorktree: true,
       });
 
@@ -205,14 +211,14 @@ describe('OrchestrationService', () => {
       expect(meta.repoRoot).toBe(process.cwd());
     });
 
-    it('should pass allowedTools from org settings to agent', async () => {
+    it("should pass allowedTools from org settings to agent", async () => {
       // Create org with allowed tools
       const restrictedWs: Org = {
-        id: 'ws_restricted',
-        name: 'Restricted',
+        id: "ws_restricted",
+        name: "Restricted",
         createdAt: Date.now(),
         updatedAt: Date.now(),
-        settings: { allowedTools: ['bash', 'read'] },
+        settings: { allowedTools: ["bash", "read"] },
       };
       orgService.dispose();
       orgService = createMockOrgService([defaultOrg, restrictedWs]);
@@ -222,13 +228,13 @@ describe('OrchestrationService', () => {
         templateService,
         worktreeService,
         workflowService,
-        orgService
+        orgService,
       );
 
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Restricted task',
-        orgId: 'ws_restricted',
+        templateId: "tpl_test",
+        goal: "Restricted task",
+        orgId: "ws_restricted",
       });
 
       // Session should be created successfully
@@ -237,11 +243,11 @@ describe('OrchestrationService', () => {
       expect(meta.repoRoot).toBe(process.cwd());
     });
 
-    it('should eventually transition to completed after agent finishes', async () => {
+    it("should eventually transition to completed after agent finishes", async () => {
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Quick task',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Quick task",
+        orgId: "ws_1",
       });
 
       // Wait for the async agent to complete
@@ -250,31 +256,31 @@ describe('OrchestrationService', () => {
       const updated = await sessionService.get(session.id);
       const meta = updated?.metadata as Record<string, unknown>;
       const lifecycle = meta?.lifecycle as { state: string };
-      expect(lifecycle.state).toBe('completed');
+      expect(lifecycle.state).toBe("completed");
     });
   });
 
-  describe('cancel', () => {
-    it('should transition session to cancelled', async () => {
+  describe("cancel", () => {
+    it("should transition session to cancelled", async () => {
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Cancel me',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Cancel me",
+        orgId: "ws_1",
       });
 
-      await service.cancel(session.id, 'User requested');
+      await service.cancel(session.id, "User requested");
 
       const updated = await sessionService.get(session.id);
       const meta = updated?.metadata as Record<string, unknown>;
       const lifecycle = meta?.lifecycle as { state: string };
-      expect(lifecycle.state).toBe('cancelled');
+      expect(lifecycle.state).toBe("cancelled");
     });
 
-    it('should remove instance from active set', async () => {
+    it("should remove instance from active set", async () => {
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Cancel me',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Cancel me",
+        orgId: "ws_1",
       });
 
       await service.cancel(session.id);
@@ -284,34 +290,34 @@ describe('OrchestrationService', () => {
     });
   });
 
-  describe('pause', () => {
-    it('should transition session to paused', async () => {
+  describe("pause", () => {
+    it("should transition session to paused", async () => {
       agentDelay = 500; // Slow agent so we can pause before it completes
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Pause me',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Pause me",
+        orgId: "ws_1",
       });
 
-      await service.pause(session.id, 'Awaiting review');
+      await service.pause(session.id, "Awaiting review");
 
       const updated = await sessionService.get(session.id);
       const meta = updated?.metadata as Record<string, unknown>;
       const lifecycle = meta?.lifecycle as { state: string };
-      expect(lifecycle.state).toBe('paused');
+      expect(lifecycle.state).toBe("paused");
     });
   });
 
-  describe('resume', () => {
-    it('should transition session back to active', async () => {
+  describe("resume", () => {
+    it("should transition session back to active", async () => {
       agentDelay = 500; // Slow agent for pause/resume
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Resume me',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Resume me",
+        orgId: "ws_1",
       });
 
-      await service.pause(session.id, 'Paused');
+      await service.pause(session.id, "Paused");
 
       agentDelay = 500; // Resumed agent also slow
       await service.resume(session.id);
@@ -320,37 +326,37 @@ describe('OrchestrationService', () => {
       const updated = await sessionService.get(session.id);
       const meta = updated?.metadata as Record<string, unknown>;
       const lifecycle = meta?.lifecycle as { state: string };
-      expect(lifecycle.state).toBe('active');
+      expect(lifecycle.state).toBe("active");
     });
 
-    it('should throw if session not found', async () => {
-      await expect(service.resume('sess_fake')).rejects.toThrow('Session not found');
+    it("should throw if session not found", async () => {
+      await expect(service.resume("sess_fake")).rejects.toThrow("Session not found");
     });
 
-    it('should throw if session is not paused', async () => {
+    it("should throw if session is not paused", async () => {
       agentDelay = 500; // Slow agent so state is 'active' when we try resume
       const session = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Not paused',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Not paused",
+        orgId: "ws_1",
       });
 
       // Session is active, not paused — resume should fail
-      await expect(service.resume(session.id)).rejects.toThrow('Cannot resume session in state');
+      await expect(service.resume(session.id)).rejects.toThrow("Cannot resume session in state");
     });
   });
 
-  describe('getAggregateProgress', () => {
-    it('should aggregate child session progress', async () => {
-      const parent = await sessionService.create('Parent');
+  describe("getAggregateProgress", () => {
+    it("should aggregate child session progress", async () => {
+      const parent = await sessionService.create("Parent");
 
       // Spawn child1 with instant completion
       agentDelay = 0;
       await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Task 1',
+        templateId: "tpl_test",
+        goal: "Task 1",
         parentSessionId: parent.id,
-        orgId: 'ws_1',
+        orgId: "ws_1",
       });
 
       // Let child1 complete
@@ -359,20 +365,20 @@ describe('OrchestrationService', () => {
       // Spawn child2 with slow agent, then immediately pause it
       agentDelay = 2000;
       const child2 = await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Task 2',
+        templateId: "tpl_test",
+        goal: "Task 2",
         parentSessionId: parent.id,
-        orgId: 'ws_1',
+        orgId: "ws_1",
       });
-      await service.pause(child2.id, 'Needs review');
+      await service.pause(child2.id, "Needs review");
 
       // Spawn child3 with instant completion
       agentDelay = 0;
       await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Task 3',
+        templateId: "tpl_test",
+        goal: "Task 3",
         parentSessionId: parent.id,
-        orgId: 'ws_1',
+        orgId: "ws_1",
       });
 
       // Let child3 complete
@@ -384,8 +390,8 @@ describe('OrchestrationService', () => {
       expect(progress.completed).toBe(2);
     });
 
-    it('should return zeros for parent with no children', async () => {
-      const parent = await sessionService.create('Empty Parent');
+    it("should return zeros for parent with no children", async () => {
+      const parent = await sessionService.create("Empty Parent");
       const progress = await service.getAggregateProgress(parent.id);
 
       expect(progress.total).toBe(0);
@@ -393,12 +399,12 @@ describe('OrchestrationService', () => {
     });
   });
 
-  describe('getActiveInstances', () => {
-    it('should track active instances', async () => {
+  describe("getActiveInstances", () => {
+    it("should track active instances", async () => {
       await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Task A',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Task A",
+        orgId: "ws_1",
       });
 
       const instances = service.getActiveInstances();
@@ -406,36 +412,43 @@ describe('OrchestrationService', () => {
     });
   });
 
-  describe('executeWorkflow', () => {
-    it('should throw if WorkflowService is not available', async () => {
+  describe("executeWorkflow", () => {
+    it("should throw if WorkflowService is not available", async () => {
       const serviceNoWf = createOrchestrationService(
         sessionService,
         templateService,
         worktreeService,
         undefined,
-        orgService
+        orgService,
       );
 
-      await expect(
-        serviceNoWf.executeWorkflow('wf_1', 'ws_1')
-      ).rejects.toThrow('WorkflowService not available');
+      await expect(serviceNoWf.executeWorkflow("wf_1", "ws_1")).rejects.toThrow(
+        "WorkflowService not available",
+      );
 
       serviceNoWf.dispose();
     });
 
-    it('should throw if workflow not found', async () => {
-      await expect(
-        service.executeWorkflow('wf_nonexistent', 'ws_1')
-      ).rejects.toThrow('Workflow not found');
+    it("should throw if workflow not found", async () => {
+      await expect(service.executeWorkflow("wf_nonexistent", "ws_1")).rejects.toThrow(
+        "Workflow not found",
+      );
     });
 
-    it('should create a parent session for the workflow', async () => {
+    it("should create a parent session for the workflow", async () => {
       const wf: WorkflowTemplate = {
-        id: 'wf_exec',
-        name: 'Exec Test',
-        description: '',
+        id: "wf_exec",
+        name: "Exec Test",
+        description: "",
         steps: [
-          { id: 's1', name: 'Step 1', type: 'agent', templateId: 'tpl_test', dependsOn: [], goal: 'Do step 1' },
+          {
+            id: "s1",
+            name: "Step 1",
+            type: "agent",
+            templateId: "tpl_test",
+            dependsOn: [],
+            goal: "Do step 1",
+          },
         ],
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -450,23 +463,23 @@ describe('OrchestrationService', () => {
         templateService,
         worktreeService,
         workflowService,
-        orgService
+        orgService,
       );
 
-      const parentSession = await service.executeWorkflow('wf_exec', 'ws_1');
+      const parentSession = await service.executeWorkflow("wf_exec", "ws_1");
       expect(parentSession.id).toBeTruthy();
 
       const meta = parentSession.metadata as Record<string, unknown>;
-      expect(meta.type).toBe('workagent');
+      expect(meta.type).toBe("workagent");
     });
   });
 
-  describe('dispose', () => {
-    it('should clean up all instances', async () => {
+  describe("dispose", () => {
+    it("should clean up all instances", async () => {
       await service.spawn({
-        templateId: 'tpl_test',
-        goal: 'Task',
-        orgId: 'ws_1',
+        templateId: "tpl_test",
+        goal: "Task",
+        orgId: "ws_1",
       });
 
       service.dispose();

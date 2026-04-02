@@ -3,17 +3,21 @@
  * Shows project details and recent sessions scoped to the active project.
  */
 
-import { useEffect, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { FolderOpen, MessageSquare } from 'lucide-react';
-import { useTRPC } from '@/bridge/react';
-import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import type { Project, SessionSummary } from '@/services/types';
+import { useEffect, useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { FolderOpen, MessageSquare } from "lucide-react";
+import { useTRPC } from "@/bridge/react";
+import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { Project, SessionSummary } from "@/services/types";
 
 function formatDate(ts: number) {
-  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return new Date(ts).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 interface ProjectViewProps {
@@ -37,7 +41,10 @@ export function ProjectView({
     trpc.project.list.queryOptions(listInput),
   );
   const project = useMemo(
-    () => (selectedProjectId ? (projects as Project[]).find((p) => p.id === selectedProjectId) ?? null : null),
+    () =>
+      selectedProjectId
+        ? ((projects as Project[]).find((p) => p.id === selectedProjectId) ?? null)
+        : null,
     [selectedProjectId, projects],
   );
 
@@ -48,10 +55,7 @@ export function ProjectView({
 
   const sessionsInput = project ? { orgId, projectId: project.id } : undefined;
   const { data: sessions = [] } = useQuery(
-    trpc.session.list.queryOptions(
-      sessionsInput,
-      { enabled: !!sessionsInput },
-    ),
+    trpc.session.list.queryOptions(sessionsInput, { enabled: !!sessionsInput }),
   );
 
   if (!selectedProjectId || !project) {
@@ -59,9 +63,7 @@ export function ProjectView({
       <div className="flex-1 flex items-center justify-center pt-14">
         <div className="text-center space-y-3">
           <FolderOpen className="h-10 w-10 mx-auto text-neutral-fg-subtle/50" />
-          <p className="text-sm text-neutral-fg-subtle">
-            Select a project from the sidebar
-          </p>
+          <p className="text-sm text-neutral-fg-subtle">Select a project from the sidebar</p>
         </div>
       </div>
     );
@@ -85,7 +87,9 @@ export function ProjectView({
         </div>
         <div className="flex items-center gap-4 text-xs text-neutral-fg-subtle mt-2">
           <span>Created {formatDate(project.createdAt)}</span>
-          <span>{sessions.length} session{sessions.length !== 1 ? 's' : ''}</span>
+          <span>
+            {sessions.length} session{sessions.length !== 1 ? "s" : ""}
+          </span>
         </div>
       </div>
 
@@ -113,12 +117,12 @@ export function ProjectView({
                   onClick={() => onSelectSession?.(session.id)}
                   className="w-full text-left px-3 py-2 rounded-md hover:bg-neutral-bg-dim/50 transition-colors"
                 >
-                  <p className="text-sm font-medium truncate">
-                    {session.title || 'Untitled'}
-                  </p>
+                  <p className="text-sm font-medium truncate">{session.title || "Untitled"}</p>
                   <div className="flex items-center gap-2 text-[11px] text-neutral-fg-subtle mt-0.5">
                     <span>{formatDate(session.updatedAt)}</span>
-                    <span>{session.messageCount} message{session.messageCount !== 1 ? 's' : ''}</span>
+                    <span>
+                      {session.messageCount} message{session.messageCount !== 1 ? "s" : ""}
+                    </span>
                   </div>
                 </button>
               ))}

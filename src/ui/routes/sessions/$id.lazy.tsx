@@ -1,6 +1,6 @@
-import { createLazyFileRoute } from '@tanstack/react-router';
-import { SessionsView } from '../../components/Sessions/SessionsView';
-import { useShell } from '../../context/ShellContext';
+import { createLazyFileRoute } from "@tanstack/react-router";
+import { SessionsView } from "../../components/Sessions/SessionsView";
+import { useShell } from "../../context/ShellContext";
 
 function SessionDetailRoute() {
   const { id } = Route.useParams();
@@ -27,6 +27,6 @@ function SessionDetailRoute() {
   );
 }
 
-export const Route = createLazyFileRoute('/sessions/$id')({
+export const Route = createLazyFileRoute("/sessions/$id")({
   component: SessionDetailRoute,
 });

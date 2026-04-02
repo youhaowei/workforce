@@ -1,7 +1,7 @@
-import { z } from 'zod';
-import { TRPCError } from '@trpc/server';
-import { router, publicProcedure } from '../trpc';
-import { getProjectService } from '@/services/project';
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { router, publicProcedure } from "../trpc";
+import { getProjectService } from "@/services/project";
 
 export const projectRouter = router({
   list: publicProcedure
@@ -16,13 +16,15 @@ export const projectRouter = router({
     .query(({ input }) => getProjectService().get(input.id)),
 
   create: publicProcedure
-    .input(z.object({
-      orgId: z.string(),
-      name: z.string(),
-      rootPath: z.string(),
-      color: z.string().optional(),
-      icon: z.string().optional(),
-    }))
+    .input(
+      z.object({
+        orgId: z.string(),
+        name: z.string(),
+        rootPath: z.string(),
+        color: z.string().optional(),
+        icon: z.string().optional(),
+      }),
+    )
     .mutation(({ input }) =>
       getProjectService().create(input.orgId, input.name, input.rootPath, {
         color: input.color,
@@ -31,19 +33,24 @@ export const projectRouter = router({
     ),
 
   update: publicProcedure
-    .input(z.object({
-      id: z.string(),
-      updates: z.object({
-        name: z.string().optional(),
-        rootPath: z.string().optional(),
-        color: z.string().optional(),
-        icon: z.string().optional(),
+    .input(
+      z.object({
+        id: z.string(),
+        updates: z.object({
+          name: z.string().optional(),
+          rootPath: z.string().optional(),
+          color: z.string().optional(),
+          icon: z.string().optional(),
+        }),
       }),
-    }))
+    )
     .mutation(async ({ input }) => {
       const result = await getProjectService().update(input.id, input.updates);
       if (!result.ok) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: `Project not found: ${result.error.projectId}` });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `Project not found: ${result.error.projectId}`,
+        });
       }
       return result.value;
     }),

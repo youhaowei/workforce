@@ -5,9 +5,9 @@
  * Uses shadcn Command component for searchable multi-select.
  */
 
-import { useState, useMemo } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { useState, useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
@@ -15,13 +15,9 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { ChevronsUpDown, X } from 'lucide-react';
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ChevronsUpDown, X } from "lucide-react";
 
 interface SkillsToolsSelectorProps {
   label: string;
@@ -36,7 +32,7 @@ export function SkillsToolsSelector({
   items,
   selected,
   onChange,
-  placeholder = 'Select items...',
+  placeholder = "Select items...",
 }: SkillsToolsSelectorProps) {
   const [open, setOpen] = useState(false);
 

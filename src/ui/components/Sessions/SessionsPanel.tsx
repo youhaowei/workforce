@@ -7,17 +7,17 @@
  * External CC sessions are imported via the ImportCCDialog.
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'motion/react';
-import { Download, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { useTRPC } from '@/bridge/react';
-import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
-import { useResizablePanel } from '@/ui/hooks/useResizablePanel';
-import type { Project, SessionSummary } from '@/services/types';
-import { SessionList } from './SessionList';
-import { ImportCCDialog } from './ImportCCDialog';
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "motion/react";
+import { Download, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useTRPC } from "@/bridge/react";
+import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
+import { useResizablePanel } from "@/ui/hooks/useResizablePanel";
+import type { Project, SessionSummary } from "@/services/types";
+import { SessionList } from "./SessionList";
+import { ImportCCDialog } from "./ImportCCDialog";
 
 function PanelHeader({
   onRefresh,
@@ -50,7 +50,7 @@ function PanelHeader({
         title="Refresh sessions"
         aria-label="Refresh sessions"
       >
-        <RefreshCw className={`h-3 w-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+        <RefreshCw className={`h-3 w-3 ${isRefreshing ? "animate-spin" : ""}`} />
       </Button>
     </div>
   );
@@ -78,8 +78,12 @@ export function SessionsPanel({
   const activeSessionRef = useRef(activeSessionId);
   activeSessionRef.current = activeSessionId;
 
-  const { width: panelWidth, isDragging, onResizeStart } = useResizablePanel({
-    storageKey: 'workforce:sessions-panel-width',
+  const {
+    width: panelWidth,
+    isDragging,
+    onResizeStart,
+  } = useResizablePanel({
+    storageKey: "workforce:sessions-panel-width",
     defaultWidth: 240,
     minWidth: 200,
     maxWidth: 480,
@@ -101,18 +105,11 @@ export function SessionsPanel({
     }
   }, [queryClient, listQueryKey]);
 
-  const { data: projects = [] } = useQuery(
-    trpc.project.list.queryOptions({ orgId }),
-  );
+  const { data: projects = [] } = useQuery(trpc.project.list.queryOptions({ orgId }));
 
-  const projectMap = useMemo(
-    () => new Map(projects.map((p: Project) => [p.id, p])),
-    [projects],
-  );
+  const projectMap = useMemo(() => new Map(projects.map((p: Project) => [p.id, p])), [projects]);
 
-  const resumeMutation = useMutation(
-    trpc.session.resume.mutationOptions(),
-  );
+  const resumeMutation = useMutation(trpc.session.resume.mutationOptions());
 
   const deleteMutation = useMutation(
     trpc.session.delete.mutationOptions({
@@ -144,18 +141,24 @@ export function SessionsPanel({
   );
 
   const resume = resumeMutation.mutate;
-  const handleSelect = useCallback((sessionId: string) => {
-    activeSessionRef.current = sessionId;
-    if (sessionId !== activeSessionId) {
-      resume({ sessionId });
-    }
-    onSelectSession?.(sessionId);
-  }, [activeSessionId, resume, onSelectSession]);
+  const handleSelect = useCallback(
+    (sessionId: string) => {
+      activeSessionRef.current = sessionId;
+      if (sessionId !== activeSessionId) {
+        resume({ sessionId });
+      }
+      onSelectSession?.(sessionId);
+    },
+    [activeSessionId, resume, onSelectSession],
+  );
 
   const deleteFn = deleteMutation.mutate;
-  const handleDelete = useCallback((sessionId: string) => {
-    deleteFn({ sessionId });
-  }, [deleteFn]);
+  const handleDelete = useCallback(
+    (sessionId: string) => {
+      deleteFn({ sessionId });
+    },
+    [deleteFn],
+  );
 
   return (
     <AnimatePresence initial={false}>

@@ -5,18 +5,18 @@
  * type checking after Edit/Write operations.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from 'vitest';
-import { mkdir, writeFile, rm } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
+import { describe, test, expect, beforeEach, afterEach } from "vitest";
+import { mkdir, writeFile, rm } from "fs/promises";
+import { join } from "path";
+import { tmpdir } from "os";
 import {
   parseTscOutput,
   findTsConfig,
   typescriptDiagnosticsHook,
   cancelAllPendingChecks,
   getPendingCheckCount,
-} from './typescript-lsp';
-import type { HookContext } from '../services/types';
+} from "./typescript-lsp";
+import type { HookContext } from "../services/types";
 
 // Test directory
 let testDir: string;
@@ -42,23 +42,23 @@ afterEach(async () => {
 // parseTscOutput Tests
 // ============================================================================
 
-describe('parseTscOutput', () => {
-  test('parses single error', () => {
-    const output = 'src/index.ts(10,5): error TS2322: Type mismatch';
+describe("parseTscOutput", () => {
+  test("parses single error", () => {
+    const output = "src/index.ts(10,5): error TS2322: Type mismatch";
     const diagnostics = parseTscOutput(output);
 
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0]).toEqual({
-      file: 'src/index.ts',
+      file: "src/index.ts",
       line: 10,
       column: 5,
-      code: 'TS2322',
-      message: 'Type mismatch',
-      severity: 'error',
+      code: "TS2322",
+      message: "Type mismatch",
+      severity: "error",
     });
   });
 
-  test('parses multiple errors', () => {
+  test("parses multiple errors", () => {
     const output = `src/a.ts(1,1): error TS1000: First error
 src/b.ts(20,15): error TS2000: Second error
 src/c.tsx(5,3): error TS3000: Third error`;
@@ -66,20 +66,20 @@ src/c.tsx(5,3): error TS3000: Third error`;
     const diagnostics = parseTscOutput(output);
 
     expect(diagnostics).toHaveLength(3);
-    expect(diagnostics[0].file).toBe('src/a.ts');
-    expect(diagnostics[1].file).toBe('src/b.ts');
-    expect(diagnostics[2].file).toBe('src/c.tsx');
+    expect(diagnostics[0].file).toBe("src/a.ts");
+    expect(diagnostics[1].file).toBe("src/b.ts");
+    expect(diagnostics[2].file).toBe("src/c.tsx");
   });
 
-  test('parses warnings', () => {
-    const output = 'src/file.ts(5,10): warning TS6133: Variable is declared but unused';
+  test("parses warnings", () => {
+    const output = "src/file.ts(5,10): warning TS6133: Variable is declared but unused";
     const diagnostics = parseTscOutput(output);
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].severity).toBe('warning');
+    expect(diagnostics[0].severity).toBe("warning");
   });
 
-  test('handles mixed errors and warnings', () => {
+  test("handles mixed errors and warnings", () => {
     const output = `src/a.ts(1,1): error TS1000: Error
 src/b.ts(2,2): warning TS2000: Warning
 src/c.ts(3,3): error TS3000: Another error`;
@@ -87,37 +87,38 @@ src/c.ts(3,3): error TS3000: Another error`;
     const diagnostics = parseTscOutput(output);
 
     expect(diagnostics).toHaveLength(3);
-    expect(diagnostics.filter((d) => d.severity === 'error')).toHaveLength(2);
-    expect(diagnostics.filter((d) => d.severity === 'warning')).toHaveLength(1);
+    expect(diagnostics.filter((d) => d.severity === "error")).toHaveLength(2);
+    expect(diagnostics.filter((d) => d.severity === "warning")).toHaveLength(1);
   });
 
-  test('returns empty array for no matches', () => {
-    const output = 'Some random output without errors';
+  test("returns empty array for no matches", () => {
+    const output = "Some random output without errors";
     const diagnostics = parseTscOutput(output);
     expect(diagnostics).toEqual([]);
   });
 
-  test('handles empty input', () => {
-    const diagnostics = parseTscOutput('');
+  test("handles empty input", () => {
+    const diagnostics = parseTscOutput("");
     expect(diagnostics).toEqual([]);
   });
 
-  test('parses complex file paths', () => {
-    const output = '/Users/dev/my-project/src/components/Button.tsx(100,25): error TS2345: Complex path error';
+  test("parses complex file paths", () => {
+    const output =
+      "/Users/dev/my-project/src/components/Button.tsx(100,25): error TS2345: Complex path error";
     const diagnostics = parseTscOutput(output);
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].file).toBe('/Users/dev/my-project/src/components/Button.tsx');
+    expect(diagnostics[0].file).toBe("/Users/dev/my-project/src/components/Button.tsx");
     expect(diagnostics[0].line).toBe(100);
     expect(diagnostics[0].column).toBe(25);
   });
 
-  test('parses messages with colons', () => {
+  test("parses messages with colons", () => {
     const output = "src/file.ts(1,1): error TS1234: Error message: with colons: inside";
     const diagnostics = parseTscOutput(output);
 
     expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0].message).toBe('Error message: with colons: inside');
+    expect(diagnostics[0].message).toBe("Error message: with colons: inside");
   });
 });
 
@@ -125,40 +126,40 @@ src/c.ts(3,3): error TS3000: Another error`;
 // findTsConfig Tests
 // ============================================================================
 
-describe('findTsConfig', () => {
-  test('finds tsconfig in same directory', async () => {
+describe("findTsConfig", () => {
+  test("finds tsconfig in same directory", async () => {
     // Create tsconfig.json
-    await writeFile(join(testDir, 'tsconfig.json'), '{}');
+    await writeFile(join(testDir, "tsconfig.json"), "{}");
 
-    const result = await findTsConfig(join(testDir, 'file.ts'));
+    const result = await findTsConfig(join(testDir, "file.ts"));
     expect(result).toBe(testDir);
   });
 
-  test('finds tsconfig in parent directory', async () => {
+  test("finds tsconfig in parent directory", async () => {
     // Create nested structure
-    const subDir = join(testDir, 'src', 'components');
+    const subDir = join(testDir, "src", "components");
     await mkdir(subDir, { recursive: true });
-    await writeFile(join(testDir, 'tsconfig.json'), '{}');
+    await writeFile(join(testDir, "tsconfig.json"), "{}");
 
-    const result = await findTsConfig(join(subDir, 'Button.tsx'));
+    const result = await findTsConfig(join(subDir, "Button.tsx"));
     expect(result).toBe(testDir);
   });
 
-  test('returns null when no tsconfig found', async () => {
+  test("returns null when no tsconfig found", async () => {
     // No tsconfig in testDir
-    const result = await findTsConfig(join(testDir, 'file.ts'));
+    const result = await findTsConfig(join(testDir, "file.ts"));
     expect(result).toBeNull();
   });
 
-  test('finds nearest tsconfig', async () => {
+  test("finds nearest tsconfig", async () => {
     // Create two tsconfigs at different levels
-    const subDir = join(testDir, 'packages', 'ui');
+    const subDir = join(testDir, "packages", "ui");
     await mkdir(subDir, { recursive: true });
-    await writeFile(join(testDir, 'tsconfig.json'), '{}');
-    await writeFile(join(subDir, 'tsconfig.json'), '{}');
+    await writeFile(join(testDir, "tsconfig.json"), "{}");
+    await writeFile(join(subDir, "tsconfig.json"), "{}");
 
     // Should find the nearer one
-    const result = await findTsConfig(join(subDir, 'Button.tsx'));
+    const result = await findTsConfig(join(subDir, "Button.tsx"));
     expect(result).toBe(subDir);
   });
 });
@@ -167,45 +168,45 @@ describe('findTsConfig', () => {
 // typescriptDiagnosticsHook Tests
 // ============================================================================
 
-describe('typescriptDiagnosticsHook', () => {
-  test('ignores non-Edit/Write tools', async () => {
+describe("typescriptDiagnosticsHook", () => {
+  test("ignores non-Edit/Write tools", async () => {
     const context: HookContext = {
-      toolName: 'Bash',
-      args: { command: 'ls' },
-      sessionId: 'test',
+      toolName: "Bash",
+      args: { command: "ls" },
+      sessionId: "test",
     };
 
     const result = await typescriptDiagnosticsHook(context, {});
     expect(result).toEqual({});
   });
 
-  test('ignores non-TypeScript files', async () => {
+  test("ignores non-TypeScript files", async () => {
     const context: HookContext = {
-      toolName: 'Edit',
-      args: { file_path: '/some/file.js' },
-      sessionId: 'test',
+      toolName: "Edit",
+      args: { file_path: "/some/file.js" },
+      sessionId: "test",
     };
 
     const result = await typescriptDiagnosticsHook(context, {});
     expect(result).toEqual({});
   });
 
-  test('ignores when file_path is missing', async () => {
+  test("ignores when file_path is missing", async () => {
     const context: HookContext = {
-      toolName: 'Edit',
+      toolName: "Edit",
       args: {},
-      sessionId: 'test',
+      sessionId: "test",
     };
 
     const result = await typescriptDiagnosticsHook(context, {});
     expect(result).toEqual({});
   });
 
-  test('processes .ts files', async () => {
+  test("processes .ts files", async () => {
     const context: HookContext = {
-      toolName: 'Edit',
-      args: { file_path: join(testDir, 'test.ts') },
-      sessionId: 'test',
+      toolName: "Edit",
+      args: { file_path: join(testDir, "test.ts") },
+      sessionId: "test",
     };
 
     // No tsconfig = no errors to find
@@ -218,11 +219,11 @@ describe('typescriptDiagnosticsHook', () => {
     expect(result).toBeDefined();
   });
 
-  test('processes .tsx files', async () => {
+  test("processes .tsx files", async () => {
     const context: HookContext = {
-      toolName: 'Write',
-      args: { file_path: join(testDir, 'Component.tsx') },
-      sessionId: 'test',
+      toolName: "Write",
+      args: { file_path: join(testDir, "Component.tsx") },
+      sessionId: "test",
     };
 
     const result = await typescriptDiagnosticsHook(context, { original: true });
@@ -234,17 +235,17 @@ describe('typescriptDiagnosticsHook', () => {
 // Debounce Tests
 // ============================================================================
 
-describe('debouncing', () => {
-  test('cancelAllPendingChecks clears pending', async () => {
+describe("debouncing", () => {
+  test("cancelAllPendingChecks clears pending", async () => {
     // Schedule a check (by calling the hook)
     const context: HookContext = {
-      toolName: 'Edit',
-      args: { file_path: join(testDir, 'test.ts') },
-      sessionId: 'test',
+      toolName: "Edit",
+      args: { file_path: join(testDir, "test.ts") },
+      sessionId: "test",
     };
 
     // Create tsconfig so the hook schedules a check
-    await writeFile(join(testDir, 'tsconfig.json'), '{}');
+    await writeFile(join(testDir, "tsconfig.json"), "{}");
 
     // This will schedule a debounced check
     typescriptDiagnosticsHook(context, {});
@@ -256,9 +257,8 @@ describe('debouncing', () => {
     expect(getPendingCheckCount()).toBe(0);
   });
 
-  test('getPendingCheckCount returns count', () => {
+  test("getPendingCheckCount returns count", () => {
     // Initially zero
     expect(getPendingCheckCount()).toBe(0);
   });
 });
-

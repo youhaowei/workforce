@@ -1,1 +1,1 @@
-export { ArtifactPanel } from './ArtifactPanel';
+export { ArtifactPanel } from "./ArtifactPanel";

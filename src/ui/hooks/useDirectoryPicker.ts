@@ -6,8 +6,8 @@
  * browse button).
  */
 
-import { useCallback, useState } from 'react';
-import { usePlatform } from '@/ui/context/PlatformProvider';
+import { useCallback, useState } from "react";
+import { usePlatform } from "@/ui/context/PlatformProvider";
 
 interface UseDirectoryPickerResult {
   /** Call to open the native folder picker. null when not available (web). */
@@ -27,7 +27,7 @@ export function useDirectoryPicker(): UseDirectoryPickerResult {
     try {
       return await openDirectory();
     } catch (err) {
-      console.warn('Directory picker failed:', err);
+      console.warn("Directory picker failed:", err);
       return null;
     } finally {
       setIsPicking(false);

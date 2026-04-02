@@ -6,15 +6,15 @@
  * ring buffer, and crash handlers are handled by tracey itself.
  */
 
-import { createLogger } from 'tracey';
-import { getEventBus } from '../shared/event-bus';
+import { createLogger } from "tracey";
+import { getEventBus } from "../shared/event-bus";
 
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogCategory = 'api' | 'tool' | 'event' | 'perf' | 'session' | 'general';
+export type LogLevel = "debug" | "info" | "warn" | "error";
+export type LogCategory = "api" | "tool" | "event" | "perf" | "session" | "general";
 
-const log = createLogger('EventBus');
-const apiLog = createLogger('API');
-const perfLog = createLogger('Perf');
+const log = createLogger("EventBus");
+const apiLog = createLogger("API");
+const perfLog = createLogger("Perf");
 
 export class LogService {
   private isSetup = false;
@@ -28,19 +28,28 @@ export class LogService {
   private subscribeToEvents(): void {
     const bus = getEventBus();
 
-    bus.on('ToolStart', (event) => {
-      log.info({ toolId: event.toolId, toolName: event.toolName }, `Tool started: ${event.toolName}`);
+    bus.on("ToolStart", (event) => {
+      log.info(
+        { toolId: event.toolId, toolName: event.toolName },
+        `Tool started: ${event.toolName}`,
+      );
     });
 
-    bus.on('ToolEnd', (event) => {
-      log.info({ toolId: event.toolId, toolName: event.toolName, duration: event.duration }, `Tool ended: ${event.toolName}`);
+    bus.on("ToolEnd", (event) => {
+      log.info(
+        { toolId: event.toolId, toolName: event.toolName, duration: event.duration },
+        `Tool ended: ${event.toolName}`,
+      );
     });
 
-    bus.on('SessionChange', (event) => {
-      log.info({ sessionId: event.sessionId, action: event.action }, `Session ${event.action}: ${event.sessionId}`);
+    bus.on("SessionChange", (event) => {
+      log.info(
+        { sessionId: event.sessionId, action: event.action },
+        `Session ${event.action}: ${event.sessionId}`,
+      );
     });
 
-    bus.on('BridgeError', (event) => {
+    bus.on("BridgeError", (event) => {
       log.error({ source: event.source, code: event.code }, `Bridge error: ${event.error}`);
     });
   }
@@ -53,7 +62,7 @@ export class LogService {
     success: boolean;
     error?: string;
   }): void {
-    apiLog.info(data, 'API request');
+    apiLog.info(data, "API request");
   }
 
   logPerf(operation: string, durationMs: number, data?: Record<string, unknown>): void {

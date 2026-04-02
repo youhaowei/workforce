@@ -5,10 +5,10 @@
  * Provides structured output with proper error handling.
  */
 
-import { execFile, type ExecFileOptions } from 'child_process';
+import { execFile, type ExecFileOptions } from "child_process";
 
 export interface ExecResult {
-  status: 'success' | 'error' | 'timeout';
+  status: "success" | "error" | "timeout";
   stdout: string;
   stderr: string;
   exitCode: number | null;
@@ -27,7 +27,7 @@ export interface ExecOptions {
 export function execFileNoThrow(
   command: string,
   args: string[],
-  options: ExecOptions = {}
+  options: ExecOptions = {},
 ): Promise<ExecResult> {
   return new Promise((resolve) => {
     const execOptions: ExecFileOptions = {
@@ -43,36 +43,32 @@ export function execFileNoThrow(
         const errorWithKilled = error as Error & { killed?: boolean; code?: number | string };
         if (errorWithKilled.killed) {
           resolve({
-            status: 'timeout',
-            stdout: stdout?.toString() ?? '',
-            stderr: stderr?.toString() ?? '',
+            status: "timeout",
+            stdout: stdout?.toString() ?? "",
+            stderr: stderr?.toString() ?? "",
             exitCode: null,
           });
           return;
         }
 
         // Regular error (non-zero exit code)
-        const exitCode =
-          typeof errorWithKilled.code === 'number'
-            ? errorWithKilled.code
-            : 1;
+        const exitCode = typeof errorWithKilled.code === "number" ? errorWithKilled.code : 1;
 
         resolve({
-          status: 'error',
-          stdout: stdout?.toString() ?? '',
-          stderr: stderr?.toString() ?? '',
+          status: "error",
+          stdout: stdout?.toString() ?? "",
+          stderr: stderr?.toString() ?? "",
           exitCode,
         });
         return;
       }
 
       resolve({
-        status: 'success',
-        stdout: stdout?.toString() ?? '',
-        stderr: stderr?.toString() ?? '',
+        status: "success",
+        stdout: stdout?.toString() ?? "",
+        stderr: stderr?.toString() ?? "",
         exitCode: 0,
       });
     });
   });
 }
-

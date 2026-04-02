@@ -13,8 +13,8 @@ import type {
   BackgroundTask,
   BackgroundTaskOptions,
   BackgroundTaskStatus,
-} from './types';
-import { getEventBus } from '@/shared/event-bus';
+} from "./types";
+import { getEventBus } from "@/shared/event-bus";
 
 function generateTaskId(): string {
   return `task_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -36,8 +36,8 @@ class BackgroundServiceImpl implements BackgroundService {
     const task: InternalTask = {
       id,
       name: options?.name ?? `Task ${id}`,
-      status: 'pending',
-      priority: options?.priority ?? 'normal',
+      status: "pending",
+      priority: options?.priority ?? "normal",
       createdAt: now,
       promise: Promise.resolve(),
       abortController,
@@ -52,19 +52,19 @@ class BackgroundServiceImpl implements BackgroundService {
   }
 
   private async runTask<T>(task: InternalTask, fn: () => Promise<T>): Promise<T> {
-    task.status = 'running';
+    task.status = "running";
     task.startedAt = Date.now();
     this.emitTaskUpdate(task);
 
     try {
       const result = await fn();
-      task.status = 'completed';
+      task.status = "completed";
       task.result = result;
       task.completedAt = Date.now();
       this.emitTaskUpdate(task);
       return result;
     } catch (err) {
-      task.status = 'failed';
+      task.status = "failed";
       task.error = err instanceof Error ? err.message : String(err);
       task.completedAt = Date.now();
       this.emitTaskUpdate(task);
@@ -74,7 +74,7 @@ class BackgroundServiceImpl implements BackgroundService {
 
   private emitTaskUpdate(task: BackgroundTask): void {
     getEventBus().emit({
-      type: 'TaskUpdate',
+      type: "TaskUpdate",
       taskId: task.id,
       status: task.status,
       progress: task.progress,
@@ -94,12 +94,12 @@ class BackgroundServiceImpl implements BackgroundService {
 
   cancel(taskId: string): boolean {
     const task = this.tasks.get(taskId);
-    if (!task || task.status !== 'running') {
+    if (!task || task.status !== "running") {
       return false;
     }
 
     task.abortController.abort();
-    task.status = 'cancelled';
+    task.status = "cancelled";
     task.completedAt = Date.now();
     this.emitTaskUpdate(task);
     return true;
@@ -126,12 +126,12 @@ class BackgroundServiceImpl implements BackgroundService {
   }
 
   runningCount(): number {
-    return Array.from(this.tasks.values()).filter((t) => t.status === 'running').length;
+    return Array.from(this.tasks.values()).filter((t) => t.status === "running").length;
   }
 
   dispose(): void {
     for (const task of this.tasks.values()) {
-      if (task.status === 'running') {
+      if (task.status === "running") {
         task.abortController.abort();
       }
     }

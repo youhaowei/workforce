@@ -6,18 +6,18 @@
  * caches as a catch-up measure.
  */
 
-import { useEffect } from 'react';
-import { trpc } from '@/bridge/trpc';
-import { queryClient } from '@/bridge/query-client';
+import { useEffect } from "react";
+import { trpc } from "@/bridge/trpc";
+import { queryClient } from "@/bridge/query-client";
 
 /** Map event types to the React Query key prefixes they should invalidate. */
 const EVENT_TO_QUERY_KEYS: Record<string, string[][]> = {
-  SessionChange: [['session']],
-  LifecycleTransition: [['session']],
-  ReviewItemChange: [['review']],
-  ProjectChange: [['project']],
-  TaskUpdate: [['task']],
-  TaskNotification: [['task']],
+  SessionChange: [["session"]],
+  LifecycleTransition: [["session"]],
+  ReviewItemChange: [["review"]],
+  ProjectChange: [["project"]],
+  TaskUpdate: [["task"]],
+  TaskNotification: [["task"]],
 };
 
 export function useServerEventInvalidation() {

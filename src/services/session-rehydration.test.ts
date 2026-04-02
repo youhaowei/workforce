@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { Session, HydrationStatus } from './types';
-import type { RehydrationDeps } from './session-rehydration';
-import { RehydrationManager } from './session-rehydration';
-import { AppendLock, SeqAllocator } from './session-journal';
-import { getEventBus } from '@/shared/event-bus';
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { Session, HydrationStatus } from "./types";
+import type { RehydrationDeps } from "./session-rehydration";
+import { RehydrationManager } from "./session-rehydration";
+import { AppendLock, SeqAllocator } from "./session-journal";
+import { getEventBus } from "@/shared/event-bus";
 
-vi.mock('./session-journal', async (importOriginal) => {
-  const orig = await importOriginal<typeof import('./session-journal')>();
+vi.mock("./session-journal", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("./session-journal")>();
   return {
     ...orig,
     replaySession: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock('./session-journal', async (importOriginal) => {
   };
 });
 
-import { replaySession, consolidateSession } from './session-journal';
+import { replaySession, consolidateSession } from "./session-journal";
 
 const mockReplay = vi.mocked(replaySession);
 const mockConsolidate = vi.mocked(consolidateSession);
@@ -31,7 +31,7 @@ function makeDeps(coldIds: string[] = []): RehydrationDeps {
   const sessions = new Map<string, Session>();
   const hydrationStatus = new Map<string, HydrationStatus>();
   for (const id of coldIds) {
-    hydrationStatus.set(id, 'cold');
+    hydrationStatus.set(id, "cold");
   }
   return {
     sessions,
@@ -39,12 +39,12 @@ function makeDeps(coldIds: string[] = []): RehydrationDeps {
     deletedSessionIds: new Set(),
     appendLock: new AppendLock(),
     seqAllocators: new Map<string, SeqAllocator>(),
-    sessionsDir: '/tmp/test-sessions',
+    sessionsDir: "/tmp/test-sessions",
     isDisposed: () => false,
   };
 }
 
-describe('RehydrationManager', () => {
+describe("RehydrationManager", () => {
   let bus: ReturnType<typeof getEventBus>;
 
   beforeEach(() => {
@@ -57,98 +57,105 @@ describe('RehydrationManager', () => {
     bus.dispose();
   });
 
-  describe('rehydrate (single session)', () => {
-    it('replays and consolidates a cold session', async () => {
-      const deps = makeDeps(['s1']);
-      const session = makeSession('s1');
+  describe("rehydrate (single session)", () => {
+    it("replays and consolidates a cold session", async () => {
+      const deps = makeDeps(["s1"]);
+      const session = makeSession("s1");
       mockReplay.mockResolvedValueOnce(makeReplayResult(session));
 
       const mgr = new RehydrationManager(deps);
-      await mgr.rehydrate('s1');
+      await mgr.rehydrate("s1");
 
-      expect(deps.sessions.get('s1')).toBe(session);
-      expect(deps.hydrationStatus.get('s1')).toBe('ready');
-      expect(mockReplay).toHaveBeenCalledWith('/tmp/test-sessions', 's1');
+      expect(deps.sessions.get("s1")).toBe(session);
+      expect(deps.hydrationStatus.get("s1")).toBe("ready");
+      expect(mockReplay).toHaveBeenCalledWith("/tmp/test-sessions", "s1");
       expect(mockConsolidate).toHaveBeenCalled();
     });
 
-    it('emits lifecycle events', async () => {
-      const deps = makeDeps(['s1']);
-      mockReplay.mockResolvedValueOnce(makeReplayResult(makeSession('s1')));
+    it("emits lifecycle events", async () => {
+      const deps = makeDeps(["s1"]);
+      mockReplay.mockResolvedValueOnce(makeReplayResult(makeSession("s1")));
 
       const events: string[] = [];
-      bus.on('SessionRehydrateStarted', () => events.push('started'));
-      bus.on('SessionConsolidationStarted', () => events.push('consolidating'));
-      bus.on('SessionRehydrateDone', () => events.push('done'));
+      bus.on("SessionRehydrateStarted", () => events.push("started"));
+      bus.on("SessionConsolidationStarted", () => events.push("consolidating"));
+      bus.on("SessionRehydrateDone", () => events.push("done"));
 
       const mgr = new RehydrationManager(deps);
-      await mgr.rehydrate('s1');
+      await mgr.rehydrate("s1");
 
-      expect(events).toEqual(['started', 'consolidating', 'done']);
+      expect(events).toEqual(["started", "consolidating", "done"]);
     });
 
-    it('sets status to failed when replay returns null', async () => {
-      const deps = makeDeps(['s1']);
+    it("sets status to failed when replay returns null", async () => {
+      const deps = makeDeps(["s1"]);
       mockReplay.mockResolvedValueOnce(null);
 
       const events: string[] = [];
-      bus.on('SessionRehydrateFailed', () => events.push('failed'));
+      bus.on("SessionRehydrateFailed", () => events.push("failed"));
 
       const mgr = new RehydrationManager(deps);
-      await mgr.rehydrate('s1');
+      await mgr.rehydrate("s1");
 
-      expect(deps.hydrationStatus.get('s1')).toBe('failed');
-      expect(events).toEqual(['failed']);
+      expect(deps.hydrationStatus.get("s1")).toBe("failed");
+      expect(events).toEqual(["failed"]);
     });
 
-    it('singleflight: concurrent calls share the same promise', async () => {
-      const deps = makeDeps(['s1']);
+    it("singleflight: concurrent calls share the same promise", async () => {
+      const deps = makeDeps(["s1"]);
       let resolveReplay!: (v: ReturnType<typeof makeReplayResult>) => void;
-      mockReplay.mockImplementationOnce(() => new Promise((r) => { resolveReplay = r; }));
+      mockReplay.mockImplementationOnce(
+        () =>
+          new Promise((r) => {
+            resolveReplay = r;
+          }),
+      );
 
       const mgr = new RehydrationManager(deps);
-      const p1 = mgr.rehydrate('s1');
-      const p2 = mgr.rehydrate('s1');
+      const p1 = mgr.rehydrate("s1");
+      const p2 = mgr.rehydrate("s1");
 
       // Both should get the same flight
-      expect(mgr.getFlight('s1')).toBeDefined();
+      expect(mgr.getFlight("s1")).toBeDefined();
 
-      resolveReplay(makeReplayResult(makeSession('s1')));
+      resolveReplay(makeReplayResult(makeSession("s1")));
       await Promise.all([p1, p2]);
 
       // Only one replay call
       expect(mockReplay).toHaveBeenCalledOnce();
     });
 
-    it('clears flight after completion', async () => {
-      const deps = makeDeps(['s1']);
-      mockReplay.mockResolvedValueOnce(makeReplayResult(makeSession('s1')));
+    it("clears flight after completion", async () => {
+      const deps = makeDeps(["s1"]);
+      mockReplay.mockResolvedValueOnce(makeReplayResult(makeSession("s1")));
 
       const mgr = new RehydrationManager(deps);
-      await mgr.rehydrate('s1');
+      await mgr.rehydrate("s1");
 
-      expect(mgr.getFlight('s1')).toBeUndefined();
+      expect(mgr.getFlight("s1")).toBeUndefined();
     });
   });
 
-  describe('enqueue (batch drain)', () => {
-    it('drains all cold sessions', async () => {
-      const deps = makeDeps(['s1', 's2']);
-      mockReplay.mockImplementation(async (_dir, id) => makeReplayResult(makeSession(id as string)));
+  describe("enqueue (batch drain)", () => {
+    it("drains all cold sessions", async () => {
+      const deps = makeDeps(["s1", "s2"]);
+      mockReplay.mockImplementation(async (_dir, id) =>
+        makeReplayResult(makeSession(id as string)),
+      );
 
       const mgr = new RehydrationManager(deps);
       mgr.enqueue();
 
       // Wait for drain to complete
-      await Promise.all([mgr.getFlight('s1'), mgr.getFlight('s2')].filter(Boolean));
+      await Promise.all([mgr.getFlight("s1"), mgr.getFlight("s2")].filter(Boolean));
 
-      expect(deps.hydrationStatus.get('s1')).toBe('ready');
-      expect(deps.hydrationStatus.get('s2')).toBe('ready');
+      expect(deps.hydrationStatus.get("s1")).toBe("ready");
+      expect(deps.hydrationStatus.get("s2")).toBe("ready");
     });
 
-    it('respects concurrency limit', async () => {
+    it("respects concurrency limit", async () => {
       // Create 5 sessions but concurrency is 3
-      const ids = ['s1', 's2', 's3', 's4', 's5'];
+      const ids = ["s1", "s2", "s3", "s4", "s5"];
       const deps = makeDeps(ids);
 
       let peakConcurrency = 0;
@@ -160,7 +167,9 @@ describe('RehydrationManager', () => {
         currentConcurrency++;
         peakConcurrency = Math.max(peakConcurrency, currentConcurrency);
         // Block until gate is opened
-        await new Promise<void>((r) => { gates.set(id as string, r); });
+        await new Promise<void>((r) => {
+          gates.set(id as string, r);
+        });
         currentConcurrency--;
         return makeReplayResult(makeSession(id as string));
       });
@@ -192,14 +201,14 @@ describe('RehydrationManager', () => {
 
       expect(peakConcurrency).toBeLessThanOrEqual(3);
       for (const id of ids) {
-        expect(deps.hydrationStatus.get(id)).toBe('ready');
+        expect(deps.hydrationStatus.get(id)).toBe("ready");
       }
     });
 
-    it('skips non-cold sessions', async () => {
-      const deps = makeDeps(['s1']);
+    it("skips non-cold sessions", async () => {
+      const deps = makeDeps(["s1"]);
       // Mark s1 as already rehydrating before enqueue
-      deps.hydrationStatus.set('s1', 'rehydrating');
+      deps.hydrationStatus.set("s1", "rehydrating");
 
       const mgr = new RehydrationManager(deps);
       mgr.enqueue();
@@ -209,22 +218,22 @@ describe('RehydrationManager', () => {
     });
   });
 
-  describe('deleted session handling', () => {
-    it('skips replay if session is deleted', async () => {
-      const deps = makeDeps(['s1']);
-      deps.deletedSessionIds.add('s1');
+  describe("deleted session handling", () => {
+    it("skips replay if session is deleted", async () => {
+      const deps = makeDeps(["s1"]);
+      deps.deletedSessionIds.add("s1");
 
       const mgr = new RehydrationManager(deps);
-      await mgr.rehydrate('s1');
+      await mgr.rehydrate("s1");
 
       expect(mockReplay).not.toHaveBeenCalled();
     });
   });
 
-  describe('disposed service handling', () => {
-    it('stops drain when service is disposed', async () => {
+  describe("disposed service handling", () => {
+    it("stops drain when service is disposed", async () => {
       let disposed = false;
-      const deps = makeDeps(['s1', 's2']);
+      const deps = makeDeps(["s1", "s2"]);
       deps.isDisposed = () => disposed;
 
       mockReplay.mockImplementation(async (_dir, id) => {
@@ -242,13 +251,13 @@ describe('RehydrationManager', () => {
     });
   });
 
-  describe('clear', () => {
-    it('resets all internal state', () => {
-      const deps = makeDeps(['s1']);
+  describe("clear", () => {
+    it("resets all internal state", () => {
+      const deps = makeDeps(["s1"]);
       const mgr = new RehydrationManager(deps);
       mgr.clear();
 
-      expect(mgr.getFlight('s1')).toBeUndefined();
+      expect(mgr.getFlight("s1")).toBeUndefined();
     });
   });
 });

@@ -11,18 +11,18 @@
  * Branch naming: workforce/{sessionId}
  */
 
-import { readFile, writeFile, mkdir, rm } from 'fs/promises';
-import { join } from 'path';
-import { execFileNoThrow } from '../utils/execFileNoThrow';
-import type { WorktreeInfo, WorktreeService } from './types';
-import { getEventBus } from '@/shared/event-bus';
-import { getDataDir } from './data-dir';
+import { readFile, writeFile, mkdir, rm } from "fs/promises";
+import { join } from "path";
+import { execFileNoThrow } from "../utils/execFileNoThrow";
+import type { WorktreeInfo, WorktreeService } from "./types";
+import { getEventBus } from "@/shared/event-bus";
+import { getDataDir } from "./data-dir";
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const DEFAULT_WORKTREE_BASE = join(getDataDir(), 'worktrees');
+const DEFAULT_WORKTREE_BASE = join(getDataDir(), "worktrees");
 
 // =============================================================================
 // Helpers
@@ -44,7 +44,7 @@ class WorktreeServiceImpl implements WorktreeService {
 
   constructor(worktreeBase?: string) {
     this.worktreeBase = worktreeBase ?? DEFAULT_WORKTREE_BASE;
-    this.stateFile = join(this.worktreeBase, '.worktree-state.json');
+    this.stateFile = join(this.worktreeBase, ".worktree-state.json");
   }
 
   private worktreePath(sessionId: string): string {
@@ -55,7 +55,7 @@ class WorktreeServiceImpl implements WorktreeService {
     if (this.initialized) return;
 
     try {
-      const raw = await readFile(this.stateFile, 'utf-8');
+      const raw = await readFile(this.stateFile, "utf-8");
       const entries = JSON.parse(raw) as WorktreeInfo[];
       for (const entry of entries) {
         this.worktrees.set(entry.sessionId, entry);
@@ -70,14 +70,10 @@ class WorktreeServiceImpl implements WorktreeService {
   private async persistState(): Promise<void> {
     await mkdir(this.worktreeBase, { recursive: true });
     const entries = Array.from(this.worktrees.values());
-    await writeFile(this.stateFile, JSON.stringify(entries, null, 2), 'utf-8');
+    await writeFile(this.stateFile, JSON.stringify(entries, null, 2), "utf-8");
   }
 
-  async create(
-    sessionId: string,
-    repoRoot: string,
-    customBranch?: string
-  ): Promise<WorktreeInfo> {
+  async create(sessionId: string, repoRoot: string, customBranch?: string): Promise<WorktreeInfo> {
     await this.ensureInitialized();
 
     if (this.worktrees.has(sessionId)) {
@@ -89,13 +85,11 @@ class WorktreeServiceImpl implements WorktreeService {
 
     await mkdir(this.worktreeBase, { recursive: true });
 
-    const result = await execFileNoThrow(
-      'git',
-      ['worktree', 'add', '-b', branch, wtPath],
-      { cwd: repoRoot }
-    );
+    const result = await execFileNoThrow("git", ["worktree", "add", "-b", branch, wtPath], {
+      cwd: repoRoot,
+    });
 
-    if (result.status !== 'success') {
+    if (result.status !== "success") {
       throw new Error(`Failed to create worktree: ${result.stderr || result.stdout}`);
     }
 
@@ -105,17 +99,17 @@ class WorktreeServiceImpl implements WorktreeService {
       sessionId,
       repoRoot,
       createdAt: Date.now(),
-      status: 'active',
+      status: "active",
     };
 
     this.worktrees.set(sessionId, info);
     await this.persistState();
 
     getEventBus().emit({
-      type: 'WorktreeChange',
+      type: "WorktreeChange",
       sessionId,
       worktreePath: wtPath,
-      action: 'created',
+      action: "created",
       timestamp: Date.now(),
     });
 
@@ -125,14 +119,12 @@ class WorktreeServiceImpl implements WorktreeService {
   async list(repoRoot: string): Promise<WorktreeInfo[]> {
     await this.ensureInitialized();
 
-    return Array.from(this.worktrees.values()).filter(
-      (wt) => wt.repoRoot === repoRoot
-    );
+    return Array.from(this.worktrees.values()).filter((wt) => wt.repoRoot === repoRoot);
   }
 
   async merge(
     sessionId: string,
-    strategy: 'merge' | 'rebase' = 'merge'
+    strategy: "merge" | "rebase" = "merge",
   ): Promise<{ success: boolean; conflicts?: string[] }> {
     await this.ensureInitialized();
 
@@ -141,47 +133,43 @@ class WorktreeServiceImpl implements WorktreeService {
       throw new Error(`Worktree not found for session: ${sessionId}`);
     }
 
-    if (info.status !== 'active') {
+    if (info.status !== "active") {
       throw new Error(`Cannot merge worktree in state: ${info.status}`);
     }
 
-    const mergeCmd = strategy === 'rebase'
-      ? ['rebase', info.branch]
-      : ['merge', info.branch, '--no-ff', '-m', `Merge workforce agent ${sessionId}`];
+    const mergeCmd =
+      strategy === "rebase"
+        ? ["rebase", info.branch]
+        : ["merge", info.branch, "--no-ff", "-m", `Merge workforce agent ${sessionId}`];
 
-    const mergeResult = await execFileNoThrow('git', mergeCmd, {
+    const mergeResult = await execFileNoThrow("git", mergeCmd, {
       cwd: info.repoRoot,
     });
 
-    if (mergeResult.status !== 'success') {
+    if (mergeResult.status !== "success") {
       const conflictResult = await execFileNoThrow(
-        'git',
-        ['diff', '--name-only', '--diff-filter=U'],
-        { cwd: info.repoRoot }
+        "git",
+        ["diff", "--name-only", "--diff-filter=U"],
+        { cwd: info.repoRoot },
       );
 
-      const conflicts = conflictResult.stdout
-        .trim()
-        .split('\n')
-        .filter(Boolean);
+      const conflicts = conflictResult.stdout.trim().split("\n").filter(Boolean);
 
-      await execFileNoThrow(
-        'git',
-        [strategy === 'rebase' ? 'rebase' : 'merge', '--abort'],
-        { cwd: info.repoRoot }
-      );
+      await execFileNoThrow("git", [strategy === "rebase" ? "rebase" : "merge", "--abort"], {
+        cwd: info.repoRoot,
+      });
 
       return { success: false, conflicts };
     }
 
-    info.status = 'merged';
+    info.status = "merged";
     await this.persistState();
 
     getEventBus().emit({
-      type: 'WorktreeChange',
+      type: "WorktreeChange",
       sessionId,
       worktreePath: info.path,
-      action: 'merged',
+      action: "merged",
       timestamp: Date.now(),
     });
 
@@ -196,31 +184,31 @@ class WorktreeServiceImpl implements WorktreeService {
       throw new Error(`Worktree not found for session: ${sessionId}`);
     }
 
-    if (info.status === 'deleted') {
-      throw new Error('Worktree already deleted');
+    if (info.status === "deleted") {
+      throw new Error("Worktree already deleted");
     }
 
-    if (info.status === 'active') {
+    if (info.status === "active") {
       const removeResult = await execFileNoThrow(
-        'git',
-        ['worktree', 'remove', info.path, '--force'],
-        { cwd: info.repoRoot }
+        "git",
+        ["worktree", "remove", info.path, "--force"],
+        { cwd: info.repoRoot },
       );
 
-      if (removeResult.status !== 'success') {
+      if (removeResult.status !== "success") {
         await rm(info.path, { recursive: true, force: true });
-        await execFileNoThrow('git', ['worktree', 'prune'], { cwd: info.repoRoot });
+        await execFileNoThrow("git", ["worktree", "prune"], { cwd: info.repoRoot });
       }
     }
 
-    info.status = 'archived';
+    info.status = "archived";
     await this.persistState();
 
     getEventBus().emit({
-      type: 'WorktreeChange',
+      type: "WorktreeChange",
       sessionId,
       worktreePath: info.path,
-      action: 'archived',
+      action: "archived",
       timestamp: Date.now(),
     });
   }
@@ -233,32 +221,26 @@ class WorktreeServiceImpl implements WorktreeService {
       throw new Error(`Worktree not found for session: ${sessionId}`);
     }
 
-    if (info.status === 'active') {
-      await execFileNoThrow(
-        'git',
-        ['worktree', 'remove', info.path, '--force'],
-        { cwd: info.repoRoot }
-      );
+    if (info.status === "active") {
+      await execFileNoThrow("git", ["worktree", "remove", info.path, "--force"], {
+        cwd: info.repoRoot,
+      });
     }
 
     await rm(info.path, { recursive: true, force: true });
-    await execFileNoThrow('git', ['worktree', 'prune'], { cwd: info.repoRoot });
+    await execFileNoThrow("git", ["worktree", "prune"], { cwd: info.repoRoot });
 
-    await execFileNoThrow(
-      'git',
-      ['branch', '-D', info.branch],
-      { cwd: info.repoRoot }
-    );
+    await execFileNoThrow("git", ["branch", "-D", info.branch], { cwd: info.repoRoot });
 
     const wtPath = info.path;
     this.worktrees.delete(sessionId);
     await this.persistState();
 
     getEventBus().emit({
-      type: 'WorktreeChange',
+      type: "WorktreeChange",
       sessionId,
       worktreePath: wtPath,
-      action: 'deleted',
+      action: "deleted",
       timestamp: Date.now(),
     });
   }
@@ -275,12 +257,12 @@ class WorktreeServiceImpl implements WorktreeService {
       throw new Error(`Worktree not found for session: ${sessionId}`);
     }
 
-    const diffResult = await execFileNoThrow('git', ['diff', 'HEAD'], {
+    const diffResult = await execFileNoThrow("git", ["diff", "HEAD"], {
       cwd: info.path,
     });
 
-    if (diffResult.status !== 'success') {
-      return '';
+    if (diffResult.status !== "success") {
+      return "";
     }
 
     return diffResult.stdout;

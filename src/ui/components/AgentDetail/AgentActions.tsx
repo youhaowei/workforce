@@ -2,12 +2,12 @@
  * AgentActions - Actions tab showing tool calls and file modifications from audit entries.
  */
 
-import { useQuery } from '@tanstack/react-query';
-import { useTRPC } from '@/bridge/react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
-import { Wrench, FileText } from 'lucide-react';
-import type { AuditEntry } from '@/services/types';
+import { useQuery } from "@tanstack/react-query";
+import { useTRPC } from "@/bridge/react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Wrench, FileText } from "lucide-react";
+import type { AuditEntry } from "@/services/types";
 
 interface AgentActionsProps {
   sessionId: string;
@@ -17,15 +17,11 @@ interface AgentActionsProps {
 export function AgentActions({ sessionId, orgId }: AgentActionsProps) {
   const trpc = useTRPC();
 
-  const { data: entries = [] } = useQuery(
-    trpc.audit.session.queryOptions(
-      { sessionId, orgId },
-    ),
-  );
+  const { data: entries = [] } = useQuery(trpc.audit.session.queryOptions({ sessionId, orgId }));
 
-  const toolUseEntries = (entries as AuditEntry[]).filter((e) => e.type === 'tool_use');
+  const toolUseEntries = (entries as AuditEntry[]).filter((e) => e.type === "tool_use");
   const fileEntries = toolUseEntries.filter(
-    (e) => e.data?.toolName === 'write' || e.data?.toolName === 'edit',
+    (e) => e.data?.toolName === "write" || e.data?.toolName === "edit",
   );
 
   return (
@@ -40,12 +36,15 @@ export function AgentActions({ sessionId, orgId }: AgentActionsProps) {
           {toolUseEntries.length > 0 ? (
             <div className="space-y-1">
               {toolUseEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center gap-3 text-xs p-2 hover:bg-neutral-bg-dim rounded">
+                <div
+                  key={entry.id}
+                  className="flex items-center gap-3 text-xs p-2 hover:bg-neutral-bg-dim rounded"
+                >
                   <span className="font-mono text-neutral-fg-subtle w-20 shrink-0">
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </span>
                   <Badge variant="soft" className="text-[10px] font-mono shrink-0">
-                    {(entry.data?.toolName as string) ?? 'unknown'}
+                    {(entry.data?.toolName as string) ?? "unknown"}
                   </Badge>
                   <span className="text-neutral-fg-subtle truncate">{entry.description}</span>
                 </div>
@@ -65,7 +64,10 @@ export function AgentActions({ sessionId, orgId }: AgentActionsProps) {
             </h3>
             <div className="space-y-1">
               {fileEntries.map((entry) => (
-                <div key={entry.id} className="flex items-center gap-3 text-xs p-2 bg-neutral-bg-dim rounded">
+                <div
+                  key={entry.id}
+                  className="flex items-center gap-3 text-xs p-2 bg-neutral-bg-dim rounded"
+                >
                   <span className="font-mono text-neutral-fg-subtle w-20 shrink-0">
                     {new Date(entry.timestamp).toLocaleTimeString()}
                   </span>

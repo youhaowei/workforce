@@ -4,20 +4,20 @@
  * Extracted from agent.ts to keep file sizes manageable.
  */
 
-import { readFileSync } from 'fs';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import type { AgentModelInfo } from './types';
-import { createLogger } from 'tracey';
-import { getDataDir } from './data-dir';
+import { readFileSync } from "fs";
+import { writeFile, mkdir } from "fs/promises";
+import { join } from "path";
+import type { AgentModelInfo } from "./types";
+import { createLogger } from "tracey";
+import { getDataDir } from "./data-dir";
 
-const log = createLogger('Agent');
+const log = createLogger("Agent");
 
 // ---------------------------------------------------------------------------
 // Disk-backed model cache — survives restarts so cold starts return instantly.
 // ---------------------------------------------------------------------------
 
-const MODEL_CACHE_FILENAME = 'model-cache.json';
+const MODEL_CACHE_FILENAME = "model-cache.json";
 
 interface DiskModelCache {
   models: AgentModelInfo[];
@@ -30,22 +30,30 @@ interface DiskModelCache {
  * Keeps the model dropdown populated so the UI is never blank.
  */
 const FALLBACK_MODELS: AgentModelInfo[] = [
-  { id: 'claude-opus-4-6', displayName: 'Opus 4.6', description: 'Most capable model' },
-  { id: 'claude-sonnet-4-6', displayName: 'Sonnet 4.6', description: 'Fast and capable' },
-  { id: 'claude-sonnet-4-5-20250929', displayName: 'Sonnet 4.5', description: 'Balanced performance' },
-  { id: 'claude-haiku-4-5-20251001', displayName: 'Haiku 4.5', description: 'Fastest, lowest cost' },
+  { id: "claude-opus-4-6", displayName: "Opus 4.6", description: "Most capable model" },
+  { id: "claude-sonnet-4-6", displayName: "Sonnet 4.6", description: "Fast and capable" },
+  {
+    id: "claude-sonnet-4-5-20250929",
+    displayName: "Sonnet 4.5",
+    description: "Balanced performance",
+  },
+  {
+    id: "claude-haiku-4-5-20251001",
+    displayName: "Haiku 4.5",
+    description: "Fastest, lowest cost",
+  },
 ];
 
 function modelCachePath(): string {
-  return join(getDataDir(), 'cache', MODEL_CACHE_FILENAME);
+  return join(getDataDir(), "cache", MODEL_CACHE_FILENAME);
 }
 
 async function writeDiskModelCache(models: AgentModelInfo[]): Promise<void> {
   try {
-    const dir = join(getDataDir(), 'cache');
+    const dir = join(getDataDir(), "cache");
     await mkdir(dir, { recursive: true });
     const data: DiskModelCache = { models, cachedAt: Date.now() };
-    await writeFile(modelCachePath(), JSON.stringify(data, null, 2), 'utf-8');
+    await writeFile(modelCachePath(), JSON.stringify(data, null, 2), "utf-8");
   } catch {
     // Best-effort — failure here is non-critical.
   }
@@ -55,18 +63,18 @@ async function writeDiskModelCache(models: AgentModelInfo[]): Promise<void> {
 // Last-used model — persisted so warm-up targets the right model on restart.
 // ---------------------------------------------------------------------------
 
-const LAST_MODEL_FILENAME = 'last-model.json';
+const LAST_MODEL_FILENAME = "last-model.json";
 
 function lastModelPath(): string {
-  return join(getDataDir(), 'cache', LAST_MODEL_FILENAME);
+  return join(getDataDir(), "cache", LAST_MODEL_FILENAME);
 }
 
 /** Synchronously read the last-used model (called once at startup). */
 export function readLastUsedModelSync(): string | null {
   try {
-    const raw = readFileSync(lastModelPath(), 'utf-8');
+    const raw = readFileSync(lastModelPath(), "utf-8");
     const parsed = JSON.parse(raw);
-    return typeof parsed.model === 'string' ? parsed.model : null;
+    return typeof parsed.model === "string" ? parsed.model : null;
   } catch {
     return null;
   }
@@ -74,8 +82,8 @@ export function readLastUsedModelSync(): string | null {
 
 /** Persist the last-used model for next startup (best-effort, async). */
 export function writeLastUsedModel(model: string): void {
-  mkdir(join(getDataDir(), 'cache'), { recursive: true })
-    .then(() => writeFile(lastModelPath(), JSON.stringify({ model }), 'utf-8'))
+  mkdir(join(getDataDir(), "cache"), { recursive: true })
+    .then(() => writeFile(lastModelPath(), JSON.stringify({ model }), "utf-8"))
     .catch(() => {});
 }
 
@@ -104,7 +112,9 @@ export class ModelCache {
     // return it immediately and kick off a background refresh if stale.
     if (this.cache) {
       if (Date.now() - this.cacheAt >= 5 * 60_000 && !this.inflight) {
-        this.inflight = this.refreshFromSdk().finally(() => { this.inflight = null; });
+        this.inflight = this.refreshFromSdk().finally(() => {
+          this.inflight = null;
+        });
       }
       return this.cache;
     }
@@ -113,13 +123,15 @@ export class ModelCache {
     // so the first caller gets real models instead of hardcoded fallbacks.
     // A 15-second timeout prevents hanging if the SDK subprocess is stuck.
     if (!this.inflight) {
-      this.inflight = this.refreshFromSdk().finally(() => { this.inflight = null; });
+      this.inflight = this.refreshFromSdk().finally(() => {
+        this.inflight = null;
+      });
     }
     try {
       return await Promise.race([
         this.inflight,
         new Promise<AgentModelInfo[]>((_, reject) =>
-          setTimeout(() => reject(new Error('model refresh timeout')), 15_000),
+          setTimeout(() => reject(new Error("model refresh timeout")), 15_000),
         ),
       ]);
     } catch {
@@ -133,12 +145,15 @@ export class ModelCache {
    */
   private hydrateFromDiskSync(): void {
     try {
-      const raw = readFileSync(modelCachePath(), 'utf-8');
+      const raw = readFileSync(modelCachePath(), "utf-8");
       const parsed = JSON.parse(raw) as DiskModelCache;
       if (Array.isArray(parsed.models) && parsed.models.length > 0) {
         this.cache = parsed.models;
         this.cacheAt = Date.now();
-        log.info({ count: parsed.models.length }, `Hydrated ${parsed.models.length} models from disk cache (sync)`);
+        log.info(
+          { count: parsed.models.length },
+          `Hydrated ${parsed.models.length} models from disk cache (sync)`,
+        );
       }
     } catch {
       // No disk cache available — first run.
@@ -150,7 +165,7 @@ export class ModelCache {
     try {
       const apiKey = process.env.ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_AUTH_TOKEN;
       if (!apiKey) {
-        log.debug('No API key available for model refresh, using cache/fallbacks');
+        log.debug("No API key available for model refresh, using cache/fallbacks");
         return this.cache ?? FALLBACK_MODELS;
       }
 
@@ -161,20 +176,20 @@ export class ModelCache {
       let afterId: string | undefined;
 
       do {
-        const url = new URL('https://api.anthropic.com/v1/models');
-        url.searchParams.set('limit', '1000');
-        if (afterId) url.searchParams.set('after_id', afterId);
+        const url = new URL("https://api.anthropic.com/v1/models");
+        url.searchParams.set("limit", "1000");
+        if (afterId) url.searchParams.set("after_id", afterId);
 
         const res = await fetch(url.toString(), {
           headers: {
-            'x-api-key': apiKey,
-            'anthropic-version': '2023-06-01',
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
           },
           signal: AbortSignal.timeout(10_000),
         });
         if (!res.ok) throw new Error(`API returned ${res.status}`);
 
-        const page = await res.json() as {
+        const page = (await res.json()) as {
           data: Array<{ id: string; display_name: string; created_at?: string }>;
           has_more: boolean;
           last_id: string | null;
@@ -192,7 +207,7 @@ export class ModelCache {
       const normalized: AgentModelInfo[] = allModels.map((m) => ({
         id: m.id,
         displayName: m.display_name,
-        description: '',
+        description: "",
       }));
       this.cache = normalized;
       this.cacheAt = Date.now();
@@ -200,7 +215,10 @@ export class ModelCache {
       log.info({ count: normalized.length }, `Model refresh complete: ${normalized.length} models`);
       return normalized;
     } catch (err) {
-      log.error({ error: err instanceof Error ? err.message : String(err) }, 'Model refresh failed');
+      log.error(
+        { error: err instanceof Error ? err.message : String(err) },
+        "Model refresh failed",
+      );
       return this.cache ?? FALLBACK_MODELS;
     }
   }

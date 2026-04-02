@@ -8,16 +8,16 @@
  * - Write-through persistence to ~/.workforce/tasks/{id}.json
  */
 
-import { readFile, writeFile, readdir, mkdir, rm } from 'fs/promises';
-import { join } from 'path';
-import type { TaskService, Task, TaskFilter, TaskStatus } from './types';
-import { getDataDir } from './data-dir';
+import { readFile, writeFile, readdir, mkdir, rm } from "fs/promises";
+import { join } from "path";
+import type { TaskService, Task, TaskFilter, TaskStatus } from "./types";
+import { getDataDir } from "./data-dir";
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const DEFAULT_TASKS_DIR = join(getDataDir(), 'tasks');
+const DEFAULT_TASKS_DIR = join(getDataDir(), "tasks");
 
 // =============================================================================
 // Helpers
@@ -53,9 +53,9 @@ class TaskServiceImpl implements TaskService {
       const files = await readdir(this.tasksDir);
 
       for (const file of files) {
-        if (!file.endsWith('.json')) continue;
+        if (!file.endsWith(".json")) continue;
         try {
-          const raw = await readFile(join(this.tasksDir, file), 'utf-8');
+          const raw = await readFile(join(this.tasksDir, file), "utf-8");
           const task = JSON.parse(raw) as Task;
           this.cache.set(task.id, task);
         } catch {
@@ -69,7 +69,7 @@ class TaskServiceImpl implements TaskService {
 
   private async persist(task: Task): Promise<void> {
     await mkdir(this.tasksDir, { recursive: true });
-    await writeFile(this.taskPath(task.id), JSON.stringify(task, null, 2), 'utf-8');
+    await writeFile(this.taskPath(task.id), JSON.stringify(task, null, 2), "utf-8");
   }
 
   async create(title: string, description?: string): Promise<Task> {
@@ -79,7 +79,7 @@ class TaskServiceImpl implements TaskService {
       id: generateTaskId(),
       title,
       description,
-      status: 'pending',
+      status: "pending",
       createdAt: now,
       updatedAt: now,
     };
@@ -94,7 +94,10 @@ class TaskServiceImpl implements TaskService {
     return this.cache.get(taskId) ?? null;
   }
 
-  async update(taskId: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>): Promise<Task | null> {
+  async update(
+    taskId: string,
+    updates: Partial<Omit<Task, "id" | "createdAt">>,
+  ): Promise<Task | null> {
     await this.ensureInitialized();
     const task = this.cache.get(taskId);
     if (!task) return null;
@@ -130,8 +133,7 @@ class TaskServiceImpl implements TaskService {
       const query = filter.search.toLowerCase();
       tasks = tasks.filter(
         (t) =>
-          t.title.toLowerCase().includes(query) ||
-          t.description?.toLowerCase().includes(query)
+          t.title.toLowerCase().includes(query) || t.description?.toLowerCase().includes(query),
       );
     }
 
@@ -144,15 +146,15 @@ class TaskServiceImpl implements TaskService {
   }
 
   async complete(taskId: string): Promise<Task | null> {
-    return this.updateStatus(taskId, 'completed');
+    return this.updateStatus(taskId, "completed");
   }
 
   async start(taskId: string): Promise<Task | null> {
-    return this.updateStatus(taskId, 'in_progress');
+    return this.updateStatus(taskId, "in_progress");
   }
 
   async cancel(taskId: string): Promise<Task | null> {
-    return this.updateStatus(taskId, 'cancelled');
+    return this.updateStatus(taskId, "cancelled");
   }
 
   private async updateStatus(taskId: string, status: TaskStatus): Promise<Task | null> {
@@ -163,7 +165,7 @@ class TaskServiceImpl implements TaskService {
     task.status = status;
     task.updatedAt = Date.now();
 
-    if (status === 'completed') {
+    if (status === "completed") {
       task.completedAt = Date.now();
     }
 
@@ -172,7 +174,7 @@ class TaskServiceImpl implements TaskService {
   }
 
   async getPending(): Promise<Task[]> {
-    return this.list({ status: 'pending' });
+    return this.list({ status: "pending" });
   }
 
   async flush(): Promise<void> {

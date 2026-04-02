@@ -6,8 +6,8 @@
  * The artifact's content lives on disk at filePath; this service manages metadata.
  */
 
-import { readdir, mkdir, readFile, writeFile, unlink } from 'fs/promises';
-import { join } from 'path';
+import { readdir, mkdir, readFile, writeFile, unlink } from "fs/promises";
+import { join } from "path";
 import type {
   ArtifactService,
   Artifact,
@@ -17,11 +17,11 @@ import type {
   ArtifactComment,
   ArtifactReview,
   Author,
-} from './types';
-import { getDataDir } from './data-dir';
-import { createLogger } from 'tracey';
+} from "./types";
+import { getDataDir } from "./data-dir";
+import { createLogger } from "tracey";
 
-const log = createLogger('Artifact');
+const log = createLogger("Artifact");
 
 function generateArtifactId() {
   return `art_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -35,7 +35,7 @@ class ArtifactServiceImpl implements ArtifactService {
   private writeLocks = new Map<string, Promise<void>>();
 
   constructor(artifactsDir?: string) {
-    this.artifactsDir = artifactsDir ?? join(getDataDir(), 'artifacts');
+    this.artifactsDir = artifactsDir ?? join(getDataDir(), "artifacts");
   }
 
   async ensureInitialized() {
@@ -51,19 +51,19 @@ class ArtifactServiceImpl implements ArtifactService {
   private async doInit() {
     await mkdir(this.artifactsDir, { recursive: true });
     const entries = await readdir(this.artifactsDir);
-    const jsonFiles = entries.filter((f) => f.endsWith('.json'));
+    const jsonFiles = entries.filter((f) => f.endsWith(".json"));
     const needsOrgId: Artifact[] = [];
 
     for (const file of jsonFiles) {
       try {
-        const raw = await readFile(join(this.artifactsDir, file), 'utf-8');
+        const raw = await readFile(join(this.artifactsDir, file), "utf-8");
         const artifact = JSON.parse(raw) as Artifact;
         if (!/^art_[a-z0-9_]+$/.test(artifact.id)) {
-          log.warn({ file, artifactId: artifact.id }, 'Skipping artifact with invalid ID');
+          log.warn({ file, artifactId: artifact.id }, "Skipping artifact with invalid ID");
           continue;
         }
         if (!artifact.orgId) {
-          (artifact as unknown as Record<string, unknown>).orgId = '';
+          (artifact as unknown as Record<string, unknown>).orgId = "";
           needsOrgId.push(artifact);
         }
         this.artifacts.set(artifact.id, artifact);
@@ -76,15 +76,18 @@ class ArtifactServiceImpl implements ArtifactService {
     if (needsOrgId.length > 0) {
       // Derive sessions dir from the same data root as artifacts dir.
       // artifactsDir is <dataDir>/artifacts, so sessions is <dataDir>/sessions.
-      const sessionsDir = join(this.artifactsDir, '..', 'sessions');
+      const sessionsDir = join(this.artifactsDir, "..", "sessions");
       for (const artifact of needsOrgId) {
         const orgId = await this.resolveOrgIdFromSessions(sessionsDir, artifact.sessionLinks);
         if (orgId) {
           artifact.orgId = orgId;
           await this.persist(artifact);
-          log.info({ artifactId: artifact.id, orgId }, 'Backfilled orgId from linked session');
+          log.info({ artifactId: artifact.id, orgId }, "Backfilled orgId from linked session");
         } else {
-          log.warn({ artifactId: artifact.id }, 'Could not resolve orgId — no linked sessions with orgId');
+          log.warn(
+            { artifactId: artifact.id },
+            "Could not resolve orgId — no linked sessions with orgId",
+          );
         }
       }
     }
@@ -97,8 +100,8 @@ class ArtifactServiceImpl implements ArtifactService {
   private async resolveOrgIdFromSessions(sessionsDir: string, sessionLinks: string[]) {
     for (const sessionId of sessionLinks) {
       try {
-        const raw = await readFile(join(sessionsDir, `${sessionId}.jsonl`), 'utf-8');
-        const nlIdx = raw.indexOf('\n');
+        const raw = await readFile(join(sessionsDir, `${sessionId}.jsonl`), "utf-8");
+        const nlIdx = raw.indexOf("\n");
         const firstLine = nlIdx === -1 ? raw : raw.slice(0, nlIdx);
         const header = JSON.parse(firstLine);
         const orgId = header.metadata?.orgId ?? header.orgId;
@@ -116,11 +119,15 @@ class ArtifactServiceImpl implements ArtifactService {
     const prev = this.writeLocks.get(id) ?? Promise.resolve();
     const next = prev.then(async () => {
       const filePath = join(this.artifactsDir, `${id}.json`);
-      await writeFile(filePath, JSON.stringify(artifact, null, 2), 'utf-8');
+      await writeFile(filePath, JSON.stringify(artifact, null, 2), "utf-8");
     });
     const locked = next
-      .catch((err) => { log.error({ artifactId: id, err }, 'Failed to persist artifact'); })
-      .finally(() => { if (this.writeLocks.get(id) === locked) this.writeLocks.delete(id); });
+      .catch((err) => {
+        log.error({ artifactId: id, err }, "Failed to persist artifact");
+      })
+      .finally(() => {
+        if (this.writeLocks.get(id) === locked) this.writeLocks.delete(id);
+      });
     this.writeLocks.set(id, locked);
     await next;
   }
@@ -132,7 +139,7 @@ class ArtifactServiceImpl implements ArtifactService {
     mimeType: ArtifactMimeType;
     filePath: string;
     content?: string;
-    status?: Artifact['status'];
+    status?: Artifact["status"];
     createdBy: Author;
     sessionId?: string;
     metadata?: Record<string, unknown>;
@@ -147,7 +154,7 @@ class ArtifactServiceImpl implements ArtifactService {
       mimeType: input.mimeType,
       filePath: input.filePath,
       content: input.content,
-      status: input.status ?? 'draft',
+      status: input.status ?? "draft",
       createdBy: input.createdBy,
       createdAt: now,
       updatedAt: now,
@@ -159,7 +166,7 @@ class ArtifactServiceImpl implements ArtifactService {
 
     this.artifacts.set(artifact.id, artifact);
     await this.persist(artifact);
-    log.info({ artifactId: artifact.id, title: artifact.title }, 'Created artifact');
+    log.info({ artifactId: artifact.id, title: artifact.title }, "Created artifact");
     return artifact;
   }
 
@@ -175,7 +182,8 @@ class ArtifactServiceImpl implements ArtifactService {
     if (filter?.projectId) results = results.filter((a) => a.projectId === filter.projectId);
     if (filter?.mimeType) results = results.filter((a) => a.mimeType === filter.mimeType);
     if (filter?.status) results = results.filter((a) => a.status === filter.status);
-    if (filter?.sessionId) results = results.filter((a) => a.sessionLinks.includes(filter.sessionId!));
+    if (filter?.sessionId)
+      results = results.filter((a) => a.sessionLinks.includes(filter.sessionId!));
     return results.sort((a, b) => b.updatedAt - a.updatedAt);
   }
 
@@ -193,7 +201,8 @@ class ArtifactServiceImpl implements ArtifactService {
     if (patch.title !== undefined) updated.title = patch.title;
     if (patch.status !== undefined) updated.status = patch.status;
     if (patch.content !== undefined) updated.content = patch.content;
-    if (patch.metadata !== undefined) updated.metadata = { ...artifact.metadata, ...patch.metadata };
+    if (patch.metadata !== undefined)
+      updated.metadata = { ...artifact.metadata, ...patch.metadata };
     updated.updatedAt = Date.now();
     this.artifacts.set(artifactId, updated);
     await this.persist(updated);
@@ -205,8 +214,12 @@ class ArtifactServiceImpl implements ArtifactService {
     await this.ensureInitialized();
     if (!this.artifacts.has(artifactId)) throw new Error(`Artifact not found: ${artifactId}`);
     this.artifacts.delete(artifactId);
-    try { await unlink(join(this.artifactsDir, `${artifactId}.json`)); } catch { /* ok */ }
-    log.info({ artifactId }, 'Deleted artifact');
+    try {
+      await unlink(join(this.artifactsDir, `${artifactId}.json`));
+    } catch {
+      /* ok */
+    }
+    log.info({ artifactId }, "Deleted artifact");
   }
 
   async linkToSession(artifactId: string, sessionId: string) {
@@ -214,13 +227,17 @@ class ArtifactServiceImpl implements ArtifactService {
     const artifact = this.artifacts.get(artifactId);
     if (!artifact) throw new Error(`Artifact not found: ${artifactId}`);
     if (!artifact.sessionLinks.includes(sessionId)) {
-      const updated = { ...artifact, sessionLinks: [...artifact.sessionLinks, sessionId], updatedAt: Date.now() };
+      const updated = {
+        ...artifact,
+        sessionLinks: [...artifact.sessionLinks, sessionId],
+        updatedAt: Date.now(),
+      };
       this.artifacts.set(artifactId, updated);
       await this.persist(updated);
     }
   }
 
-  async addComment(artifactId: string, input: Omit<ArtifactComment, 'id' | 'createdAt'>) {
+  async addComment(artifactId: string, input: Omit<ArtifactComment, "id" | "createdAt">) {
     await this.ensureInitialized();
     const artifact = this.artifacts.get(artifactId);
     if (!artifact) throw new Error(`Artifact not found: ${artifactId}`);
@@ -229,21 +246,29 @@ class ArtifactServiceImpl implements ArtifactService {
       id: `cmt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`,
       createdAt: Date.now(),
     };
-    const updated = { ...artifact, pendingComments: [...artifact.pendingComments, comment], updatedAt: Date.now() };
+    const updated = {
+      ...artifact,
+      pendingComments: [...artifact.pendingComments, comment],
+      updatedAt: Date.now(),
+    };
     this.artifacts.set(artifactId, updated);
     await this.persist(updated);
     return comment;
   }
 
-  async submitReview(artifactId: string, input: Omit<ArtifactReview, 'id' | 'createdAt'>) {
+  async submitReview(artifactId: string, input: Omit<ArtifactReview, "id" | "createdAt">) {
     await this.ensureInitialized();
     const artifact = this.artifacts.get(artifactId);
     if (!artifact) throw new Error(`Artifact not found: ${artifactId}`);
     // Merge pending comments + input comments, assigning IDs to any without one
     const mergedComments = [...artifact.pendingComments, ...input.comments].map((cmt) =>
-      cmt.id === ''
-        ? { ...cmt, id: `cmt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`, createdAt: Date.now() }
-        : cmt
+      cmt.id === ""
+        ? {
+            ...cmt,
+            id: `cmt_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`,
+            createdAt: Date.now(),
+          }
+        : cmt,
     );
     const review: ArtifactReview = {
       ...input,
@@ -253,8 +278,8 @@ class ArtifactServiceImpl implements ArtifactService {
     };
     // Update status based on review action
     let newStatus = artifact.status;
-    if (input.action === 'approve') newStatus = 'approved';
-    else if (input.action === 'reject') newStatus = 'rejected';
+    if (input.action === "approve") newStatus = "approved";
+    else if (input.action === "reject") newStatus = "rejected";
     const updated = {
       ...artifact,
       reviews: [...artifact.reviews, review],
@@ -277,6 +302,16 @@ class ArtifactServiceImpl implements ArtifactService {
 
 // Singleton
 let _instance: ArtifactServiceImpl | null = null;
-export function getArtifactService(): ArtifactService { _instance ??= new ArtifactServiceImpl(); return _instance; }
-export function resetArtifactService() { if (_instance) { _instance.dispose(); _instance = null; } }
-export function createArtifactService(dir: string): ArtifactService { return new ArtifactServiceImpl(dir); }
+export function getArtifactService(): ArtifactService {
+  _instance ??= new ArtifactServiceImpl();
+  return _instance;
+}
+export function resetArtifactService() {
+  if (_instance) {
+    _instance.dispose();
+    _instance = null;
+  }
+}
+export function createArtifactService(dir: string): ArtifactService {
+  return new ArtifactServiceImpl(dir);
+}

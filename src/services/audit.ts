@@ -9,17 +9,17 @@
  * Persistence: ~/.workforce/orgs/{orgId}/audit.jsonl
  */
 
-import { readFile, appendFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import type { AuditEntry, AuditEntryType, AuditService } from './types';
-import { getEventBus } from '@/shared/event-bus';
-import { getDataDir } from './data-dir';
+import { readFile, appendFile, mkdir } from "fs/promises";
+import { join } from "path";
+import type { AuditEntry, AuditEntryType, AuditService } from "./types";
+import { getEventBus } from "@/shared/event-bus";
+import { getDataDir } from "./data-dir";
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const DEFAULT_ORGS_DIR = join(getDataDir(), 'orgs');
+const DEFAULT_ORGS_DIR = join(getDataDir(), "orgs");
 
 // =============================================================================
 // Helpers
@@ -41,10 +41,10 @@ class AuditServiceImpl implements AuditService {
   }
 
   private auditPath(orgId: string): string {
-    return join(this.orgsDir, orgId, 'audit.jsonl');
+    return join(this.orgsDir, orgId, "audit.jsonl");
   }
 
-  async record(entry: Omit<AuditEntry, 'id' | 'timestamp'>): Promise<AuditEntry> {
+  async record(entry: Omit<AuditEntry, "id" | "timestamp">): Promise<AuditEntry> {
     const fullEntry: AuditEntry = {
       ...entry,
       id: generateId(),
@@ -54,11 +54,11 @@ class AuditServiceImpl implements AuditService {
     const dir = join(this.orgsDir, entry.orgId);
     await mkdir(dir, { recursive: true });
 
-    const line = JSON.stringify(fullEntry) + '\n';
-    await appendFile(this.auditPath(entry.orgId), line, 'utf-8');
+    const line = JSON.stringify(fullEntry) + "\n";
+    await appendFile(this.auditPath(entry.orgId), line, "utf-8");
 
     getEventBus().emit({
-      type: 'AuditEntry',
+      type: "AuditEntry",
       entryId: fullEntry.id,
       sessionId: fullEntry.sessionId,
       orgId: fullEntry.orgId,
@@ -77,7 +77,7 @@ class AuditServiceImpl implements AuditService {
 
   async getForOrg(
     orgId: string,
-    options?: { limit?: number; offset?: number; type?: AuditEntryType }
+    options?: { limit?: number; offset?: number; type?: AuditEntryType },
   ): Promise<AuditEntry[]> {
     let entries = await this.readAll(orgId);
 
@@ -103,8 +103,8 @@ class AuditServiceImpl implements AuditService {
 
   private async readAll(orgId: string): Promise<AuditEntry[]> {
     try {
-      const raw = await readFile(this.auditPath(orgId), 'utf-8');
-      const lines = raw.trim().split('\n').filter(Boolean);
+      const raw = await readFile(this.auditPath(orgId), "utf-8");
+      const lines = raw.trim().split("\n").filter(Boolean);
       const entries: AuditEntry[] = [];
 
       for (const line of lines) {

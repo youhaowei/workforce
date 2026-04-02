@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   EventBus,
   createEventBus,
@@ -8,9 +8,9 @@ import {
   type ToolStartEvent,
   type TaskUpdateEvent as _TaskUpdateEvent,
   type BusEvent,
-} from './event-bus';
+} from "./event-bus";
 
-describe('EventBus', () => {
+describe("EventBus", () => {
   let bus: EventBus;
 
   beforeEach(() => {
@@ -21,17 +21,17 @@ describe('EventBus', () => {
     bus.dispose();
   });
 
-  describe('on/off subscription', () => {
-    it('should subscribe and receive events', () => {
+  describe("on/off subscription", () => {
+    it("should subscribe and receive events", () => {
       const received: SessionChangeEvent[] = [];
       bus.on(EventType.SessionChange, (event) => {
         received.push(event);
       });
 
       const event: SessionChangeEvent = {
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       };
       bus.emit(event);
@@ -40,16 +40,16 @@ describe('EventBus', () => {
       expect(received[0]).toBe(event);
     });
 
-    it('should unsubscribe via returned function', () => {
+    it("should unsubscribe via returned function", () => {
       const received: SessionChangeEvent[] = [];
       const unsubscribe = bus.on(EventType.SessionChange, (event) => {
         received.push(event);
       });
 
       const event: SessionChangeEvent = {
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       };
       bus.emit(event);
@@ -59,7 +59,7 @@ describe('EventBus', () => {
       expect(received).toHaveLength(1);
     });
 
-    it('should unsubscribe via off method', () => {
+    it("should unsubscribe via off method", () => {
       const received: SessionChangeEvent[] = [];
       const listener = (event: SessionChangeEvent) => {
         received.push(event);
@@ -67,9 +67,9 @@ describe('EventBus', () => {
       bus.on(EventType.SessionChange, listener);
 
       const event: SessionChangeEvent = {
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       };
       bus.emit(event);
@@ -79,16 +79,16 @@ describe('EventBus', () => {
       expect(received).toHaveLength(1);
     });
 
-    it('should not receive events of different types', () => {
+    it("should not receive events of different types", () => {
       const received: SessionChangeEvent[] = [];
       bus.on(EventType.SessionChange, (event) => {
         received.push(event);
       });
 
       const toolEvent: ToolStartEvent = {
-        type: 'ToolStart',
-        toolId: '123',
-        toolName: 'test',
+        type: "ToolStart",
+        toolId: "123",
+        toolName: "test",
         args: {},
         timestamp: Date.now(),
       };
@@ -98,17 +98,17 @@ describe('EventBus', () => {
     });
   });
 
-  describe('once (one-time listeners)', () => {
-    it('should only fire once', () => {
+  describe("once (one-time listeners)", () => {
+    it("should only fire once", () => {
       const received: SessionChangeEvent[] = [];
       bus.once(EventType.SessionChange, (event) => {
         received.push(event);
       });
 
       const event: SessionChangeEvent = {
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       };
       bus.emit(event);
@@ -118,15 +118,15 @@ describe('EventBus', () => {
       expect(received).toHaveLength(1);
     });
 
-    it('should auto-remove after first invocation', () => {
+    it("should auto-remove after first invocation", () => {
       bus.once(EventType.SessionChange, () => {});
 
       expect(bus.listenerCount(EventType.SessionChange)).toBe(1);
 
       bus.emit({
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       });
 
@@ -134,23 +134,23 @@ describe('EventBus', () => {
     });
   });
 
-  describe('wildcard subscriptions', () => {
-    it('should receive all event types', () => {
+  describe("wildcard subscriptions", () => {
+    it("should receive all event types", () => {
       const received: BusEvent[] = [];
       bus.on(EventType.Wildcard, (event) => {
         received.push(event);
       });
 
       const sessionEvent: SessionChangeEvent = {
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       };
       const toolEvent: ToolStartEvent = {
-        type: 'ToolStart',
-        toolId: '123',
-        toolName: 'test',
+        type: "ToolStart",
+        toolId: "123",
+        toolName: "test",
         args: {},
         timestamp: Date.now(),
       };
@@ -163,22 +163,22 @@ describe('EventBus', () => {
       expect(received[1]).toBe(toolEvent);
     });
 
-    it('should work with once for wildcards', () => {
+    it("should work with once for wildcards", () => {
       const received: BusEvent[] = [];
       bus.once(EventType.Wildcard, (event) => {
         received.push(event);
       });
 
       bus.emit({
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       });
       bus.emit({
-        type: 'ToolStart',
-        toolId: '123',
-        toolName: 'test',
+        type: "ToolStart",
+        toolId: "123",
+        toolName: "test",
         args: {},
         timestamp: Date.now(),
       });
@@ -187,8 +187,8 @@ describe('EventBus', () => {
     });
   });
 
-  describe('priority ordering', () => {
-    it('should call higher priority listeners first', () => {
+  describe("priority ordering", () => {
+    it("should call higher priority listeners first", () => {
       const order: number[] = [];
 
       bus.on(EventType.SessionChange, () => order.push(1), { priority: 1 });
@@ -196,9 +196,9 @@ describe('EventBus', () => {
       bus.on(EventType.SessionChange, () => order.push(2), { priority: 2 });
 
       bus.emit({
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       });
 
@@ -206,8 +206,8 @@ describe('EventBus', () => {
     });
   });
 
-  describe('async listeners', () => {
-    it('should handle async listeners without blocking emit', async () => {
+  describe("async listeners", () => {
+    it("should handle async listeners without blocking emit", async () => {
       let asyncCompleted = false;
       bus.on(EventType.SessionChange, async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -215,9 +215,9 @@ describe('EventBus', () => {
       });
 
       bus.emit({
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       });
 
@@ -226,7 +226,7 @@ describe('EventBus', () => {
       expect(asyncCompleted).toBe(true);
     });
 
-    it('should wait for async listeners with emitAsync', async () => {
+    it("should wait for async listeners with emitAsync", async () => {
       let asyncCompleted = false;
       bus.on(EventType.SessionChange, async () => {
         await new Promise((resolve) => setTimeout(resolve, 10));
@@ -234,26 +234,26 @@ describe('EventBus', () => {
       });
 
       await bus.emitAsync({
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       });
 
       expect(asyncCompleted).toBe(true);
     });
 
-    it('should catch async errors without crashing', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    it("should catch async errors without crashing", async () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       bus.on(EventType.SessionChange, async () => {
-        throw new Error('Async error');
+        throw new Error("Async error");
       });
 
       await bus.emitAsync({
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       });
 
@@ -262,8 +262,8 @@ describe('EventBus', () => {
     });
   });
 
-  describe('backpressure controller', () => {
-    it('should pause and resume event dispatch', () => {
+  describe("backpressure controller", () => {
+    it("should pause and resume event dispatch", () => {
       const received: SessionChangeEvent[] = [];
       const controller = bus.getBackpressureController();
 
@@ -275,9 +275,9 @@ describe('EventBus', () => {
       expect(controller.isPaused()).toBe(true);
 
       bus.emit({
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       });
 
@@ -290,7 +290,7 @@ describe('EventBus', () => {
       expect(controller.queueSize()).toBe(0);
     });
 
-    it('should clear queued events', () => {
+    it("should clear queued events", () => {
       const received: SessionChangeEvent[] = [];
       const controller = bus.getBackpressureController();
 
@@ -300,9 +300,9 @@ describe('EventBus', () => {
 
       controller.pause();
       bus.emit({
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       });
 
@@ -315,17 +315,17 @@ describe('EventBus', () => {
     });
   });
 
-  describe('zero-copy event passing', () => {
-    it('should pass event by reference not clone', () => {
+  describe("zero-copy event passing", () => {
+    it("should pass event by reference not clone", () => {
       let receivedEvent: SessionChangeEvent | null = null;
       bus.on(EventType.SessionChange, (event) => {
         receivedEvent = event;
       });
 
       const event: SessionChangeEvent = {
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       };
       bus.emit(event);
@@ -334,8 +334,8 @@ describe('EventBus', () => {
     });
   });
 
-  describe('listener management', () => {
-    it('should track listener count', () => {
+  describe("listener management", () => {
+    it("should track listener count", () => {
       expect(bus.listenerCount(EventType.SessionChange)).toBe(0);
 
       const unsub1 = bus.on(EventType.SessionChange, () => {});
@@ -353,7 +353,7 @@ describe('EventBus', () => {
       expect(bus.listenerCount(EventType.SessionChange)).toBe(0);
     });
 
-    it('should remove all listeners for a type', () => {
+    it("should remove all listeners for a type", () => {
       bus.on(EventType.SessionChange, () => {});
       bus.on(EventType.SessionChange, () => {});
       bus.on(EventType.ToolStart, () => {});
@@ -364,7 +364,7 @@ describe('EventBus', () => {
       expect(bus.listenerCount(EventType.ToolStart)).toBe(1);
     });
 
-    it('should remove all listeners', () => {
+    it("should remove all listeners", () => {
       bus.on(EventType.SessionChange, () => {});
       bus.on(EventType.ToolStart, () => {});
 
@@ -374,25 +374,25 @@ describe('EventBus', () => {
     });
   });
 
-  describe('error handling', () => {
-    it('should continue dispatching after listener error', () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  describe("error handling", () => {
+    it("should continue dispatching after listener error", () => {
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const received: number[] = [];
 
       bus.on(EventType.SessionChange, () => received.push(1), { priority: 3 });
       bus.on(
         EventType.SessionChange,
         () => {
-          throw new Error('Listener error');
+          throw new Error("Listener error");
         },
-        { priority: 2 }
+        { priority: 2 },
       );
       bus.on(EventType.SessionChange, () => received.push(3), { priority: 1 });
 
       bus.emit({
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       });
 
@@ -402,8 +402,8 @@ describe('EventBus', () => {
     });
   });
 
-  describe('dispose', () => {
-    it('should clean up on dispose', () => {
+  describe("dispose", () => {
+    it("should clean up on dispose", () => {
       bus.on(EventType.SessionChange, () => {});
       bus.on(EventType.ToolStart, () => {});
 
@@ -413,47 +413,47 @@ describe('EventBus', () => {
     });
   });
 
-  describe('singleton', () => {
-    it('should return same instance from getEventBus', () => {
+  describe("singleton", () => {
+    it("should return same instance from getEventBus", () => {
       const bus1 = getEventBus();
       const bus2 = getEventBus();
       expect(bus1).toBe(bus2);
     });
   });
 
-  describe('type safety', () => {
-    it('should enforce typed event payloads', () => {
+  describe("type safety", () => {
+    it("should enforce typed event payloads", () => {
       bus.on(EventType.SessionChange, (event) => {
-        expect(event.type).toBe('SessionChange');
-        expect(typeof event.sessionId).toBe('string');
-        expect(typeof event.action).toBe('string');
+        expect(event.type).toBe("SessionChange");
+        expect(typeof event.sessionId).toBe("string");
+        expect(typeof event.action).toBe("string");
       });
 
       bus.on(EventType.TaskUpdate, (event) => {
-        expect(event.type).toBe('TaskUpdate');
-        expect(typeof event.taskId).toBe('string');
-        expect(['pending', 'running', 'completed', 'failed', 'cancelled']).toContain(event.status);
+        expect(event.type).toBe("TaskUpdate");
+        expect(typeof event.taskId).toBe("string");
+        expect(["pending", "running", "completed", "failed", "cancelled"]).toContain(event.status);
       });
 
       bus.emit({
-        type: 'SessionChange',
-        sessionId: 'sess-1',
-        action: 'created',
+        type: "SessionChange",
+        sessionId: "sess-1",
+        action: "created",
         timestamp: Date.now(),
       });
 
       bus.emit({
-        type: 'TaskUpdate',
-        taskId: 'task-1',
-        status: 'running',
+        type: "TaskUpdate",
+        taskId: "task-1",
+        status: "running",
         timestamp: Date.now(),
       });
     });
   });
 });
 
-describe('EventBus Memory', () => {
-  it('should not grow memory after subscribe/unsubscribe cycles', () => {
+describe("EventBus Memory", () => {
+  it("should not grow memory after subscribe/unsubscribe cycles", () => {
     const bus = createEventBus();
     const iterations = 10000;
 
@@ -475,8 +475,8 @@ describe('EventBus Memory', () => {
   });
 });
 
-describe('EventBus Performance', () => {
-  it('should dispatch events in under 0.1ms', () => {
+describe("EventBus Performance", () => {
+  it("should dispatch events in under 0.1ms", () => {
     const bus = createEventBus();
 
     bus.on(EventType.SessionChange, () => {});
@@ -484,9 +484,9 @@ describe('EventBus Performance', () => {
     bus.on(EventType.SessionChange, () => {});
 
     const event: SessionChangeEvent = {
-      type: 'SessionChange',
-      sessionId: 'sess-1',
-      action: 'created',
+      type: "SessionChange",
+      sessionId: "sess-1",
+      action: "created",
       timestamp: Date.now(),
     };
 

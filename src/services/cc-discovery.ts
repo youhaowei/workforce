@@ -5,9 +5,9 @@
  * and rich metadata. Falls back to sessions-index.json if SDK is unavailable.
  */
 
-import { readFile, readdir, stat } from 'fs/promises';
-import { join, resolve } from 'path';
-import { homedir } from 'os';
+import { readFile, readdir, stat } from "fs/promises";
+import { join, resolve } from "path";
+import { homedir } from "os";
 
 export interface CCSessionSummary {
   sessionId: string;
@@ -27,11 +27,11 @@ export interface CCSessionSummary {
  * Filters out slash commands, URLs, and other non-title content.
  */
 function cleanTitle(summary: string, firstPrompt?: string): string {
-  const candidate = summary || firstPrompt || '';
-  if (!candidate || candidate === 'No prompt' || candidate === '(session)') return '';
-  if (candidate.startsWith('/')) return '';
-  if (candidate.startsWith('http')) return '';
-  if (candidate.length < 3) return '';
+  const candidate = summary || firstPrompt || "";
+  if (!candidate || candidate === "No prompt" || candidate === "(session)") return "";
+  if (candidate.startsWith("/")) return "";
+  if (candidate.startsWith("http")) return "";
+  if (candidate.length < 3) return "";
   return candidate;
 }
 
@@ -41,21 +41,22 @@ function cleanTitle(summary: string, firstPrompt?: string): string {
  */
 export async function discoverCCSessions(projectPath?: string): Promise<CCSessionSummary[]> {
   try {
-    const { listSessions } = await import('@anthropic-ai/claude-agent-sdk');
+    const { listSessions } = await import("@anthropic-ai/claude-agent-sdk");
     const sdkSessions = await listSessions(projectPath ? { dir: projectPath } : undefined);
 
-    const ccProjectsDir = join(homedir(), '.claude', 'projects');
+    const ccProjectsDir = join(homedir(), ".claude", "projects");
 
     return sdkSessions
       .filter((s) => (s.fileSize ?? 0) > 500) // skip near-empty sessions
       .map((s) => {
         const cwd = s.cwd ?? projectPath;
-        const slug = cwd ? projectPathToSlug(cwd) : '';
+        const slug = cwd ? projectPathToSlug(cwd) : "";
         return {
           sessionId: s.sessionId,
-          title: s.customTitle
-            || cleanTitle(s.summary, s.firstPrompt)
-            || (s.gitBranch && s.gitBranch !== 'master' && s.gitBranch !== 'main' ? s.gitBranch : ''),
+          title:
+            s.customTitle ||
+            cleanTitle(s.summary, s.firstPrompt) ||
+            (s.gitBranch && s.gitBranch !== "master" && s.gitBranch !== "main" ? s.gitBranch : ""),
           firstPrompt: s.firstPrompt,
           lastModified: s.lastModified,
           fileSize: s.fileSize ?? 0,
@@ -88,7 +89,7 @@ interface CCSessionsIndexEntry {
 }
 
 async function discoverFromIndex(projectPath?: string): Promise<CCSessionSummary[]> {
-  const ccProjectsDir = join(homedir(), '.claude', 'projects');
+  const ccProjectsDir = join(homedir(), ".claude", "projects");
 
   if (projectPath) {
     const slug = projectPathToSlug(projectPath);
@@ -108,20 +109,22 @@ async function discoverFromIndex(projectPath?: string): Promise<CCSessionSummary
     try {
       const dirStat = await stat(dir);
       if (!dirStat.isDirectory()) continue;
-      results.push(...await readSessionsIndex(dir));
-    } catch { /* skip */ }
+      results.push(...(await readSessionsIndex(dir)));
+    } catch {
+      /* skip */
+    }
   }
   return results;
 }
 
 async function readSessionsIndex(projectDir: string): Promise<CCSessionSummary[]> {
-  const indexPath = join(projectDir, 'sessions-index.json');
+  const indexPath = join(projectDir, "sessions-index.json");
   try {
-    const raw = await readFile(indexPath, 'utf-8');
+    const raw = await readFile(indexPath, "utf-8");
     const index = JSON.parse(raw) as { entries: CCSessionsIndexEntry[] };
     return (index.entries ?? []).map((e) => ({
       sessionId: e.sessionId,
-      title: e.firstPrompt && e.firstPrompt !== 'No prompt' ? e.firstPrompt : 'Claude Code Session',
+      title: e.firstPrompt && e.firstPrompt !== "No prompt" ? e.firstPrompt : "Claude Code Session",
       firstPrompt: e.firstPrompt,
       lastModified: new Date(e.modified).getTime(),
       fileSize: 0,
@@ -135,5 +138,5 @@ async function readSessionsIndex(projectDir: string): Promise<CCSessionSummary[]
 
 /** Convert a project path to CC's directory slug format. */
 export function projectPathToSlug(projectPath: string): string {
-  return resolve(projectPath).replace(/\//g, '-');
+  return resolve(projectPath).replace(/\//g, "-");
 }

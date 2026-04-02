@@ -4,8 +4,8 @@
  * Uses useRef for the callback to avoid re-subscribing on every render.
  */
 
-import { useEffect, useRef } from 'react';
-import { getEventBus, type EventTypeName, type EventPayload } from '@/shared/event-bus';
+import { useEffect, useRef } from "react";
+import { getEventBus, type EventTypeName, type EventPayload } from "@/shared/event-bus";
 
 /**
  * Subscribe to a single EventBus event with React lifecycle cleanup.

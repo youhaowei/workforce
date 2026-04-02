@@ -8,20 +8,20 @@
  * Persistence: ~/.workforce/projects/{id}/project.json
  */
 
-import { readFile, writeFile, readdir, mkdir, rm } from 'fs/promises';
-import { join } from 'path';
-import { ProjectNotFound } from './types';
-import type { Project, ProjectService, Result } from './types';
-import { getEventBus } from '@/shared/event-bus';
-import { getLogService } from './log';
-import { getDataDir } from './data-dir';
-import { colorFromName } from '@/shared/palette';
+import { readFile, writeFile, readdir, mkdir, rm } from "fs/promises";
+import { join } from "path";
+import { ProjectNotFound } from "./types";
+import type { Project, ProjectService, Result } from "./types";
+import { getEventBus } from "@/shared/event-bus";
+import { getLogService } from "./log";
+import { getDataDir } from "./data-dir";
+import { colorFromName } from "@/shared/palette";
 
 // =============================================================================
 // Configuration
 // =============================================================================
 
-const PROJECTS_DIR = join(getDataDir(), 'projects');
+const PROJECTS_DIR = join(getDataDir(), "projects");
 
 // =============================================================================
 // Helpers
@@ -58,21 +58,27 @@ class ProjectServiceImpl implements ProjectService {
       const dirs = entries.filter((e) => e.isDirectory());
 
       for (const dir of dirs) {
-        const filePath = join(this.projectsDir, dir.name, 'project.json');
+        const filePath = join(this.projectsDir, dir.name, "project.json");
         try {
-          const raw = await readFile(filePath, 'utf-8');
+          const raw = await readFile(filePath, "utf-8");
           const project = JSON.parse(raw) as Project;
           this.projects.set(project.id, project);
         } catch (err) {
-          getLogService().warn('general', `Skipping unreadable project file ${filePath}`, { error: String(err) });
+          getLogService().warn("general", `Skipping unreadable project file ${filePath}`, {
+            error: String(err),
+          });
         }
       }
     } catch (err) {
       const error = err as NodeJS.ErrnoException;
-      if (error.code !== 'ENOENT') {
+      if (error.code !== "ENOENT") {
         // Log and continue — service starts with an empty map.
         // The user will see "No projects" until the underlying issue is resolved.
-        getLogService().error('general', 'Failed to initialize projects from disk — service will be empty', { error: String(error) });
+        getLogService().error(
+          "general",
+          "Failed to initialize projects from disk — service will be empty",
+          { error: String(error) },
+        );
       }
     }
 
@@ -82,8 +88,8 @@ class ProjectServiceImpl implements ProjectService {
   private async saveProject(project: Project): Promise<void> {
     const dir = join(this.projectsDir, project.id);
     await mkdir(dir, { recursive: true });
-    const filePath = join(dir, 'project.json');
-    await writeFile(filePath, JSON.stringify(project, null, 2), 'utf-8');
+    const filePath = join(dir, "project.json");
+    await writeFile(filePath, JSON.stringify(project, null, 2), "utf-8");
   }
 
   async create(
@@ -110,9 +116,9 @@ class ProjectServiceImpl implements ProjectService {
     await this.saveProject(project);
 
     getEventBus().emit({
-      type: 'ProjectChange',
+      type: "ProjectChange",
       projectId: project.id,
-      action: 'created',
+      action: "created",
       timestamp: now,
     });
 
@@ -126,7 +132,7 @@ class ProjectServiceImpl implements ProjectService {
 
   async update(
     id: string,
-    updates: Partial<Omit<Project, 'id' | 'orgId' | 'createdAt'>>,
+    updates: Partial<Omit<Project, "id" | "orgId" | "createdAt">>,
   ): Promise<Result<Project, ProjectNotFound>> {
     await this.ensureInitialized();
 
@@ -148,9 +154,9 @@ class ProjectServiceImpl implements ProjectService {
     await this.saveProject(updated);
 
     getEventBus().emit({
-      type: 'ProjectChange',
+      type: "ProjectChange",
       projectId: id,
-      action: 'updated',
+      action: "updated",
       timestamp: updated.updatedAt,
     });
 
@@ -176,9 +182,9 @@ class ProjectServiceImpl implements ProjectService {
     this.projects.delete(id);
 
     getEventBus().emit({
-      type: 'ProjectChange',
+      type: "ProjectChange",
       projectId: id,
-      action: 'deleted',
+      action: "deleted",
       timestamp: Date.now(),
     });
   }

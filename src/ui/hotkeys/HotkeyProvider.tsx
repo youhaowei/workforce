@@ -5,19 +5,19 @@
  * Components bind via `useHotkey(name, callback)`.
  */
 
-import { createContext, useContext, useCallback, type ReactNode } from 'react';
-import { useHotkeys } from 'react-hotkeys-hook';
-import { HOTKEYS, type HotkeyName } from './config';
+import { createContext, useContext, useCallback, type ReactNode } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
+import { HOTKEYS, type HotkeyName } from "./config";
 
 /** Convert our key array format to react-hotkeys-hook string format. */
 function toHotkeyString(keys: readonly string[]): string {
   return keys
     .map((k) => {
-      if (k === 'Meta') return 'mod';
-      if (k === 'Control') return 'ctrl';
+      if (k === "Meta") return "mod";
+      if (k === "Control") return "ctrl";
       return k.toLowerCase();
     })
-    .join('+');
+    .join("+");
 }
 
 interface HotkeyContextValue {
@@ -26,20 +26,16 @@ interface HotkeyContextValue {
 }
 
 const HotkeyContext = createContext<HotkeyContextValue>({
-  getHotkeyString: () => '',
+  getHotkeyString: () => "",
 });
 
 export function HotkeyProvider({ children }: { children: ReactNode }) {
   const getHotkeyString = useCallback((name: HotkeyName) => {
     const def = HOTKEYS[name];
-    return def ? toHotkeyString(def.keys) : '';
+    return def ? toHotkeyString(def.keys) : "";
   }, []);
 
-  return (
-    <HotkeyContext.Provider value={{ getHotkeyString }}>
-      {children}
-    </HotkeyContext.Provider>
-  );
+  return <HotkeyContext.Provider value={{ getHotkeyString }}>{children}</HotkeyContext.Provider>;
 }
 
 /**
@@ -51,7 +47,7 @@ export function HotkeyProvider({ children }: { children: ReactNode }) {
 export function useHotkey(name: HotkeyName, callback: () => void, enabled = true) {
   const def = HOTKEYS[name];
   const hotkeyStr = toHotkeyString(def.keys);
-  const isGlobal = 'global' in def && def.global;
+  const isGlobal = "global" in def && def.global;
 
   useHotkeys(
     hotkeyStr,
@@ -61,7 +57,7 @@ export function useHotkey(name: HotkeyName, callback: () => void, enabled = true
     },
     {
       enabled,
-      enableOnFormTags: isGlobal ? ['INPUT', 'TEXTAREA', 'SELECT'] : undefined,
+      enableOnFormTags: isGlobal ? ["INPUT", "TEXTAREA", "SELECT"] : undefined,
     },
   );
 }

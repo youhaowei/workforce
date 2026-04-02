@@ -26,22 +26,22 @@ export interface GrepResult {
 }
 
 export function formatGlob(result: unknown): { summary: string; files: string[] } {
-  if (!result || typeof result !== 'object') {
-    return { summary: 'Search completed', files: [] };
+  if (!result || typeof result !== "object") {
+    return { summary: "Search completed", files: [] };
   }
 
   const r = result as GlobResult;
   const count = r.files?.length ?? 0;
 
   return {
-    summary: `Found ${count} file${count !== 1 ? 's' : ''} matching "${r.pattern}"`,
+    summary: `Found ${count} file${count !== 1 ? "s" : ""} matching "${r.pattern}"`,
     files: r.files ?? [],
   };
 }
 
 export function formatGrep(result: unknown): { summary: string; matches: GrepMatch[] } {
-  if (!result || typeof result !== 'object') {
-    return { summary: 'Search completed', matches: [] };
+  if (!result || typeof result !== "object") {
+    return { summary: "Search completed", matches: [] };
   }
 
   const r = result as GrepResult;
@@ -49,7 +49,7 @@ export function formatGrep(result: unknown): { summary: string; matches: GrepMat
   const fileCount = new Set(r.matches?.map((m) => m.file) ?? []).size;
 
   return {
-    summary: `Found ${matchCount} match${matchCount !== 1 ? 'es' : ''} in ${fileCount} file${fileCount !== 1 ? 's' : ''} for "${r.pattern}"`,
+    summary: `Found ${matchCount} match${matchCount !== 1 ? "es" : ""} in ${fileCount} file${fileCount !== 1 ? "s" : ""} for "${r.pattern}"`,
     matches: r.matches ?? [],
   };
 }
@@ -74,5 +74,5 @@ export function formatGrepMatch(match: GrepMatch): string {
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }

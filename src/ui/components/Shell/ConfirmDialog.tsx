@@ -5,7 +5,7 @@
  *   const confirmed = await useDialogStore.getState().confirm({ ... });
  */
 
-import { useDialogStore } from '@/ui/stores/useDialogStore';
+import { useDialogStore } from "@/ui/stores/useDialogStore";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,33 +15,38 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+} from "@/components/ui/alert-dialog";
 
 export function ConfirmDialog() {
   const open = useDialogStore((s) => s.open);
-  const { title, description, confirmLabel, cancelLabel, variant } = useDialogStore((s) => s.options);
+  const { title, description, confirmLabel, cancelLabel, variant } = useDialogStore(
+    (s) => s.options,
+  );
   const respond = useDialogStore((s) => s.respond);
 
   return (
-    <AlertDialog open={open} onOpenChange={(next) => { if (!next) respond(false); }}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) respond(false);
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>
-            {cancelLabel ?? 'Cancel'}
-          </AlertDialogCancel>
+          <AlertDialogCancel>{cancelLabel ?? "Cancel"}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => respond(true)}
             className={
-              variant === 'destructive'
-                ? 'bg-palette-danger text-palette-danger-fg hover:bg-palette-danger/90'
+              variant === "destructive"
+                ? "bg-palette-danger text-palette-danger-fg hover:bg-palette-danger/90"
                 : undefined
             }
           >
-            {confirmLabel ?? 'Confirm'}
+            {confirmLabel ?? "Confirm"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

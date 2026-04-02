@@ -3,17 +3,17 @@
  * Shows when currentView === 'projects'. Same w-72 pattern as SessionsPanel.
  */
 
-import { useState, useCallback, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronsLeft, Plus, Search, Trash2, FolderOpen } from 'lucide-react';
-import { useTRPC } from '@/bridge/react';
-import { useRequiredOrgId } from '@/ui/hooks/useRequiredOrgId';
-import { useDialogStore } from '@/ui/stores/useDialogStore';
-import { Button } from '@/components/ui/button';
-import { Surface } from '@/components/ui/surface';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import type { Project } from '@/services/types';
+import { useState, useCallback, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ChevronsLeft, Plus, Search, Trash2, FolderOpen } from "lucide-react";
+import { useTRPC } from "@/bridge/react";
+import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
+import { useDialogStore } from "@/ui/stores/useDialogStore";
+import { Button } from "@/components/ui/button";
+import { Surface } from "@/components/ui/surface";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { Project } from "@/services/types";
 
 export interface ProjectsPanelProps {
   collapsed: boolean;
@@ -35,7 +35,7 @@ export function ProjectsPanel({
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const orgId = useRequiredOrgId();
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState("");
 
   const listInput = { orgId };
   const { data: projects = [], isLoading } = useQuery(
@@ -65,22 +65,28 @@ export function ProjectsPanel({
     }),
   );
 
-  const handleSelect = useCallback((projectId: string) => {
-    onSelectProject?.(projectId);
-  }, [onSelectProject]);
+  const handleSelect = useCallback(
+    (projectId: string) => {
+      onSelectProject?.(projectId);
+    },
+    [onSelectProject],
+  );
 
-  const handleDelete = useCallback(async (e: React.MouseEvent, project: Project) => {
-    e.stopPropagation();
-    const confirmed = await useDialogStore.getState().confirm({
-      title: 'Delete project',
-      description: `Delete "${project.name}"? This cannot be undone.`,
-      confirmLabel: 'Delete',
-      variant: 'destructive',
-    });
-    if (confirmed) {
-      deleteMutation.mutate({ id: project.id });
-    }
-  }, [deleteMutation]);
+  const handleDelete = useCallback(
+    async (e: React.MouseEvent, project: Project) => {
+      e.stopPropagation();
+      const confirmed = await useDialogStore.getState().confirm({
+        title: "Delete project",
+        description: `Delete "${project.name}"? This cannot be undone.`,
+        confirmLabel: "Delete",
+        variant: "destructive",
+      });
+      if (confirmed) {
+        deleteMutation.mutate({ id: project.id });
+      }
+    },
+    [deleteMutation],
+  );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -95,7 +101,7 @@ export function ProjectsPanel({
       variant="panel"
       data-collapsed={collapsed}
       className={`shrink-0 flex flex-col rounded-[var(--inner-radius)] shadow-[var(--inner-shadow)] transition-[width,margin] duration-200 ease-in-out m-[var(--inner-gap)] select-none ${
-        collapsed ? 'w-0 !m-0 !shadow-none !rounded-none' : 'w-72'
+        collapsed ? "w-0 !m-0 !shadow-none !rounded-none" : "w-72"
       }`}
       aria-hidden={collapsed}
       inert={collapsed ? true : undefined}
@@ -134,7 +140,7 @@ export function ProjectsPanel({
           </Button>
         </div>
         <p className="text-xs text-neutral-fg-subtle">
-          {filtered.length} project{filtered.length !== 1 ? 's' : ''}
+          {filtered.length} project{filtered.length !== 1 ? "s" : ""}
         </p>
       </div>
 
@@ -149,7 +155,7 @@ export function ProjectsPanel({
           <div className="text-center space-y-3 px-4">
             <FolderOpen className="h-8 w-8 mx-auto text-neutral-fg-subtle/50" />
             <p className="text-sm text-neutral-fg-subtle">
-              {search ? 'No projects match your search' : 'No projects yet'}
+              {search ? "No projects match your search" : "No projects yet"}
             </p>
             {!search && (
               <Button variant="outline" size="sm" onClick={onCreateProject}>
@@ -172,15 +178,13 @@ export function ProjectsPanel({
                 onClick={() => handleSelect(project.id)}
                 onKeyDown={(e) => {
                   if (e.target !== e.currentTarget) return;
-                  if (e.key === 'Enter' || e.key === ' ') {
+                  if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     handleSelect(project.id);
                   }
                 }}
                 className={`w-full text-left px-3 py-2.5 border-b transition-colors group focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring ${
-                  isActive
-                    ? 'bg-neutral-bg-subtle'
-                    : 'hover:bg-neutral-bg-dim/50'
+                  isActive ? "bg-neutral-bg-subtle" : "hover:bg-neutral-bg-dim/50"
                 }`}
               >
                 <div className="flex items-center gap-2.5">
