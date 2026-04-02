@@ -8,21 +8,26 @@
 
 import { PanelLeft, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { GitStatusBadge } from "../Git/GitStatusBadge";
 
 interface StageFloatingPillProps {
   sessionTitle?: string;
   sessionsPanelOpen: boolean;
   infoPanelOpen: boolean;
+  projectRootPath?: string | null;
   onToggleSessions: () => void;
   onToggleInfo: () => void;
+  onGitClick?: () => void;
 }
 
 export function StageFloatingPill({
   sessionTitle,
   sessionsPanelOpen,
   infoPanelOpen,
+  projectRootPath,
   onToggleSessions,
   onToggleInfo,
+  onGitClick,
 }: StageFloatingPillProps) {
   return (
     <>
@@ -40,14 +45,17 @@ export function StageFloatingPill({
         <PanelLeft className="h-3.5 w-3.5" />
       </Button>
 
-      {/* Top-center: session title */}
-      {sessionTitle && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center h-7 px-3 bg-neutral-bg/70 rounded-full shadow-sm border border-neutral-border/30">
-          <span className="text-xs font-medium text-neutral-fg truncate max-w-56 select-none">
-            {sessionTitle}
-          </span>
-        </div>
-      )}
+      {/* Top-center: session title + git status */}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+        {sessionTitle && (
+          <div className="flex items-center h-7 px-3 bg-neutral-bg/70 rounded-full shadow-sm border border-neutral-border/30">
+            <span className="text-xs font-medium text-neutral-fg truncate max-w-56 select-none">
+              {sessionTitle}
+            </span>
+          </div>
+        )}
+        {projectRootPath && <GitStatusBadge cwd={projectRootPath} onClick={onGitClick} />}
+      </div>
 
       {/* Top-right: info panel toggle */}
       <Button
