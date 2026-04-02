@@ -54,11 +54,22 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
     [queryClient, statusQueryKey],
   );
 
+  const handleStageResult = useCallback(
+    (result: { success: boolean; error?: string }) => {
+      if (result.success) {
+        invalidateStatus();
+      } else {
+        setActionError(result.error ?? "Operation failed");
+      }
+    },
+    [invalidateStatus],
+  );
+
   const stageMutation = useMutation(
-    trpc.git.stage.mutationOptions({ onSuccess: invalidateStatus }),
+    trpc.git.stage.mutationOptions({ onSuccess: handleStageResult }),
   );
   const unstageMutation = useMutation(
-    trpc.git.unstage.mutationOptions({ onSuccess: invalidateStatus }),
+    trpc.git.unstage.mutationOptions({ onSuccess: handleStageResult }),
   );
   const commitMutation = useMutation(
     trpc.git.commit.mutationOptions({

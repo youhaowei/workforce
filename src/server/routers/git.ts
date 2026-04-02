@@ -10,7 +10,7 @@ import { GitService } from "@/services/git";
 const relativePath = z
   .string()
   .refine(
-    (f) => !isAbsolute(f) && !f.split("/").includes(".."),
+    (f) => !isAbsolute(f) && !f.split(/[/\\]/).includes(".."),
     "file paths must be relative within repo",
   );
 
