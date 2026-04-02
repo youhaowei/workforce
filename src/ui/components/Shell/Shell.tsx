@@ -119,7 +119,6 @@ export default function Shell() {
   });
 
   const projectRootPath = useSessionProjectPath({
-    orgId,
     sessionId: selectedSessionId,
     projects: projects as Project[],
     serverConnected,
@@ -310,9 +309,11 @@ export default function Shell() {
   }, [currentView]);
 
   useEffect(() => {
-    selectedSessionId
-      ? localStorage.setItem(SELECTED_SESSION_STORAGE_KEY, selectedSessionId)
-      : localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
+    if (selectedSessionId) {
+      localStorage.setItem(SELECTED_SESSION_STORAGE_KEY, selectedSessionId);
+    } else {
+      localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
+    }
   }, [selectedSessionId]);
 
   // Restore session messages via React Query

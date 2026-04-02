@@ -30,6 +30,7 @@ function buildTooltipLines(status: GitStatus): string[] {
 export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
   const trpc = useTRPC();
 
+  // Polling required — no SSE events for git status
   const { data: status, error } = useQuery(
     trpc.git.status.queryOptions({ cwd }, { staleTime: 5_000, refetchInterval: 10_000 }),
   );

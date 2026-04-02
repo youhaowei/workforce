@@ -5,13 +5,21 @@ import { resolve, isAbsolute } from "path";
 import { router, publicProcedure } from "../trpc";
 import { GitService } from "@/services/git";
 
-// ─── cwd validation ─────────────────────────────────────────────────────────
+// ─── validation ─────────────────────────────────────────────────────────────
 
-function validateGitCwd(cwd: string): string {
+const relativePath = z
+  .string()
+  .refine((f) => !isAbsolute(f) && !f.includes(".."), "file paths must be relative within repo");
+
+function assertAbsolute(cwd: string): string {
   if (!isAbsolute(cwd)) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "cwd must be an absolute path" });
   }
-  const resolved = resolve(cwd);
+  return resolve(cwd);
+}
+
+function validateGitCwd(cwd: string): string {
+  const resolved = assertAbsolute(cwd);
   if (!existsSync(resolve(resolved, ".git"))) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "cwd is not a git repository root" });
   }
@@ -82,24 +90,24 @@ export const gitRouter = router({
     .input(
       z.object({
         cwd: z.string(),
-        files: z.array(z.string()).min(1),
+        files: z.array(relativePath).min(1),
       }),
     )
     .mutation(async ({ input }) => {
       const ok = await gitFor(input.cwd).add(...input.files);
-      return { success: ok };
+      return { success: ok, ...(!ok && { error: "git add failed" }) };
     }),
 
   unstage: publicProcedure
     .input(
       z.object({
         cwd: z.string(),
-        files: z.array(z.string()).min(1),
+        files: z.array(relativePath).min(1),
       }),
     )
     .mutation(async ({ input }) => {
       const ok = await gitFor(input.cwd).reset(...input.files);
-      return { success: ok };
+      return { success: ok, ...(!ok && { error: "git reset failed" }) };
     }),
 
   commit: publicProcedure
@@ -114,7 +122,7 @@ export const gitRouter = router({
     }),
 
   isRepo: publicProcedure.input(z.object({ cwd: z.string() })).query(({ input }) => {
-    const resolved = resolve(input.cwd);
+    const resolved = assertAbsolute(input.cwd);
     return existsSync(resolve(resolved, ".git"));
   }),
 

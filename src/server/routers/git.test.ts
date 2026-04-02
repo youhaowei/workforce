@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdir, rm, writeFile } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
+import { execFileNoThrow } from "@/utils/execFileNoThrow";
 import { createCaller } from "./index";
 import { resetGitRouterCache } from "./git";
 
@@ -9,7 +10,6 @@ let repoDir: string;
 let caller: ReturnType<typeof createCaller>;
 
 async function initGitRepo(dir: string) {
-  const { execFileNoThrow } = await import("@/utils/execFileNoThrow");
   const git = (...args: string[]) => execFileNoThrow("git", args, { cwd: dir });
   await git("init");
   await git("config", "user.email", "test@test.com");
@@ -132,6 +132,26 @@ describe("git queries", () => {
     } finally {
       await rm(nonGitDir, { recursive: true, force: true });
     }
+  });
+
+  it("isRepo rejects relative path", async () => {
+    await expect(caller.git.isRepo({ cwd: "relative/path" })).rejects.toThrow(
+      "cwd must be an absolute path",
+    );
+  });
+
+  it("root returns repo root directory", async () => {
+    const root = await caller.git.root({ cwd: repoDir });
+    // macOS: /var → /private/var symlink, git resolves to realpath
+    expect(root).toContain(repoDir.replace(/^\/private/, ""));
+  });
+
+  it("stage rejects absolute file paths", async () => {
+    await expect(caller.git.stage({ cwd: repoDir, files: ["/etc/passwd"] })).rejects.toThrow();
+  });
+
+  it("stage rejects path traversal", async () => {
+    await expect(caller.git.stage({ cwd: repoDir, files: ["../../etc/passwd"] })).rejects.toThrow();
   });
 
   it("branches returns at least one branch", async () => {

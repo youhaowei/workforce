@@ -13,6 +13,7 @@ import { getSessionService } from "@/services/session";
 import { getTemplateService } from "@/services/template";
 import { getWorktreeService } from "@/services/worktree";
 import { getOrgService } from "@/services/org";
+import { resetGitRouterCache } from "./git";
 
 let _workflowService: ReturnType<typeof createWorkflowService> | null = null;
 export function getWorkflowService() {
@@ -57,4 +58,5 @@ export function resetRouterServices(): void {
   _reviewService = null;
   _auditService?.dispose();
   _auditService = null;
+  resetGitRouterCache();
 }
