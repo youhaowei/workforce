@@ -23,6 +23,9 @@ export async function bindWithRetry<T extends Server>(
     const candidate = basePort + offset;
     try {
       const server = await new Promise<T>((resolve, reject) => {
+        // serve() calls .listen() synchronously; event handlers are attached
+        // after return. This works because Node's net.Server defers error/listening
+        // emission to the next tick — a stable behavior since Node 0.x.
         const s = createServerFn(candidate);
         const onError = (err: NodeJS.ErrnoException) => {
           s.close(() => reject(err));

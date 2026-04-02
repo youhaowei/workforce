@@ -2,6 +2,18 @@ import type { PlatformActions } from "./context/PlatformProvider";
 
 export type PlatformType = "electron" | "web";
 
+type NavLike = { userAgentData?: { platform?: string }; platform: string };
+
+export function detectMacOS(nav?: NavLike): boolean {
+  const resolved =
+    nav ??
+    (typeof navigator !== "undefined"
+      ? (navigator as Navigator & { userAgentData?: { platform?: string } })
+      : undefined);
+  if (!resolved) return false;
+  return /^Mac/i.test(resolved.userAgentData?.platform ?? resolved.platform);
+}
+
 export function detectPlatformType(
   targetWindow: Window | undefined = globalThis.window,
 ): PlatformType {

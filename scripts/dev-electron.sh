@@ -75,7 +75,8 @@ if [ "$SERVER_PORT" = "$VITE_PORT" ]; then
   SERVER_PORT=$(find_free_port $((VITE_PORT + 1)))
 fi
 
-export VITE_API_PORT="$SERVER_PORT"
+# Don't export VITE_API_PORT — Vite reads .dev-port via discoverApiPort()
+# to get the actual bound port (avoids TOCTOU if bindWithRetry retries).
 export CDP_PORT="${CDP_PORT:-$(find_free_port "$DEFAULT_CDP_PORT")}"
 export WORKFORCE_DATA_DIR="${WORKFORCE_DATA_DIR:-.workforce-dev}"
 

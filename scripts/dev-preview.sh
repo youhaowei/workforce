@@ -54,10 +54,17 @@ if [ "$SERVER_PORT" = "$VITE_PORT" ]; then
   SERVER_PORT=$(find_free_port $((VITE_PORT + 1)))
 fi
 
-# Tell Vite where the API server lives.
-export VITE_API_PORT=$SERVER_PORT
+# Don't export VITE_API_PORT — the server writes .dev-port after binding,
+# and Vite reads it via discoverApiPort(). Exporting the shell-probed port
+# would bake a stale value if bindWithRetry retries to a different port.
 
-echo "[dev] Server :$SERVER_PORT  Vite :$VITE_PORT"
+echo "[dev] Server :$SERVER_PORT (discovery via .dev-port)  Vite :$VITE_PORT"
 PORT=$SERVER_PORT bunx tsx --watch src/server/index.ts &
+
+# Wait for .dev-port so Vite sees the actual bound port on startup.
+for i in $(seq 1 30); do
+  [ -f .dev-port ] && break
+  sleep 0.1
+done
 bun run vite
 wait
