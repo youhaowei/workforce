@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { GitBranch, ArrowUp, ArrowDown, AlertCircle } from "lucide-react";
+import { GitBranch, AlertCircle } from "lucide-react";
 import { useTRPC } from "@/bridge/react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { GitStatus } from "@/services/git";
@@ -86,8 +86,6 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
   }
 
   const tooltipLines = buildTooltipLines(status);
-  const hasLineChanges = status.insertions > 0 || status.deletions > 0;
-  const changeCount = status.staged.length + status.unstaged.length + status.untracked.length;
 
   return (
     <Tooltip>
@@ -101,32 +99,6 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
           <span className="font-medium text-neutral-fg">
             {abbreviateBranch(status.branch)}
           </span>
-          {hasLineChanges ? (
-            <span className="flex items-center gap-1 text-[10px] tabular-nums">
-              <span className="text-palette-success font-medium">+{status.insertions}</span>
-              <span className="text-palette-danger font-medium">-{status.deletions}</span>
-            </span>
-          ) : !status.isClean && changeCount > 0 ? (
-            <span className="text-[10px] font-medium text-palette-warning tabular-nums">
-              {changeCount} file{changeCount !== 1 ? "s" : ""}
-            </span>
-          ) : null}
-          {(status.ahead > 0 || status.behind > 0) && (
-            <span className="flex items-center gap-0.5 text-[10px] text-neutral-fg-subtle tabular-nums">
-              {status.ahead > 0 && (
-                <span className="flex items-center">
-                  <ArrowUp className="h-2.5 w-2.5" />
-                  {status.ahead}
-                </span>
-              )}
-              {status.behind > 0 && (
-                <span className="flex items-center">
-                  <ArrowDown className="h-2.5 w-2.5" />
-                  {status.behind}
-                </span>
-              )}
-            </span>
-          )}
         </button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
