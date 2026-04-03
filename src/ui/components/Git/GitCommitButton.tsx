@@ -128,19 +128,9 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
 
   if (progress.phase === "running") {
     return (
-  if (progress.phase === "done") {
-    const isError = !!progress.error;
-    return (
-      <span
-        className={`text-[10px] font-medium px-2 ${isError ? "text-palette-danger" : "text-palette-success"}`}
-      >
-        {progress.statusText}
-      </span>
-    );
-  }
-
-  if (!status || status.isClean) return null;
-
+      <div className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-neutral-bg/70 shadow-sm border border-neutral-border/30 text-xs">
+        <Loader2 className="h-3 w-3 animate-spin text-neutral-fg-subtle shrink-0" />
+        <span className="font-medium text-neutral-fg truncate max-w-48">{progress.statusText}</span>
         {progress.commitCount > 0 && (
           <span className="flex items-center gap-0.5 text-palette-success">
             <Check className="h-2.5 w-2.5" />
