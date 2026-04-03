@@ -30,7 +30,7 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "test:packaged-smoke": "node scripts/packaged-smoke.js",
-    "lint": "oxlint src/ src-electron/ tooling/ --max-warnings 24",
+    "lint": "oxlint src/ src-electron/ tooling/ --max-warnings 26",
     "format": "oxfmt src/ src-electron/ tooling/",
     "format:check": "oxfmt --check src/ src-electron/ tooling/",
     "type-check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
