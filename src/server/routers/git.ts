@@ -34,10 +34,17 @@ function extractCommitMessage(cmd: string): string | null {
   return match?.[2] ?? null;
 }
 
-/** Only approve git commands — deny anything else. */
-function gitOnlyApproval(request: { description: string }): Promise<"approve" | "deny"> {
-  const desc = request.description.toLowerCase();
-  if (desc.includes("git") || desc.includes("read")) return Promise.resolve("approve");
+/** Only approve git commands in Bash — allow Read unconditionally. */
+function gitOnlyApproval(request: {
+  description: string;
+  detail: unknown;
+}): Promise<"approve" | "deny"> {
+  // description is "Tool: Bash" or "Tool: Read" — detail has the input
+  if (request.description === "Tool: Read") return Promise.resolve("approve");
+  if (request.description === "Tool: Bash") {
+    const cmd = String((request.detail as Record<string, unknown>)?.command ?? "").trimStart();
+    if (cmd.startsWith("git ")) return Promise.resolve("approve");
+  }
   return Promise.resolve("deny");
 }
 
