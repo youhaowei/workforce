@@ -24,6 +24,8 @@ export interface GitStatus {
   unstaged: GitFileChange[];
   untracked: string[];
   isClean: boolean;
+  insertions: number;
+  deletions: number;
 }
 
 export interface GitFileChange {
@@ -227,6 +229,18 @@ export class GitService {
 
     const { staged, unstaged, untracked } = parseStatusEntries(statusResult.stdout);
 
+    // Get line-level diff stats (staged + unstaged combined)
+    let insertions = 0;
+    let deletions = 0;
+    const diffStatResult = await this.git("diff", "HEAD", "--shortstat");
+    if (diffStatResult.status === "success") {
+      const stat = diffStatResult.stdout;
+      const insMatch = stat.match(/(\d+) insertion/);
+      const delMatch = stat.match(/(\d+) deletion/);
+      if (insMatch) insertions = parseInt(insMatch[1], 10);
+      if (delMatch) deletions = parseInt(delMatch[1], 10);
+    }
+
     const status: GitStatus = {
       branch,
       ahead,
@@ -235,6 +249,8 @@ export class GitService {
       unstaged,
       untracked,
       isClean: staged.length === 0 && unstaged.length === 0 && untracked.length === 0,
+      insertions,
+      deletions,
     };
 
     // Update cache

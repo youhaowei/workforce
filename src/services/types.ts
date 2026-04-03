@@ -1275,6 +1275,8 @@ export interface OrgSettings {
   costHardCap?: number;
   /** Org-level agent behavior defaults (set during workspace initialization) */
   agentDefaults?: AgentDefaults;
+  /** Model for lightweight LLM tasks (commit messages, session naming, etc.) */
+  utilityModel?: string;
 }
 
 export interface OrgService extends Disposable {

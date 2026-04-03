@@ -10,7 +10,12 @@ let repoDir: string;
 let caller: ReturnType<typeof createCaller>;
 
 async function initGitRepo(dir: string) {
-  const git = (...args: string[]) => execFileNoThrow("git", args, { cwd: dir });
+  const git = async (...args: string[]) => {
+    const result = await execFileNoThrow("git", args, { cwd: dir });
+    if (result.exitCode !== 0) {
+      throw new Error(`git ${args.join(" ")} failed: ${result.stderr || result.stdout}`);
+    }
+  };
   await git("init");
   await git("config", "user.email", "test@test.com");
   await git("config", "user.name", "Test User");
@@ -40,7 +45,7 @@ describe("cwd validation", () => {
 
     try {
       await expect(caller.git.status({ cwd: nonGitDir })).rejects.toThrow(
-        "cwd is not a git repository root",
+        "cwd is not inside a git repository",
       );
     } finally {
       await rm(nonGitDir, { recursive: true, force: true });
@@ -48,8 +53,9 @@ describe("cwd validation", () => {
   });
 
   it("rejects a path that does not exist", async () => {
-    await expect(caller.git.status({ cwd: "/tmp/does-not-exist-ever-12345" })).rejects.toThrow(
-      "cwd is not a git repository root",
+    const missingDir = join(tmpdir(), `does-not-exist-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    await expect(caller.git.status({ cwd: missingDir })).rejects.toThrow(
+      "cwd is not inside a git repository",
     );
   });
 
@@ -134,10 +140,8 @@ describe("git queries", () => {
     }
   });
 
-  it("isRepo rejects relative path", async () => {
-    await expect(caller.git.isRepo({ cwd: "relative/path" })).rejects.toThrow(
-      "cwd must be an absolute path",
-    );
+  it("isRepo returns false for relative path", async () => {
+    expect(await caller.git.isRepo({ cwd: "relative/path" })).toBe(false);
   });
 
   it("root returns repo root directory", async () => {
