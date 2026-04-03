@@ -4,20 +4,20 @@ import { existsSync } from "fs";
 import { resolve, isAbsolute } from "path";
 import { router, publicProcedure } from "../trpc";
 import { GitService } from "@/services/git";
-import { query as sdkQuery } from "@anthropic-ai/claude-agent-sdk";
+import { createSession } from "unifai";
 import { getOrgService } from "@/services/org";
 
 const DEFAULT_UTILITY_MODEL = "haiku";
 
-const SMART_COMMIT_PROMPT = `You are a git commit assistant. Your job is to stage all changes and create well-structured conventional commits.
+const SMART_COMMIT_PROMPT = `You are a git commit assistant. Your job is to create well-structured conventional commits.
 
 Instructions:
-1. Run \`git status\` to see all changes
-2. Run \`git diff\` and \`git diff --cached\` to understand what changed
-3. Stage ALL files with \`git add -A\`
-4. Analyze the staged changes and split them into logical commits grouped by concern
-5. For each logical group: unstage everything, stage only that group's files, then commit with a conventional commit message
-6. If the changes are small or cohesive, a single commit is fine
+1. Run \`git status\` to see all changes (staged, unstaged, untracked)
+2. Run \`git diff\` to understand what changed
+3. Group the changes into logical commits by concern (feature, fix, refactor, etc.)
+4. For each group: stage only that group's files with \`git add <file1> <file2> ...\`, then commit
+5. If all changes are cohesive, stage them together and make a single commit
+6. Do NOT use \`git add -A\` or \`git add .\` — always stage specific files
 
 Commit message format: type(scope): description
 - Types: feat, fix, refactor, docs, test, chore, style, perf
@@ -30,10 +30,16 @@ Important: Do NOT explain what you're doing. Just execute the git commands and c
 
 /** Extract commit message from a git commit command string (quoted -m args only). */
 function extractCommitMessage(cmd: string): string | null {
-  const match = cmd.match(/git\s+commit\s+.*-m\s+["'](.+?)["']/s);
-  return match?.[1] ?? null;
+  const match = cmd.match(/git\s+commit\s+.*-m\s+(["'])(.+?)\1/s);
+  return match?.[2] ?? null;
 }
 
+/** Only approve git commands — deny anything else. */
+function gitOnlyApproval(request: { description: string }): Promise<"approve" | "deny"> {
+  const desc = request.description.toLowerCase();
+  if (desc.includes("git") || desc.includes("read")) return Promise.resolve("approve");
+  return Promise.resolve("deny");
+}
 
 // ─── validation ─────────────────────────────────────────────────────────────
 
@@ -77,24 +83,13 @@ const MAX_CACHED_SERVICES = 20;
 const serviceCache = new Map<string, GitService>();
 
 function gitFor(cwd: string): GitService {
-  const resolved = assertAbsolute(cwd);
-
-  // Check cache before filesystem walk
-  let svc = serviceCache.get(resolved);
-  if (svc) {
-    serviceCache.delete(resolved);
-    serviceCache.set(resolved, svc);
-    return svc;
-  }
-
   const validated = validateGitCwd(cwd);
-  svc = serviceCache.get(validated);
+  let svc = serviceCache.get(validated);
   if (svc) {
     serviceCache.delete(validated);
     serviceCache.set(validated, svc);
     return svc;
   }
-
   if (serviceCache.size >= MAX_CACHED_SERVICES) {
     const oldest = serviceCache.keys().next().value!;
     serviceCache.get(oldest)?.dispose();
@@ -122,7 +117,10 @@ export const gitRouter = router({
     .query(async ({ input }) => {
       const status = await gitFor(input.cwd).getStatus(input.forceRefresh ?? false);
       if (!status) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to read git status" });
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to read git status",
+        });
       }
       return status;
     }),
@@ -208,76 +206,73 @@ export const gitRouter = router({
     return gitFor(input.cwd).getRemotes();
   }),
 
-  push: publicProcedure
-    .input(z.object({ cwd: z.string() }))
-    .mutation(async ({ input }) => {
-      const svc = gitFor(input.cwd);
-      const status = await svc.getStatus(true);
-      // Auto-set upstream on first push for new branches
-      const needsUpstream = !!status && !status.hasUpstream;
-      const result = await svc.push("origin", undefined, { setUpstream: needsUpstream });
-      svc.invalidateCache();
-      if (!result.success) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.error ?? "Push failed" });
-      }
-      return { success: true };
-    }),
+  push: publicProcedure.input(z.object({ cwd: z.string() })).mutation(async ({ input }) => {
+    const svc = gitFor(input.cwd);
+    const status = await svc.getStatus(true);
+    // Auto-set upstream on first push for new branches
+    const needsUpstream = !!status && !status.hasUpstream;
+    const branch = needsUpstream ? status?.branch : undefined;
+    const result = await svc.push("origin", branch, { setUpstream: needsUpstream });
+    svc.invalidateCache();
+    if (!result.success) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: result.error ?? "Push failed",
+      });
+    }
+    return { success: true };
+  }),
 
-  smartCommit: publicProcedure
-    .input(z.object({ cwd: z.string() }))
-    .subscription(async function* ({ input }) {
-      const cwd = validateGitCwd(input.cwd);
-      const svc = gitFor(cwd);
+  smartCommit: publicProcedure.input(z.object({ cwd: z.string() })).subscription(async function* ({
+    input,
+  }) {
+    const cwd = validateGitCwd(input.cwd);
+    const svc = gitFor(cwd);
 
-      const logBefore = await svc.getLog(1);
-      const headBefore = logBefore[0]?.hash ?? null;
+    const logBefore = await svc.getLog(1);
+    const headBefore = logBefore[0]?.hash ?? null;
 
-      const org = await getOrgService().getCurrent();
-      const model = org?.settings?.utilityModel ?? DEFAULT_UTILITY_MODEL;
+    const org = await getOrgService().getCurrent();
+    const model = org?.settings?.utilityModel ?? DEFAULT_UTILITY_MODEL;
 
-      yield { type: "status" as const, message: "Analyzing changes..." };
+    yield { type: "status" as const, message: "Analyzing changes..." };
 
-      let error: string | null = null;
+    let error: string | null = null;
+    const session = createSession("claude", {
+      model,
+      cwd,
+      permissionMode: "default",
+      allowedTools: ["Bash", "Read"],
+      maxTurns: 15,
+      interaction: { onApprovalRequest: gitOnlyApproval },
+    });
 
-      try {
-        for await (const msg of sdkQuery({
-          prompt: SMART_COMMIT_PROMPT,
-          options: {
-            model,
-            cwd,
-            permissionMode: "bypassPermissions",
-            allowedTools: ["Bash", "Read"],
-            maxTurns: 15,
-          },
-        })) {
-          if (msg.type === "assistant") {
-            for (const block of msg.message.content) {
-              // Detect git commit commands starting
-              if ("name" in block && block.name === "Bash") {
-                const cmd = String((block.input as Record<string, unknown>)?.command ?? "");
-                const commitMsg = extractCommitMessage(cmd);
-                if (commitMsg) {
-                  yield { type: "committing" as const, message: commitMsg };
-                }
-              }
-            }
+    try {
+      for await (const event of session.send(SMART_COMMIT_PROMPT)) {
+        if (event.type === "tool_start" && event.toolName === "Bash") {
+          const cmd = String((event.input as Record<string, unknown>)?.command ?? "");
+          const commitMsg = extractCommitMessage(cmd);
+          if (commitMsg) {
+            yield { type: "committing" as const, message: commitMsg };
           }
         }
-      } catch (err) {
-        error = err instanceof Error ? err.message : "Smart commit failed";
       }
+    } catch (err) {
+      error = err instanceof Error ? err.message : "Smart commit failed";
+    } finally {
+      session.close();
+    }
 
-      svc.invalidateCache();
+    svc.invalidateCache();
 
-      // Report actual commits created
-      const logAfter = await svc.getLog(10);
-      const headIdx = headBefore ? logAfter.findIndex((c) => c.hash === headBefore) : -1;
-      const newCommits = headIdx === -1 ? logAfter : logAfter.slice(0, headIdx);
+    const logAfter = await svc.getLog(20);
+    const headIdx = headBefore ? logAfter.findIndex((c) => c.hash === headBefore) : -1;
+    const newCommits = headIdx === -1 ? logAfter : logAfter.slice(0, headIdx);
 
-      yield {
-        type: "done" as const,
-        commits: newCommits.map((c) => ({ hash: c.shortHash, message: c.subject })),
-        ...(error && { error }),
-      };
-    }),
+    yield {
+      type: "done" as const,
+      commits: newCommits.map((c) => ({ hash: c.shortHash, message: c.subject })),
+      ...(error && { error }),
+    };
+  }),
 });
