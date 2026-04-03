@@ -1,10 +1,11 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GitCommit, Loader2, Check } from "lucide-react";
 import { useTRPC } from "@/bridge/react";
 import { trpc as trpcClient } from "@/bridge/trpc";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { GIT_STATUS_QUERY_OPTS } from "./gitQueryOpts";
 
 interface GitCommitButtonProps {
   cwd: string;
@@ -13,7 +14,7 @@ interface GitCommitButtonProps {
 type CommitProgress = {
   phase: "idle" | "running" | "done";
   statusText?: string;
-  commits: string[];
+  commitCount: number;
   error?: string;
 };
 
@@ -21,20 +22,38 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const statusQueryKey = trpc.git.status.queryKey({ cwd });
+  const logQueryKey = trpc.git.log.queryKey({ cwd, limit: 10 });
 
   const { data: status } = useQuery(
-    trpc.git.status.queryOptions({ cwd }, { staleTime: 5_000, refetchInterval: 10_000 }),
+    trpc.git.status.queryOptions({ cwd }, GIT_STATUS_QUERY_OPTS),
   );
 
-  const [progress, setProgress] = useState<CommitProgress>({ phase: "idle", commits: [] });
-  const clearRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const [progress, setProgress] = useState<CommitProgress>({ phase: "idle", commitCount: 0 });
+  const subRef = useRef<{ unsubscribe: () => void } | null>(null);
+  const clearTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      subRef.current?.unsubscribe();
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+    };
+  }, []);
 
   const handleCommit = useCallback(() => {
     if (progress.phase === "running") return;
 
-    setProgress({ phase: "running", statusText: "Starting...", commits: [] });
+    subRef.current?.unsubscribe();
+    setProgress({ phase: "running", statusText: "Starting...", commitCount: 0 });
 
-    const sub = trpcClient.git.smartCommit.subscribe(
+    let sub: { unsubscribe: () => void } | null = null;
+    let pendingUnsub = false;
+    const unsub = () => {
+      if (sub) sub.unsubscribe();
+      else pendingUnsub = true;
+    };
+
+    sub = trpcClient.git.smartCommit.subscribe(
       { cwd },
       {
         onData: (event: { type: string; message?: string; commits?: { hash: string; message: string }[]; error?: string }) => {
@@ -44,45 +63,53 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
             setProgress((p) => ({
               ...p,
               statusText: event.message,
-              commits: [...p.commits, event.message!],
+              commitCount: p.commitCount + 1,
             }));
           } else if (event.type === "done") {
             queryClient.invalidateQueries({ queryKey: statusQueryKey });
+            queryClient.invalidateQueries({ queryKey: logQueryKey });
             const count = event.commits?.length ?? 0;
             setProgress({
               phase: "done",
               statusText: count > 0
                 ? `${count} commit${count !== 1 ? "s" : ""} created`
                 : "No commits created",
-              commits: event.commits?.map((c) => c.message) ?? [],
+              commitCount: count,
               error: event.error,
             });
-            clearRef.current = setTimeout(
-              () => setProgress({ phase: "idle", commits: [] }),
+            clearTimerRef.current = setTimeout(
+              () => setProgress({ phase: "idle", commitCount: 0 }),
               event.error ? 5000 : 3000,
             );
-            sub.unsubscribe();
+            unsub();
+            subRef.current = null;
           }
         },
         onError: (err: unknown) => {
           setProgress({
             phase: "done",
             statusText: err instanceof Error ? err.message : "Failed",
-            commits: [],
+            commitCount: 0,
             error: "failed",
           });
-          clearRef.current = setTimeout(
-            () => setProgress({ phase: "idle", commits: [] }),
+          clearTimerRef.current = setTimeout(
+            () => setProgress({ phase: "idle", commitCount: 0 }),
             5000,
           );
+          subRef.current = null;
         },
       },
     );
-  }, [cwd, progress.phase, queryClient, statusQueryKey]);
+
+    if (pendingUnsub) {
+      sub.unsubscribe();
+      sub = null;
+    }
+    subRef.current = sub;
+  }, [cwd, progress.phase, queryClient, statusQueryKey, logQueryKey]);
 
   if (!status || status.isClean) return null;
 
-  // Done state — show result
   if (progress.phase === "done") {
     const isError = !!progress.error;
     return (
@@ -92,7 +119,6 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
     );
   }
 
-  // Running — show progress
   if (progress.phase === "running") {
     return (
       <div className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-neutral-bg/70 shadow-sm border border-neutral-border/30 text-xs">
@@ -100,17 +126,16 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
         <span className="font-medium text-neutral-fg truncate max-w-48">
           {progress.statusText}
         </span>
-        {progress.commits.length > 0 && (
+        {progress.commitCount > 0 && (
           <span className="flex items-center gap-0.5 text-palette-success">
             <Check className="h-2.5 w-2.5" />
-            <span className="text-[10px] tabular-nums">{progress.commits.length}</span>
+            <span className="text-[10px] tabular-nums">{progress.commitCount}</span>
           </span>
         )}
       </div>
     );
   }
 
-  // Idle — show commit button
   return (
     <Tooltip>
       <TooltipTrigger asChild>

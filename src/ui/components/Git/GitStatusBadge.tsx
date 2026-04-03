@@ -2,16 +2,18 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { GitBranch, AlertCircle } from "lucide-react";
 import { useTRPC } from "@/bridge/react";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { GitStatus } from "@/services/git";
+import { GIT_STATUS_QUERY_OPTS } from "./gitQueryOpts";
 
 interface GitStatusBadgeProps {
   cwd: string;
   onClick?: () => void;
 }
 
-const BADGE_BASE =
-  "flex items-center gap-1.5 h-7 px-2.5 rounded-full text-xs select-none bg-neutral-bg/70 shadow-sm border border-neutral-border/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring focus-visible:ring-offset-2 ring-offset-neutral-bg";
+const BADGE_CLS =
+  "h-7 rounded-full shadow-sm border border-neutral-border/30 bg-neutral-bg/70 hover:bg-neutral-bg/90 text-xs select-none gap-1.5 px-2.5";
 
 function buildTooltipLines(status: GitStatus): string[] {
   const changeCount = status.staged.length + status.unstaged.length + status.untracked.length;
@@ -37,7 +39,7 @@ function abbreviateBranch(branch: string, maxLen = 40): string {
   if (parts.length <= 1) return branch.slice(0, maxLen - 1) + "\u2026";
   const last = parts[parts.length - 1];
   const prefix = parts.slice(0, -1).join("/");
-  const budget = maxLen - last.length - 2; // 2 for "/" and "…"
+  const budget = maxLen - last.length - 2;
   if (budget <= 0) return last.length > maxLen ? last.slice(0, maxLen - 1) + "\u2026" : last;
   return prefix.slice(0, budget) + "\u2026/" + last;
 }
@@ -45,9 +47,8 @@ function abbreviateBranch(branch: string, maxLen = 40): string {
 export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
   const trpc = useTRPC();
 
-  // Polling required — no SSE events for git status
   const { data: status, error } = useQuery(
-    trpc.git.status.queryOptions({ cwd }, { staleTime: 5_000, refetchInterval: 10_000 }),
+    trpc.git.status.queryOptions({ cwd }, GIT_STATUS_QUERY_OPTS),
   );
 
   useEffect(() => {
@@ -58,25 +59,26 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
+          <Button
+            variant="ghost"
+            color="neutral"
             onClick={onClick}
-            className={`${BADGE_BASE} hover:bg-neutral-bg/90`}
+            className={BADGE_CLS}
             aria-label="Git: error fetching status"
           >
             <AlertCircle className="h-3 w-3 text-palette-danger shrink-0" />
             <span className="text-neutral-fg-subtle">git</span>
-          </button>
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">Failed to fetch git status</TooltipContent>
       </Tooltip>
     );
   }
 
-  // Skeleton placeholder while loading to prevent layout shift
   if (!status) {
     return (
       <div
-        className={`${BADGE_BASE} pointer-events-none opacity-50`}
+        className={`flex items-center ${BADGE_CLS} pointer-events-none opacity-50`}
         aria-label="Git: loading"
       >
         <GitBranch className="h-3 w-3 text-neutral-fg-subtle shrink-0" />
@@ -90,16 +92,18 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <Button
+          variant="ghost"
+          color="neutral"
           onClick={onClick}
-          className={`${BADGE_BASE} hover:bg-neutral-bg/90`}
+          className={BADGE_CLS}
           aria-label={`Git: ${status.branch}${status.isClean ? "" : " (dirty)"}`}
         >
           <GitBranch className="h-3 w-3 text-neutral-fg-subtle shrink-0" />
           <span className="font-medium text-neutral-fg">
             {abbreviateBranch(status.branch)}
           </span>
-        </button>
+        </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
         <div className="space-y-0.5">

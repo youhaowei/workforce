@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, Loader2 } from "lucide-react";
 import { useTRPC } from "@/bridge/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { GIT_STATUS_QUERY_OPTS } from "./gitQueryOpts";
 
 interface GitPushButtonProps {
   cwd: string;
@@ -13,30 +14,38 @@ export function GitPushButton({ cwd }: GitPushButtonProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const statusQueryKey = trpc.git.status.queryKey({ cwd });
+  const logQueryKey = trpc.git.log.queryKey({ cwd, limit: 10 });
 
   const { data: status } = useQuery(
-    trpc.git.status.queryOptions({ cwd }, { staleTime: 5_000, refetchInterval: 10_000 }),
+    trpc.git.status.queryOptions({ cwd }, GIT_STATUS_QUERY_OPTS),
   );
 
   const [result, setResult] = useState<{ message: string; isError: boolean } | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const pushMutation = useMutation(
     trpc.git.push.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: statusQueryKey });
+        queryClient.invalidateQueries({ queryKey: logQueryKey });
         setResult({ message: "Pushed", isError: false });
-        setTimeout(() => setResult(null), 3000);
+        timerRef.current = setTimeout(() => setResult(null), 3000);
       },
       onError: (err) => {
         setResult({ message: err instanceof Error ? err.message : "Push failed", isError: true });
-        setTimeout(() => setResult(null), 5000);
+        timerRef.current = setTimeout(() => setResult(null), 5000);
       },
     }),
   );
 
   const ahead = status?.ahead ?? 0;
   const hasUpstream = status?.hasUpstream ?? true;
-  // Show when ahead of remote, or on a new branch with no upstream
   if (ahead === 0 && hasUpstream) return null;
 
   if (result) {

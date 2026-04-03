@@ -19,6 +19,7 @@ import {
 import { trpc as trpcClient } from "@/bridge/trpc";
 import { FileText, Clock, Cpu, DollarSign, Pencil } from "lucide-react";
 import { GitSection } from "../Git/GitSection";
+import { Section } from "../shared/Section";
 
 // =============================================================================
 // Helpers
@@ -283,26 +284,6 @@ export function ChatInfoPanel({
 // =============================================================================
 // Sub-components
 // =============================================================================
-
-function Section({
-  label,
-  icon,
-  children,
-}: {
-  label: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="text-xs font-medium text-neutral-fg-subtle flex items-center gap-1">
-        {icon}
-        {label}
-      </label>
-      <div className="mt-1">{children}</div>
-    </div>
-  );
-}
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
