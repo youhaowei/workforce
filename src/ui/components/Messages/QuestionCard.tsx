@@ -171,9 +171,8 @@ function AnsweredCard({
   if (typeof result === "string") {
     // Format: 'User has answered your questions: "Q"="A". ...' — extract answer pairs
     const pairs = [...result.matchAll(/"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"/g)];
-    const answer = pairs.length > 0
-      ? pairs.map(([, , a]) => a.replace(/\\(.)/g, "$1")).join(", ")
-      : result;
+    const answer =
+      pairs.length > 0 ? pairs.map(([, , a]) => a.replace(/\\(.)/g, "$1")).join(", ") : result;
     return (
       <CardShell headerLabel="Question Answered">
         <div className="px-4 py-3 space-y-2">
