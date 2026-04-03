@@ -10,6 +10,7 @@ import { PanelLeft, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GitStatusBadge } from "../Git/GitStatusBadge";
 import { GitCommitButton } from "../Git/GitCommitButton";
+import { GitPushButton } from "../Git/GitPushButton";
 
 interface StageFloatingPillProps {
   sessionTitle?: string;
@@ -60,6 +61,7 @@ export function StageFloatingPill({
       {/* Right: git status + commit + info toggle */}
       {projectRootPath && <GitStatusBadge cwd={projectRootPath} onClick={onGitClick} />}
       {projectRootPath && <GitCommitButton cwd={projectRootPath} />}
+      {projectRootPath && <GitPushButton cwd={projectRootPath} />}
 
       <Button
         variant="ghost"
