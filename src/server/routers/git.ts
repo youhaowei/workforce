@@ -46,8 +46,9 @@ const ALLOWED_GIT_SUBCOMMANDS = new Set([
 
 /** Flags that make otherwise safe subcommands destructive. */
 const DANGEROUS_FLAGS = /--hard|--force|-D\b|-f\b/;
+const SHELL_METACHARACTERS = /[;&|`$(){}[\]<>\n]/;
 
-/** Only approve safe, non-destructive git subcommands in Bash. */
+/** Only approve safe, non-destructive, single git commands in Bash. */
 function gitOnlyApproval(request: {
   description: string;
   detail: unknown;
@@ -56,6 +57,7 @@ function gitOnlyApproval(request: {
   if (request.description === "Tool: Bash") {
     const cmd = String((request.detail as Record<string, unknown>)?.command ?? "").trimStart();
     if (cmd.startsWith("git ")) {
+      if (SHELL_METACHARACTERS.test(cmd)) return Promise.resolve("deny");
       const rest = cmd.slice(4).trimStart();
       const subcommand = rest.split(/\s/)[0];
       if (ALLOWED_GIT_SUBCOMMANDS.has(subcommand) && !DANGEROUS_FLAGS.test(rest)) {
