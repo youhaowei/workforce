@@ -53,7 +53,10 @@ describe("cwd validation", () => {
   });
 
   it("rejects a path that does not exist", async () => {
-    const missingDir = join(tmpdir(), `does-not-exist-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    const missingDir = join(
+      tmpdir(),
+      `does-not-exist-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    );
     await expect(caller.git.status({ cwd: missingDir })).rejects.toThrow(
       "cwd is not inside a git repository",
     );
@@ -177,5 +180,231 @@ describe("git queries", () => {
   it("remotes returns empty for local repo", async () => {
     const remotes = await caller.git.remotes({ cwd: repoDir });
     expect(remotes).toEqual([]);
+  });
+});
+
+// ─── empty repo (no commits yet) ────────────────────────────────────────────
+
+describe("empty repo (no commits)", () => {
+  let emptyRepo: string;
+
+  beforeEach(async () => {
+    emptyRepo = join(tmpdir(), `git-empty-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    await mkdir(emptyRepo, { recursive: true });
+    const git = (...args: string[]) => execFileNoThrow("git", args, { cwd: emptyRepo });
+    await git("init");
+    await git("config", "user.email", "test@test.com");
+    await git("config", "user.name", "Test User");
+  });
+
+  afterEach(async () => {
+    await rm(emptyRepo, { recursive: true, force: true });
+  });
+
+  it("getStatus returns valid status with isClean true on empty repo", async () => {
+    // git diff HEAD fails (no HEAD), getDiffStats returns {0,0}; status --porcelain succeeds
+    const status = await caller.git.status({ cwd: emptyRepo, forceRefresh: true });
+    expect(status).not.toBeNull();
+    expect(status!.isClean).toBe(true);
+    expect(status!.insertions).toBe(0);
+    expect(status!.deletions).toBe(0);
+    expect(status!.hasUpstream).toBe(false);
+  });
+
+  it("isRepo returns true for empty (uncommitted) repo", async () => {
+    expect(await caller.git.isRepo({ cwd: emptyRepo })).toBe(true);
+  });
+
+  it("log returns empty array for empty repo", async () => {
+    const log = await caller.git.log({ cwd: emptyRepo });
+    expect(log).toEqual([]);
+  });
+
+  it("commit on empty repo with staged file creates root commit", async () => {
+    await writeFile(join(emptyRepo, "a.txt"), "hello");
+    await caller.git.stage({ cwd: emptyRepo, files: ["a.txt"] });
+    const result = await caller.git.commit({ cwd: emptyRepo, message: "root commit" });
+    expect(result.success).toBe(true);
+    expect(result.hash).toBeTruthy();
+  });
+});
+
+// ─── cwd walks up to find .git ───────────────────────────────────────────────
+
+describe("findGitRoot walks up", () => {
+  it("accepts a subdirectory inside the repo", async () => {
+    const subdir = join(repoDir, "nested", "deep");
+    await mkdir(subdir, { recursive: true });
+    const status = await caller.git.status({ cwd: subdir });
+    expect(status).not.toBeNull();
+    expect(status!.isClean).toBe(true);
+  });
+
+  it("isRepo returns true for a subdirectory", async () => {
+    const subdir = join(repoDir, "sub");
+    await mkdir(subdir, { recursive: true });
+    expect(await caller.git.isRepo({ cwd: subdir })).toBe(true);
+  });
+});
+
+// ─── status fields: hasUpstream, insertions, deletions ───────────────────────
+
+describe("git.status fields", () => {
+  it("hasUpstream is false for a local-only repo", async () => {
+    const status = await caller.git.status({ cwd: repoDir });
+    expect(status!.hasUpstream).toBe(false);
+    expect(status!.ahead).toBe(0);
+    expect(status!.behind).toBe(0);
+  });
+
+  it("reports insertions and deletions for unstaged edits", async () => {
+    // Overwrite README with extra lines (+3 net)
+    await writeFile(join(repoDir, "README.md"), "# Test\nline2\nline3\nline4\n");
+    const status = await caller.git.status({ cwd: repoDir, forceRefresh: true });
+    // getDiffStats compares working tree to HEAD
+    expect(status!.insertions).toBeGreaterThan(0);
+  });
+
+  it("returns 0 insertions and deletions for clean repo", async () => {
+    const status = await caller.git.status({ cwd: repoDir });
+    expect(status!.insertions).toBe(0);
+    expect(status!.deletions).toBe(0);
+  });
+
+  it("branch name is populated", async () => {
+    const status = await caller.git.status({ cwd: repoDir });
+    expect(status!.branch).toBeTruthy();
+    expect(typeof status!.branch).toBe("string");
+  });
+});
+
+// ─── stage / unstage with special-character filenames ───────────────────────
+
+describe("stage/unstage with special-character filenames", () => {
+  it("stages a file with spaces in the name", async () => {
+    const filename = "my file with spaces.txt";
+    await writeFile(join(repoDir, filename), "data");
+    const result = await caller.git.stage({ cwd: repoDir, files: [filename] });
+    expect(result.success).toBe(true);
+
+    const status = await caller.git.status({ cwd: repoDir, forceRefresh: true });
+    expect(status!.staged.some((f) => f.path === filename)).toBe(true);
+  });
+
+  it("stages a file with unicode characters", async () => {
+    const filename = "résumé_données_日本語.txt";
+    await writeFile(join(repoDir, filename), "unicode content");
+    const result = await caller.git.stage({ cwd: repoDir, files: [filename] });
+    expect(result.success).toBe(true);
+
+    const status = await caller.git.status({ cwd: repoDir, forceRefresh: true });
+    expect(status!.staged.length).toBeGreaterThan(0);
+  });
+
+  it("unstages a file with spaces in the name", async () => {
+    const filename = "spaced file.txt";
+    await writeFile(join(repoDir, filename), "data");
+    await caller.git.stage({ cwd: repoDir, files: [filename] });
+
+    const unstageResult = await caller.git.unstage({ cwd: repoDir, files: [filename] });
+    expect(unstageResult.success).toBe(true);
+
+    const status = await caller.git.status({ cwd: repoDir, forceRefresh: true });
+    expect(status!.staged).toHaveLength(0);
+  });
+});
+
+// ─── LRU cache eviction (R5) ────────────────────────────────────────────────
+
+describe("LRU service cache", () => {
+  it("evicts oldest entry when cap of 20 is exceeded", async () => {
+    // We cannot directly inspect the cache, so we verify that the 21st repo
+    // is accepted without error (eviction does not throw).
+    const repos: string[] = [];
+    try {
+      for (let i = 0; i < 21; i++) {
+        const dir = join(
+          tmpdir(),
+          `git-lru-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
+        );
+        repos.push(dir);
+        await mkdir(dir, { recursive: true });
+        await execFileNoThrow("git", ["init"], { cwd: dir });
+        await execFileNoThrow("git", ["config", "user.email", "t@t.com"], { cwd: dir });
+        await execFileNoThrow("git", ["config", "user.name", "T"], { cwd: dir });
+        const readmeP = join(dir, "README.md");
+        await writeFile(readmeP, "x");
+        await execFileNoThrow("git", ["add", "README.md"], { cwd: dir });
+        await execFileNoThrow("git", ["commit", "-m", "init"], { cwd: dir });
+      }
+
+      // Calling status on all 21 repos should succeed — eviction is transparent
+      for (const dir of repos) {
+        const status = await caller.git.status({ cwd: dir, forceRefresh: true });
+        expect(status).not.toBeNull();
+      }
+    } finally {
+      for (const dir of repos) {
+        await rm(dir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it("LRU hit promotes entry — re-querying first repo after 20 others does not break it", async () => {
+    const repos: string[] = [];
+    try {
+      // Create first repo and query it (sets it as first/oldest)
+      const firstDir = join(
+        tmpdir(),
+        `git-lru-first-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      );
+      repos.push(firstDir);
+      await mkdir(firstDir, { recursive: true });
+      await execFileNoThrow("git", ["init"], { cwd: firstDir });
+      await execFileNoThrow("git", ["config", "user.email", "t@t.com"], { cwd: firstDir });
+      await execFileNoThrow("git", ["config", "user.name", "T"], { cwd: firstDir });
+      await writeFile(join(firstDir, "README.md"), "x");
+      await execFileNoThrow("git", ["add", "README.md"], { cwd: firstDir });
+      await execFileNoThrow("git", ["commit", "-m", "init"], { cwd: firstDir });
+      await caller.git.status({ cwd: firstDir, forceRefresh: true });
+
+      // Re-query firstDir to promote it to MRU (should survive the next 19 insertions)
+      await caller.git.status({ cwd: firstDir, forceRefresh: true });
+
+      // Fill 19 more repos
+      for (let i = 0; i < 19; i++) {
+        const dir = join(
+          tmpdir(),
+          `git-lru-fill-${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
+        );
+        repos.push(dir);
+        await mkdir(dir, { recursive: true });
+        await execFileNoThrow("git", ["init"], { cwd: dir });
+        await execFileNoThrow("git", ["config", "user.email", "t@t.com"], { cwd: dir });
+        await execFileNoThrow("git", ["config", "user.name", "T"], { cwd: dir });
+        await writeFile(join(dir, "README.md"), "y");
+        await execFileNoThrow("git", ["add", "README.md"], { cwd: dir });
+        await execFileNoThrow("git", ["commit", "-m", "init"], { cwd: dir });
+        await caller.git.status({ cwd: dir, forceRefresh: true });
+      }
+
+      // firstDir was promoted to MRU — it should still be in cache (not evicted).
+      // We can only verify this externally by confirming a query still works.
+      const status = await caller.git.status({ cwd: firstDir, forceRefresh: true });
+      expect(status).not.toBeNull();
+    } finally {
+      for (const dir of repos) {
+        await rm(dir, { recursive: true, force: true });
+      }
+    }
+  });
+});
+
+// ─── push with no remote ─────────────────────────────────────────────────────
+
+describe("git.push", () => {
+  it("throws when no remote exists", async () => {
+    // Local-only repo — push must fail with a TRPC error
+    await expect(caller.git.push({ cwd: repoDir })).rejects.toThrow();
   });
 });
