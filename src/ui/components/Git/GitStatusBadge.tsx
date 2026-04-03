@@ -100,9 +100,7 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
           aria-label={`Git: ${status.branch}${status.isClean ? "" : " (dirty)"}`}
         >
           <GitBranch className="h-3 w-3 text-neutral-fg-subtle shrink-0" />
-          <span className="font-medium text-neutral-fg">
-            {abbreviateBranch(status.branch)}
-          </span>
+          <span className="font-medium text-neutral-fg">{abbreviateBranch(status.branch)}</span>
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">

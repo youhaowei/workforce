@@ -24,9 +24,7 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
   const statusQueryKey = trpc.git.status.queryKey({ cwd });
   const logQueryKey = trpc.git.log.queryKey({ cwd, limit: 10 });
 
-  const { data: status } = useQuery(
-    trpc.git.status.queryOptions({ cwd }, GIT_STATUS_QUERY_OPTS),
-  );
+  const { data: status } = useQuery(trpc.git.status.queryOptions({ cwd }, GIT_STATUS_QUERY_OPTS));
 
   const [progress, setProgress] = useState<CommitProgress>({ phase: "idle", commitCount: 0 });
   const subRef = useRef<{ unsubscribe: () => void } | null>(null);
@@ -44,6 +42,7 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
     if (progress.phase === "running") return;
 
     subRef.current?.unsubscribe();
+    if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
     setProgress({ phase: "running", statusText: "Starting...", commitCount: 0 });
 
     let sub: { unsubscribe: () => void } | null = null;
@@ -56,7 +55,12 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
     sub = trpcClient.git.smartCommit.subscribe(
       { cwd },
       {
-        onData: (event: { type: string; message?: string; commits?: { hash: string; message: string }[]; error?: string }) => {
+        onData: (event: {
+          type: string;
+          message?: string;
+          commits?: { hash: string; message: string }[];
+          error?: string;
+        }) => {
           if (event.type === "status") {
             setProgress((p) => ({ ...p, statusText: event.message }));
           } else if (event.type === "committing") {
@@ -71,9 +75,10 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
             const count = event.commits?.length ?? 0;
             setProgress({
               phase: "done",
-              statusText: count > 0
-                ? `${count} commit${count !== 1 ? "s" : ""} created`
-                : "No commits created",
+              statusText:
+                count > 0
+                  ? `${count} commit${count !== 1 ? "s" : ""} created`
+                  : "No commits created",
               commitCount: count,
               error: event.error,
             });
@@ -113,7 +118,9 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
   if (progress.phase === "done") {
     const isError = !!progress.error;
     return (
-      <span className={`text-[10px] font-medium px-2 ${isError ? "text-palette-danger" : "text-palette-success"}`}>
+      <span
+        className={`text-[10px] font-medium px-2 ${isError ? "text-palette-danger" : "text-palette-success"}`}
+      >
         {progress.statusText}
       </span>
     );
@@ -123,9 +130,7 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
     return (
       <div className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-neutral-bg/70 shadow-sm border border-neutral-border/30 text-xs">
         <Loader2 className="h-3 w-3 animate-spin text-neutral-fg-subtle shrink-0" />
-        <span className="font-medium text-neutral-fg truncate max-w-48">
-          {progress.statusText}
-        </span>
+        <span className="font-medium text-neutral-fg truncate max-w-48">{progress.statusText}</span>
         {progress.commitCount > 0 && (
           <span className="flex items-center gap-0.5 text-palette-success">
             <Check className="h-2.5 w-2.5" />

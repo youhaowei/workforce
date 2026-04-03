@@ -16,9 +16,7 @@ export function GitPushButton({ cwd }: GitPushButtonProps) {
   const statusQueryKey = trpc.git.status.queryKey({ cwd });
   const logQueryKey = trpc.git.log.queryKey({ cwd, limit: 10 });
 
-  const { data: status } = useQuery(
-    trpc.git.status.queryOptions({ cwd }, GIT_STATUS_QUERY_OPTS),
-  );
+  const { data: status } = useQuery(trpc.git.status.queryOptions({ cwd }, GIT_STATUS_QUERY_OPTS));
 
   const [result, setResult] = useState<{ message: string; isError: boolean } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -50,7 +48,9 @@ export function GitPushButton({ cwd }: GitPushButtonProps) {
 
   if (result) {
     return (
-      <span className={`text-[10px] font-medium px-2 ${result.isError ? "text-palette-danger" : "text-palette-success"}`}>
+      <span
+        className={`text-[10px] font-medium px-2 ${result.isError ? "text-palette-danger" : "text-palette-success"}`}
+      >
         {result.message}
       </span>
     );
@@ -79,7 +79,9 @@ export function GitPushButton({ cwd }: GitPushButtonProps) {
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
-        {!hasUpstream ? "Push and set upstream" : `Push ${ahead} commit${ahead !== 1 ? "s" : ""} to remote`}
+        {!hasUpstream
+          ? "Push and set upstream"
+          : `Push ${ahead} commit${ahead !== 1 ? "s" : ""} to remote`}
       </TooltipContent>
     </Tooltip>
   );

@@ -34,10 +34,7 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
 
   // Polling required — no SSE events for git status
   const { data: status, error: queryError } = useQuery(
-    trpc.git.status.queryOptions(
-      { cwd },
-      { enabled: isOpen, ...GIT_STATUS_QUERY_OPTS },
-    ),
+    trpc.git.status.queryOptions({ cwd }, { enabled: isOpen, ...GIT_STATUS_QUERY_OPTS }),
   );
 
   const { data: log } = useQuery(
@@ -60,13 +57,10 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
 
   const logQueryKey = trpc.git.log.queryKey({ cwd, limit: 10 });
 
-  const invalidateGit = useCallback(
-    () => {
-      queryClient.invalidateQueries({ queryKey: statusQueryKey });
-      queryClient.invalidateQueries({ queryKey: logQueryKey });
-    },
-    [queryClient, statusQueryKey, logQueryKey],
-  );
+  const invalidateGit = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: statusQueryKey });
+    queryClient.invalidateQueries({ queryKey: logQueryKey });
+  }, [queryClient, statusQueryKey, logQueryKey]);
 
   const stageMutation = useMutation(
     trpc.git.stage.mutationOptions({ onSuccess: () => invalidateGit() }),
@@ -227,4 +221,3 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
     </>
   );
 }
-
