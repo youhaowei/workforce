@@ -28,9 +28,8 @@ After all commits are created, run \`git log --oneline -10\` so I can see what w
 
 Important: Do NOT explain what you're doing. Just execute the git commands and commit.`;
 
-/** Extract commit message from a git commit command string. */
+/** Extract commit message from a git commit command string (quoted -m args only). */
 function extractCommitMessage(cmd: string): string | null {
-  // Match: git commit -m "msg" or git commit -m 'msg' or git commit -m msg
   const match = cmd.match(/git\s+commit\s+.*-m\s+["'](.+?)["']/s);
   return match?.[1] ?? null;
 }
@@ -78,15 +77,24 @@ const MAX_CACHED_SERVICES = 20;
 const serviceCache = new Map<string, GitService>();
 
 function gitFor(cwd: string): GitService {
-  const validated = validateGitCwd(cwd);
-  let svc = serviceCache.get(validated);
+  const resolved = assertAbsolute(cwd);
+
+  // Check cache before filesystem walk
+  let svc = serviceCache.get(resolved);
   if (svc) {
-    // Move to end (most-recently-used)
+    serviceCache.delete(resolved);
+    serviceCache.set(resolved, svc);
+    return svc;
+  }
+
+  const validated = validateGitCwd(cwd);
+  svc = serviceCache.get(validated);
+  if (svc) {
     serviceCache.delete(validated);
     serviceCache.set(validated, svc);
     return svc;
   }
-  // Evict oldest entry if at capacity
+
   if (serviceCache.size >= MAX_CACHED_SERVICES) {
     const oldest = serviceCache.keys().next().value!;
     serviceCache.get(oldest)?.dispose();
@@ -259,7 +267,6 @@ export const gitRouter = router({
         error = err instanceof Error ? err.message : "Smart commit failed";
       }
 
-      // Always invalidate cache
       svc.invalidateCache();
 
       // Report actual commits created
