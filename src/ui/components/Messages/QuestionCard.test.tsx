@@ -93,4 +93,66 @@ describe("QuestionCard", () => {
     expect(screen.queryByText("Agent Question")).not.toBeInTheDocument();
     expect(screen.queryByText("How urgent is this?")).not.toBeInTheDocument();
   });
+
+  // ─── AnsweredCard: live SDK string decoding (R11) ───────────────────────────
+
+  describe("AnsweredCard live SDK answer string decoding", () => {
+    function makeBlock(result: string): ContentBlock & { type: "tool_use" } {
+      return {
+        type: "tool_use",
+        id: "q1",
+        name: "AskUserQuestion",
+        input: "",
+        status: "complete",
+        inputRaw: {
+          questions: [
+            {
+              id: "q",
+              header: "",
+              question: "What is your choice?",
+              freeform: false,
+              options: [{ label: "Option A", description: "" }],
+            },
+          ],
+        },
+        result,
+      };
+    }
+
+    it("extracts single answer from SDK format", () => {
+      const block = makeBlock(
+        'User has answered your questions: "What is your choice?"="Option A".',
+      );
+      render(<QuestionCard block={block} />);
+      expect(screen.getByText("Option A")).toBeInTheDocument();
+    });
+
+    it("decodes escaped quotes in answer value", () => {
+      const block = makeBlock(
+        'User has answered your questions: "What is your choice?"="He said \\"yes\\"".',
+      );
+      render(<QuestionCard block={block} />);
+      expect(screen.getByText('He said "yes"')).toBeInTheDocument();
+    });
+
+    it("joins multiple Q/A pairs with comma separator", () => {
+      const block = makeBlock('User has answered your questions: "Q1"="A1". "Q2"="B2".');
+      render(<QuestionCard block={block} />);
+      expect(screen.getByText("A1, B2")).toBeInTheDocument();
+    });
+
+    it("falls back to raw string when no pairs found", () => {
+      const block = makeBlock("Yes, please proceed.");
+      render(<QuestionCard block={block} />);
+      expect(screen.getByText("Yes, please proceed.")).toBeInTheDocument();
+    });
+
+    it("renders empty string answer when answer value is empty", () => {
+      // Empty answer: "Q"="" — pairs match but value is empty string
+      const block = makeBlock('User has answered your questions: "What is your choice?"="".');
+      render(<QuestionCard block={block} />);
+      // Answer span exists (empty content renders as "")
+      expect(screen.getByText("Question Answered")).toBeInTheDocument();
+    });
+  });
 });
