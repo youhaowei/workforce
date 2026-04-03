@@ -25,6 +25,15 @@ import { buildAnswerMap } from "./questionHelpers";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/** Decode a JSON-escaped string fragment, falling back to raw text. */
+function jsonDecode(s: string): string {
+  try {
+    return JSON.parse(`"${s}"`);
+  } catch {
+    return s;
+  }
+}
+
 function extractQuestionsFromBlock(block: ContentBlock & { type: "tool_use" }): AgentQuestion[] {
   const raw = block.inputRaw as { questions?: unknown[] } | undefined;
   if (!raw?.questions || !Array.isArray(raw.questions)) return [];
@@ -171,23 +180,28 @@ function AnsweredCard({
   if (typeof result === "string") {
     // Format: 'User has answered your questions: "Q"="A". ...' — extract answer pairs
     const pairs = [...result.matchAll(/"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"/g)];
-    if (pairs.length > 0 && pairs.length === questions.length) {
-      // Exact match — map pairs to per-question answers for structured display
-      const answers: Record<string, string[]> = {};
-      pairs.forEach(([, , a], i) => {
-        answers[questions[i].id] = [a.replace(/\\(.)/g, "$1")];
-      });
-      return (
-        <CardShell headerLabel="Question Answered">
-          <div className="px-4 py-3">
-            <SubmittedView questions={questions} answers={answers} />
-          </div>
-        </CardShell>
-      );
-    }
     if (pairs.length > 0) {
-      // Pair count doesn't match questions — show decoded answers inline
-      const decoded = pairs.map(([, , a]) => a.replace(/\\(.)/g, "$1")).join(", ");
+      // Match answers by prompt text, falling back to index order
+      const answers: Record<string, string[]> = {};
+      for (const [, prompt, raw] of pairs) {
+        const decoded = jsonDecode(raw);
+        const match = questions.find((q) => q.question === jsonDecode(prompt));
+        if (match) {
+          answers[match.id] = [decoded];
+        }
+      }
+      // If prompt-matching produced results, use structured display
+      if (Object.keys(answers).length > 0) {
+        return (
+          <CardShell headerLabel="Question Answered">
+            <div className="px-4 py-3">
+              <SubmittedView questions={questions} answers={answers} />
+            </div>
+          </CardShell>
+        );
+      }
+      // Fallback: no prompt matches — show decoded answers inline
+      const decoded = pairs.map(([, , a]) => jsonDecode(a)).join(", ");
       return (
         <CardShell headerLabel="Question Answered">
           <div className="px-4 py-3">

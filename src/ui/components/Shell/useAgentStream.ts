@@ -191,6 +191,7 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
           if (sub) sub.unsubscribe();
           else pendingUnsub = true;
         };
+        opts.cancelStreamRef.current = unsub;
         sub = trpcClient.agent.run.subscribe(
           {
             prompt: content,
@@ -223,7 +224,6 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
           },
         );
         if (pendingUnsub) unsub();
-        opts.cancelStreamRef.current = unsub;
       })();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- stable refs and store selectors
@@ -272,6 +272,7 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
           if (sub) sub.unsubscribe();
           else pendingUnsub = true;
         };
+        opts.cancelStreamRef.current = unsub;
         sub = trpcClient.agent.resumeStream.subscribe(undefined, {
           onData: (data) => {
             if (cancelled) return;
@@ -310,7 +311,6 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
           },
         });
         if (pendingUnsub) unsub();
-        opts.cancelStreamRef.current = unsub;
       } catch {
         // Server unreachable or no active stream — not an error
       }

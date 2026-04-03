@@ -56,6 +56,8 @@ export function GitPushButton({ cwd }: GitPushButtonProps) {
     );
   }
 
+  const buttonLabel = pushMutation.isPending ? "Pushing..." : ahead > 0 ? `Push ${ahead}` : "Push";
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -73,9 +75,7 @@ export function GitPushButton({ cwd }: GitPushButtonProps) {
           ) : (
             <ArrowUp className="h-3 w-3 text-neutral-fg-subtle shrink-0" />
           )}
-          <span className="font-medium">
-            {pushMutation.isPending ? "Pushing..." : ahead > 0 ? `Push ${ahead}` : "Push"}
-          </span>
+          <span className="font-medium">{buttonLabel}</span>
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">

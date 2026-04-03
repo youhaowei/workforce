@@ -105,8 +105,8 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
       </TooltipTrigger>
       <TooltipContent side="bottom">
         <div className="space-y-0.5">
-          {tooltipLines.map((line, i) => (
-            <div key={i}>{line}</div>
+          {tooltipLines.map((line) => (
+            <div key={line}>{line}</div>
           ))}
         </div>
       </TooltipContent>

@@ -6,6 +6,9 @@ import { router, publicProcedure } from "../trpc";
 import { GitService } from "@/services/git";
 import { createSession } from "unifai";
 import { getOrgService } from "@/services/org";
+import { createLogger } from "tracey";
+
+const logger = createLogger("git-router");
 
 const DEFAULT_UTILITY_MODEL = "haiku";
 
@@ -287,6 +290,7 @@ export const gitRouter = router({
         }
       }
     } catch (err) {
+      logger.error({ cwd, err }, "smartCommit failed");
       error = err instanceof Error ? err.message : "Smart commit failed";
     } finally {
       session.close();

@@ -107,6 +107,10 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
     commitMutation.mutate({ cwd, message: commitMsg.trim() });
   }, [cwd, commitMsg, status, commitMutation]);
 
+  useEffect(() => {
+    if (queryError) console.error("[GitSection] status query failed", { cwd, queryError });
+  }, [queryError, cwd]);
+
   if (queryError) {
     return (
       <Section label="Git" icon={<GitBranch className="h-3 w-3" />}>
