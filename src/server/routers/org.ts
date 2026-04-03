@@ -16,6 +16,7 @@ const orgSettingsSchema = z.object({
   costWarningThreshold: z.number().optional(),
   costHardCap: z.number().optional(),
   agentDefaults: agentDefaultsSchema.optional(),
+  utilityModel: z.string().optional(),
 });
 
 const orgUpdateSchema = z.object({
