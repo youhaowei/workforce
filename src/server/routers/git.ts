@@ -4,7 +4,7 @@ import { existsSync } from "fs";
 import { resolve, isAbsolute } from "path";
 import { router, publicProcedure } from "../trpc";
 import { GitService } from "@/services/git";
-import { prompt } from "unifai";
+import { query as sdkQuery } from "@anthropic-ai/claude-agent-sdk";
 import { getOrgService } from "@/services/org";
 
 const DEFAULT_UTILITY_MODEL = "haiku";
@@ -27,6 +27,13 @@ Commit message format: type(scope): description
 After all commits are created, run \`git log --oneline -10\` so I can see what was committed.
 
 Important: Do NOT explain what you're doing. Just execute the git commands and commit.`;
+
+/** Extract commit message from a git commit command string. */
+function extractCommitMessage(cmd: string): string | null {
+  // Match: git commit -m "msg" or git commit -m 'msg' or git commit -m msg
+  const match = cmd.match(/git\s+commit\s+.*-m\s+["'](.+?)["']/s);
+  return match?.[1] ?? null;
+}
 
 
 // ─── validation ─────────────────────────────────────────────────────────────
@@ -193,59 +200,77 @@ export const gitRouter = router({
     return gitFor(input.cwd).getRemotes();
   }),
 
-  smartCommit: publicProcedure
+  push: publicProcedure
     .input(z.object({ cwd: z.string() }))
     .mutation(async ({ input }) => {
+      const svc = gitFor(input.cwd);
+      const status = await svc.getStatus(true);
+      // Auto-set upstream on first push for new branches
+      const needsUpstream = !!status && !status.hasUpstream;
+      const result = await svc.push("origin", undefined, { setUpstream: needsUpstream });
+      svc.invalidateCache();
+      if (!result.success) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.error ?? "Push failed" });
+      }
+      return { success: true };
+    }),
+
+  smartCommit: publicProcedure
+    .input(z.object({ cwd: z.string() }))
+    .subscription(async function* ({ input }) {
       const cwd = validateGitCwd(input.cwd);
       const svc = gitFor(cwd);
 
-      // Snapshot HEAD so we can detect commits made during the run
       const logBefore = await svc.getLog(1);
       const headBefore = logBefore[0]?.hash ?? null;
 
       const org = await getOrgService().getCurrent();
       const model = org?.settings?.utilityModel ?? DEFAULT_UTILITY_MODEL;
 
-      let promptError: string | null = null;
-      let text = "";
+      yield { type: "status" as const, message: "Analyzing changes..." };
+
+      let error: string | null = null;
 
       try {
-        const result = await prompt("claude", SMART_COMMIT_PROMPT, {
-          model,
-          cwd,
-          permissionMode: "bypassPermissions",
-          allowedTools: ["Bash", "Read"],
-          maxTurns: 15,
-        });
-        text = result.text;
+        for await (const msg of sdkQuery({
+          prompt: SMART_COMMIT_PROMPT,
+          options: {
+            model,
+            cwd,
+            permissionMode: "bypassPermissions",
+            allowedTools: ["Bash", "Read"],
+            maxTurns: 15,
+          },
+        })) {
+          if (msg.type === "assistant") {
+            for (const block of msg.message.content) {
+              // Detect git commit commands starting
+              if ("name" in block && block.name === "Bash") {
+                const cmd = String((block.input as Record<string, unknown>)?.command ?? "");
+                const commitMsg = extractCommitMessage(cmd);
+                if (commitMsg) {
+                  yield { type: "committing" as const, message: commitMsg };
+                }
+              }
+            }
+          }
+        }
       } catch (err) {
-        promptError = err instanceof Error ? err.message : "Smart commit failed";
+        error = err instanceof Error ? err.message : "Smart commit failed";
       }
 
-      // Always invalidate cache — commits may have been created even on error
+      // Always invalidate cache
       svc.invalidateCache();
 
-      // Check what actually happened in git — log is newest-first
+      // Report actual commits created
       const logAfter = await svc.getLog(10);
       const headIdx = headBefore ? logAfter.findIndex((c) => c.hash === headBefore) : -1;
       const newCommits = headIdx === -1 ? logAfter : logAfter.slice(0, headIdx);
 
-      if (newCommits.length > 0) {
-        return {
-          success: true,
-          commits: newCommits.map((c) => ({ hash: c.shortHash, message: c.subject })),
-          text,
-          ...(promptError && { warning: promptError }),
-        };
-      }
-
-      if (promptError) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: promptError,
-        });
-      }
-
-      return { success: true, commits: [], text };
+      yield {
+        type: "done" as const,
+        commits: newCommits.map((c) => ({ hash: c.shortHash, message: c.subject })),
+        ...(error && { error }),
+      };
     }),
 });
