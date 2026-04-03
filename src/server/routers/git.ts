@@ -34,16 +34,30 @@ function extractCommitMessage(cmd: string): string | null {
   return match?.[2] ?? null;
 }
 
-/** Only approve git commands in Bash — allow Read unconditionally. */
+const ALLOWED_GIT_SUBCOMMANDS = new Set([
+  "status",
+  "diff",
+  "add",
+  "reset",
+  "commit",
+  "log",
+  "branch",
+  "show",
+  "rev-parse",
+]);
+
+/** Only approve safe git subcommands in Bash — allow Read unconditionally. */
 function gitOnlyApproval(request: {
   description: string;
   detail: unknown;
 }): Promise<"approve" | "deny"> {
-  // description is "Tool: Bash" or "Tool: Read" — detail has the input
   if (request.description === "Tool: Read") return Promise.resolve("approve");
   if (request.description === "Tool: Bash") {
     const cmd = String((request.detail as Record<string, unknown>)?.command ?? "").trimStart();
-    if (cmd.startsWith("git ")) return Promise.resolve("approve");
+    if (cmd.startsWith("git ")) {
+      const subcommand = cmd.slice(4).trimStart().split(/\s/)[0];
+      if (ALLOWED_GIT_SUBCOMMANDS.has(subcommand)) return Promise.resolve("approve");
+    }
   }
   return Promise.resolve("deny");
 }

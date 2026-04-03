@@ -171,24 +171,28 @@ function AnsweredCard({
   if (typeof result === "string") {
     // Format: 'User has answered your questions: "Q"="A". ...' — extract answer pairs
     const pairs = [...result.matchAll(/"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"/g)];
-    const answer =
-      pairs.length > 0 ? pairs.map(([, , a]) => a.replace(/\\(.)/g, "$1")).join(", ") : result;
+    if (pairs.length > 0) {
+      // Map pairs back to per-question answers for SubmittedView
+      const answers: Record<string, string[]> = {};
+      pairs.forEach(([, , a], i) => {
+        const qId = questions[i]?.id ?? `q_${i}`;
+        answers[qId] = [a.replace(/\\(.)/g, "$1")];
+      });
+      return (
+        <CardShell headerLabel="Question Answered">
+          <div className="px-4 py-3">
+            <SubmittedView questions={questions} answers={answers} />
+          </div>
+        </CardShell>
+      );
+    }
+    // Fallback: no pairs extracted, show raw result
     return (
       <CardShell headerLabel="Question Answered">
-        <div className="px-4 py-3 space-y-2">
-          {questions.map((q) => (
-            <div key={q.id} className="space-y-1">
-              {q.header && (
-                <Chip color="muted" className="font-semibold">
-                  {q.header}
-                </Chip>
-              )}
-              <p className="text-sm text-neutral-fg-subtle">{q.question}</p>
-            </div>
-          ))}
-          <div className="flex items-start gap-1.5 text-sm pt-1">
+        <div className="px-4 py-3">
+          <div className="flex items-start gap-1.5 text-sm">
             <Check className="h-3.5 w-3.5 text-palette-success shrink-0 mt-0.5" />
-            <span className="font-medium">{answer}</span>
+            <span className="font-medium">{result}</span>
           </div>
         </div>
       </CardShell>

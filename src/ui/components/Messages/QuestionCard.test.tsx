@@ -135,10 +135,36 @@ describe("QuestionCard", () => {
       expect(screen.getByText('He said "yes"')).toBeInTheDocument();
     });
 
-    it("joins multiple Q/A pairs with comma separator", () => {
-      const block = makeBlock('User has answered your questions: "Q1"="A1". "Q2"="B2".');
+    it("renders multiple Q/A pairs as separate answers", () => {
+      const block: ContentBlock & { type: "tool_use" } = {
+        type: "tool_use",
+        id: "q_multi",
+        name: "AskUserQuestion",
+        input: "",
+        status: "complete",
+        inputRaw: {
+          questions: [
+            {
+              id: "q1",
+              header: "",
+              question: "First?",
+              freeform: false,
+              options: [{ label: "A1", description: "" }],
+            },
+            {
+              id: "q2",
+              header: "",
+              question: "Second?",
+              freeform: false,
+              options: [{ label: "B2", description: "" }],
+            },
+          ],
+        },
+        result: 'User has answered your questions: "First?"="A1". "Second?"="B2".',
+      };
       render(<QuestionCard block={block} />);
-      expect(screen.getByText("A1, B2")).toBeInTheDocument();
+      expect(screen.getByText("A1")).toBeInTheDocument();
+      expect(screen.getByText("B2")).toBeInTheDocument();
     });
 
     it("falls back to raw string when no pairs found", () => {

@@ -191,7 +191,12 @@ describe("empty repo (no commits)", () => {
   beforeEach(async () => {
     emptyRepo = join(tmpdir(), `git-empty-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     await mkdir(emptyRepo, { recursive: true });
-    const git = (...args: string[]) => execFileNoThrow("git", args, { cwd: emptyRepo });
+    const git = async (...args: string[]) => {
+      const result = await execFileNoThrow("git", args, { cwd: emptyRepo });
+      if (result.exitCode !== 0) {
+        throw new Error(`git ${args.join(" ")} failed: ${result.stderr || result.stdout}`);
+      }
+    };
     await git("init");
     await git("config", "user.email", "test@test.com");
     await git("config", "user.name", "Test User");
@@ -329,13 +334,7 @@ describe("LRU service cache", () => {
         );
         repos.push(dir);
         await mkdir(dir, { recursive: true });
-        await execFileNoThrow("git", ["init"], { cwd: dir });
-        await execFileNoThrow("git", ["config", "user.email", "t@t.com"], { cwd: dir });
-        await execFileNoThrow("git", ["config", "user.name", "T"], { cwd: dir });
-        const readmeP = join(dir, "README.md");
-        await writeFile(readmeP, "x");
-        await execFileNoThrow("git", ["add", "README.md"], { cwd: dir });
-        await execFileNoThrow("git", ["commit", "-m", "init"], { cwd: dir });
+        await initGitRepo(dir);
       }
 
       // Calling status on all 21 repos should succeed — eviction is transparent
@@ -360,12 +359,7 @@ describe("LRU service cache", () => {
       );
       repos.push(firstDir);
       await mkdir(firstDir, { recursive: true });
-      await execFileNoThrow("git", ["init"], { cwd: firstDir });
-      await execFileNoThrow("git", ["config", "user.email", "t@t.com"], { cwd: firstDir });
-      await execFileNoThrow("git", ["config", "user.name", "T"], { cwd: firstDir });
-      await writeFile(join(firstDir, "README.md"), "x");
-      await execFileNoThrow("git", ["add", "README.md"], { cwd: firstDir });
-      await execFileNoThrow("git", ["commit", "-m", "init"], { cwd: firstDir });
+      await initGitRepo(firstDir);
       await caller.git.status({ cwd: firstDir, forceRefresh: true });
 
       // Re-query firstDir to promote it to MRU (should survive the next 19 insertions)
@@ -379,12 +373,7 @@ describe("LRU service cache", () => {
         );
         repos.push(dir);
         await mkdir(dir, { recursive: true });
-        await execFileNoThrow("git", ["init"], { cwd: dir });
-        await execFileNoThrow("git", ["config", "user.email", "t@t.com"], { cwd: dir });
-        await execFileNoThrow("git", ["config", "user.name", "T"], { cwd: dir });
-        await writeFile(join(dir, "README.md"), "y");
-        await execFileNoThrow("git", ["add", "README.md"], { cwd: dir });
-        await execFileNoThrow("git", ["commit", "-m", "init"], { cwd: dir });
+        await initGitRepo(dir);
         await caller.git.status({ cwd: dir, forceRefresh: true });
       }
 
