@@ -171,17 +171,30 @@ function AnsweredCard({
   if (typeof result === "string") {
     // Format: 'User has answered your questions: "Q"="A". ...' — extract answer pairs
     const pairs = [...result.matchAll(/"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"/g)];
-    if (pairs.length > 0) {
-      // Map pairs back to per-question answers for SubmittedView
+    if (pairs.length > 0 && pairs.length === questions.length) {
+      // Exact match — map pairs to per-question answers for structured display
       const answers: Record<string, string[]> = {};
       pairs.forEach(([, , a], i) => {
-        const qId = questions[i]?.id ?? `q_${i}`;
-        answers[qId] = [a.replace(/\\(.)/g, "$1")];
+        answers[questions[i].id] = [a.replace(/\\(.)/g, "$1")];
       });
       return (
         <CardShell headerLabel="Question Answered">
           <div className="px-4 py-3">
             <SubmittedView questions={questions} answers={answers} />
+          </div>
+        </CardShell>
+      );
+    }
+    if (pairs.length > 0) {
+      // Pair count doesn't match questions — show decoded answers inline
+      const decoded = pairs.map(([, , a]) => a.replace(/\\(.)/g, "$1")).join(", ");
+      return (
+        <CardShell headerLabel="Question Answered">
+          <div className="px-4 py-3">
+            <div className="flex items-start gap-1.5 text-sm">
+              <Check className="h-3.5 w-3.5 text-palette-success shrink-0 mt-0.5" />
+              <span className="font-medium">{decoded}</span>
+            </div>
           </div>
         </CardShell>
       );
