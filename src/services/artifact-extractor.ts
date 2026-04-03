@@ -66,12 +66,11 @@ export function extractPlansFromRecords(records: readonly AnyJournalRecord[]): E
       continue;
     }
 
-    if (inPlanMode && tc.name === "Write") {
-      const filePath = tc.input?.file_path as string | undefined;
-      const content = tc.input?.content as string | undefined;
-      if (filePath && content && filePath.endsWith(".md")) {
-        pendingWrites.push({ filePath, content, ts: tc.ts });
-      }
+    if (!inPlanMode || tc.name !== "Write") continue;
+    const filePath = tc.input?.file_path as string | undefined;
+    const content = tc.input?.content as string | undefined;
+    if (filePath && content && filePath.endsWith(".md")) {
+      pendingWrites.push({ filePath, content, ts: tc.ts });
     }
   }
 
