@@ -232,17 +232,7 @@ export class GitService {
 
     const { staged, unstaged, untracked } = parseStatusEntries(statusResult.stdout);
 
-    // Get line-level diff stats (staged + unstaged combined)
-    let insertions = 0;
-    let deletions = 0;
-    const diffStatResult = await this.git("diff", "HEAD", "--shortstat");
-    if (diffStatResult.status === "success") {
-      const stat = diffStatResult.stdout;
-      const insMatch = stat.match(/(\d+) insertion/);
-      const delMatch = stat.match(/(\d+) deletion/);
-      if (insMatch) insertions = parseInt(insMatch[1], 10);
-      if (delMatch) deletions = parseInt(delMatch[1], 10);
-    }
+    const { insertions, deletions } = await this.getDiffStats();
 
     const status: GitStatus = {
       branch,
@@ -324,6 +314,17 @@ export class GitService {
   /**
    * Get diff for a file or all files.
    */
+  private async getDiffStats(): Promise<{ insertions: number; deletions: number }> {
+    const result = await this.git("diff", "HEAD", "--shortstat");
+    if (result.status !== "success") return { insertions: 0, deletions: 0 };
+    const ins = result.stdout.match(/(\d+) insertion/);
+    const del = result.stdout.match(/(\d+) deletion/);
+    return {
+      insertions: ins ? parseInt(ins[1], 10) : 0,
+      deletions: del ? parseInt(del[1], 10) : 0,
+    };
+  }
+
   async getDiff(file?: string, staged = false): Promise<string> {
     const args = ["diff"];
     if (staged) args.push("--cached");
