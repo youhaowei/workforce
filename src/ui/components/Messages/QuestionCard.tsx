@@ -181,7 +181,7 @@ function AnsweredCard({
     // Format: 'User has answered your questions: "Q"="A". ...' — extract answer pairs
     const pairs = [...result.matchAll(/"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"/g)];
     if (pairs.length > 0) {
-      // Match answers by prompt text, falling back to index order
+      // Match answers by question text; unmatched pairs fall through to inline display
       const answers: Record<string, string[]> = {};
       for (const [, prompt, raw] of pairs) {
         const decoded = jsonDecode(raw);
