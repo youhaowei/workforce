@@ -31,7 +31,7 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
   const statusQueryKey = trpc.git.status.queryKey({ cwd });
 
   // Polling required — no SSE events for git status
-  const { data: status } = useQuery(
+  const { data: status, error: queryError } = useQuery(
     trpc.git.status.queryOptions(
       { cwd },
       { enabled: isOpen, staleTime: 5_000, refetchInterval: 10_000 },
@@ -54,22 +54,17 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
     [queryClient, statusQueryKey],
   );
 
-  const handleStageResult = useCallback(
-    (result: { success: boolean; error?: string }) => {
-      if (result.success) {
-        invalidateStatus();
-      } else {
-        setActionError(result.error ?? "Operation failed");
-      }
-    },
-    [invalidateStatus],
-  );
-
   const stageMutation = useMutation(
-    trpc.git.stage.mutationOptions({ onSuccess: handleStageResult }),
+    trpc.git.stage.mutationOptions({
+      onSuccess: () => invalidateStatus(),
+      onError: (err) => setActionError(err instanceof Error ? err.message : "Failed to stage"),
+    }),
   );
   const unstageMutation = useMutation(
-    trpc.git.unstage.mutationOptions({ onSuccess: handleStageResult }),
+    trpc.git.unstage.mutationOptions({
+      onSuccess: () => invalidateStatus(),
+      onError: (err) => setActionError(err instanceof Error ? err.message : "Failed to unstage"),
+    }),
   );
   const commitMutation = useMutation(
     trpc.git.commit.mutationOptions({
@@ -109,6 +104,14 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
     setActionError(null);
     commitMutation.mutate({ cwd, message: commitMsg.trim() });
   }, [cwd, commitMsg, status, commitMutation]);
+
+  if (queryError) {
+    return (
+      <Section label="Git" icon={<GitBranch className="h-3 w-3" />}>
+        <p className="text-xs text-palette-danger">Failed to load git status</p>
+      </Section>
+    );
+  }
 
   if (!status) return null;
 

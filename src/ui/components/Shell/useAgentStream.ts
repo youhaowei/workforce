@@ -185,7 +185,13 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
         }
 
         const actions = buildStreamActions({ ...actionDeps, sessionId: sessId });
-        const subscription = trpcClient.agent.run.subscribe(
+        let sub: { unsubscribe: () => void } | null = null;
+        let pendingUnsub = false;
+        const unsub = () => {
+          if (sub) sub.unsubscribe();
+          else pendingUnsub = true;
+        };
+        sub = trpcClient.agent.run.subscribe(
           {
             prompt: content,
             model: agentConfig.model,
@@ -203,7 +209,7 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
                 actions,
                 opts.cancelStreamRef,
               );
-              if (isDone) subscription.unsubscribe();
+              if (isDone) unsub();
             },
             onError: (err) => {
               handleStreamError(
@@ -216,7 +222,8 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
             },
           },
         );
-        opts.cancelStreamRef.current = () => subscription.unsubscribe();
+        if (pendingUnsub) unsub();
+        opts.cancelStreamRef.current = unsub;
       })();
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- stable refs and store selectors
@@ -259,7 +266,13 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
         resumeStreaming(messageId);
 
         const actions = buildStreamActions({ ...actionDeps, sessionId: opts.selectedSessionId });
-        const subscription = trpcClient.agent.resumeStream.subscribe(undefined, {
+        let sub: { unsubscribe: () => void } | null = null;
+        let pendingUnsub = false;
+        const unsub = () => {
+          if (sub) sub.unsubscribe();
+          else pendingUnsub = true;
+        };
+        sub = trpcClient.agent.resumeStream.subscribe(undefined, {
           onData: (data) => {
             if (cancelled) return;
             const event = data as { type: string; [key: string]: unknown };
@@ -283,7 +296,7 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
                 actions,
                 opts.cancelStreamRef,
               );
-              if (isDone) subscription.unsubscribe();
+              if (isDone) unsub();
             }
           },
           onError: (err) => {
@@ -296,7 +309,8 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
             );
           },
         });
-        opts.cancelStreamRef.current = () => subscription.unsubscribe();
+        if (pendingUnsub) unsub();
+        opts.cancelStreamRef.current = unsub;
       } catch {
         // Server unreachable or no active stream — not an error
       }
