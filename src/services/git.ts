@@ -24,6 +24,7 @@ export interface GitStatus {
   unstaged: GitFileChange[];
   untracked: string[];
   isClean: boolean;
+  hasUpstream: boolean;
   insertions: number;
   deletions: number;
 }
@@ -211,6 +212,7 @@ export class GitService {
     // Get ahead/behind
     let ahead = 0;
     let behind = 0;
+    let hasUpstream = false;
     const upstreamResult = await this.git(
       "rev-list",
       "--left-right",
@@ -218,6 +220,7 @@ export class GitService {
       "@{upstream}...HEAD",
     );
     if (upstreamResult.status === "success") {
+      hasUpstream = true;
       const [behindStr, aheadStr] = upstreamResult.stdout.trim().split(/\s+/);
       behind = parseInt(behindStr, 10) || 0;
       ahead = parseInt(aheadStr, 10) || 0;
@@ -249,6 +252,7 @@ export class GitService {
       unstaged,
       untracked,
       isClean: staged.length === 0 && unstaged.length === 0 && untracked.length === 0,
+      hasUpstream,
       insertions,
       deletions,
     };
