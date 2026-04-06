@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp, Loader2, Check, AlertCircle } from "lucide-react";
 import { useTRPC } from "@/bridge/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GIT_STATUS_QUERY_OPTS } from "./gitQueryOpts";
+import { GIT_PILL_CLS } from "./GitStatusBadge";
 
 interface GitPushButtonProps {
   cwd: string;
@@ -48,11 +49,16 @@ export function GitPushButton({ cwd }: GitPushButtonProps) {
 
   if (result) {
     return (
-      <span
-        className={`text-[10px] font-medium px-2 ${result.isError ? "text-palette-danger" : "text-palette-success"}`}
+      <div
+        className={`flex items-center ${GIT_PILL_CLS} pointer-events-none ${result.isError ? "text-palette-danger" : "text-palette-success"}`}
       >
-        {result.message}
-      </span>
+        {result.isError ? (
+          <AlertCircle className="h-3 w-3 shrink-0" />
+        ) : (
+          <Check className="h-3 w-3 shrink-0" />
+        )}
+        <span className="text-[11px] font-medium">{result.message}</span>
+      </div>
     );
   }
 
@@ -67,8 +73,7 @@ export function GitPushButton({ cwd }: GitPushButtonProps) {
           size="xs"
           onClick={() => pushMutation.mutate({ cwd })}
           disabled={pushMutation.isPending}
-          className="h-7 rounded-full shadow-sm border border-neutral-border/30 bg-neutral-bg/70
-            hover:bg-neutral-bg/90 text-xs gap-1 px-2.5"
+          className={GIT_PILL_CLS}
         >
           {pushMutation.isPending ? (
             <Loader2 className="h-3 w-3 animate-spin shrink-0" />

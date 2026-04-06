@@ -12,7 +12,8 @@ interface GitStatusBadgeProps {
   onClick?: () => void;
 }
 
-const BADGE_CLS =
+/** Shared floating-pill classes for all git header elements. */
+export const GIT_PILL_CLS =
   "h-7 rounded-full shadow-sm border border-neutral-border/30 bg-neutral-bg/70 hover:bg-neutral-bg/90 text-xs select-none gap-1.5 px-2.5";
 
 function buildTooltipLines(status: GitStatus): string[] {
@@ -63,7 +64,7 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
             variant="ghost"
             color="neutral"
             onClick={onClick}
-            className={BADGE_CLS}
+            className={GIT_PILL_CLS}
             aria-label="Git: error fetching status"
           >
             <AlertCircle className="h-3 w-3 text-palette-danger shrink-0" />
@@ -78,11 +79,11 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
   if (!status) {
     return (
       <div
-        className={`flex items-center ${BADGE_CLS} pointer-events-none opacity-50`}
+        className={`flex items-center ${GIT_PILL_CLS} pointer-events-none opacity-50`}
         aria-label="Git: loading"
       >
         <GitBranch className="h-3 w-3 text-neutral-fg-subtle shrink-0" />
-        <span className="w-14 h-2 bg-neutral-fg-subtle/20 rounded animate-pulse" />
+        <span className="w-12 h-2.5 bg-neutral-fg-subtle/15 rounded-sm animate-pulse" />
       </div>
     );
   }
@@ -96,11 +97,14 @@ export function GitStatusBadge({ cwd, onClick }: GitStatusBadgeProps) {
           variant="ghost"
           color="neutral"
           onClick={onClick}
-          className={BADGE_CLS}
+          className={GIT_PILL_CLS}
           aria-label={`Git: ${status.branch}${status.isClean ? "" : " (dirty)"}`}
         >
           <GitBranch className="h-3 w-3 text-neutral-fg-subtle shrink-0" />
           <span className="font-medium text-neutral-fg">{abbreviateBranch(status.branch)}</span>
+          {!status.isClean && (
+            <span className="w-1.5 h-1.5 rounded-full bg-palette-warning shrink-0" />
+          )}
         </Button>
       </TooltipTrigger>
       <TooltipContent side="bottom">
