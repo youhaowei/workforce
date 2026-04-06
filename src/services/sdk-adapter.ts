@@ -3,7 +3,6 @@
  * Workforce's `AgentStreamEvent` / `EventBus` types.
  *
  * Responsibilities:
- * - Session ID tracking (captured from system/init, injected as `resume`)
  * - SDKMessage → AgentStreamEvent mapping
  * - SDKMessage → EventBus event mapping (optional)
  * - Tool name registry: tool_use_id → toolName
@@ -61,16 +60,21 @@ export function bridgeApproval(fn: ApprovalCallback): CanUseTool {
     input: Record<string, unknown>,
     options?: { signal?: AbortSignal; toolUseID?: string },
   ): Promise<PermissionResult> => {
-    const decision = await fn({
-      description: `Tool: ${toolName}`,
-      detail: input,
-      signal: options?.signal,
-      toolUseID: options?.toolUseID,
-    });
-    if (decision === "approve") {
-      return { behavior: "allow", updatedInput: input };
+    try {
+      const decision = await fn({
+        description: `Tool: ${toolName}`,
+        detail: input,
+        signal: options?.signal,
+        toolUseID: options?.toolUseID,
+      });
+      if (decision === "approve") {
+        return { behavior: "allow", updatedInput: input };
+      }
+      return { behavior: "deny", message: "Denied by approval handler" };
+    } catch (err) {
+      logger.warn({ err, toolName }, "Approval callback threw — denying");
+      return { behavior: "deny", message: "Approval callback error" };
     }
-    return { behavior: "deny", message: "Denied by approval handler" };
   };
 }
 
@@ -380,8 +384,8 @@ function emitToBus(bus: EventBus, msg: any): void {
 // Main adapter: runs query and yields AgentStreamEvent
 // ---------------------------------------------------------------------------
 
-/** Yield synthetic tool_result for unresolved tools at turn boundary. */
-function* flushPendingTools(
+/** Yield synthetic tool_result for unresolved tools at turn boundary. Exported for testing. */
+export function* flushPendingTools(
   toolRegistry: ToolRegistry,
   isError: boolean,
 ): Generator<AgentStreamEvent> {
@@ -400,8 +404,8 @@ function* flushPendingTools(
   toolRegistry.clear();
 }
 
-/** Backfill text_delta for assistant messages when stream_event was suppressed. */
-function* backfillText(msg: any): Generator<AgentStreamEvent> {
+/** Backfill text_delta for assistant messages when stream_event was suppressed. Exported for testing. */
+export function* backfillText(msg: any): Generator<AgentStreamEvent> {
   const content = msg.message?.content;
   if (!Array.isArray(content)) return;
   for (const [i, block] of content.entries()) {
@@ -427,8 +431,8 @@ function isMessageStart(msg: any): boolean {
   return msg.type === "stream_event" && msg.event?.type === "message_start";
 }
 
-/** Process a single SDK message into AgentStreamEvents with turn/tool tracking. */
-function* processMessage(
+/** Process a single SDK message into AgentStreamEvents with turn/tool tracking. Exported for testing. */
+export function* processMessage(
   msg: any,
   toolRegistry: ToolRegistry,
   state: { streamedTextThisTurn: boolean },
