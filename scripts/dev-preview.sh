@@ -13,6 +13,7 @@ cd "$(dirname "$0")/.."
 # --import <p>    One-time deep copy from source path into data dir
 DATA_DIR=".workforce-dev"
 IMPORT_FROM=""
+FORCE=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -21,12 +22,19 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --data-dir)
+      [[ $# -ge 2 ]] || { echo >&2 "[dev] --data-dir requires a path"; exit 1; }
+      [[ -n "$2" ]] || { echo >&2 "[dev] --data-dir requires a non-empty path"; exit 1; }
       DATA_DIR="$2"
       shift 2
       ;;
     --import)
+      [[ $# -ge 2 ]] || { echo >&2 "[dev] --import requires a path"; exit 1; }
       IMPORT_FROM="$2"
       shift 2
+      ;;
+    --force)
+      FORCE=true
+      shift
       ;;
     *)
       echo >&2 "Unknown flag: $1"
@@ -50,6 +58,14 @@ if [ -n "$IMPORT_FROM" ]; then
   if [ -z "$DATA_DIR" ]; then
     echo >&2 "--import cannot be used with --shared"
     exit 1
+  fi
+  if [ -d "$DATA_DIR" ] && [ "$(ls -A "$DATA_DIR" 2>/dev/null)" ]; then
+    if [ "$FORCE" != "true" ]; then
+      echo >&2 "[dev] $DATA_DIR already exists and is not empty. Use --force to overwrite."
+      exit 1
+    fi
+    echo "[dev] --force: removing existing $DATA_DIR"
+    rm -rf "$DATA_DIR"
   fi
   echo "[dev] Importing data from $IMPORT_FROM → $DATA_DIR"
   mkdir -p "$DATA_DIR"
