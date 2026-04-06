@@ -24,6 +24,9 @@ export interface GitStatus {
   unstaged: GitFileChange[];
   untracked: string[];
   isClean: boolean;
+  hasUpstream: boolean;
+  insertions: number;
+  deletions: number;
 }
 
 export interface GitFileChange {
@@ -209,6 +212,7 @@ export class GitService {
     // Get ahead/behind
     let ahead = 0;
     let behind = 0;
+    let hasUpstream = false;
     const upstreamResult = await this.git(
       "rev-list",
       "--left-right",
@@ -216,6 +220,7 @@ export class GitService {
       "@{upstream}...HEAD",
     );
     if (upstreamResult.status === "success") {
+      hasUpstream = true;
       const [behindStr, aheadStr] = upstreamResult.stdout.trim().split(/\s+/);
       behind = parseInt(behindStr, 10) || 0;
       ahead = parseInt(aheadStr, 10) || 0;
@@ -227,6 +232,8 @@ export class GitService {
 
     const { staged, unstaged, untracked } = parseStatusEntries(statusResult.stdout);
 
+    const { insertions, deletions } = await this.getDiffStats();
+
     const status: GitStatus = {
       branch,
       ahead,
@@ -235,6 +242,9 @@ export class GitService {
       unstaged,
       untracked,
       isClean: staged.length === 0 && unstaged.length === 0 && untracked.length === 0,
+      hasUpstream,
+      insertions,
+      deletions,
     };
 
     // Update cache
@@ -304,6 +314,17 @@ export class GitService {
   /**
    * Get diff for a file or all files.
    */
+  private async getDiffStats(): Promise<{ insertions: number; deletions: number }> {
+    const result = await this.git("diff", "HEAD", "--shortstat");
+    if (result.status !== "success") return { insertions: 0, deletions: 0 };
+    const ins = result.stdout.match(/(\d+) insertion/);
+    const del = result.stdout.match(/(\d+) deletion/);
+    return {
+      insertions: ins ? parseInt(ins[1], 10) : 0,
+      deletions: del ? parseInt(del[1], 10) : 0,
+    };
+  }
+
   async getDiff(file?: string, staged = false): Promise<string> {
     const args = ["diff"];
     if (staged) args.push("--cached");

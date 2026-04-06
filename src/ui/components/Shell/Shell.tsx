@@ -31,6 +31,7 @@ import TopBar from "./AppHeader";
 import { MainContentColumn } from "./MainContentColumn";
 import { Surface } from "@/components/ui/surface";
 import { useActiveSessionTitle } from "./useActiveSessionTitle";
+import { useSessionProjectPath } from "@/ui/hooks/useSessionProjectPath";
 import { useForkActions } from "./useForkActions";
 import { useAgentStream } from "./useAgentStream";
 import { usePlanMode } from "@/ui/hooks/usePlanMode";
@@ -114,6 +115,12 @@ export default function Shell() {
   const activeSessionTitle = useActiveSessionTitle({
     orgId,
     selectedSessionId,
+    serverConnected,
+  });
+
+  const projectRootPath = useSessionProjectPath({
+    sessionId: selectedSessionId,
+    projects: projects as Project[],
     serverConnected,
   });
 
@@ -302,9 +309,11 @@ export default function Shell() {
   }, [currentView]);
 
   useEffect(() => {
-    selectedSessionId
-      ? localStorage.setItem(SELECTED_SESSION_STORAGE_KEY, selectedSessionId)
-      : localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
+    if (selectedSessionId) {
+      localStorage.setItem(SELECTED_SESSION_STORAGE_KEY, selectedSessionId);
+    } else {
+      localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
+    }
   }, [selectedSessionId]);
 
   // Restore session messages via React Query
@@ -520,8 +529,12 @@ export default function Shell() {
                     sessionTitle={activeSessionTitle}
                     sessionsPanelOpen={!sessionsPanelCollapsed}
                     infoPanelOpen={showChatInfo}
+                    projectRootPath={projectRootPath}
                     onToggleSessions={toggleSessionsPanel}
                     onToggleInfo={toggleInfoPanel}
+                    onGitClick={() => {
+                      if (infoPanelCollapsed) toggleInfoPanel();
+                    }}
                   >
                     <Outlet />
                   </MainContentColumn>
@@ -554,6 +567,7 @@ export default function Shell() {
                 <ChatInfoPanel
                   isOpen={showChatInfo}
                   sessionId={selectedSessionId}
+                  projectRootPath={projectRootPath}
                   onOpenArtifact={artifactPanel.openArtifact}
                 />
               </Surface>

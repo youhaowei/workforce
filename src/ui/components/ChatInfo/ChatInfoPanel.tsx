@@ -18,6 +18,8 @@ import {
 } from "@/ui/lib/artifact-utils";
 import { trpc as trpcClient } from "@/bridge/trpc";
 import { FileText, Clock, Cpu, DollarSign, Pencil } from "lucide-react";
+import { GitSection } from "../Git/GitSection";
+import { Section } from "../shared/Section";
 
 // =============================================================================
 // Helpers
@@ -70,10 +72,16 @@ function shortenPath(path: string) {
 export interface ChatInfoPanelProps {
   isOpen: boolean;
   sessionId: string | null;
+  projectRootPath?: string | null;
   onOpenArtifact?: (artifactId: string) => void;
 }
 
-export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPanelProps) {
+export function ChatInfoPanel({
+  isOpen,
+  sessionId,
+  projectRootPath,
+  onOpenArtifact,
+}: ChatInfoPanelProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -264,6 +272,8 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
           </Section>
         )}
 
+        {projectRootPath && <GitSection cwd={projectRootPath} isOpen={isOpen} />}
+
         {/* Artifacts */}
         <ArtifactsSection sessionId={sessionId} isOpen={isOpen} onOpenArtifact={onOpenArtifact} />
       </div>
@@ -274,26 +284,6 @@ export function ChatInfoPanel({ isOpen, sessionId, onOpenArtifact }: ChatInfoPan
 // =============================================================================
 // Sub-components
 // =============================================================================
-
-function Section({
-  label,
-  icon,
-  children,
-}: {
-  label: string;
-  icon?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="text-xs font-medium text-neutral-fg-subtle flex items-center gap-1">
-        {icon}
-        {label}
-      </label>
-      <div className="mt-1">{children}</div>
-    </div>
-  );
-}
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
@@ -314,6 +304,8 @@ function StatusBadge({ status }: { status: string }) {
     </span>
   );
 }
+
+// ─── Artifacts section ──────────────────────────────────────────────────────
 
 function ArtifactsSection({
   sessionId,

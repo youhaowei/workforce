@@ -25,6 +25,15 @@ import { buildAnswerMap } from "./questionHelpers";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+/** Decode a JSON-escaped string fragment, falling back to raw text. */
+function jsonDecode(s: string): string {
+  try {
+    return JSON.parse(`"${s}"`);
+  } catch {
+    return s;
+  }
+}
+
 function extractQuestionsFromBlock(block: ContentBlock & { type: "tool_use" }): AgentQuestion[] {
   const raw = block.inputRaw as { questions?: unknown[] } | undefined;
   if (!raw?.questions || !Array.isArray(raw.questions)) return [];
@@ -134,9 +143,9 @@ function AnsweredCard({
   block: ContentBlock & { type: "tool_use" };
   questions: AgentQuestion[];
 }) {
-  const result = block.result as Record<string, unknown> | null;
+  const result = block.result as Record<string, unknown> | string | null;
   // Backfilled from follow-up user message — extract and show just the answer portion
-  if (result && "_fromFollowUp" in result) {
+  if (result && typeof result === "object" && "_fromFollowUp" in result) {
     const raw = String(result.answer ?? "");
     // formatColdReplayAnswer produces "Question\nAnswer: selection" — extract answer lines
     const answerLines = raw
@@ -167,6 +176,56 @@ function AnsweredCard({
       </CardShell>
     );
   }
+  // Live SDK path: result is the raw answer string
+  if (typeof result === "string") {
+    // Format: 'User has answered your questions: "Q"="A". ...' — extract answer pairs
+    const pairs = [...result.matchAll(/"((?:[^"\\]|\\.)*)"\s*=\s*"((?:[^"\\]|\\.)*)"/g)];
+    if (pairs.length > 0) {
+      // Match answers by question text; unmatched pairs fall through to inline display
+      const answers: Record<string, string[]> = {};
+      for (const [, prompt, raw] of pairs) {
+        const decoded = jsonDecode(raw);
+        const match = questions.find((q) => q.question === jsonDecode(prompt));
+        if (match) {
+          answers[match.id] = [decoded];
+        }
+      }
+      // If prompt-matching produced results, use structured display
+      if (Object.keys(answers).length > 0) {
+        return (
+          <CardShell headerLabel="Question Answered">
+            <div className="px-4 py-3">
+              <SubmittedView questions={questions} answers={answers} />
+            </div>
+          </CardShell>
+        );
+      }
+      // Fallback: no prompt matches — show decoded answers inline
+      const decoded = pairs.map(([, , a]) => jsonDecode(a)).join(", ");
+      return (
+        <CardShell headerLabel="Question Answered">
+          <div className="px-4 py-3">
+            <div className="flex items-start gap-1.5 text-sm">
+              <Check className="h-3.5 w-3.5 text-palette-success shrink-0 mt-0.5" />
+              <span className="font-medium">{decoded}</span>
+            </div>
+          </div>
+        </CardShell>
+      );
+    }
+    // Fallback: no pairs extracted, show raw result
+    return (
+      <CardShell headerLabel="Question Answered">
+        <div className="px-4 py-3">
+          <div className="flex items-start gap-1.5 text-sm">
+            <Check className="h-3.5 w-3.5 text-palette-success shrink-0 mt-0.5" />
+            <span className="font-medium">{result}</span>
+          </div>
+        </div>
+      </CardShell>
+    );
+  }
+
   const resultAnswers =
     typeof result === "object" && result !== null ? (result as Record<string, string[]>) : {};
   return (

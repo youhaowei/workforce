@@ -9,8 +9,10 @@ interface MainContentColumnProps {
   sessionTitle?: string;
   sessionsPanelOpen?: boolean;
   infoPanelOpen?: boolean;
+  projectRootPath?: string | null;
   onToggleSessions?: () => void;
   onToggleInfo?: () => void;
+  onGitClick?: () => void;
   children: ReactNode;
 }
 
@@ -20,8 +22,10 @@ export function MainContentColumn({
   sessionTitle,
   sessionsPanelOpen = false,
   infoPanelOpen = false,
+  projectRootPath,
   onToggleSessions,
   onToggleInfo,
+  onGitClick,
   children,
 }: MainContentColumnProps) {
   return (
@@ -50,8 +54,10 @@ export function MainContentColumn({
           sessionTitle={sessionTitle}
           sessionsPanelOpen={sessionsPanelOpen}
           infoPanelOpen={infoPanelOpen}
+          projectRootPath={projectRootPath}
           onToggleSessions={onToggleSessions}
           onToggleInfo={onToggleInfo}
+          onGitClick={onGitClick}
         />
       )}
 
