@@ -243,7 +243,7 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
 // ─── Sub-components ────────────────────────────────────────────────────────
 
 interface FileRowProps {
-  file: { path: string; status: string; area: string };
+  file: { path: string; status: string; area: "staged" | "unstaged" | "untracked" };
   isStaged: boolean;
   disabled: boolean;
   onToggle: (path: string, isStaged: boolean) => void;
