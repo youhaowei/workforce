@@ -276,7 +276,7 @@ export const gitRouter = router({
     let error: string | null = null;
 
     try {
-      for await (const event of runSDKQuery(SMART_COMMIT_PROMPT, {
+      const handle = runSDKQuery(SMART_COMMIT_PROMPT, {
         sdkOptions: {
           model,
           cwd,
@@ -285,7 +285,8 @@ export const gitRouter = router({
           maxTurns: 15,
         },
         onApprovalRequest: gitOnlyApproval,
-      })) {
+      });
+      for await (const event of handle.events) {
         if (event.type === "tool_start" && event.name === "Bash") {
           const cmd = String((event.inputRaw as Record<string, unknown>)?.command ?? "");
           const commitMsg = extractCommitMessage(cmd);

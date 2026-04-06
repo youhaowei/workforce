@@ -14,6 +14,7 @@
 import {
   query as sdkQuery,
   type Options as SDKOptions,
+  type Query,
   type CanUseTool,
   type PermissionResult,
 } from "@anthropic-ai/claude-agent-sdk";
@@ -370,11 +371,11 @@ function* flushPendingTools(
 function* backfillText(msg: any): Generator<AgentStreamEvent> {
   const content = msg.message?.content;
   if (!Array.isArray(content)) return;
-  for (const block of content) {
+  for (const [i, block] of content.entries()) {
     if (block.type === "text" && block.text) {
-      yield { type: "content_block_start", index: 0, blockType: "text" };
+      yield { type: "content_block_start", index: i, blockType: "text" };
       yield { type: "token", token: block.text };
-      yield { type: "content_block_stop", index: 0 };
+      yield { type: "content_block_stop", index: i };
     }
   }
 }
@@ -412,8 +413,18 @@ function* processMessage(
   yield* mapSdkToStreamEvents(msg, toolRegistry);
 }
 
+/** Handle returned by runSDKQuery for cancellation support. */
+export interface SDKQueryHandle {
+  /** Stream of AgentStreamEvents from the query. */
+  events: AsyncGenerator<AgentStreamEvent>;
+  /** Abort the running query. Safe to call multiple times. */
+  abort: () => void;
+  /** The underlying SDK Query handle (for advanced use like interrupt/setPermissionMode). */
+  query: Query;
+}
+
 /**
- * Run an SDK query and yield AgentStreamEvents.
+ * Run an SDK query and return a handle with the event stream + abort control.
  *
  * Handles:
  * - Tool name registry (tool_use_id → name)
@@ -421,38 +432,41 @@ function* processMessage(
  * - Text delta backfill when stream_event is suppressed
  * - Optional EventBus broadcasting
  */
-export async function* runSDKQuery(
-  prompt: string,
-  opts: SDKAdapterOptions,
-): AsyncGenerator<AgentStreamEvent> {
+export function runSDKQuery(prompt: string, opts: SDKAdapterOptions): SDKQueryHandle {
   const canUseTool = opts.onApprovalRequest ? bridgeApproval(opts.onApprovalRequest) : undefined;
 
-  const queryHandle = sdkQuery({
-    prompt,
-    options: {
-      ...opts.sdkOptions,
-      ...(canUseTool && { canUseTool }),
+  const sdkOptions: SDKOptions = {
+    ...opts.sdkOptions,
+    ...(canUseTool && { canUseTool }),
+  };
+
+  const queryHandle = sdkQuery({ prompt, options: sdkOptions });
+
+  async function* streamEvents(): AsyncGenerator<AgentStreamEvent> {
+    const toolRegistry: ToolRegistry = new Map();
+    const state = { streamedTextThisTurn: false };
+
+    try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any,
-  });
-
-  const toolRegistry: ToolRegistry = new Map();
-  const state = { streamedTextThisTurn: false };
-
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for await (const msg of queryHandle as AsyncIterable<any>) {
-      if (opts.eventBus) {
-        try {
-          emitToBus(opts.eventBus, msg);
-        } catch (err) {
-          logger.warn({ err }, "EventBus emit failed");
+      for await (const msg of queryHandle as AsyncIterable<any>) {
+        if (opts.eventBus) {
+          try {
+            emitToBus(opts.eventBus, msg);
+          } catch (err) {
+            logger.warn({ err }, "EventBus emit failed");
+          }
         }
+        yield* processMessage(msg, toolRegistry, state);
       }
-      yield* processMessage(msg, toolRegistry, state);
+      yield* flushPendingTools(toolRegistry, true);
+    } finally {
+      queryHandle.close();
     }
-    yield* flushPendingTools(toolRegistry, true);
-  } finally {
-    queryHandle.close();
   }
+
+  return {
+    events: streamEvents(),
+    abort: () => queryHandle.close(),
+    query: queryHandle,
+  };
 }
