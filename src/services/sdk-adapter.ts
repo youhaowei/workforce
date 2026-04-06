@@ -20,6 +20,7 @@ import {
 } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentStreamEvent } from "./types";
 import type { EventBus } from "@/shared/event-bus";
+import type { QueryResultEvent } from "@/shared/event-types";
 import { createLogger } from "tracey";
 
 const logger = createLogger("sdk-adapter");
@@ -37,22 +38,35 @@ export interface SDKAdapterOptions {
    * Simplified approval callback — maps to SDK's canUseTool.
    * Return "approve" or "deny".
    */
-  onApprovalRequest?: (request: {
-    description: string;
-    detail: unknown;
-  }) => Promise<"approve" | "deny">;
+  onApprovalRequest?: ApprovalCallback;
 }
 
 // ---------------------------------------------------------------------------
 // Approval bridge
 // ---------------------------------------------------------------------------
 
+/** Callback signature for the simplified approval bridge. */
+export type ApprovalCallback = (request: {
+  description: string;
+  detail: unknown;
+  /** AbortSignal from the SDK — lets async handlers short-circuit on abort. */
+  signal?: AbortSignal;
+  toolUseID?: string;
+}) => Promise<"approve" | "deny">;
+
 /** Bridge a simple approve/deny callback to the SDK's CanUseTool signature. */
-export function bridgeApproval(
-  fn: (req: { description: string; detail: unknown }) => Promise<"approve" | "deny">,
-): CanUseTool {
-  return async (toolName: string, input: Record<string, unknown>): Promise<PermissionResult> => {
-    const decision = await fn({ description: `Tool: ${toolName}`, detail: input });
+export function bridgeApproval(fn: ApprovalCallback): CanUseTool {
+  return async (
+    toolName: string,
+    input: Record<string, unknown>,
+    options?: { signal?: AbortSignal; toolUseID?: string },
+  ): Promise<PermissionResult> => {
+    const decision = await fn({
+      description: `Tool: ${toolName}`,
+      detail: input,
+      signal: options?.signal,
+      toolUseID: options?.toolUseID,
+    });
     if (decision === "approve") {
       return { behavior: "allow", updatedInput: input };
     }
@@ -285,6 +299,25 @@ function emitStreamEventToBus(bus: EventBus, event: any, now: number): void {
   }
 }
 
+/** Map SDK per-model usage to EventBus shape (both camelCase, same fields). */
+function mapModelUsage(raw: unknown): QueryResultEvent["modelUsage"] {
+  if (!raw || typeof raw !== "object") return {};
+  const result: QueryResultEvent["modelUsage"] = {};
+  for (const [model, mu] of Object.entries(raw as Record<string, Record<string, unknown>>)) {
+    result[model] = {
+      inputTokens: Number(mu.inputTokens ?? 0),
+      outputTokens: Number(mu.outputTokens ?? 0),
+      cacheReadInputTokens: Number(mu.cacheReadInputTokens ?? 0),
+      cacheCreationInputTokens: Number(mu.cacheCreationInputTokens ?? 0),
+      webSearchRequests: Number(mu.webSearchRequests ?? 0),
+      costUSD: Number(mu.costUSD ?? 0),
+      contextWindow: Number(mu.contextWindow ?? 0),
+      maxOutputTokens: Number(mu.maxOutputTokens ?? 0),
+    };
+  }
+  return result;
+}
+
 // eslint-disable-next-line complexity -- pure data mapping, branches are field coercions
 function emitResultToBus(bus: EventBus, msg: any, now: number): void {
   bus.emit({
@@ -301,7 +334,7 @@ function emitResultToBus(bus: EventBus, msg: any, now: number): void {
       cacheReadInputTokens: Number(msg.usage?.cache_read_input_tokens ?? 0),
       cacheCreationInputTokens: Number(msg.usage?.cache_creation_input_tokens ?? 0),
     },
-    modelUsage: msg.modelUsage ?? {},
+    modelUsage: mapModelUsage(msg.modelUsage),
     errors: Array.isArray(msg.errors) ? msg.errors : undefined,
     timestamp: now,
   });

@@ -251,7 +251,12 @@ describe("bridgeApproval", () => {
         toolUseID: "tu_3",
       },
     );
-    expect(captured).toEqual({ description: "Tool: Read", detail: { file: "test.ts" } });
+    expect(captured).toMatchObject({
+      description: "Tool: Read",
+      detail: { file: "test.ts" },
+      toolUseID: "tu_3",
+    });
+    expect(captured!).toHaveProperty("signal");
   });
 });
 
