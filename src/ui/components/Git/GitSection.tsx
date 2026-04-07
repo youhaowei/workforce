@@ -121,8 +121,8 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
 
   if (!status) return null;
 
-  const allChanges = [
-    ...status.staged.map((f) => ({ ...f, area: "staged" as const })),
+  const stagedFiles = status.staged.map((f) => ({ ...f, area: "staged" as const }));
+  const unstagedFiles = [
     ...status.unstaged.map((f) => ({ ...f, area: "unstaged" as const })),
     ...status.untracked.map((p) => ({
       path: p,
@@ -139,40 +139,49 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
             <p className="text-xs text-neutral-fg-subtle">Working tree clean</p>
           ) : (
             <>
-              <ScrollArea className="max-h-40">
+              <ScrollArea className="max-h-48">
                 <div className="space-y-0.5">
-                  {allChanges.map((f) => {
-                    const filename = f.path.split("/").pop() ?? f.path;
-                    const isStaged = f.area === "staged";
-                    return (
-                      <Button
-                        key={`${f.area}-${f.path}`}
-                        variant="ghost"
-                        color="neutral"
-                        className="w-full justify-start text-xs h-6 px-1.5 gap-1 group font-normal"
-                        onClick={() => handleToggleStaged(f.path, isStaged)}
-                        disabled={togglingFile === f.path}
-                        title={`${f.path} (${f.area}) - click to ${isStaged ? "unstage" : "stage"}`}
-                      >
-                        <span
-                          className={`font-mono w-3 shrink-0 text-center ${gitStatusColor(isStaged, f.area)}`}
-                        >
-                          {f.area === "untracked" ? "?" : (STATUS_CHAR[f.status] ?? "?")}
-                        </span>
-                        <span className="font-mono text-neutral-fg-subtle truncate flex-1 text-left">
-                          {filename}
-                        </span>
-                        <span className="text-[10px] text-neutral-fg-subtle/50 opacity-0 group-hover:opacity-100">
-                          {isStaged ? "unstage" : "stage"}
-                        </span>
-                      </Button>
-                    );
-                  })}
+                  {/* Staged group */}
+                  {stagedFiles.length > 0 && (
+                    <>
+                      <div className="text-[11px] font-medium text-palette-success px-1.5 pt-0.5 pb-0.5 select-none">
+                        Staged ({stagedFiles.length})
+                      </div>
+                      {stagedFiles.map((f) => (
+                        <FileRow
+                          key={`staged-${f.path}`}
+                          file={f}
+                          isStaged
+                          disabled={togglingFile === f.path}
+                          onToggle={handleToggleStaged}
+                        />
+                      ))}
+                    </>
+                  )}
+
+                  {/* Unstaged / untracked group */}
+                  {unstagedFiles.length > 0 && (
+                    <>
+                      <div className="text-[11px] font-medium text-neutral-fg-subtle px-1.5 pt-1 pb-0.5 select-none">
+                        Changes ({unstagedFiles.length})
+                      </div>
+                      {unstagedFiles.map((f) => (
+                        <FileRow
+                          key={`${f.area}-${f.path}`}
+                          file={f}
+                          isStaged={false}
+                          disabled={togglingFile === f.path}
+                          onToggle={handleToggleStaged}
+                        />
+                      ))}
+                    </>
+                  )}
                 </div>
               </ScrollArea>
 
-              {status.staged.length > 0 && (
-                <div className="space-y-1">
+              {/* Commit flow */}
+              {stagedFiles.length > 0 && (
+                <div className="space-y-1.5 pt-0.5">
                   <Input
                     value={commitMsg}
                     onChange={(e) => setCommitMsg(e.currentTarget.value)}
@@ -187,7 +196,7 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
                     disabled={commitMutation.isPending}
                   />
                   <Button
-                    variant="solid"
+                    variant="soft"
                     color="primary"
                     size="xs"
                     onClick={handleCommit}
@@ -196,11 +205,13 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
                   >
                     {commitMutation.isPending
                       ? "Committing..."
-                      : `Commit ${status.staged.length} file${status.staged.length !== 1 ? "s" : ""}`}
+                      : `Commit ${stagedFiles.length} file${stagedFiles.length !== 1 ? "s" : ""}`}
                   </Button>
                 </div>
               )}
-              {actionError && <p className="text-xs text-palette-danger">{actionError}</p>}
+              {actionError && (
+                <p className="text-xs text-palette-danger px-1.5 pt-0.5">{actionError}</p>
+              )}
             </>
           )}
         </div>
@@ -208,11 +219,14 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
 
       {log && log.length > 0 && (
         <Section label="Recent commits" icon={<GitCommitIcon className="h-3 w-3" />}>
-          <ScrollArea className="max-h-52">
-            <div className="space-y-0.5">
+          <ScrollArea className="max-h-48">
+            <div className="space-y-px">
               {log.map((c) => (
-                <div key={c.hash} className="flex items-baseline gap-1.5 text-xs py-0.5">
-                  <span className="font-mono text-[10px] text-neutral-fg-subtle shrink-0">
+                <div
+                  key={c.hash}
+                  className="flex items-baseline gap-1.5 text-xs py-1 px-1.5 rounded hover:bg-neutral-bg-subtle/50"
+                >
+                  <span className="font-mono text-[11px] text-neutral-fg-subtle shrink-0">
                     {c.shortHash}
                   </span>
                   <span className="text-neutral-fg truncate">{c.subject}</span>
@@ -223,5 +237,45 @@ export function GitSection({ cwd, isOpen }: { cwd: string; isOpen: boolean }) {
         </Section>
       )}
     </>
+  );
+}
+
+// ─── Sub-components ────────────────────────────────────────────────────────
+
+interface FileRowProps {
+  file: { path: string; status: string; area: "staged" | "unstaged" | "untracked" };
+  isStaged: boolean;
+  disabled: boolean;
+  onToggle: (path: string, isStaged: boolean) => void;
+}
+
+function FileRow({ file, isStaged, disabled, onToggle }: FileRowProps) {
+  const filename = file.path.split("/").pop() ?? file.path;
+  const dir = file.path.includes("/") ? file.path.slice(0, file.path.lastIndexOf("/")) : null;
+
+  return (
+    <Button
+      variant="ghost"
+      color="neutral"
+      className="w-full justify-start text-xs h-6 px-1.5 gap-1 group font-normal"
+      onClick={() => onToggle(file.path, isStaged)}
+      disabled={disabled}
+      title={`${file.path} (${file.area}) - click to ${isStaged ? "unstage" : "stage"}`}
+    >
+      <span className={`font-mono w-3 shrink-0 text-center ${gitStatusColor(isStaged, file.area)}`}>
+        {file.area === "untracked" ? "?" : (STATUS_CHAR[file.status] ?? "?")}
+      </span>
+      <span className="truncate flex-1 text-left flex items-baseline gap-0.5 min-w-0">
+        <span className="font-mono text-neutral-fg truncate">{filename}</span>
+        {dir && (
+          <span className="font-mono text-neutral-fg-subtle/50 text-[11px] truncate shrink-[2]">
+            {dir}
+          </span>
+        )}
+      </span>
+      <span className="text-[11px] text-neutral-fg-subtle/50 opacity-0 group-hover:opacity-100 shrink-0">
+        {isStaged ? "unstage" : "stage"}
+      </span>
+    </Button>
   );
 }

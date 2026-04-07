@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { GitCommit, Loader2, Check } from "lucide-react";
+import { GitCommit, Loader2, Check, AlertCircle } from "lucide-react";
 import { useTRPC } from "@/bridge/react";
 import { trpc as trpcClient } from "@/bridge/trpc";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { GIT_STATUS_QUERY_OPTS } from "./gitQueryOpts";
+import { GIT_PILL_CLS } from "./GitStatusBadge";
 
 interface GitCommitButtonProps {
   cwd: string;
@@ -118,19 +119,24 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
   if (progress.phase === "done") {
     const isError = !!progress.error;
     return (
-      <span
-        className={`text-[10px] font-medium px-2 ${isError ? "text-palette-danger" : "text-palette-success"}`}
+      <div
+        className={`flex items-center ${GIT_PILL_CLS} pointer-events-none ${isError ? "text-palette-danger" : "text-palette-success"}`}
       >
-        {progress.statusText}
-      </span>
+        {isError ? (
+          <AlertCircle className="h-3 w-3 shrink-0" />
+        ) : (
+          <Check className="h-3 w-3 shrink-0" />
+        )}
+        <span className="text-[11px] font-medium truncate max-w-40">{progress.statusText}</span>
+      </div>
     );
   }
 
   if (progress.phase === "running") {
     return (
-      <div className="flex items-center gap-1.5 h-7 px-2.5 rounded-full bg-neutral-bg/70 shadow-sm border border-neutral-border/30 text-xs">
+      <div className={`flex items-center ${GIT_PILL_CLS} pointer-events-none`}>
         <Loader2 className="h-3 w-3 animate-spin text-neutral-fg-subtle shrink-0" />
-        <span className="font-medium text-neutral-fg truncate max-w-48">{progress.statusText}</span>
+        <span className="font-medium text-neutral-fg truncate max-w-40">{progress.statusText}</span>
         {progress.commitCount > 0 && (
           <span className="flex items-center gap-0.5 text-palette-success">
             <Check className="h-2.5 w-2.5" />
@@ -149,8 +155,7 @@ export function GitCommitButton({ cwd }: GitCommitButtonProps) {
           color="neutral"
           size="xs"
           onClick={handleCommit}
-          className="h-7 rounded-full shadow-sm border border-neutral-border/30 bg-neutral-bg/70
-            hover:bg-neutral-bg/90 text-xs gap-1 px-2.5"
+          className={GIT_PILL_CLS}
         >
           <GitCommit className="h-3 w-3 text-neutral-fg-subtle shrink-0" />
           <span className="font-medium">Commit</span>

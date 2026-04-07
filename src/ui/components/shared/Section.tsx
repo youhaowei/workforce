@@ -9,11 +9,11 @@ export function Section({
 }) {
   return (
     <div>
-      <div className="text-xs font-medium text-neutral-fg-subtle flex items-center gap-1">
+      <div className="text-xs font-medium text-neutral-fg-subtle flex items-center gap-1 select-none">
         {icon}
         {label}
       </div>
-      <div className="mt-1">{children}</div>
+      <div className="mt-1.5">{children}</div>
     </div>
   );
 }
