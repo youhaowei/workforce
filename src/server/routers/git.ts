@@ -4,7 +4,7 @@ import { existsSync } from "fs";
 import { resolve, isAbsolute } from "path";
 import { router, publicProcedure } from "../trpc";
 import { GitService } from "@/services/git";
-import { createSession } from "unifai";
+import { runSDKQuery } from "@/services/sdk-adapter";
 import { getOrgService } from "@/services/org";
 import { createLogger } from "tracey";
 
@@ -274,19 +274,25 @@ export const gitRouter = router({
     yield { type: "status" as const, message: "Analyzing changes..." };
 
     let error: string | null = null;
-    const session = createSession("claude", {
-      model,
-      cwd,
-      permissionMode: "default",
-      allowedTools: ["Bash", "Read"],
-      maxTurns: 15,
-      interaction: { onApprovalRequest: gitOnlyApproval },
-    });
 
     try {
-      for await (const event of session.send(SMART_COMMIT_PROMPT)) {
-        if (event.type === "tool_start" && event.toolName === "Bash") {
-          const cmd = String((event.input as Record<string, unknown>)?.command ?? "");
+      const result = runSDKQuery(SMART_COMMIT_PROMPT, {
+        sdkOptions: {
+          model,
+          cwd,
+          permissionMode: "default",
+          allowedTools: ["Bash", "Read"],
+          maxTurns: 15,
+        },
+        onApprovalRequest: gitOnlyApproval,
+      });
+      if (!result.ok) {
+        throw result.error;
+      }
+      const handle = result.value;
+      for await (const event of handle.events) {
+        if (event.type === "tool_start" && event.name === "Bash") {
+          const cmd = String((event.inputRaw as Record<string, unknown>)?.command ?? "");
           const commitMsg = extractCommitMessage(cmd);
           if (commitMsg) {
             yield { type: "committing" as const, message: commitMsg };
@@ -296,8 +302,6 @@ export const gitRouter = router({
     } catch (err) {
       logger.error({ cwd, err }, "smartCommit failed");
       error = err instanceof Error ? err.message : "Smart commit failed";
-    } finally {
-      session.close();
     }
 
     svc.invalidateCache();
