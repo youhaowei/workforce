@@ -17,12 +17,28 @@ import {
   type CanUseTool,
   type PermissionResult,
 } from "@anthropic-ai/claude-agent-sdk";
-import type { AgentStreamEvent } from "./types";
+import type { AgentStreamEvent, Result } from "./types";
 import type { EventBus } from "@/shared/event-bus";
 import type { QueryResultEvent } from "@/shared/event-types";
 import { createLogger } from "tracey";
 
 const logger = createLogger("sdk-adapter");
+
+// ---------------------------------------------------------------------------
+// Error types
+// ---------------------------------------------------------------------------
+
+/** Tagged error for SDK adapter failures at the service boundary. */
+export class SDKAdapterError extends Error {
+  readonly _tag = "SDKAdapterError" as const;
+  readonly cause?: unknown;
+
+  constructor(message: string, cause?: unknown) {
+    super(message);
+    this.name = "SDKAdapterError";
+    this.cause = cause;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -469,7 +485,10 @@ export interface SDKQueryHandle {
  * - Text delta backfill when stream_event is suppressed
  * - Optional EventBus broadcasting
  */
-export function runSDKQuery(prompt: string, opts: SDKAdapterOptions): SDKQueryHandle {
+export function runSDKQuery(
+  prompt: string,
+  opts: SDKAdapterOptions,
+): Result<SDKQueryHandle, SDKAdapterError> {
   const canUseTool = opts.onApprovalRequest ? bridgeApproval(opts.onApprovalRequest) : undefined;
 
   const sdkOptions: SDKOptions = {
@@ -477,7 +496,14 @@ export function runSDKQuery(prompt: string, opts: SDKAdapterOptions): SDKQueryHa
     ...(canUseTool && { canUseTool }),
   };
 
-  const queryHandle = sdkQuery({ prompt, options: sdkOptions });
+  let queryHandle: Query;
+  try {
+    queryHandle = sdkQuery({ prompt, options: sdkOptions });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "SDK query initialization failed";
+    logger.error({ err }, "runSDKQuery: failed to create query");
+    return { ok: false, error: new SDKAdapterError(message, err) };
+  }
 
   async function* streamEvents(): AsyncGenerator<AgentStreamEvent> {
     const toolRegistry: ToolRegistry = new Map();
@@ -502,8 +528,11 @@ export function runSDKQuery(prompt: string, opts: SDKAdapterOptions): SDKQueryHa
   }
 
   return {
-    events: streamEvents(),
-    abort: () => queryHandle.close(),
-    query: queryHandle,
+    ok: true,
+    value: {
+      events: streamEvents(),
+      abort: () => queryHandle.close(),
+      query: queryHandle,
+    },
   };
 }
