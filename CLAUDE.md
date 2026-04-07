@@ -26,6 +26,19 @@ bun run dev   # Server + Electron desktop app (dev loads from Vite :19676)
 bun run build # Electron release build (electron-builder)
 ```
 
+### Dev data isolation
+
+Dev scripts (`dev`, `dev:web`, `server`, `server:watch`) default to `.workforce-dev/` in the repo root instead of `~/.workforce/`. Each worktree gets its own data. Flags for `bun run dev` and `bun run dev:web`:
+
+| Flag | Behavior |
+|------|----------|
+| *(default)* | `WORKFORCE_DATA_DIR=.workforce-dev/` — isolated local data |
+| `--data-dir <path>` | Use a custom local path instead of `.workforce-dev/` |
+| `--import <path>` | One-time deep copy from source into data dir, then start |
+| `--shared` | Use `~/.workforce/` directly (production data, opt-in) |
+
+`WORKFORCE_DATA_DIR` env var still overrides everything. Data cleanup is manual: `rm -rf .workforce-dev/`.
+
 ## Debugging Tools
 
 - **Visual/CSS** → agent-browser on dev server (localhost:19676) or CDP on Electron (--remote-debugging-port=9229)
