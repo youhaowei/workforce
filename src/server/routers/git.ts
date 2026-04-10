@@ -242,6 +242,19 @@ export const gitRouter = router({
     return gitFor(input.cwd).getRemotes();
   }),
 
+  pull: publicProcedure.input(z.object({ cwd: z.string() })).mutation(async ({ input }) => {
+    const svc = gitFor(input.cwd);
+    const result = await svc.pull();
+    svc.invalidateCache();
+    if (!result.success) {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: result.error ?? "Pull failed",
+      });
+    }
+    return { success: true };
+  }),
+
   push: publicProcedure.input(z.object({ cwd: z.string() })).mutation(async ({ input }) => {
     const svc = gitFor(input.cwd);
     const status = await svc.getStatus(true);
