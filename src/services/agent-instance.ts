@@ -1,10 +1,8 @@
-import { createSession } from "unifai";
-import type { AgentEvent } from "unifai";
 import { homedir } from "os";
 import type { StreamResult, AgentStreamEvent } from "./types";
 import { getEventBus } from "@/shared/event-bus";
 import { formatToolInput } from "./agent";
-import { resolveClaudeCliPath } from "./agent-cli-path";
+import { runSDKQuery, type SDKQueryHandle } from "./sdk-adapter";
 
 /**
  * Build environment variables for the SDK subprocess.
@@ -14,14 +12,17 @@ import { resolveClaudeCliPath } from "./agent-cli-path";
  * The SDK subprocess handles auth internally (token refresh, etc.) just like
  * the Claude CLI does. Injecting expired tokens would break auth.
  */
-export function buildSdkEnv(): Record<string, string | undefined> {
-  const env = { ...process.env };
-
-  // Ensure HOME is set (GUI apps may not have it)
-  if (!env.HOME) {
-    env.HOME = homedir();
+export function buildSdkEnv(): Record<string, string> {
+  const env: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (typeof v === "string") env[k] = v;
   }
-
+  if (!env.HOME) env.HOME = homedir();
+  // Strip Claude Code session markers so the SDK subprocess doesn't refuse
+  // to boot with "cannot be launched inside another Claude Code session".
+  // Leaks in when Workforce (or its dev server) is launched from a Claude Code context.
+  delete env.CLAUDECODE;
+  delete env.CLAUDE_CODE_SSE_PORT;
   return env;
 }
 
@@ -65,7 +66,7 @@ export type AgentErrorCode =
 export interface AgentInstanceOptions {
   cwd: string;
   systemPrompt?: string;
-  env?: Record<string, string | undefined>;
+  env?: Record<string, string>;
   /** Org-level tool allowlist — passed to SDK if non-empty */
   allowedTools?: string[];
 }
@@ -78,6 +79,7 @@ export interface AgentInstanceOptions {
 export class AgentInstance {
   private abortController: AbortController;
   private runInProgress = false;
+  private currentHandle: SDKQueryHandle | null = null;
 
   constructor(
     public readonly sessionId: string,
@@ -94,35 +96,42 @@ export class AgentInstance {
     this.runInProgress = true;
     this.abortController = new AbortController();
     const bus = getEventBus();
-    let tokenIndex = 0;
 
     try {
       const fullPrompt = this.options.systemPrompt
         ? `${this.options.systemPrompt}\n\n${prompt}`
         : prompt;
 
-      const session = createSession("claude", {
-        model: "sonnet",
-        cwd: this.options.cwd,
-        env: this.options.env ?? buildSdkEnv(),
-        pathToClaudeCodeExecutable: resolveClaudeCliPath(),
-        abortController: this.abortController,
-        includePartialMessages: true,
-        includeRawEvents: true,
-        ...(this.options.allowedTools?.length ? { allowedTools: this.options.allowedTools } : {}),
+      const result = runSDKQuery(fullPrompt, {
+        sdkOptions: {
+          model: "sonnet",
+          cwd: this.options.cwd,
+          env: this.options.env ?? buildSdkEnv(),
+          abortController: this.abortController,
+          ...(this.options.allowedTools?.length
+            ? { allowedTools: this.options.allowedTools }
+            : {}),
+        },
+        eventBus: bus,
       });
 
+      if (!result.ok) {
+        throw new AgentError(result.error.message, "STREAM_FAILED", result.error);
+      }
+
+      this.currentHandle = result.value;
       try {
-        for await (const event of session.send(fullPrompt)) {
-          yield* this.handleEvent(event, bus, tokenIndex);
-          if (event.type === "text_delta") tokenIndex++;
+        for await (const event of this.currentHandle.events) {
+          yield* this.postProcess(event);
         }
       } finally {
-        session.close();
+        this.currentHandle = null;
       }
     } catch (err) {
       if (this.abortController.signal.aborted) {
         yield { type: "token" as const, token: " [cancelled]" };
+      } else if (err instanceof AgentError) {
+        throw err;
       } else {
         throw new AgentError(
           err instanceof Error ? err.message : String(err),
@@ -135,108 +144,21 @@ export class AgentInstance {
     }
   }
 
-  private *handleEvent(
-    event: AgentEvent,
-    bus: ReturnType<typeof getEventBus>,
-    _tokenIndex: number,
-  ): Generator<AgentStreamEvent> {
-    const now = Date.now();
-
-    // Pass through raw SDK messages for advanced consumers
-    if (event.type === "raw") {
-      bus.emit({
-        type: "RawSdkMessage",
-        sdkMessageType: event.eventType,
-        payload: event.data,
-        timestamp: now,
-      });
-      return;
-    }
-
-    if (event.type === "text_delta") {
-      yield { type: "token", token: event.text };
-      return;
-    }
-
+  /** Apply per-consumer tweaks to adapter events — currently just tool_start input formatting. */
+  private *postProcess(event: AgentStreamEvent): Generator<AgentStreamEvent> {
     if (event.type === "tool_start") {
       yield {
-        type: "tool_start",
-        name: event.toolName,
-        input: formatToolInput(event.toolName, event.input),
-        toolUseId: event.toolUseId,
-        inputRaw: event.input,
+        ...event,
+        input: formatToolInput(event.name, event.inputRaw),
       };
+      return;
     }
-
-    if (event.type === "tool_result") {
-      yield {
-        type: "tool_result",
-        toolUseId: event.toolUseId,
-        toolName: event.toolName,
-        result: event.result,
-        isError: event.isError,
-      };
-    }
-
-    if (event.type === "content_block_start") {
-      yield {
-        type: "content_block_start",
-        index: event.index,
-        blockType: event.blockType,
-        id: event.id,
-        name: event.name,
-      };
-    }
-
-    if (event.type === "content_block_stop") {
-      yield { type: "content_block_stop", index: event.index };
-    }
-
-    if (event.type === "status") {
-      yield { type: "status", message: event.message };
-    }
-
-    if (event.type === "session_complete") {
-      bus.emit({
-        type: "QueryResult",
-        subtype: (event.subtype ?? "success") as "success",
-        durationMs: event.durationMs,
-        durationApiMs: event.durationApiMs ?? 0,
-        numTurns: event.numTurns,
-        totalCostUsd: event.costUsd ?? 0,
-        result: event.result,
-        structuredOutput: event.structuredOutput,
-        usage: {
-          inputTokens: event.usage.inputTokens,
-          outputTokens: event.usage.outputTokens,
-          cacheReadInputTokens: event.usage.cacheReadTokens ?? 0,
-          cacheCreationInputTokens: event.usage.cacheCreationTokens ?? 0,
-        },
-        modelUsage: event.modelUsage
-          ? Object.fromEntries(
-              Object.entries(event.modelUsage).map(([model, mu]) => [
-                model,
-                {
-                  inputTokens: mu.inputTokens,
-                  outputTokens: mu.outputTokens,
-                  cacheReadInputTokens: mu.cacheReadTokens,
-                  cacheCreationInputTokens: mu.cacheCreationTokens,
-                  webSearchRequests: mu.webSearchRequests ?? 0,
-                  costUSD: mu.costUsd ?? 0,
-                  contextWindow: mu.contextWindow ?? 0,
-                  maxOutputTokens: mu.maxOutputTokens ?? 0,
-                },
-              ]),
-            )
-          : {},
-        errors: event.errors,
-        timestamp: now,
-      });
-    }
+    yield event;
   }
 
   cancel(): void {
     this.abortController.abort();
+    this.currentHandle?.abort();
   }
 
   isRunning(): boolean {
