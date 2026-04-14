@@ -1,6 +1,7 @@
 import { homedir } from "os";
 import type { StreamResult, AgentStreamEvent } from "./types";
 import { formatToolInput } from "./agent";
+import { resolveClaudeCliPath } from "./agent-cli-path";
 import { runSDKQuery, type SDKQueryHandle } from "./sdk-adapter";
 
 /**
@@ -43,13 +44,16 @@ export function isAuthError(err: unknown): boolean {
 }
 
 export class AgentError extends Error {
-  constructor(
-    message: string,
-    public readonly code: AgentErrorCode,
-    public readonly cause?: unknown,
-  ) {
-    super(message);
+  readonly cause?: unknown;
+  constructor(message: string, public readonly code: AgentErrorCode, cause?: unknown) {
+    // Pass via options bag so Error's native `.cause` slot is set — matters for
+    // util.inspect and structured-error tooling. TS lib (ES2021) predates
+    // Error.cause, so we use a spread-arg cast; V8/Node accept it since 16.9.
+    const superArgs: [string, { cause: unknown }?] =
+      cause !== undefined ? [message, { cause }] : [message];
+    super(...(superArgs as [string]));
     this.name = "AgentError";
+    if (cause !== undefined) this.cause = cause;
   }
 }
 
@@ -103,9 +107,19 @@ export class AgentInstance {
     }
 
     this.runInProgress = true;
-    this.abortController = new AbortController();
 
     try {
+      // If cancel() fired between construction and this run() (e.g. during
+      // an orchestration await point before runAgent starts), the current
+      // controller is already aborted. Honor it instead of silently replacing
+      // it with a fresh one — otherwise the SDK query runs un-aborted and the
+      // cancel signal is lost.
+      if (this.abortController.signal.aborted) {
+        yield { type: "token" as const, token: " [cancelled]" };
+        return;
+      }
+      this.abortController = new AbortController();
+
       const fullPrompt = this.options.systemPrompt
         ? `${this.options.systemPrompt}\n\n${prompt}`
         : prompt;
@@ -116,6 +130,9 @@ export class AgentInstance {
           cwd: this.options.cwd,
           env: this.options.env ?? buildSdkEnv(),
           abortController: this.abortController,
+          // Match agent.ts — pin to the system-installed claude binary so
+          // packaged Electron WorkAgents resolve the same CLI as main-chat.
+          pathToClaudeCodeExecutable: resolveClaudeCliPath(),
           // Required for live content_block_delta streaming — without it the
           // SDK only emits whole assistant messages and text arrives as one
           // batched backfill at turn end instead of streaming tokens.

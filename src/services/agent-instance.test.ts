@@ -17,13 +17,15 @@ vi.mock("./sdk-adapter", () => ({
 }));
 
 vi.mock("./agent", () => ({
-  formatToolInput: (_name: string, input: unknown) => JSON.stringify(input),
+  formatToolInput: vi.fn((_name: string, input: unknown) => JSON.stringify(input)),
 }));
 
 import { buildSdkEnv, isAuthError, AgentError, AgentInstance } from "./agent-instance";
 import { runSDKQuery, SDKAdapterError as SDKAdapterErrorClass } from "./sdk-adapter";
+import { formatToolInput } from "./agent";
 
 const mockRunSDKQuery = vi.mocked(runSDKQuery);
+const mockFormatToolInput = vi.mocked(formatToolInput);
 
 /** Build a mock SDKQueryHandle that yields the given events. */
 function mockHandle(
@@ -186,7 +188,8 @@ describe("agent-instance", () => {
       ]);
     });
 
-    it("formats tool_start input via formatToolInput", async () => {
+    it("formats tool_start input via formatToolInput (called with name + inputRaw)", async () => {
+      mockFormatToolInput.mockClear();
       mockRunSDKQuery.mockReturnValueOnce(
         mockHandle([
           {
@@ -211,6 +214,12 @@ describe("agent-instance", () => {
       for await (const event of instance.run("test")) {
         events.push(event);
       }
+
+      // Assert the call args — the real formatToolInput branches on `name`
+      // (Bash formats differently). A mock that only checks the returned
+      // string can't catch `formatToolInput(toolUseId, inputRaw)` regressions.
+      expect(mockFormatToolInput).toHaveBeenCalledTimes(1);
+      expect(mockFormatToolInput).toHaveBeenCalledWith("Bash", { command: "ls -la" });
 
       expect(events).toHaveLength(2);
       expect(events[0]).toMatchObject({
@@ -247,6 +256,10 @@ describe("agent-instance", () => {
       expect(opts.sdkOptions.abortController).toBeInstanceOf(AbortController);
       // env must reach the SDK so CLAUDECODE-stripped env is honored
       expect(opts.sdkOptions.env).toEqual(expect.objectContaining({ HOME: expect.any(String) }));
+      // pathToClaudeCodeExecutable key must be present so packaged Electron
+      // WorkAgents resolve the same claude binary as main-chat (matches agent.ts).
+      // Value may be undefined if `which claude` fails — we assert the key is set.
+      expect(opts.sdkOptions).toHaveProperty("pathToClaudeCodeExecutable");
       // Contract: agent-instance must NOT leak WorkAgent events onto the global bus
       expect(opts.eventBus).toBeUndefined();
       // Contract: "No onAgentQuestion — agent instances don't handle questions"
@@ -362,6 +375,23 @@ describe("agent-instance", () => {
       expect(instance.isCancelled()).toBe(false);
       instance.cancel();
       expect(instance.isCancelled()).toBe(true);
+    });
+
+    it("honors cancel() that fires before run() starts (no stale-abort race)", async () => {
+      // Regression: pre-fix, run() replaced the AbortController unconditionally,
+      // so a cancel() between construction and first .next() was silently lost
+      // and the SDK query ran with a fresh un-aborted signal. After fix: cancel
+      // pre-run yields [cancelled] and returns without calling runSDKQuery.
+      const instance = new AgentInstance("sess-1", { cwd: "/tmp" });
+      instance.cancel();
+
+      const events: unknown[] = [];
+      for await (const event of instance.run("test")) {
+        events.push(event);
+      }
+
+      expect(events).toEqual([{ type: "token", token: " [cancelled]" }]);
+      expect(mockRunSDKQuery).not.toHaveBeenCalled();
     });
 
     it("cancel() calls handle.abort()", async () => {
