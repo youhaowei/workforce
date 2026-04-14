@@ -63,6 +63,9 @@ vi.mock("./agent-instance", () => {
       isRunning() {
         return false;
       }
+      isCancelled() {
+        return this.cancelled;
+      }
       dispose() {
         this.cancelled = true;
       }

@@ -1,6 +1,5 @@
 import { homedir } from "os";
 import type { StreamResult, AgentStreamEvent } from "./types";
-import { getEventBus } from "@/shared/event-bus";
 import { formatToolInput } from "./agent";
 import { runSDKQuery, type SDKQueryHandle } from "./sdk-adapter";
 
@@ -67,7 +66,17 @@ export interface AgentInstanceOptions {
   cwd: string;
   systemPrompt?: string;
   env?: Record<string, string>;
-  /** Org-level tool allowlist — passed to SDK if non-empty */
+  /**
+   * Tool names that are auto-approved without prompting — maps to SDK's
+   * `allowedTools` option. WorkAgent sessions are headless (no user to
+   * approve prompts), so listing tools here lets them run without gating.
+   *
+   * Note on semantics: SDK `allowedTools` ≠ restriction. To actually restrict
+   * the tool surface, use SDK's `tools` option (not currently plumbed through
+   * this interface). The `allowedTools` name matches SDK terminology but the
+   * intent at the org level may have been "restrict" — see the follow-up
+   * ticket to unify semantic across agent-instance and git.ts.
+   */
   allowedTools?: string[];
 }
 
@@ -95,7 +104,6 @@ export class AgentInstance {
 
     this.runInProgress = true;
     this.abortController = new AbortController();
-    const bus = getEventBus();
 
     try {
       const fullPrompt = this.options.systemPrompt
@@ -108,11 +116,17 @@ export class AgentInstance {
           cwd: this.options.cwd,
           env: this.options.env ?? buildSdkEnv(),
           abortController: this.abortController,
+          // Required for live content_block_delta streaming — without it the
+          // SDK only emits whole assistant messages and text arrives as one
+          // batched backfill at turn end instead of streaming tokens.
+          includePartialMessages: true,
           ...(this.options.allowedTools?.length
             ? { allowedTools: this.options.allowedTools }
             : {}),
         },
-        eventBus: bus,
+        // Intentionally no eventBus — WorkAgent events must not leak onto the
+        // global bus (would overwrite main-chat SystemInit/QueryResult, clobber
+        // the header and inflate cumulative cost). Matches git.ts smartCommit.
       });
 
       if (!result.ok) {
@@ -123,6 +137,11 @@ export class AgentInstance {
       try {
         for await (const event of this.currentHandle.events) {
           yield* this.postProcess(event);
+        }
+        // SDK's Query.close() ends the iterator cleanly rather than throwing —
+        // so a mid-stream cancel arrives here, not in the catch block.
+        if (this.abortController.signal.aborted) {
+          yield { type: "token" as const, token: " [cancelled]" };
         }
       } finally {
         this.currentHandle = null;
@@ -163,6 +182,11 @@ export class AgentInstance {
 
   isRunning(): boolean {
     return this.runInProgress;
+  }
+
+  /** True if cancel() was called since the last run() started. */
+  isCancelled(): boolean {
+    return this.abortController.signal.aborted;
   }
 
   dispose(): void {

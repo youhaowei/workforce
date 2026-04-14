@@ -1,5 +1,4 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { getEventBus } from "@/shared/event-bus";
 import type { AgentStreamEvent, Result } from "./types";
 import type { SDKAdapterError, SDKQueryHandle } from "./sdk-adapter";
 
@@ -15,10 +14,6 @@ vi.mock("./sdk-adapter", () => ({
       this.cause = cause;
     }
   },
-}));
-
-vi.mock("./agent-cli-path", () => ({
-  resolveClaudeCliPath: () => "/usr/local/bin/claude",
 }));
 
 vi.mock("./agent", () => ({
@@ -54,7 +49,6 @@ function mockHandle(
 describe("agent-instance", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-    getEventBus().dispose();
   });
 
   describe("buildSdkEnv", () => {
@@ -229,7 +223,7 @@ describe("agent-instance", () => {
       expect(events[1]).toMatchObject({ type: "tool_result", toolUseId: "tu-1", result: "found" });
     });
 
-    it("passes sdkOptions and eventBus to runSDKQuery", async () => {
+    it("forwards cwd/model/allowedTools/abortController/env/includePartialMessages to runSDKQuery", async () => {
       mockRunSDKQuery.mockReturnValueOnce(mockHandle([]));
 
       const instance = new AgentInstance("sess-1", {
@@ -247,8 +241,16 @@ describe("agent-instance", () => {
         cwd: "/work/dir",
         model: "sonnet",
         allowedTools: ["Bash", "Read"],
+        includePartialMessages: true,
       });
-      expect(opts.eventBus).toBe(getEventBus());
+      // abortController must be wired (scope: "Pass AbortController.signal directly")
+      expect(opts.sdkOptions.abortController).toBeInstanceOf(AbortController);
+      // env must reach the SDK so CLAUDECODE-stripped env is honored
+      expect(opts.sdkOptions.env).toEqual(expect.objectContaining({ HOME: expect.any(String) }));
+      // Contract: agent-instance must NOT leak WorkAgent events onto the global bus
+      expect(opts.eventBus).toBeUndefined();
+      // Contract: "No onAgentQuestion — agent instances don't handle questions"
+      expect(opts.onApprovalRequest).toBeUndefined();
     });
 
     it("omits allowedTools when empty", async () => {
@@ -278,7 +280,7 @@ describe("agent-instance", () => {
       expect(prompt).toBe("You are helpful.\n\ndo thing");
     });
 
-    it("yields cancelled token when aborted mid-stream", async () => {
+    it("yields cancelled token when abort throws mid-stream", async () => {
       const instanceRef: { current?: AgentInstance } = {};
       mockRunSDKQuery.mockReturnValueOnce(
         mockHandle(async function* () {
@@ -300,6 +302,66 @@ describe("agent-instance", () => {
         { type: "token", token: "start" },
         { type: "token", token: " [cancelled]" },
       ]);
+    });
+
+    it("yields cancelled token when SDK close() ends stream cleanly (no throw)", async () => {
+      // Reality: SDK's Query.close() triggers inputStream.done() — the for-await
+      // exits normally, NOT via throw. Earlier mocks that threw an "aborted"
+      // error hid a real regression where the [cancelled] token was never
+      // emitted because it only lived in the catch block.
+      const instanceRef: { current?: AgentInstance } = {};
+      mockRunSDKQuery.mockReturnValueOnce(
+        mockHandle(async function* () {
+          yield { type: "token", token: "start" };
+          instanceRef.current!.cancel();
+          // Generator returns without throwing, mirroring real SDK close() behavior
+        }),
+      );
+
+      const instance = new AgentInstance("sess-1", { cwd: "/tmp" });
+      instanceRef.current = instance;
+
+      const events: unknown[] = [];
+      for await (const event of instance.run("test")) {
+        events.push(event);
+      }
+
+      expect(events).toEqual([
+        { type: "token", token: "start" },
+        { type: "token", token: " [cancelled]" },
+      ]);
+    });
+
+    it.each([
+      { type: "status" as const, message: "session started" },
+      { type: "thinking_delta" as const, text: "hmm" },
+      { type: "content_block_start" as const, index: 0, blockType: "text" as const },
+      { type: "content_block_stop" as const, index: 0 },
+      { type: "turn_complete" as const },
+    ])("passes $type events through postProcess unchanged", async (event) => {
+      mockRunSDKQuery.mockReturnValueOnce(mockHandle([event]));
+      const instance = new AgentInstance("sess-1", { cwd: "/tmp" });
+      const events: unknown[] = [];
+      for await (const e of instance.run("test")) events.push(e);
+      expect(events).toEqual([event]);
+    });
+
+    it("cancel after completion is a no-op", async () => {
+      mockRunSDKQuery.mockReturnValueOnce(mockHandle([{ type: "token", token: "done" }]));
+      const instance = new AgentInstance("sess-1", { cwd: "/tmp" });
+      for await (const _ of instance.run("test")) {
+        /* consume */
+      }
+      expect(instance.isRunning()).toBe(false);
+      // currentHandle is null post-completion — cancel() must not throw
+      expect(() => instance.cancel()).not.toThrow();
+    });
+
+    it("isCancelled tracks abort signal", async () => {
+      const instance = new AgentInstance("sess-1", { cwd: "/tmp" });
+      expect(instance.isCancelled()).toBe(false);
+      instance.cancel();
+      expect(instance.isCancelled()).toBe(true);
     });
 
     it("cancel() calls handle.abort()", async () => {
@@ -403,7 +465,9 @@ describe("agent-instance", () => {
 
       it("dispose calls cancel", () => {
         const instance = new AgentInstance("sess-1", { cwd: "/tmp" });
-        expect(() => instance.dispose()).not.toThrow();
+        const cancelSpy = vi.spyOn(instance, "cancel");
+        instance.dispose();
+        expect(cancelSpy).toHaveBeenCalledOnce();
       });
     });
   });

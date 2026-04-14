@@ -356,7 +356,13 @@ class OrchestrationServiceImpl implements OrchestrationService {
         }
       }
 
-      // Agent completed successfully
+      // Skip success bookkeeping if cancelled mid-stream — SDK's Query.close()
+      // ends the iterator cleanly (no throw), so the run() loop above exits
+      // normally on cancel. Writing output metadata + transitioning to
+      // "completed" on top of the already-transitioned "cancelled" state
+      // would leave partial output on a cancelled session.
+      if (instance.isCancelled()) return;
+
       const output = tokens.join("");
       const session = await this.sessionService.get(sessionId);
       if (session) {
