@@ -53,8 +53,9 @@ vi.mock("./agent-instance", () => {
           await new Promise((r) => setTimeout(r, delay));
         }
         if (this.cancelled) return;
-        yield { token: "Hello ", index: 0 };
-        yield { token: "World", index: 1 };
+        // Must include type:"token" — runAgent filters on delta.type === "token"
+        yield { type: "token" as const, token: "Hello " };
+        yield { type: "token" as const, token: "World" };
       }
 
       cancel() {
@@ -260,6 +261,34 @@ describe("OrchestrationService", () => {
       const meta = updated?.metadata as Record<string, unknown>;
       const lifecycle = meta?.lifecycle as { state: string };
       expect(lifecycle.state).toBe("completed");
+      // Token accumulation path must actually write output — mock yields
+      // { type: "token", token: "Hello " } + "World"
+      expect(meta.output).toBe("Hello World");
+      expect(meta.completionSummary).toBe("Hello World");
+    });
+
+    it("should NOT write success metadata when cancelled mid-run", async () => {
+      agentDelay = 30;
+      const session = await service.spawn({
+        templateId: "tpl_test",
+        goal: "Cancel me",
+        orgId: "ws_1",
+      });
+
+      // Cancel while agent is still "running" (within the 30ms delay)
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await service.cancel(session.id, "mid-run cancel");
+
+      // Let the runAgent coroutine settle
+      await new Promise((resolve) => setTimeout(resolve, 60));
+
+      const updated = await sessionService.get(session.id);
+      const meta = updated?.metadata as Record<string, unknown>;
+      const lifecycle = meta?.lifecycle as { state: string };
+      expect(lifecycle.state).toBe("cancelled");
+      // Key assertion: cancelled session must NOT get success metadata overwriting it
+      expect(meta.output).toBeUndefined();
+      expect(meta.completionSummary).toBeUndefined();
     });
   });
 
