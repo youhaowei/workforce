@@ -15,13 +15,18 @@ Compose the pieces CLAUDE.md describes separately (agent-browser, port rules, `-
 
 ## Core workflow
 
-### 1. Pick ports
+### 1. Ports — let dev-preview.sh discover them
 
-Never use 19675/19676 (user's own dev) or 19775/19776 (E2E reserved). Start at 19875/19876 — `dev-preview.sh` auto-scans forward if taken.
+`scripts/dev-preview.sh` (used by `bun run dev:web`) auto-scans forward from 19675/19676 if those are taken — the user's own dev (19675/19676) and E2E (19775/19776) are skipped automatically. Don't pre-pick ports.
 
+After boot, read the bound ports from disk:
+
+```bash
+SERVER_PORT=$(cat .dev-port 2>/dev/null)
+VITE_PORT=$(cat .vite-port 2>/dev/null)  # written by Vite plugin if available; else parse from log
 ```
-PORT=19876  # Vite port; dev-preview.sh picks server port independently
-```
+
+The server writes `.dev-port` immediately after binding. Vite's actual port is in its startup log (`VITE ready in Xms ... → Local: http://localhost:NNNN/`).
 
 ### 2. Isolated data dir
 
@@ -41,11 +46,25 @@ Until then, onboarding happens on first boot via UI.
 
 ### 4. Boot dev:web in background
 
+Use Bash with `run_in_background: true` so the dev server stays alive across subsequent tool calls. The wrapper script picks free ports and exports them.
+
 ```bash
-PORT=$VITE_PORT bun run dev:web --data-dir "$DATA_DIR" &
+bun run dev:web --data-dir "$DATA_DIR"
 ```
 
-Wait for the "Workforce server running on http://localhost:PORT" and "VITE ready" log lines. Note actual bound ports. `tsx --watch` hot-reloads on code changes — edit and re-verify without restart.
+After boot, wait for both log markers and capture the actual ports:
+
+- Server line: `Workforce server running on http://localhost:NNNN`  → also written to `.dev-port`
+- Vite line:  `VITE ready in Xms ... → Local: http://localhost:NNNN/`
+
+Read them once the server has bound:
+
+```bash
+SERVER_PORT=$(cat .dev-port)
+# VITE_PORT: parse from BashOutput on the background shell (the "Local:" line)
+```
+
+`tsx --watch` hot-reloads on code changes — edit and re-verify without restart. Note the background shell ID returned by Bash; you'll need it for teardown in step 7.
 
 ### 5. Delegate to browser-agent
 
@@ -65,11 +84,20 @@ Browser-agent sees what's on screen. The session JSONL and server log are author
 
 ### 7. Teardown
 
+Shell job control (`kill %1`) does not work here — each Bash tool invocation runs in its own shell, so `%1` is never defined in the teardown shell. Kill by PID or by port.
+
+Primary path — stop the background shell via the Bash tool's built-in kill (the shell ID was returned when you launched `dev:web` in step 4). That kills the whole process group.
+
+Backup path — reap anything still listening:
+
 ```bash
-kill %1 2>/dev/null || true
-lsof -ti :$SERVER_PORT :$VITE_PORT | xargs -r kill 2>/dev/null
+lsof -ti :"$SERVER_PORT" -sTCP:LISTEN | xargs -r kill 2>/dev/null || true
+lsof -ti :"$VITE_PORT"   -sTCP:LISTEN | xargs -r kill 2>/dev/null || true
+rm -f .dev-port .vite-port
 rm -rf "$DATA_DIR"   # skip with --keep-artifacts
 ```
+
+Do not send SIGKILL on ports 19675/19676 or 19775/19776 — those are the user's dev and E2E reservations, never the verify instance.
 
 ## Output contract
 
