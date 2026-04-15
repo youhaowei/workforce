@@ -10,7 +10,7 @@
  * Composes: SessionService, TemplateService, WorktreeService, AgentInstance
  */
 
-import { AgentInstance } from "./agent-instance";
+import { AgentInstance, type AgentInstanceOptions } from "./agent-instance";
 import { getEventBus } from "@/shared/event-bus";
 import type {
   OrchestrationService,
@@ -162,25 +162,45 @@ class OrchestrationServiceImpl implements OrchestrationService {
     // Transition back to active
     await this.sessionService.transitionState(sessionId, "active", "Resumed", "user");
 
-    // Re-create agent instance and restart
+    // Re-create agent instance and restart. Treat systemPrompt as derivable
+    // from template + org defaults — spawn() never persists the composed
+    // prompt, so reading it from metadata would leave the resumed agent with
+    // no system prompt at all.
     const goal = (metadata.goal as string) ?? "";
-    const cwd = (metadata.worktreePath as string) ?? (metadata.repoRoot as string) ?? process.cwd();
-    const systemPrompt = (metadata.systemPrompt as string) ?? undefined;
+    const options = await this.buildInstanceOptionsFromMetadata(metadata, goal);
 
-    // Re-fetch org settings for allowedTools
-    const oId = metadata.orgId as string | undefined;
-    let allowedTools: string[] | undefined;
-    if (oId && this.orgService) {
-      const org = await this.orgService.get(oId);
-      if (org?.settings.allowedTools.length) {
-        allowedTools = org.settings.allowedTools;
-      }
-    }
-
-    const instance = new AgentInstance(sessionId, { cwd, systemPrompt, allowedTools });
+    const instance = new AgentInstance(sessionId, options);
     this.instances.set(sessionId, instance);
 
     this.runAgent(sessionId, goal);
+  }
+
+  /** Reconstruct AgentInstanceOptions from a paused session's metadata. */
+  private async buildInstanceOptionsFromMetadata(
+    metadata: Record<string, unknown>,
+    goal: string,
+  ): Promise<AgentInstanceOptions> {
+    const cwd = (metadata.worktreePath as string) ?? (metadata.repoRoot as string) ?? process.cwd();
+    const oId = metadata.orgId as string | undefined;
+    const tplId = metadata.templateId as string | undefined;
+
+    const org = oId && this.orgService ? await this.orgService.get(oId) : null;
+    const template =
+      oId && tplId ? await this.templateService.get(oId, tplId).catch(() => null) : null;
+
+    const agentDefaults = org?.settings?.agentDefaults;
+    const systemPrompt = template
+      ? this.buildSystemPrompt(
+          template.systemPrompt,
+          template.constraints,
+          goal,
+          agentDefaults?.tone,
+          agentDefaults?.verboseLevel,
+        )
+      : undefined;
+
+    const allowedTools = org?.settings.allowedTools.length ? org.settings.allowedTools : undefined;
+    return { cwd, systemPrompt, allowedTools };
   }
 
   async stopInstance(sessionId: string): Promise<void> {
@@ -341,6 +361,28 @@ class OrchestrationServiceImpl implements OrchestrationService {
   }
 
   /**
+   * Read session lifecycle and return true if the session has already left
+   * the "active" state (cancelled / paused / completed / failed). Used to
+   * make the post-stream persist+transition no-op when cancel() raced ahead.
+   *
+   * Absorbs read errors — if the session store is unavailable (service
+   * disposed mid-run during tests, transient backend hiccup), treat as
+   * terminal so we don't then try to write. The caller's job is to stop,
+   * not to surface sessionService failures as unhandled rejections.
+   */
+  private async isAlreadyTerminal(sessionId: string): Promise<boolean> {
+    try {
+      const s = await this.sessionService.get(sessionId);
+      const meta = s?.metadata as Record<string, unknown> | undefined;
+      const lifecycle = meta?.lifecycle as { state?: string } | undefined;
+      const state = lifecycle?.state;
+      return state !== undefined && state !== "active";
+    } catch {
+      return true;
+    }
+  }
+
+  /**
    * Run the agent asynchronously. Drains the generator to completion,
    * accumulates output, and transitions session state accordingly.
    */
@@ -356,12 +398,13 @@ class OrchestrationServiceImpl implements OrchestrationService {
         }
       }
 
-      // Skip success bookkeeping if cancelled mid-stream — SDK's Query.close()
-      // ends the iterator cleanly (no throw), so the run() loop above exits
-      // normally on cancel. Writing output metadata + transitioning to
-      // "completed" on top of the already-transitioned "cancelled" state
-      // would leave partial output on a cancelled session.
+      // Skip success bookkeeping if cancelled — SDK's Query.close() ends the
+      // iterator cleanly (no throw). Re-read session lifecycle right before
+      // the persist so a cancel that lands between the isCancelled() check
+      // and updateSession() also short-circuits — otherwise we'd write output
+      // onto an already-cancelled session.
       if (instance.isCancelled()) return;
+      if (await this.isAlreadyTerminal(sessionId)) return;
 
       const output = tokens.join("");
       const session = await this.sessionService.get(sessionId);
@@ -373,6 +416,8 @@ class OrchestrationServiceImpl implements OrchestrationService {
 
       await this.sessionService.transitionState(sessionId, "completed", "Agent finished", "system");
     } catch (err) {
+      // If cancel() already transitioned the session, don't overwrite with "failed".
+      if (instance.isCancelled() || (await this.isAlreadyTerminal(sessionId))) return;
       const message = err instanceof Error ? err.message : String(err);
       await this.sessionService
         .transitionState(sessionId, "failed", message, "system")
@@ -380,9 +425,9 @@ class OrchestrationServiceImpl implements OrchestrationService {
           // Ignore if already transitioned (e.g. cancelled)
         });
     } finally {
-      const inst = this.instances.get(sessionId);
-      if (inst) {
-        inst.dispose();
+      const current = this.instances.get(sessionId);
+      if (current === instance) {
+        current.dispose();
         this.instances.delete(sessionId);
       }
     }
