@@ -120,34 +120,19 @@ export class AgentInstance {
       }
       this.abortController = new AbortController();
 
-      const fullPrompt = this.options.systemPrompt
-        ? `${this.options.systemPrompt}\n\n${prompt}`
-        : prompt;
-
-      const result = runSDKQuery(fullPrompt, {
-        sdkOptions: {
-          model: "sonnet",
-          cwd: this.options.cwd,
-          env: this.options.env ?? buildSdkEnv(),
-          abortController: this.abortController,
-          // Match agent.ts — pin to the system-installed claude binary so
-          // packaged Electron WorkAgents resolve the same CLI as main-chat.
-          pathToClaudeCodeExecutable: resolveClaudeCliPath(),
-          // Required for live content_block_delta streaming — without it the
-          // SDK only emits whole assistant messages and text arrives as one
-          // batched backfill at turn end instead of streaming tokens.
-          includePartialMessages: true,
-          ...(this.options.allowedTools?.length
-            ? { allowedTools: this.options.allowedTools }
-            : {}),
-        },
+      const result = runSDKQuery(this.composePrompt(prompt), {
+        sdkOptions: this.buildSdkOptions(),
         // Intentionally no eventBus — WorkAgent events must not leak onto the
         // global bus (would overwrite main-chat SystemInit/QueryResult, clobber
         // the header and inflate cumulative cost). Matches git.ts smartCommit.
       });
 
       if (!result.ok) {
-        throw new AgentError(result.error.message, "STREAM_FAILED", result.error);
+        throw new AgentError(
+          result.error.message,
+          isAuthError(result.error) ? "AUTH_ERROR" : "STREAM_FAILED",
+          result.error,
+        );
       }
 
       this.currentHandle = result.value;
@@ -164,10 +149,13 @@ export class AgentInstance {
         this.currentHandle = null;
       }
     } catch (err) {
+      // Re-throw real AgentError before the abort sentinel — otherwise a real
+      // failure that happens to land in the same tick as cancel() gets eaten.
+      if (err instanceof AgentError) {
+        throw err;
+      }
       if (this.abortController.signal.aborted) {
         yield { type: "token" as const, token: " [cancelled]" };
-      } else if (err instanceof AgentError) {
-        throw err;
       } else {
         throw new AgentError(
           err instanceof Error ? err.message : String(err),
@@ -178,6 +166,29 @@ export class AgentInstance {
     } finally {
       this.runInProgress = false;
     }
+  }
+
+  private composePrompt(prompt: string): string {
+    return this.options.systemPrompt ? `${this.options.systemPrompt}\n\n${prompt}` : prompt;
+  }
+
+  private buildSdkOptions() {
+    return {
+      model: "sonnet" as const,
+      cwd: this.options.cwd,
+      env: this.options.env ?? buildSdkEnv(),
+      abortController: this.abortController,
+      // Match agent.ts — pin to the system-installed claude binary so packaged
+      // Electron WorkAgents resolve the same CLI as main-chat.
+      pathToClaudeCodeExecutable: resolveClaudeCliPath(),
+      // Required for live content_block_delta streaming — without it the SDK
+      // only emits whole assistant messages and text arrives as one batched
+      // backfill at turn end instead of streaming tokens.
+      includePartialMessages: true,
+      ...(this.options.allowedTools?.length
+        ? { allowedTools: this.options.allowedTools }
+        : {}),
+    };
   }
 
   /** Apply per-consumer tweaks to adapter events — currently just tool_start input formatting. */

@@ -16,8 +16,12 @@ vi.mock("./sdk-adapter", () => ({
   },
 }));
 
+// Sentinel return so event-level assertions can independently verify that
+// postProcess actually swapped in the formatted value (rather than passing
+// through the raw input by coincidence).
+const FORMATTED_SENTINEL = "<<FORMATTED>>";
 vi.mock("./agent", () => ({
-  formatToolInput: vi.fn((_name: string, input: unknown) => JSON.stringify(input)),
+  formatToolInput: vi.fn((_name: string, _input: unknown) => "<<FORMATTED>>"),
 }));
 
 import { buildSdkEnv, isAuthError, AgentError, AgentInstance } from "./agent-instance";
@@ -226,7 +230,10 @@ describe("agent-instance", () => {
         type: "tool_start",
         name: "Bash",
         toolUseId: "tu-1",
-        input: '{"command":"ls -la"}',
+        // Sentinel proves postProcess re-wrote `input` via formatToolInput.
+        // If postProcess regresses to passthrough, this assertion fails
+        // independently of the call-count check above.
+        input: FORMATTED_SENTINEL,
         inputRaw: { command: "ls -la" },
       });
       expect(events[1]).toMatchObject({ type: "tool_result", toolUseId: "tu-1", result: "found" });
@@ -473,6 +480,25 @@ describe("agent-instance", () => {
       } catch (err) {
         expect(err).toBeInstanceOf(AgentError);
         expect((err as AgentError).code).toBe("STREAM_FAILED");
+      }
+    });
+
+    it("classifies auth-flavored adapter init failures as AUTH_ERROR", async () => {
+      mockRunSDKQuery.mockReturnValueOnce({
+        ok: false,
+        error: new SDKAdapterErrorClass("not authenticated"),
+      });
+
+      const instance = new AgentInstance("sess-1", { cwd: "/tmp" });
+
+      try {
+        for await (const _ of instance.run("test")) {
+          /* consume */
+        }
+        expect.unreachable("should have thrown");
+      } catch (err) {
+        expect(err).toBeInstanceOf(AgentError);
+        expect((err as AgentError).code).toBe("AUTH_ERROR");
       }
     });
 
