@@ -93,9 +93,10 @@ Backup path — reap anything still listening:
 ```bash
 lsof -ti :"$SERVER_PORT" -sTCP:LISTEN | xargs -r kill 2>/dev/null || true
 lsof -ti :"$VITE_PORT"   -sTCP:LISTEN | xargs -r kill 2>/dev/null || true
-rm -f .dev-port .vite-port
 rm -rf "$DATA_DIR"   # skip with --keep-artifacts
 ```
+
+Do NOT `rm -f .dev-port .vite-port` — those files live in the repo root and may be owned by the user's concurrent `dev:web`. `dev-preview.sh` overwrites them on next start, so leave them alone.
 
 Do not send SIGKILL on ports 19675/19676 or 19775/19776 — those are the user's dev and E2E reservations, never the verify instance.
 

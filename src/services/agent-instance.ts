@@ -80,11 +80,9 @@ export interface AgentInstanceOptions {
    * `allowedTools` option. WorkAgent sessions are headless (no user to
    * approve prompts), so listing tools here lets them run without gating.
    *
-   * Note on semantics: SDK `allowedTools` ≠ restriction. To actually restrict
-   * the tool surface, use SDK's `tools` option (not currently plumbed through
-   * this interface). The `allowedTools` name matches SDK terminology but the
-   * intent at the org level may have been "restrict" — see the follow-up
-   * ticket to unify semantic across agent-instance and git.ts.
+   * Semantics: SDK `allowedTools` skips approval prompts for the listed tools;
+   * it does NOT restrict the tool surface. Restriction requires SDK's `tools`
+   * option, which isn't plumbed through this interface.
    */
   allowedTools?: string[];
 }

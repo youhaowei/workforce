@@ -535,6 +535,8 @@ export function runSDKQuery(
       // exited because abort() was called (closeOnce ran externally), the
       // consumer is cancelling — don't mark in-flight tools as errored; that
       // would leave cancelled sessions with misleading "tool failed" blocks.
+      // Coverage: sdk-adapter.test.ts asserts flushPendingTools() in isolation;
+      // end-to-end cancel-mid-tool via agent-instance is not yet covered.
       if (!closed) {
         yield* flushPendingTools(toolRegistry, true);
       }

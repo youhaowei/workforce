@@ -125,7 +125,6 @@ class OrchestrationServiceImpl implements OrchestrationService {
   async cancel(sessionId: string, reason?: string): Promise<void> {
     const instance = this.instances.get(sessionId);
     if (instance) {
-      instance.cancel();
       instance.dispose();
       this.instances.delete(sessionId);
     }
@@ -206,7 +205,6 @@ class OrchestrationServiceImpl implements OrchestrationService {
   async stopInstance(sessionId: string): Promise<void> {
     const instance = this.instances.get(sessionId);
     if (instance) {
-      instance.cancel();
       instance.dispose();
       this.instances.delete(sessionId);
     }
@@ -287,7 +285,6 @@ class OrchestrationServiceImpl implements OrchestrationService {
 
   dispose(): void {
     for (const [, instance] of this.instances) {
-      instance.cancel();
       instance.dispose();
     }
     this.instances.clear();
