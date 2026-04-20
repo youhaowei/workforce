@@ -44,6 +44,7 @@ export function isAuthError(err: unknown): boolean {
 }
 
 export class AgentError extends Error {
+  readonly _tag = "AgentError" as const;
   readonly cause?: unknown;
   constructor(
     message: string,

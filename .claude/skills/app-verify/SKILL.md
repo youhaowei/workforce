@@ -32,7 +32,7 @@ The server writes `.dev-port` immediately after binding. Vite's actual port is i
 
 Per-run, per-verify. Never share with the user's live data.
 
-```
+```bash
 DATA_DIR=".workforce-verify-$(date +%s)"
 ```
 
@@ -101,7 +101,7 @@ Do not send SIGKILL on ports 19675/19676 or 19775/19776 — those are the user's
 
 ## Output contract
 
-```
+```text
 VERIFY: {feature} — PASS | FAIL | BLOCKED
 
 Assertions:
