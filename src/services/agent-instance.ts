@@ -45,7 +45,11 @@ export function isAuthError(err: unknown): boolean {
 
 export class AgentError extends Error {
   readonly cause?: unknown;
-  constructor(message: string, public readonly code: AgentErrorCode, cause?: unknown) {
+  constructor(
+    message: string,
+    public readonly code: AgentErrorCode,
+    cause?: unknown,
+  ) {
     // Pass via options bag so Error's native `.cause` slot is set — matters for
     // util.inspect and structured-error tooling. TS lib (ES2021) predates
     // Error.cause, so we use a spread-arg cast; V8/Node accept it since 16.9.
@@ -185,9 +189,7 @@ export class AgentInstance {
       // only emits whole assistant messages and text arrives as one batched
       // backfill at turn end instead of streaming tokens.
       includePartialMessages: true,
-      ...(this.options.allowedTools?.length
-        ? { allowedTools: this.options.allowedTools }
-        : {}),
+      ...(this.options.allowedTools?.length ? { allowedTools: this.options.allowedTools } : {}),
     };
   }
 
