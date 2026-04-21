@@ -505,6 +505,16 @@ export function runSDKQuery(
     return { ok: false, error: new SDKAdapterError(message, err) };
   }
 
+  // Idempotent close — cancel() triggers one call; streamEvents' finally
+  // triggers another after the iterator drains. SDK Query.close() is not
+  // documented as idempotent, so guard here instead of relying on it.
+  let closed = false;
+  const closeOnce = () => {
+    if (closed) return;
+    closed = true;
+    queryHandle.close();
+  };
+
   async function* streamEvents(): AsyncGenerator<AgentStreamEvent> {
     const toolRegistry: ToolRegistry = new Map();
     const state = { streamedTextThisTurn: false };
@@ -521,9 +531,17 @@ export function runSDKQuery(
         }
         yield* processMessage(msg, toolRegistry, state);
       }
-      yield* flushPendingTools(toolRegistry, true);
+      // Only flush pending tools as errors on a NATURAL end. If the iterator
+      // exited because abort() was called (closeOnce ran externally), the
+      // consumer is cancelling — don't mark in-flight tools as errored; that
+      // would leave cancelled sessions with misleading "tool failed" blocks.
+      // Coverage: sdk-adapter.test.ts asserts flushPendingTools() in isolation;
+      // end-to-end cancel-mid-tool via agent-instance is not yet covered.
+      if (!closed) {
+        yield* flushPendingTools(toolRegistry, true);
+      }
     } finally {
-      queryHandle.close();
+      closeOnce();
     }
   }
 
@@ -531,7 +549,7 @@ export function runSDKQuery(
     ok: true,
     value: {
       events: streamEvents(),
-      abort: () => queryHandle.close(),
+      abort: closeOnce,
       query: queryHandle,
     },
   };

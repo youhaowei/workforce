@@ -5,6 +5,7 @@ name = "workforce"
 [setup]
 script = '''
 cd "$CODEX_WORKTREE_PATH"
+git submodule update --init --recursive
 bun install
 '''
 

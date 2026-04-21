@@ -2,6 +2,20 @@
 
 Docs: `docs/` (high-level) + [Notion](https://www.notion.so/2ffd48ccaf5481d7bb33d67599423042) (feature specs, architecture). Known issues: `docs/operations/issues.md`.
 
+## Product Principles
+
+Full doc: [Workforce Product Principles](https://www.notion.so/33ed48ccaf54819bb9faf86868bf8fc8)
+
+1. **You direct and review, agents do the work** — build review surfaces, not code editors
+2. **Transparent and recoverable** — everything visible, internal actions have rollback points, external actions have policy gates
+3. **Open and configurable** — no lock-in, zero-config defaults, workflow policy is tunable (engine invariants are not)
+4. **Safety is structural, not behavioral** — engine guardrails, not prompt-based safety. Agents cannot self-escalate permissions.
+
+## Reference Projects
+
+- **t3code** (`~/Projects/t3code`) — [github.com/pingdotgg/t3code](https://github.com/pingdotgg/t3code). Minimal web GUI for coding agents (Codex + Claude). Reference for: session UX, composer-centric controls, provider abstraction (`ProviderAdapterShape`), plan mode as dedicated view, inline approval flow, turn-based undo via git checkpoints.
+- **craft-agents-oss** (`~/Projects/external/craft-agents-oss`) — [github.com/lukilabs/craft-agents-oss](https://github.com/lukilabs/craft-agents-oss). Document-centric agent workspace (Claude Agent SDK + Pi SDK). Reference for: unbound sessions (no project required), per-session working directory, workspace-scoped sources/skills, session sharing, connection manager pattern.
+
 ## Commands
 
 ```bash
