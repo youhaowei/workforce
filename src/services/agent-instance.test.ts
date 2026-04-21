@@ -415,7 +415,8 @@ describe("agent-instance", () => {
       await gen.next();
 
       instance.cancel();
-      expect(handle.ok && handle.value.abort).toHaveBeenCalledTimes(1);
+      if (!handle.ok) throw new Error("mockHandle should return ok");
+      expect(handle.value.abort).toHaveBeenCalledTimes(1);
 
       try {
         await gen.return(undefined);
