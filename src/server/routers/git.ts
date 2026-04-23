@@ -244,8 +244,8 @@ export const gitRouter = router({
 
   pull: publicProcedure.input(z.object({ cwd: z.string() })).mutation(async ({ input }) => {
     const svc = gitFor(input.cwd);
+    // GitService.pull() invalidates its own cache internally.
     const result = await svc.pull();
-    svc.invalidateCache();
     if (!result.success) {
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
