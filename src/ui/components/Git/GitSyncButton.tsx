@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, ArrowDown, Loader2, Check, AlertCircle, RefreshCw } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useTRPC } from "@/bridge/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -12,6 +13,76 @@ interface GitSyncButtonProps {
 }
 
 type SyncPhase = "idle" | "pulling" | "pushing";
+
+interface StatusSnapshot {
+  ahead: number;
+  behind: number;
+  hasUpstream: boolean;
+}
+
+const EMPTY_STATUS: StatusSnapshot = { ahead: 0, behind: 0, hasUpstream: true };
+
+function toSnapshot(
+  status: { ahead?: number; behind?: number; hasUpstream?: boolean } | undefined | null,
+): StatusSnapshot {
+  if (!status) return EMPTY_STATUS;
+  return {
+    ahead: status.ahead ?? 0,
+    behind: status.behind ?? 0,
+    hasUpstream: status.hasUpstream ?? true,
+  };
+}
+
+function shouldHide({ ahead, behind, hasUpstream }: StatusSnapshot): boolean {
+  return ahead === 0 && behind === 0 && hasUpstream;
+}
+
+function shouldPush({ ahead, hasUpstream }: StatusSnapshot): boolean {
+  return ahead > 0 || !hasUpstream;
+}
+
+function pickIcon(phase: SyncPhase, { ahead, behind }: StatusSnapshot): LucideIcon {
+  if (phase !== "idle") return Loader2;
+  if (behind > 0 && ahead > 0) return RefreshCw;
+  if (behind > 0) return ArrowDown;
+  return ArrowUp;
+}
+
+function buildLabelParts(
+  phase: SyncPhase,
+  { ahead, behind, hasUpstream }: StatusSnapshot,
+): React.ReactNode[] {
+  if (phase !== "idle") {
+    return [phase === "pulling" ? "Pulling…" : "Pushing…"];
+  }
+  const parts: React.ReactNode[] = [];
+  if (behind > 0) {
+    parts.push(
+      <span key="behind" className="flex items-center gap-0.5">
+        <ArrowDown className="h-2.5 w-2.5" />
+        <span className="tabular-nums">{behind}</span>
+      </span>,
+    );
+  }
+  if (ahead > 0) {
+    parts.push(
+      <span key="ahead" className="flex items-center gap-0.5">
+        <ArrowUp className="h-2.5 w-2.5" />
+        <span className="tabular-nums">{ahead}</span>
+      </span>,
+    );
+  }
+  if (!hasUpstream) parts.push("Publish");
+  return parts;
+}
+
+function buildTooltipLines({ ahead, behind, hasUpstream }: StatusSnapshot): string[] {
+  const lines: string[] = [];
+  if (behind > 0) lines.push(`Pull ${behind} commit${behind !== 1 ? "s" : ""} from remote`);
+  if (ahead > 0) lines.push(`Push ${ahead} commit${ahead !== 1 ? "s" : ""} to remote`);
+  if (!hasUpstream) lines.push("Push and set upstream");
+  return lines;
+}
 
 export function GitSyncButton({ cwd }: GitSyncButtonProps) {
   const trpc = useTRPC();
@@ -45,12 +116,9 @@ export function GitSyncButton({ cwd }: GitSyncButtonProps) {
   const pullMutation = useMutation(trpc.git.pull.mutationOptions({}));
   const pushMutation = useMutation(trpc.git.push.mutationOptions({}));
 
-  const ahead = status?.ahead ?? 0;
-  const behind = status?.behind ?? 0;
-  const hasUpstream = status?.hasUpstream ?? true;
+  const snapshot = toSnapshot(status);
 
-  // Nothing to sync and has upstream — hide
-  if (ahead === 0 && behind === 0 && hasUpstream) return null;
+  if (shouldHide(snapshot)) return null;
 
   const isBusy = phase !== "idle";
 
@@ -58,14 +126,16 @@ export function GitSyncButton({ cwd }: GitSyncButtonProps) {
     if (isBusy) return;
 
     try {
-      // Pull first if behind
-      if (behind > 0) {
+      // Pull first if behind, then re-read status so the push decision isn't stale.
+      let next = snapshot;
+      if (snapshot.behind > 0) {
         setPhase("pulling");
         await pullMutation.mutateAsync({ cwd });
+        await queryClient.refetchQueries({ queryKey: statusQueryKey });
+        next = toSnapshot(queryClient.getQueryData(statusQueryKey));
       }
 
-      // Then push if ahead (or no upstream)
-      if (ahead > 0 || !hasUpstream) {
+      if (shouldPush(next)) {
         setPhase("pushing");
         await pushMutation.mutateAsync({ cwd });
       }
@@ -79,60 +149,20 @@ export function GitSyncButton({ cwd }: GitSyncButtonProps) {
   };
 
   if (result) {
+    const ResultIcon = result.isError ? AlertCircle : Check;
     return (
       <div
         className={`flex items-center ${GIT_PILL_CLS} pointer-events-none ${result.isError ? "text-palette-danger" : "text-palette-success"}`}
       >
-        {result.isError ? (
-          <AlertCircle className="h-3 w-3 shrink-0" />
-        ) : (
-          <Check className="h-3 w-3 shrink-0" />
-        )}
+        <ResultIcon className="h-3 w-3 shrink-0" />
         <span className="text-[11px] font-medium">{result.message}</span>
       </div>
     );
   }
 
-  // Build label: ↓N ↑M
-  const labelParts: React.ReactNode[] = [];
-  if (isBusy) {
-    labelParts.push(phase === "pulling" ? "Pulling…" : "Pushing…");
-  } else {
-    if (behind > 0) {
-      labelParts.push(
-        <span key="behind" className="flex items-center gap-0.5">
-          <ArrowDown className="h-2.5 w-2.5" />
-          <span className="tabular-nums">{behind}</span>
-        </span>,
-      );
-    }
-    if (ahead > 0) {
-      labelParts.push(
-        <span key="ahead" className="flex items-center gap-0.5">
-          <ArrowUp className="h-2.5 w-2.5" />
-          <span className="tabular-nums">{ahead}</span>
-        </span>,
-      );
-    }
-    if (!hasUpstream && ahead === 0) {
-      labelParts.push("Publish");
-    }
-  }
-
-  // Icon: sync icon when both, arrow when single direction
-  const Icon = isBusy
-    ? Loader2
-    : behind > 0 && ahead > 0
-      ? RefreshCw
-      : behind > 0
-        ? ArrowDown
-        : ArrowUp;
-
-  // Tooltip
-  const tooltipLines: string[] = [];
-  if (behind > 0) tooltipLines.push(`Pull ${behind} commit${behind !== 1 ? "s" : ""} from remote`);
-  if (ahead > 0) tooltipLines.push(`Push ${ahead} commit${ahead !== 1 ? "s" : ""} to remote`);
-  if (!hasUpstream) tooltipLines.push("Push and set upstream");
+  const Icon = pickIcon(phase, snapshot);
+  const labelParts = buildLabelParts(phase, snapshot);
+  const tooltipLines = buildTooltipLines(snapshot);
 
   return (
     <Tooltip>
