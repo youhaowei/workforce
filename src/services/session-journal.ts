@@ -81,6 +81,13 @@ function assembleDeltas(stream: StreamState): string {
   return sorted.map((d) => d.delta).join("");
 }
 
+function completeRunningBlocks(blocks: ContentBlock[] | undefined): ContentBlock[] | undefined {
+  if (!blocks?.length) return undefined;
+  return blocks.map((block) =>
+    block.status === "running" ? { ...block, status: "complete" as const } : block,
+  );
+}
+
 // =============================================================================
 // Record Processors (one per record type)
 // =============================================================================
@@ -181,12 +188,17 @@ function processMessageAbort(
   const abortedStream = ctx.activeStreams.get(record.id);
   if (abortedStream) {
     const partialContent = assembleDeltas(abortedStream);
-    if (partialContent.length > 0) {
+    const contentBlocks = completeRunningBlocks(abortedStream.contentBlocks);
+    if (partialContent.length > 0 || contentBlocks?.length) {
       ctx.session.messages.push({
         id: record.id,
         role: "assistant",
         content: partialContent,
         timestamp: abortedStream.ts,
+        ...(contentBlocks?.length ? { contentBlocks } : {}),
+        ...(abortedStream.toolActivities?.length
+          ? { toolActivities: abortedStream.toolActivities }
+          : {}),
       });
     }
   }

@@ -94,6 +94,12 @@ function generateId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function completeRunningBlocks(blocks: ContentBlock[]): ContentBlock[] {
+  return blocks.map((block) =>
+    block.status === "running" ? { ...block, status: "complete" as const } : block,
+  );
+}
+
 // =============================================================================
 // Store
 // =============================================================================
@@ -164,7 +170,7 @@ export const useMessagesStore = create<MessagesStore>()(
               msg.toolActivities = [...state.pendingToolActivities];
             }
             if (state.streamingBlocks.length > 0) {
-              msg.contentBlocks = [...state.streamingBlocks];
+              msg.contentBlocks = completeRunningBlocks(state.streamingBlocks);
             }
           }
         }
@@ -248,9 +254,7 @@ export const useMessagesStore = create<MessagesStore>()(
           toolActivities: m.toolActivities,
           // Persisted blocks may have stale 'running' status from mid-stream snapshots.
           // Since these messages are finalized, mark all blocks as complete.
-          contentBlocks: m.contentBlocks?.map((b) =>
-            b.status === "running" ? { ...b, status: "complete" as const } : b,
-          ),
+          contentBlocks: m.contentBlocks ? completeRunningBlocks(m.contentBlocks) : undefined,
         }));
       });
     },

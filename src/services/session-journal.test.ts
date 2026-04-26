@@ -215,6 +215,30 @@ describe("replaySession", () => {
     expect(session.messages[0].content).toBe("hello world");
   });
 
+  it("recovers aborted thinking-only streams with terminal block status", async () => {
+    const dir = nextDir();
+    await writeRecords(dir, "sess-1", [
+      makeHeader(),
+      { t: "message_start", seq: 1, ts: 2000, id: "msg-1", role: "assistant" },
+      {
+        t: "message_blocks",
+        seq: 2,
+        ts: 2001,
+        id: "msg-1",
+        contentBlocks: [{ type: "thinking", text: "still thinking", status: "running" }],
+      } as JournalRecord,
+      { t: "message_abort", seq: 3, ts: 3000, id: "msg-1", reason: "user_cancelled" },
+    ]);
+
+    const result = await replaySession(dir, "sess-1");
+    const session = result!.session;
+    expect(session.messages).toHaveLength(1);
+    expect(session.messages[0].content).toBe("");
+    expect(session.messages[0].contentBlocks).toEqual([
+      { type: "thinking", text: "still thinking", status: "complete" },
+    ]);
+  });
+
   it("recovers orphaned streams (deltas without final/abort)", async () => {
     const dir = nextDir();
     await writeRecords(dir, "sess-1", [

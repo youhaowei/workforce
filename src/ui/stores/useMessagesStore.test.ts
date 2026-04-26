@@ -169,5 +169,19 @@ describe("useMessagesStore", () => {
       const blocks = useMessagesStore.getState().streamingBlocks;
       expect(blocks[0]).toEqual({ type: "text", text: "some text", status: "complete" });
     });
+
+    it("finishStreamingMessage completes a thinking-only cancellation block", () => {
+      const store = useMessagesStore.getState();
+      const messageId = store.startAssistantMessage();
+
+      store.appendToThinkingBlock("still thinking");
+      store.finishStreamingMessage();
+
+      const message = useMessagesStore.getState().messages.find((m) => m.id === messageId);
+      expect(message?.isStreaming).toBe(false);
+      expect(message?.contentBlocks).toEqual([
+        { type: "thinking", text: "still thinking", status: "complete" },
+      ]);
+    });
   });
 });
