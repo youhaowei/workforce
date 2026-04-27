@@ -74,6 +74,9 @@ interface StreamState {
   ts: number;
   contentBlocks?: ContentBlock[];
   toolActivities?: ToolActivity[];
+  /** Set when message_abort arrives — keeps the stream eligible for end-of-replay
+   * persistence unless a later message_final supersedes it via finalizedIds. */
+  aborted?: boolean;
 }
 
 /** Reconstruct partial content from ordered deltas. */
@@ -86,23 +89,10 @@ function assembleDeltas(stream: StreamState): string {
 // Record Processors (one per record type)
 // =============================================================================
 
-interface AbortSnapshot {
-  content: string;
-  contentBlocks?: ContentBlock[];
-  toolActivities?: ToolActivity[];
-  ts: number;
-}
-
 interface ReplayContext {
   session: Session;
   activeStreams: Map<string, StreamState>;
   finalizedIds: Set<string>;
-  /**
-   * Aborted streams pending materialization. Deferred so a `message_final` arriving
-   * after `message_abort` for the same id wins — the abort snapshot is dropped if
-   * the id is in `finalizedIds` at end of replay.
-   */
-  abortSnapshots: Map<string, AbortSnapshot>;
   maxSeq: number;
 }
 
@@ -192,42 +182,15 @@ function processMessageAbort(
   ctx: ReplayContext,
   record: JournalRecord & { t: "message_abort" },
 ): void {
-  const abortedStream = ctx.activeStreams.get(record.id);
-  if (abortedStream) {
-    const content = assembleDeltas(abortedStream);
-    const contentBlocks = completeRunningBlocks(abortedStream.contentBlocks);
-    const toolActivities = abortedStream.toolActivities;
-    if (content.length > 0 || contentBlocks?.length || toolActivities?.length) {
-      ctx.abortSnapshots.set(record.id, {
-        content,
-        contentBlocks,
-        toolActivities,
-        ts: abortedStream.ts,
-      });
-    }
+  const stream = ctx.activeStreams.get(record.id);
+  if (stream) {
+    // Mark blocks terminal now (no further updates will arrive). Keep the stream
+    // in activeStreams so recoverOrphanedStreams persists it at end of replay —
+    // unless a later message_final for the same id wins via finalizedIds.
+    stream.contentBlocks = completeRunningBlocks(stream.contentBlocks);
+    stream.aborted = true;
   }
-  ctx.activeStreams.delete(record.id);
   if (record.ts > ctx.session.updatedAt) ctx.session.updatedAt = record.ts;
-}
-
-/**
- * Materialize aborted streams that were not later finalized.
- *
- * If `message_final` arrives after `message_abort` for the same id, the final wins
- * (already pushed by `processMessageFinal`); the abort snapshot is silently dropped.
- */
-function applyAbortSnapshots(ctx: ReplayContext): void {
-  for (const [id, snap] of ctx.abortSnapshots) {
-    if (ctx.finalizedIds.has(id)) continue;
-    ctx.session.messages.push({
-      id,
-      role: "assistant",
-      content: snap.content,
-      timestamp: snap.ts,
-      ...(snap.contentBlocks?.length ? { contentBlocks: snap.contentBlocks } : {}),
-      ...(snap.toolActivities?.length ? { toolActivities: snap.toolActivities } : {}),
-    });
-  }
 }
 
 function applyRecord(ctx: ReplayContext, record: AnyJournalRecord): void {
@@ -259,21 +222,24 @@ function applyRecord(ctx: ReplayContext, record: AnyJournalRecord): void {
   }
 }
 
-/** Recover incomplete streams that have deltas but no final/abort. */
+/** Recover streams without final — orphans (crashed mid-stream) and aborts. */
 function recoverOrphanedStreams(ctx: ReplayContext): void {
   for (const [msgId, stream] of ctx.activeStreams) {
     if (ctx.finalizedIds.has(msgId)) continue;
     const content = assembleDeltas(stream);
-    if (content.length > 0 || stream.contentBlocks?.length) {
-      ctx.session.messages.push({
-        id: msgId,
-        role: "assistant",
-        content,
-        timestamp: stream.ts,
-        ...(stream.contentBlocks?.length ? { contentBlocks: stream.contentBlocks } : {}),
-        ...(stream.toolActivities?.length ? { toolActivities: stream.toolActivities } : {}),
-      });
-    }
+    // For aborted streams, toolActivities alone is reason enough to persist
+    // (transparency on what the agent did before cancel). Orphans require deltas/blocks.
+    const hasContent = content.length > 0 || stream.contentBlocks?.length;
+    const hasActivity = stream.aborted && stream.toolActivities?.length;
+    if (!hasContent && !hasActivity) continue;
+    ctx.session.messages.push({
+      id: msgId,
+      role: "assistant",
+      content,
+      timestamp: stream.ts,
+      ...(stream.contentBlocks?.length ? { contentBlocks: stream.contentBlocks } : {}),
+      ...(stream.toolActivities?.length ? { toolActivities: stream.toolActivities } : {}),
+    });
   }
 }
 
@@ -377,7 +343,6 @@ export async function replaySession(
     },
     activeStreams: new Map(),
     finalizedIds: new Set(),
-    abortSnapshots: new Map(),
     maxSeq: 0,
   };
 
@@ -390,7 +355,6 @@ export async function replaySession(
     }
   }
 
-  applyAbortSnapshots(ctx);
   recoverOrphanedStreams(ctx);
   backfillQuestionResults(ctx.session.messages);
   return { session: ctx.session, maxSeq: ctx.maxSeq };
