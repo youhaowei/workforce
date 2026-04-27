@@ -216,6 +216,25 @@ describe("handleStreamEvent", () => {
       message: "not authenticated",
       code: "AUTH_ERROR",
     });
+    // Structured-error path must still terminate the stream like the string path.
+    expect(actions.completeRunningTools).toHaveBeenCalledTimes(1);
+    expect(actions.finishStreamingMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("recovers a usable label when the error payload object lacks `message`", () => {
+    handleStreamEvent(
+      { type: "error", data: { error: "rate limited", code: "RATE_LIMIT" } as unknown as string },
+      "sess1",
+      "msg1",
+      actions,
+      cancelRef,
+    );
+
+    // `{ error: "..." }` is a common server shape — never surface "[object Object]".
+    expect(actions.setError).toHaveBeenCalledWith({
+      message: "rate limited",
+      code: "RATE_LIMIT",
+    });
   });
 
   // ─── Full streaming scenario ────────────────────────────────────

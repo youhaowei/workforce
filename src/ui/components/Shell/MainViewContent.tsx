@@ -41,6 +41,7 @@ interface MainViewContentProps {
   onBackFromDetail: () => void;
   onStartChat: () => void;
   onNavigate: (view: ViewType) => void;
+  onOpenSettings: () => void;
   onSelectSession: (sessionId: string) => void;
   onSelectProject: (projectId: string | null) => void;
   onNewSessionProjectChange: (projectId: string | null) => void;
@@ -69,6 +70,7 @@ export function MainViewContent({
   onBackFromDetail,
   onStartChat,
   onNavigate,
+  onOpenSettings,
   onSelectSession,
   onSelectProject,
   onNewSessionProjectChange,
@@ -118,7 +120,7 @@ export function MainViewContent({
           forksMap={forksMap}
           error={error}
           onDismissError={onDismissError}
-          onOpenSettings={() => onNavigate("orgs")}
+          onOpenSettings={onOpenSettings}
           onSubmit={onSubmitMessage}
           onCancel={onCancelStream}
           onRewind={onRewind}

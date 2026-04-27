@@ -77,4 +77,9 @@ describe("toSSEErrorData", () => {
   it("keeps generic errors as plain messages", () => {
     expect(toSSEErrorData(new Error("boom"))).toBe("boom");
   });
+
+  it("stringifies non-Error rejections (string thrown / Promise.reject value)", () => {
+    expect(toSSEErrorData("boom")).toBe("boom");
+    expect(toSSEErrorData({ unexpected: true })).toBe("[object Object]");
+  });
 });

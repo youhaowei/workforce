@@ -318,6 +318,7 @@ export default function MessageList({
                 {isAuthError && onOpenSettings && (
                   <Button
                     variant="solid"
+                    color="primary"
                     size="sm"
                     onClick={onOpenSettings}
                     className="h-7 shrink-0"
@@ -326,14 +327,14 @@ export default function MessageList({
                   </Button>
                 )}
                 {onDismissError && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onDismissError}
-                  className="text-palette-danger h-7 shrink-0"
-                >
-                  Dismiss
-                </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onDismissError}
+                    className="text-palette-danger h-7 shrink-0"
+                  >
+                    Dismiss
+                  </Button>
                 )}
               </div>
             </div>

@@ -260,7 +260,12 @@ interface ActiveRun {
   sessionId?: string;
   messageId?: string;
   done: boolean;
-  error?: string;
+  /**
+   * Stored as the same shape used on the wire so a late observer (post-disconnect
+   * reconnect after the run terminated) replays the structured payload —
+   * preserving `code` (e.g. `auth_error`) so the UI can still render the reauth CTA.
+   */
+  error?: string | { message: string; code?: string };
   fullText: string;
   tokenCount: number;
   acc: BlockAccumulator;
@@ -510,9 +515,10 @@ class AgentRunnerImpl {
       log.info({ totalTokens: run.tokenCount }, "run complete");
       this.broadcast(run, { type: "done", data: "" });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      log.error({ error: message }, "run error");
-      run.error = message;
+      const errorPayload = toSSEErrorData(err);
+      const logMessage = typeof errorPayload === "string" ? errorPayload : errorPayload.message;
+      log.error({ error: logMessage }, "run error");
+      run.error = errorPayload;
 
       if (
         input.sessionId &&
@@ -521,7 +527,7 @@ class AgentRunnerImpl {
       ) {
         await persistStreamEnd(input.sessionId, input.messageId, run.fullText, "error", run.acc);
       }
-      this.broadcast(run, { type: "error", data: toSSEErrorData(err) });
+      this.broadcast(run, { type: "error", data: errorPayload });
     } finally {
       run.done = true;
       // Clear the reference after a brief window so late reconnections can still

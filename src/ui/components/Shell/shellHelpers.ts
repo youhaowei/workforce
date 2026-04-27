@@ -205,14 +205,19 @@ export function handleStreamEvent(
 }
 
 function parseStreamError(error: unknown): ShellError {
-  if (
-    error &&
-    typeof error === "object" &&
-    "message" in error &&
-    typeof (error as { message: unknown }).message === "string"
-  ) {
-    const { message, code } = error as { message: string; code?: unknown };
-    return { message, code: typeof code === "string" ? code : undefined };
+  if (typeof error === "string") return error;
+  if (error && typeof error === "object") {
+    const obj = error as { message?: unknown; code?: unknown; error?: unknown };
+    const code = typeof obj.code === "string" ? obj.code : undefined;
+    if (typeof obj.message === "string") {
+      return { message: obj.message, code };
+    }
+    // Object lacks `message` — try common server shapes (`{ error: "..." }`)
+    // before falling back to a generic label so we never surface "[object Object]".
+    if (typeof obj.error === "string") {
+      return { message: obj.error, code };
+    }
+    return { message: "Stream error", code };
   }
-  return typeof error === "string" ? error : String(error);
+  return String(error);
 }
