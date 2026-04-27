@@ -74,9 +74,6 @@ interface StreamState {
   ts: number;
   contentBlocks?: ContentBlock[];
   toolActivities?: ToolActivity[];
-  /** Set when message_abort arrives — keeps the stream eligible for end-of-replay
-   * persistence unless a later message_final supersedes it via finalizedIds. */
-  aborted?: boolean;
 }
 
 /** Reconstruct partial content from ordered deltas. */
@@ -152,6 +149,11 @@ function processMessageFinal(
   const ts = record.ts ?? (record as unknown as { timestamp?: number }).timestamp ?? 0;
   ctx.finalizedIds.add(record.id);
   ctx.activeStreams.delete(record.id);
+  // If a prior message_abort already pushed a snapshot for this id, drop it —
+  // the final supersedes the abort. Splicing here keeps later messages in their
+  // original chronological position; the final is then appended at end.
+  const priorIdx = ctx.session.messages.findIndex((m) => m.id === record.id);
+  if (priorIdx !== -1) ctx.session.messages.splice(priorIdx, 1);
   ctx.session.messages.push({
     id: record.id,
     role: record.role,
@@ -184,12 +186,24 @@ function processMessageAbort(
 ): void {
   const stream = ctx.activeStreams.get(record.id);
   if (stream) {
-    // Mark blocks terminal now (no further updates will arrive). Keep the stream
-    // in activeStreams so recoverOrphanedStreams persists it at end of replay —
-    // unless a later message_final for the same id wins via finalizedIds.
-    stream.contentBlocks = completeRunningBlocks(stream.contentBlocks);
-    stream.aborted = true;
+    const content = assembleDeltas(stream);
+    const contentBlocks = completeRunningBlocks(stream.contentBlocks);
+    const toolActivities = stream.toolActivities;
+    // Push at abort point so chronological order is preserved when the
+    // conversation continues. If a later message_final arrives for the same
+    // id, processMessageFinal removes this entry before appending its own.
+    if (content.length > 0 || contentBlocks?.length || toolActivities?.length) {
+      ctx.session.messages.push({
+        id: record.id,
+        role: "assistant",
+        content,
+        timestamp: stream.ts,
+        ...(contentBlocks?.length ? { contentBlocks } : {}),
+        ...(toolActivities?.length ? { toolActivities } : {}),
+      });
+    }
   }
+  ctx.activeStreams.delete(record.id);
   if (record.ts > ctx.session.updatedAt) ctx.session.updatedAt = record.ts;
 }
 
@@ -222,16 +236,12 @@ function applyRecord(ctx: ReplayContext, record: AnyJournalRecord): void {
   }
 }
 
-/** Recover streams without final — orphans (crashed mid-stream) and aborts. */
+/** Recover incomplete streams that have deltas but no final/abort (crash). */
 function recoverOrphanedStreams(ctx: ReplayContext): void {
   for (const [msgId, stream] of ctx.activeStreams) {
     if (ctx.finalizedIds.has(msgId)) continue;
     const content = assembleDeltas(stream);
-    // For aborted streams, toolActivities alone is reason enough to persist
-    // (transparency on what the agent did before cancel). Orphans require deltas/blocks.
-    const hasContent = content.length > 0 || stream.contentBlocks?.length;
-    const hasActivity = stream.aborted && stream.toolActivities?.length;
-    if (!hasContent && !hasActivity) continue;
+    if (content.length === 0 && !stream.contentBlocks?.length) continue;
     ctx.session.messages.push({
       id: msgId,
       role: "assistant",
