@@ -31,10 +31,49 @@ import {
 // =============================================================================
 
 /**
- * Controllable mock agent: agents wait for `agentDelay` ms before yielding tokens.
- * Set agentDelay = 0 for instant completion, or higher to test pause/resume timing.
+ * Mock agent control surface:
+ * - `agentDelay` (legacy): wall-clock sleep before yielding. Use only for
+ *   tests that don't care about exact ordering (e.g. "still active during
+ *   pause"). Avoid for race tests — sleeps are scheduler-dependent on CI.
+ * - `withLatch()`: returns deterministic latches the test can drive. The
+ *   mock pops latches in FIFO order each time `run()` is called, so tests
+ *   register one latch per spawn that needs control.
  */
 let agentDelay = 0;
+
+interface AgentLatch {
+  /** Resolves once mock `run()` has begun and is awaiting the finish gate. */
+  readonly started: Promise<void>;
+  /** Releases the mock to proceed (yield tokens or no-op if cancelled). */
+  allowFinish(): void;
+  /** Resolves once mock `run()` has fully drained (post-yield). */
+  readonly finished: Promise<void>;
+}
+
+const pendingLatches: AgentLatch[] = [];
+
+function withLatch(): AgentLatch {
+  let signalStarted!: () => void;
+  let allowFinishFn!: () => void;
+  let signalFinished!: () => void;
+  const started = new Promise<void>((r) => (signalStarted = r));
+  const canFinish = new Promise<void>((r) => (allowFinishFn = r));
+  const finished = new Promise<void>((r) => (signalFinished = r));
+  const latch: AgentLatch & {
+    _signalStarted: () => void;
+    _canFinish: Promise<void>;
+    _signalFinished: () => void;
+  } = {
+    started,
+    finished,
+    allowFinish: () => allowFinishFn(),
+    _signalStarted: signalStarted,
+    _canFinish: canFinish,
+    _signalFinished: signalFinished,
+  };
+  pendingLatches.push(latch);
+  return latch;
+}
 
 vi.mock("./agent-instance", () => {
   return {
@@ -47,14 +86,29 @@ vi.mock("./agent-instance", () => {
       }
 
       async *run(_prompt: string) {
-        // Read delay at call time (allows per-test control)
-        const delay = agentDelay;
-        if (delay > 0) {
-          await new Promise((r) => setTimeout(r, delay));
+        const latch = pendingLatches.shift() as
+          | (AgentLatch & {
+              _signalStarted: () => void;
+              _canFinish: Promise<void>;
+              _signalFinished: () => void;
+            })
+          | undefined;
+
+        if (latch) {
+          latch._signalStarted();
+          await latch._canFinish;
+        } else if (agentDelay > 0) {
+          await new Promise((r) => setTimeout(r, agentDelay));
         }
-        if (this.cancelled) return;
-        yield { token: "Hello ", index: 0 };
-        yield { token: "World", index: 1 };
+
+        try {
+          if (this.cancelled) return;
+          // Must include type:"token" — runAgent filters on delta.type === "token"
+          yield { type: "token" as const, token: "Hello " };
+          yield { type: "token" as const, token: "World" };
+        } finally {
+          latch?._signalFinished();
+        }
       }
 
       cancel() {
@@ -62,6 +116,9 @@ vi.mock("./agent-instance", () => {
       }
       isRunning() {
         return false;
+      }
+      isCancelled() {
+        return this.cancelled;
       }
       dispose() {
         this.cancelled = true;
@@ -100,6 +157,7 @@ describe("OrchestrationService", () => {
   beforeEach(() => {
     resetIdCounter();
     agentDelay = 0; // Default: instant completion
+    pendingLatches.length = 0; // Clear any latches leaked from previous test
     sessionService = createMockSessionService();
     templateService = createMockTemplateService();
     worktreeService = createMockWorktreeService();
@@ -257,6 +315,42 @@ describe("OrchestrationService", () => {
       const meta = updated?.metadata as Record<string, unknown>;
       const lifecycle = meta?.lifecycle as { state: string };
       expect(lifecycle.state).toBe("completed");
+      // Token accumulation path must actually write output — mock yields
+      // { type: "token", token: "Hello " } + "World"
+      expect(meta.output).toBe("Hello World");
+      expect(meta.completionSummary).toBe("Hello World");
+    });
+
+    it("should NOT write success metadata when cancelled mid-run", async () => {
+      const latch = withLatch();
+      const session = await service.spawn({
+        templateId: "tpl_test",
+        goal: "Cancel me",
+        orgId: "ws_1",
+      });
+
+      // Deterministic: wait until run() has begun and is parked at the gate.
+      await latch.started;
+      await service.cancel(session.id, "mid-run cancel");
+
+      // Release the mock — it sees cancelled=true and returns without yielding.
+      latch.allowFinish();
+      await latch.finished;
+
+      // Wait for runAgent's post-iteration chain (isAlreadyTerminal +
+      // metadata write attempt + finally) to fully drain. Poll instead of
+      // guessing await depth.
+      await vi.waitFor(() => {
+        expect(service.getActiveInstances().has(session.id)).toBe(false);
+      });
+
+      const updated = await sessionService.get(session.id);
+      const meta = updated?.metadata as Record<string, unknown>;
+      const lifecycle = meta?.lifecycle as { state: string };
+      expect(lifecycle.state).toBe("cancelled");
+      // Key assertion: cancelled session must NOT get success metadata overwriting it
+      expect(meta.output).toBeUndefined();
+      expect(meta.completionSummary).toBeUndefined();
     });
   });
 
@@ -327,6 +421,55 @@ describe("OrchestrationService", () => {
       const meta = updated?.metadata as Record<string, unknown>;
       const lifecycle = meta?.lifecycle as { state: string };
       expect(lifecycle.state).toBe("active");
+    });
+
+    it("should keep the resumed instance alive while the cancelled run unwinds", async () => {
+      const firstLatch = withLatch();
+      const secondLatch = withLatch();
+
+      const session = await service.spawn({
+        templateId: "tpl_test",
+        goal: "Resume race",
+        orgId: "ws_1",
+      });
+
+      // First run() is parked at its gate. Pause cancels it without releasing.
+      await firstLatch.started;
+      await service.pause(session.id, "Paused");
+
+      // Resume creates a new instance + starts a fresh run() that parks on
+      // secondLatch. Meanwhile the original run() is still parked on
+      // firstLatch — release it so its finally block runs. The bug we're
+      // guarding against: original's finally tears down the resumed instance.
+      await service.resume(session.id);
+      await secondLatch.started;
+      firstLatch.allowFinish();
+      await firstLatch.finished;
+      // Drain microtasks so the original runAgent's finally block runs.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // Resumed instance must still be in the active set after original cleanup.
+      expect(service.getActiveInstances().has(session.id)).toBe(true);
+      const midRun = await sessionService.get(session.id);
+      const midRunMeta = (midRun?.metadata ?? {}) as Record<string, unknown>;
+      expect((midRunMeta.lifecycle as { state: string }).state).toBe("active");
+
+      // Now release the resumed run and verify it completes normally.
+      secondLatch.allowFinish();
+      await secondLatch.finished;
+
+      // runAgent's post-iteration chain is several awaits (isAlreadyTerminal,
+      // get, updateSession, transitionState). Poll instead of guessing depth.
+      await vi.waitFor(async () => {
+        const s = await sessionService.get(session.id);
+        const meta = (s?.metadata ?? {}) as Record<string, unknown>;
+        expect((meta.lifecycle as { state: string }).state).toBe("completed");
+      });
+
+      const completed = await sessionService.get(session.id);
+      const completedMeta = completed?.metadata as Record<string, unknown>;
+      expect(completedMeta.output).toBe("Hello World");
     });
 
     it("should throw if session not found", async () => {

@@ -3,6 +3,7 @@
 Docs: `docs/` (high-level) + [Notion](https://www.notion.so/2ffd48ccaf5481d7bb33d67599423042) (feature specs, architecture). Known issues: `docs/operations/issues.md`.
 
 ## Product Principles
+
 Full doc: [Workforce Product Principles](https://www.notion.so/33ed48ccaf54819bb9faf86868bf8fc8)
 
 1. **You direct and review, agents do the work** — build review surfaces, not code editors
