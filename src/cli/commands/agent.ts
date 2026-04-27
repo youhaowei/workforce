@@ -24,7 +24,8 @@ export function registerAgentCommands(parent: Command) {
                 if (!json) process.stdout.write(data.data);
               } else if (data.type === "error") {
                 subscription.unsubscribe();
-                reject(new Error(data.data));
+                const message = typeof data.data === "string" ? data.data : data.data.message;
+                reject(new Error(message));
               } else if (data.type === "done") {
                 subscription.unsubscribe();
                 resolve();

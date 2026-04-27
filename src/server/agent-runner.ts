@@ -6,7 +6,7 @@
  * yields a snapshot of accumulated state followed by live events.
  */
 
-import { getAgentService } from "@/services/agent";
+import { AgentError, getAgentService } from "@/services/agent";
 import { getSessionService } from "@/services/session";
 import { createLogger } from "tracey";
 import type { ContentBlock, ToolActivity, AgentStreamEvent, AgentQuestion } from "@/services/types";
@@ -171,7 +171,13 @@ export type SSEEvent =
       pendingQuestion?: { requestId: string; questions: AgentQuestion[] };
     }
   | { type: "done"; data: string }
-  | { type: "error"; data: string };
+  | { type: "error"; data: string | { message: string; code?: string } };
+
+export function toSSEErrorData(err: unknown): string | { message: string; code?: string } {
+  const message = err instanceof Error ? err.message : String(err);
+  const code = err instanceof AgentError ? err.code : undefined;
+  return code ? { message, code } : message;
+}
 
 export function* processEvent(
   event: AgentStreamEvent,
@@ -515,7 +521,7 @@ class AgentRunnerImpl {
       ) {
         await persistStreamEnd(input.sessionId, input.messageId, run.fullText, "error", run.acc);
       }
-      this.broadcast(run, { type: "error", data: message });
+      this.broadcast(run, { type: "error", data: toSSEErrorData(err) });
     } finally {
       run.done = true;
       // Clear the reference after a brief window so late reconnections can still

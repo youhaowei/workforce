@@ -1,5 +1,6 @@
 import type { Session, SessionSummary, AgentQuestion } from "@/services/types";
 import type { SidebarMode, ViewType } from "./Shell";
+import type { ShellError } from "@/ui/stores/shellStore";
 import { getServerUrl } from "@/bridge/config";
 import { trpc as trpcClient } from "@/bridge/trpc";
 
@@ -109,7 +110,7 @@ export interface StreamEventActions {
   startContentBlock: (index: number, blockType: string, id?: string, name?: string) => void;
   finishContentBlock: (index: number) => void;
   finishStreamingMessage: () => void;
-  setError: (error: string) => void;
+  setError: (error: ShellError) => void;
   planReady: (path: string, sessId: string | null) => void;
   agentQuestion: (requestId: string, questions: AgentQuestion[]) => void;
 }
@@ -194,11 +195,24 @@ export function handleStreamEvent(
       // Server already persisted partial data in its catch block.
       actions.completeRunningTools();
       actions.finishStreamingMessage();
-      actions.setError(data.data as string);
+      actions.setError(parseStreamError(data.data));
       cancelStreamRef.current = null;
       return true;
 
     default:
       return false;
   }
+}
+
+function parseStreamError(error: unknown): ShellError {
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message: unknown }).message === "string"
+  ) {
+    const { message, code } = error as { message: string; code?: unknown };
+    return { message, code: typeof code === "string" ? code : undefined };
+  }
+  return typeof error === "string" ? error : String(error);
 }

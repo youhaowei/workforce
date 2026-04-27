@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ContentBlock } from "@/services/types";
-import { recordSubmittedQuestionAnswer } from "./agent-runner";
+import { AgentError } from "@/services/agent";
+import { recordSubmittedQuestionAnswer, toSSEErrorData } from "./agent-runner";
 
 describe("recordSubmittedQuestionAnswer", () => {
   it("stores answers on the matching AskUserQuestion block", () => {
@@ -62,5 +63,18 @@ describe("recordSubmittedQuestionAnswer", () => {
       status: "complete",
       result: { second: ["Delete everything"] },
     });
+  });
+});
+
+describe("toSSEErrorData", () => {
+  it("preserves AgentError codes for auth-aware UI", () => {
+    expect(toSSEErrorData(new AgentError("not authenticated", "AUTH_ERROR"))).toEqual({
+      message: "not authenticated",
+      code: "AUTH_ERROR",
+    });
+  });
+
+  it("keeps generic errors as plain messages", () => {
+    expect(toSSEErrorData(new Error("boom"))).toBe("boom");
   });
 });

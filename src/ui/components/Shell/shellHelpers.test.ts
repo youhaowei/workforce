@@ -202,6 +202,22 @@ describe("handleStreamEvent", () => {
     expect(actions.setError).toHaveBeenCalledWith("Something went wrong");
   });
 
+  it("preserves structured auth error codes from the backend", () => {
+    const done = handleStreamEvent(
+      { type: "error", data: { message: "not authenticated", code: "AUTH_ERROR" } },
+      "sess1",
+      "msg1",
+      actions,
+      cancelRef,
+    );
+
+    expect(done).toBe(true);
+    expect(actions.setError).toHaveBeenCalledWith({
+      message: "not authenticated",
+      code: "AUTH_ERROR",
+    });
+  });
+
   // ─── Full streaming scenario ────────────────────────────────────
 
   it("full scenario: thinking → tools → Task tool → turn_complete → tokens → done", () => {

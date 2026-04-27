@@ -14,6 +14,7 @@ import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
 import { trpc as trpcClient } from "@/bridge/trpc";
 import { queryClient } from "@/bridge/query-client";
 import type { AgentConfig, AgentQuestion, ContentBlock, SessionSummary } from "@/services/types";
+import type { ShellError } from "@/ui/stores/shellStore";
 import { THINKING_TOKENS, DEFAULT_AGENT_CONFIG } from "../Messages/agentConfig";
 import {
   SESSION_TITLE_MAX_LENGTH,
@@ -39,7 +40,7 @@ interface StreamActionDeps {
   startContentBlock: ReturnType<typeof useMessagesStore.getState>["startContentBlock"];
   finishContentBlock: ReturnType<typeof useMessagesStore.getState>["finishContentBlock"];
   finishStreamingMessage: ReturnType<typeof useMessagesStore.getState>["finishStreamingMessage"];
-  setError: (error: string | null) => void;
+  setError: (error: ShellError | null) => void;
   planReadyRef: MutableRefObject<(path: string, sessionId: string | null) => void>;
   sessionId: string | null;
 }
@@ -82,7 +83,7 @@ interface UseAgentStreamOptions {
   trpcQueryKeys: { sessionList: (input: { orgId: string; projectId?: string }) => unknown[] };
   setSelectedSessionId: (id: string | null) => void;
   setNewSessionProjectId: (id: string | null) => void;
-  setError: (error: string | null) => void;
+  setError: (error: ShellError | null) => void;
 }
 
 export function useAgentStream(opts: UseAgentStreamOptions) {
