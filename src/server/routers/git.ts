@@ -242,6 +242,20 @@ export const gitRouter = router({
     return gitFor(input.cwd).getRemotes();
   }),
 
+  pull: publicProcedure.input(z.object({ cwd: z.string() })).mutation(async ({ input }) => {
+    const svc = gitFor(input.cwd);
+    // GitService.pull() invalidates its own cache internally.
+    const result = await svc.pull();
+    if (!result.success) {
+      // BAD_REQUEST: pull failures (conflicts, auth, network) are operational, not server faults.
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: result.error ?? "Pull failed",
+      });
+    }
+    return { success: true };
+  }),
+
   push: publicProcedure.input(z.object({ cwd: z.string() })).mutation(async ({ input }) => {
     const svc = gitFor(input.cwd);
     const status = await svc.getStatus(true);
@@ -252,7 +266,7 @@ export const gitRouter = router({
     svc.invalidateCache();
     if (!result.success) {
       throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
+        code: "BAD_REQUEST",
         message: result.error ?? "Push failed",
       });
     }
