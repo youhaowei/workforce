@@ -247,8 +247,9 @@ export const gitRouter = router({
     // GitService.pull() invalidates its own cache internally.
     const result = await svc.pull();
     if (!result.success) {
+      // BAD_REQUEST: pull failures (conflicts, auth, network) are operational, not server faults.
       throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
+        code: "BAD_REQUEST",
         message: result.error ?? "Pull failed",
       });
     }
@@ -265,7 +266,7 @@ export const gitRouter = router({
     svc.invalidateCache();
     if (!result.success) {
       throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
+        code: "BAD_REQUEST",
         message: result.error ?? "Push failed",
       });
     }

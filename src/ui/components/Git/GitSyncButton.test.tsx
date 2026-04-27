@@ -133,6 +133,51 @@ describe("GitSyncButton", () => {
     expect(mockRefetchQueries).toHaveBeenCalledTimes(1);
   });
 
+  it("shows Synced badge after success even when refreshed status would hide the button", async () => {
+    setStatus({ branch: "main", ahead: 1, behind: 0, hasUpstream: true });
+
+    renderWithProviders(<GitSyncButton cwd="/repo" />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button"));
+    });
+
+    await waitFor(() => expect(mockPushMutateAsync).toHaveBeenCalledTimes(1));
+
+    // Simulate the post-sync invalidate refetching to a clean status — without the
+    // result-before-shouldHide fix, this would unmount the badge instantly.
+    setStatus({ branch: "main", ahead: 0, behind: 0, hasUpstream: true });
+
+    expect(await screen.findByText("Synced")).toBeInTheDocument();
+  });
+
+  it("rejects rapid second click while a sync is in flight", async () => {
+    setStatus({ branch: "main", ahead: 1, behind: 0, hasUpstream: true });
+
+    let resolvePush: ((v: { success: true }) => void) | undefined;
+    mockPushMutateAsync.mockImplementationOnce(
+      () => new Promise((r) => (resolvePush = r as typeof resolvePush)),
+    );
+
+    renderWithProviders(<GitSyncButton cwd="/repo" />);
+
+    const button = screen.getByRole("button");
+    // First click acquires the synchronous lock and kicks off push.
+    await act(async () => {
+      fireEvent.click(button);
+    });
+    // Second click within the same render frame must be a no-op.
+    await act(async () => {
+      fireEvent.click(button);
+    });
+
+    expect(mockPushMutateAsync).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolvePush?.({ success: true });
+    });
+  });
+
   it("skips pull when not behind and pushes directly", async () => {
     setStatus({ branch: "main", ahead: 2, behind: 0, hasUpstream: true });
 

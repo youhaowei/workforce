@@ -95,6 +95,10 @@ export function GitSyncButton({ cwd }: GitSyncButtonProps) {
   const [result, setResult] = useState<{ message: string; isError: boolean } | null>(null);
   const [phase, setPhase] = useState<SyncPhase>("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  /** Synchronous lock — React state updates are async, so two clicks within the
+   * same render frame would both pass `phase === "idle"`. The ref lands before
+   * the next event handler reads it. */
+  const syncingRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -117,13 +121,13 @@ export function GitSyncButton({ cwd }: GitSyncButtonProps) {
   const pushMutation = useMutation(trpc.git.push.mutationOptions({}));
 
   const snapshot = toSnapshot(status);
-
-  if (shouldHide(snapshot)) return null;
-
   const isBusy = phase !== "idle";
 
   const handleSync = async () => {
-    if (isBusy) return;
+    // Synchronous guard wins the race against rapid re-clicks before React
+    // commits the disabled/phase state.
+    if (syncingRef.current) return;
+    syncingRef.current = true;
 
     try {
       // Pull first if behind, then re-read status so the push decision isn't stale.
@@ -145,9 +149,14 @@ export function GitSyncButton({ cwd }: GitSyncButtonProps) {
     } catch (err) {
       invalidate();
       showResult(err instanceof Error ? err.message : "Sync failed", true);
+    } finally {
+      syncingRef.current = false;
     }
   };
 
+  // Result badge takes priority over the hide-when-clean rule: after a successful
+  // sync the status query refetches to ahead/behind = 0, which would otherwise
+  // gate the success badge before its timeout dismisses it.
   if (result) {
     const ResultIcon = result.isError ? AlertCircle : Check;
     return (
@@ -159,6 +168,8 @@ export function GitSyncButton({ cwd }: GitSyncButtonProps) {
       </div>
     );
   }
+
+  if (shouldHide(snapshot)) return null;
 
   const Icon = pickIcon(phase, snapshot);
   const labelParts = buildLabelParts(phase, snapshot);
