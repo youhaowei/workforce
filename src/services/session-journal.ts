@@ -18,6 +18,7 @@ import type {
   JournalMessage,
   JournalMessageFinal,
 } from "./types";
+import { completeRunningBlocks } from "@/shared/content-blocks";
 import { createLogger } from "tracey";
 
 const log = createLogger("Session");
@@ -81,21 +82,27 @@ function assembleDeltas(stream: StreamState): string {
   return sorted.map((d) => d.delta).join("");
 }
 
-function completeRunningBlocks(blocks: ContentBlock[] | undefined): ContentBlock[] | undefined {
-  if (!blocks?.length) return undefined;
-  return blocks.map((block) =>
-    block.status === "running" ? { ...block, status: "complete" as const } : block,
-  );
-}
-
 // =============================================================================
 // Record Processors (one per record type)
 // =============================================================================
+
+interface AbortSnapshot {
+  content: string;
+  contentBlocks?: ContentBlock[];
+  toolActivities?: ToolActivity[];
+  ts: number;
+}
 
 interface ReplayContext {
   session: Session;
   activeStreams: Map<string, StreamState>;
   finalizedIds: Set<string>;
+  /**
+   * Aborted streams pending materialization. Deferred so a `message_final` arriving
+   * after `message_abort` for the same id wins — the abort snapshot is dropped if
+   * the id is in `finalizedIds` at end of replay.
+   */
+  abortSnapshots: Map<string, AbortSnapshot>;
   maxSeq: number;
 }
 
@@ -187,23 +194,40 @@ function processMessageAbort(
 ): void {
   const abortedStream = ctx.activeStreams.get(record.id);
   if (abortedStream) {
-    const partialContent = assembleDeltas(abortedStream);
+    const content = assembleDeltas(abortedStream);
     const contentBlocks = completeRunningBlocks(abortedStream.contentBlocks);
-    if (partialContent.length > 0 || contentBlocks?.length) {
-      ctx.session.messages.push({
-        id: record.id,
-        role: "assistant",
-        content: partialContent,
-        timestamp: abortedStream.ts,
-        ...(contentBlocks?.length ? { contentBlocks } : {}),
-        ...(abortedStream.toolActivities?.length
-          ? { toolActivities: abortedStream.toolActivities }
-          : {}),
+    const toolActivities = abortedStream.toolActivities;
+    if (content.length > 0 || contentBlocks?.length || toolActivities?.length) {
+      ctx.abortSnapshots.set(record.id, {
+        content,
+        contentBlocks,
+        toolActivities,
+        ts: abortedStream.ts,
       });
     }
   }
   ctx.activeStreams.delete(record.id);
   if (record.ts > ctx.session.updatedAt) ctx.session.updatedAt = record.ts;
+}
+
+/**
+ * Materialize aborted streams that were not later finalized.
+ *
+ * If `message_final` arrives after `message_abort` for the same id, the final wins
+ * (already pushed by `processMessageFinal`); the abort snapshot is silently dropped.
+ */
+function applyAbortSnapshots(ctx: ReplayContext): void {
+  for (const [id, snap] of ctx.abortSnapshots) {
+    if (ctx.finalizedIds.has(id)) continue;
+    ctx.session.messages.push({
+      id,
+      role: "assistant",
+      content: snap.content,
+      timestamp: snap.ts,
+      ...(snap.contentBlocks?.length ? { contentBlocks: snap.contentBlocks } : {}),
+      ...(snap.toolActivities?.length ? { toolActivities: snap.toolActivities } : {}),
+    });
+  }
 }
 
 function applyRecord(ctx: ReplayContext, record: AnyJournalRecord): void {
@@ -353,6 +377,7 @@ export async function replaySession(
     },
     activeStreams: new Map(),
     finalizedIds: new Set(),
+    abortSnapshots: new Map(),
     maxSeq: 0,
   };
 
@@ -365,6 +390,7 @@ export async function replaySession(
     }
   }
 
+  applyAbortSnapshots(ctx);
   recoverOrphanedStreams(ctx);
   backfillQuestionResults(ctx.session.messages);
   return { session: ctx.session, maxSeq: ctx.maxSeq };

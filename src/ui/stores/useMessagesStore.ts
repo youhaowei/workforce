@@ -15,6 +15,7 @@ import type {
   ToolCall,
   ToolResult,
 } from "@/services/types";
+import { completeRunningBlocks } from "@/shared/content-blocks";
 
 // =============================================================================
 // Types
@@ -92,12 +93,6 @@ interface MessagesStore {
 
 function generateId(): string {
   return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function completeRunningBlocks(blocks: ContentBlock[]): ContentBlock[] {
-  return blocks.map((block) =>
-    block.status === "running" ? { ...block, status: "complete" as const } : block,
-  );
 }
 
 // =============================================================================
