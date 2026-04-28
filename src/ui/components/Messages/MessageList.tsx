@@ -10,6 +10,7 @@ import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
+import type { ShellError } from "@/ui/stores/shellStore";
 import MessageItem, { type ForkInfo } from "./MessageItem";
 
 interface MessageListProps {
@@ -24,8 +25,9 @@ interface MessageListProps {
   }>;
   isStreaming: boolean;
   forksMap?: Map<string, ForkInfo[]>;
-  error?: string | null;
+  error?: ShellError | null;
   onDismissError?: () => void;
+  onOpenSettings?: () => void;
   onRewind?: (messageIndex: number) => void;
   onFork?: (messageIndex: number) => void;
   onSelectSession?: (sessionId: string) => void;
@@ -39,6 +41,7 @@ export default function MessageList({
   forksMap,
   error,
   onDismissError,
+  onOpenSettings,
   onRewind,
   onFork,
   onSelectSession,
@@ -65,6 +68,8 @@ export default function MessageList({
   const activeSessionId = useMessagesStore((s) => s.activeSessionId);
 
   const firstMsgId = messages[0]?.id ?? null;
+  const isAuthError = typeof error === "object" && error?.code === "AUTH_ERROR";
+  const errorMessage = typeof error === "string" ? error : error?.message;
 
   // Track whether we need to scroll to bottom after Virtuoso finishes layout.
   // Set on session switch or bulk message load; cleared after scroll completes.
@@ -294,29 +299,51 @@ export default function MessageList({
       Header: () => (
         <>
           <div className="h-14" />
-          {error && (
-            <div className="mx-4 mb-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
+          {errorMessage && (
+            <div className="mx-4 mb-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between gap-3">
+              <div className="flex items-start gap-2 min-w-0">
                 <AlertCircle className="h-4 w-4 text-palette-danger shrink-0" />
-                <span className="text-sm text-palette-danger">{error}</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-palette-danger">
+                    {isAuthError ? "Claude authentication needs attention" : errorMessage}
+                  </p>
+                  {isAuthError && (
+                    <p className="mt-0.5 text-xs text-palette-danger/80 break-words">
+                      Re-authenticate Claude in Settings to continue running agents. {errorMessage}
+                    </p>
+                  )}
+                </div>
               </div>
-              {onDismissError && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onDismissError}
-                  className="text-palette-danger h-7 shrink-0"
-                >
-                  Dismiss
-                </Button>
-              )}
+              <div className="flex items-center gap-1 shrink-0">
+                {isAuthError && onOpenSettings && (
+                  <Button
+                    variant="solid"
+                    color="primary"
+                    size="sm"
+                    onClick={onOpenSettings}
+                    className="h-7 shrink-0"
+                  >
+                    Open Settings
+                  </Button>
+                )}
+                {onDismissError && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onDismissError}
+                    className="text-palette-danger h-7 shrink-0"
+                  >
+                    Dismiss
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </>
       ),
       Footer: () => <div className="h-52" />,
     }),
-    [error, onDismissError],
+    [errorMessage, isAuthError, onDismissError, onOpenSettings],
   );
 
   // Empty state is handled by the parent (SessionsView)

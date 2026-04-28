@@ -32,6 +32,10 @@ vi.mock("react-virtuoso", () => ({
       autoscrollToBottom: mockAutoscrollToBottom,
     }));
 
+    const Header = props.components
+      ? (props.components as { Header?: React.ComponentType }).Header
+      : undefined;
+
     return (
       <div
         data-testid="virtuoso-scroller"
@@ -40,6 +44,7 @@ vi.mock("react-virtuoso", () => ({
           scrollerRefCb?.(el);
         }}
       >
+        {Header ? <Header /> : null}
         {(props.data as Array<{ id: string }>)?.map((msg, i) => (
           <div key={msg.id} data-testid={`message-${i}`}>
             {msg.id}
@@ -146,6 +151,26 @@ describe("MessageList scroll behavior", () => {
 
     // scrollToIndex should still NOT have been called
     expect(mockScrollToIndex).not.toHaveBeenCalled();
+  });
+
+  it("renders auth errors with a settings CTA", () => {
+    const onOpenSettings = vi.fn();
+
+    render(
+      <MessageList
+        messages={makeMessages(1)}
+        isStreaming={false}
+        error={{ message: "not authenticated", code: "AUTH_ERROR" }}
+        onOpenSettings={onOpenSettings}
+      />,
+    );
+
+    expect(screen.getByText("Claude authentication needs attention")).toBeInTheDocument();
+    expect(screen.getByText(/Re-authenticate Claude in Settings/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Settings" }));
+
+    expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
 
   it("should notify parent with jump handler on wheel-up during streaming", () => {

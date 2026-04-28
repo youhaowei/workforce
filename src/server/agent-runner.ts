@@ -6,7 +6,7 @@
  * yields a snapshot of accumulated state followed by live events.
  */
 
-import { getAgentService } from "@/services/agent";
+import { AgentError, getAgentService } from "@/services/agent";
 import { getSessionService } from "@/services/session";
 import { createLogger } from "tracey";
 import type { ContentBlock, ToolActivity, AgentStreamEvent, AgentQuestion } from "@/services/types";
@@ -171,7 +171,13 @@ export type SSEEvent =
       pendingQuestion?: { requestId: string; questions: AgentQuestion[] };
     }
   | { type: "done"; data: string }
-  | { type: "error"; data: string };
+  | { type: "error"; data: string | { message: string; code?: string } };
+
+export function toSSEErrorData(err: unknown): string | { message: string; code?: string } {
+  const message = err instanceof Error ? err.message : String(err);
+  const code = err instanceof AgentError ? err.code : undefined;
+  return code ? { message, code } : message;
+}
 
 export function* processEvent(
   event: AgentStreamEvent,
@@ -254,7 +260,12 @@ interface ActiveRun {
   sessionId?: string;
   messageId?: string;
   done: boolean;
-  error?: string;
+  /**
+   * Stored as the same shape used on the wire so a late observer (post-disconnect
+   * reconnect after the run terminated) replays the structured payload —
+   * preserving `code` (e.g. `AUTH_ERROR`) so the UI can still render the reauth CTA.
+   */
+  error?: string | { message: string; code?: string };
   fullText: string;
   tokenCount: number;
   acc: BlockAccumulator;
@@ -504,9 +515,10 @@ class AgentRunnerImpl {
       log.info({ totalTokens: run.tokenCount }, "run complete");
       this.broadcast(run, { type: "done", data: "" });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      log.error({ error: message }, "run error");
-      run.error = message;
+      const errorPayload = toSSEErrorData(err);
+      const logMessage = typeof errorPayload === "string" ? errorPayload : errorPayload.message;
+      log.error({ error: logMessage }, "run error");
+      run.error = errorPayload;
 
       if (
         input.sessionId &&
@@ -515,7 +527,7 @@ class AgentRunnerImpl {
       ) {
         await persistStreamEnd(input.sessionId, input.messageId, run.fullText, "error", run.acc);
       }
-      this.broadcast(run, { type: "error", data: message });
+      this.broadcast(run, { type: "error", data: errorPayload });
     } finally {
       run.done = true;
       // Clear the reference after a brief window so late reconnections can still

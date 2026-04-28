@@ -17,6 +17,7 @@ function SessionsIndexRoute() {
       forksMap={shell.forksMap}
       error={shell.error}
       onDismissError={shell.onDismissError}
+      onOpenSettings={shell.onOpenSettings}
       onSubmit={shell.onSubmitMessage}
       onCancel={shell.onCancelStream}
       onRewind={shell.onRewind}
