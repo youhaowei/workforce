@@ -53,7 +53,10 @@ export function handleStreamError(
 ) {
   actions.completeRunningTools();
   actions.finishStreamingMessage();
-  actions.setError(err instanceof Error ? err.message : String(err));
+  // Use the same parser as the SSE 'error' path so a structured `{ message, code }`
+  // payload reaching the transport-level onError still preserves AUTH_ERROR
+  // (and the UI can render the re-auth CTA).
+  actions.setError(parseStreamError(err));
   cancelStreamRef.current = null;
   // Server persists partial data in its catch block. Client-side abort is a
   // fallback only for transport errors where the server generator may not fire.
