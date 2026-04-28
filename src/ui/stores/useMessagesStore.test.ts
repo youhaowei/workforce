@@ -4,8 +4,8 @@ import { useMessagesStore } from "./useMessagesStore";
 /**
  * Tests for useMessagesStore — streaming block actions.
  *
- * Verifies that completeNonTaskTools correctly skips Task/Explore tools
- * while completeRunningTools marks ALL tools complete.
+ * Verifies streaming block transitions, including tool completion and
+ * cancellation-time normalization of in-flight content blocks.
  */
 
 function resetStore() {
@@ -168,6 +168,34 @@ describe("useMessagesStore", () => {
 
       const blocks = useMessagesStore.getState().streamingBlocks;
       expect(blocks[0]).toEqual({ type: "text", text: "some text", status: "complete" });
+    });
+
+    it("finishStreamingMessage completes a thinking-only cancellation block", () => {
+      const store = useMessagesStore.getState();
+      const messageId = store.startAssistantMessage();
+
+      store.appendToThinkingBlock("still thinking");
+      store.finishStreamingMessage();
+
+      const message = useMessagesStore.getState().messages.find((m) => m.id === messageId);
+      expect(message?.isStreaming).toBe(false);
+      expect(message?.contentBlocks).toEqual([
+        { type: "thinking", text: "still thinking", status: "complete" },
+      ]);
+    });
+
+    it("finishStreamingMessage completes a running tool-use cancellation block", () => {
+      const store = useMessagesStore.getState();
+      const messageId = store.startAssistantMessage();
+
+      store.startToolBlock("tu_1", "Read", "file.ts");
+      store.finishStreamingMessage();
+
+      const message = useMessagesStore.getState().messages.find((m) => m.id === messageId);
+      expect(message?.isStreaming).toBe(false);
+      expect(message?.contentBlocks).toEqual([
+        { type: "tool_use", id: "tu_1", name: "Read", input: "file.ts", status: "complete" },
+      ]);
     });
   });
 });

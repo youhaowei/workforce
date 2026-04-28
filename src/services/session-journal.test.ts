@@ -215,6 +215,146 @@ describe("replaySession", () => {
     expect(session.messages[0].content).toBe("hello world");
   });
 
+  it("recovers aborted thinking-only streams with terminal block status", async () => {
+    const dir = nextDir();
+    await writeRecords(dir, "sess-1", [
+      makeHeader(),
+      { t: "message_start", seq: 1, ts: 2000, id: "msg-1", role: "assistant" },
+      {
+        t: "message_blocks",
+        seq: 2,
+        ts: 2001,
+        id: "msg-1",
+        contentBlocks: [{ type: "thinking", text: "still thinking", status: "running" }],
+      } as JournalRecord,
+      { t: "message_abort", seq: 3, ts: 3000, id: "msg-1", reason: "user_cancelled" },
+    ]);
+
+    const result = await replaySession(dir, "sess-1");
+    const session = result!.session;
+    expect(session.messages).toHaveLength(1);
+    expect(session.messages[0].content).toBe("");
+    expect(session.messages[0].contentBlocks).toEqual([
+      { type: "thinking", text: "still thinking", status: "complete" },
+    ]);
+  });
+
+  it("prefers message_final over message_abort when both arrive for same id", async () => {
+    const dir = nextDir();
+    await writeRecords(dir, "sess-1", [
+      makeHeader(),
+      { t: "message_start", seq: 1, ts: 2000, id: "msg-1", role: "assistant" },
+      { t: "message_delta", seq: 2, ts: 2001, id: "msg-1", delta: "partial" },
+      { t: "message_abort", seq: 3, ts: 3000, id: "msg-1", reason: "user_cancelled" },
+      {
+        t: "message_final",
+        seq: 4,
+        ts: 4000,
+        id: "msg-1",
+        role: "assistant",
+        content: "complete answer",
+        stopReason: "end_turn",
+      },
+    ]);
+
+    const result = await replaySession(dir, "sess-1");
+    const session = result!.session;
+    expect(session.messages).toHaveLength(1);
+    expect(session.messages[0].content).toBe("complete answer");
+  });
+
+  it("preserves chronological order when conversation continues after abort", async () => {
+    // Regression: aborted messages must appear at their abort point, not pushed
+    // to end-of-replay where they'd land after subsequent user/assistant turns.
+    const dir = nextDir();
+    await writeRecords(dir, "sess-1", [
+      makeHeader(),
+      { t: "message_start", seq: 1, ts: 2000, id: "msg-1", role: "assistant" },
+      { t: "message_delta", seq: 2, ts: 2001, id: "msg-1", delta: "first " },
+      { t: "message_delta", seq: 3, ts: 2002, id: "msg-1", delta: "attempt" },
+      { t: "message_abort", seq: 4, ts: 3000, id: "msg-1", reason: "user_cancelled" },
+      {
+        t: "message",
+        seq: 5,
+        ts: 4000,
+        id: "msg-2",
+        role: "user",
+        content: "try again",
+      },
+      {
+        t: "message_final",
+        seq: 6,
+        ts: 5000,
+        id: "msg-3",
+        role: "assistant",
+        content: "second attempt",
+        stopReason: "end_turn",
+      },
+    ]);
+
+    const result = await replaySession(dir, "sess-1");
+    const session = result!.session;
+    expect(session.messages.map((m) => m.id)).toEqual(["msg-1", "msg-2", "msg-3"]);
+    expect(session.messages[0].content).toBe("first attempt");
+    expect(session.messages[2].content).toBe("second attempt");
+  });
+
+  it("appends late final after intervening user message when superseding abort", async () => {
+    const dir = nextDir();
+    await writeRecords(dir, "sess-1", [
+      makeHeader(),
+      { t: "message_start", seq: 1, ts: 2000, id: "msg-1", role: "assistant" },
+      { t: "message_delta", seq: 2, ts: 2001, id: "msg-1", delta: "partial" },
+      { t: "message_abort", seq: 3, ts: 3000, id: "msg-1", reason: "user_cancelled" },
+      {
+        t: "message",
+        seq: 4,
+        ts: 4000,
+        id: "msg-2",
+        role: "user",
+        content: "try again",
+      },
+      {
+        t: "message_final",
+        seq: 5,
+        ts: 5000,
+        id: "msg-1",
+        role: "assistant",
+        content: "complete answer",
+        stopReason: "end_turn",
+      },
+    ]);
+
+    const result = await replaySession(dir, "sess-1");
+    const session = result!.session;
+    expect(session.messages.map((m) => m.id)).toEqual(["msg-2", "msg-1"]);
+    expect(session.messages[1].content).toBe("complete answer");
+  });
+
+  it("persists aborted streams that have only toolActivities", async () => {
+    const dir = nextDir();
+    await writeRecords(dir, "sess-1", [
+      makeHeader(),
+      { t: "message_start", seq: 1, ts: 2000, id: "msg-1", role: "assistant" },
+      {
+        t: "message_blocks",
+        seq: 2,
+        ts: 2001,
+        id: "msg-1",
+        contentBlocks: [],
+        toolActivities: [{ name: "Read", input: "{}" }],
+      } as JournalRecord,
+      { t: "message_abort", seq: 3, ts: 3000, id: "msg-1", reason: "user_cancelled" },
+    ]);
+
+    const result = await replaySession(dir, "sess-1");
+    const session = result!.session;
+    expect(session.messages).toHaveLength(1);
+    expect(session.messages[0].content).toBe("");
+    expect(session.messages[0].contentBlocks).toBeUndefined();
+    expect(session.messages[0].toolActivities).toEqual([{ name: "Read", input: "{}" }]);
+  });
+
   it("recovers orphaned streams (deltas without final/abort)", async () => {
     const dir = nextDir();
     await writeRecords(dir, "sess-1", [

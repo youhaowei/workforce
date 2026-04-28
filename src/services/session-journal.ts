@@ -18,6 +18,7 @@ import type {
   JournalMessage,
   JournalMessageFinal,
 } from "./types";
+import { completeRunningBlocks } from "@/shared/content-blocks";
 import { createLogger } from "tracey";
 
 const log = createLogger("Session");
@@ -148,6 +149,11 @@ function processMessageFinal(
   const ts = record.ts ?? (record as unknown as { timestamp?: number }).timestamp ?? 0;
   ctx.finalizedIds.add(record.id);
   ctx.activeStreams.delete(record.id);
+  // If a prior message_abort already pushed a snapshot for this id, drop it —
+  // the final supersedes the abort. Splicing here keeps later messages in their
+  // original chronological position; the final is then appended at end.
+  const priorIdx = ctx.session.messages.findIndex((m) => m.id === record.id);
+  if (priorIdx !== -1) ctx.session.messages.splice(priorIdx, 1);
   ctx.session.messages.push({
     id: record.id,
     role: record.role,
@@ -178,15 +184,22 @@ function processMessageAbort(
   ctx: ReplayContext,
   record: JournalRecord & { t: "message_abort" },
 ): void {
-  const abortedStream = ctx.activeStreams.get(record.id);
-  if (abortedStream) {
-    const partialContent = assembleDeltas(abortedStream);
-    if (partialContent.length > 0) {
+  const stream = ctx.activeStreams.get(record.id);
+  if (stream) {
+    const content = assembleDeltas(stream);
+    const contentBlocks = completeRunningBlocks(stream.contentBlocks);
+    const toolActivities = stream.toolActivities;
+    // Push at abort point so chronological order is preserved when the
+    // conversation continues. If a later message_final arrives for the same
+    // id, processMessageFinal removes this entry before appending its own.
+    if (content.length > 0 || contentBlocks?.length || toolActivities?.length) {
       ctx.session.messages.push({
         id: record.id,
         role: "assistant",
-        content: partialContent,
-        timestamp: abortedStream.ts,
+        content,
+        timestamp: stream.ts,
+        ...(contentBlocks?.length ? { contentBlocks } : {}),
+        ...(toolActivities?.length ? { toolActivities } : {}),
       });
     }
   }
@@ -223,21 +236,20 @@ function applyRecord(ctx: ReplayContext, record: AnyJournalRecord): void {
   }
 }
 
-/** Recover incomplete streams that have deltas but no final/abort. */
+/** Recover incomplete streams that have deltas but no final/abort (crash). */
 function recoverOrphanedStreams(ctx: ReplayContext): void {
   for (const [msgId, stream] of ctx.activeStreams) {
     if (ctx.finalizedIds.has(msgId)) continue;
     const content = assembleDeltas(stream);
-    if (content.length > 0 || stream.contentBlocks?.length) {
-      ctx.session.messages.push({
-        id: msgId,
-        role: "assistant",
-        content,
-        timestamp: stream.ts,
-        ...(stream.contentBlocks?.length ? { contentBlocks: stream.contentBlocks } : {}),
-        ...(stream.toolActivities?.length ? { toolActivities: stream.toolActivities } : {}),
-      });
-    }
+    if (content.length === 0 && !stream.contentBlocks?.length) continue;
+    ctx.session.messages.push({
+      id: msgId,
+      role: "assistant",
+      content,
+      timestamp: stream.ts,
+      ...(stream.contentBlocks?.length ? { contentBlocks: stream.contentBlocks } : {}),
+      ...(stream.toolActivities?.length ? { toolActivities: stream.toolActivities } : {}),
+    });
   }
 }
 
