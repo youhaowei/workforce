@@ -431,6 +431,7 @@ export default function Shell() {
   );
 
   const dismissError = useCallback(() => setError(null), [setError]);
+  const openSettings = useCallback(() => navigate({ to: "/orgs" }), [navigate]);
   const showChatInfo = showSessionsView && !!selectedSessionId && !infoPanelCollapsed;
 
   // Provide Shell state to route components via context
@@ -458,6 +459,7 @@ export default function Shell() {
     onSubmitMessage: handleSubmit,
     onCancelStream: handleCancel,
     onDismissError: dismissError,
+    onOpenSettings: openSettings,
     onRewind: handleRewind,
     onFork: handleFork,
   };

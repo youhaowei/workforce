@@ -1,5 +1,6 @@
 import { createContext, useContext, type ReactNode } from "react";
 import type { Project, AgentConfig } from "@/services/types";
+import type { ShellError } from "@/ui/stores/shellStore";
 import type { ForkInfo } from "../components/Messages/MessageItem";
 
 export interface ShellContextValue {
@@ -31,7 +32,7 @@ export interface ShellContextValue {
   boardStatusFilter: string;
 
   // Error state
-  error: string | null;
+  error: ShellError | null;
 
   // Actions
   onSelectSession: (sessionId: string) => void;
@@ -44,6 +45,7 @@ export interface ShellContextValue {
   onSubmitMessage: (submission: { content: string; agentConfig: AgentConfig }) => void;
   onCancelStream: () => void;
   onDismissError: () => void;
+  onOpenSettings: () => void;
   onRewind?: (messageIndex: number) => void;
   onFork?: (messageIndex: number) => void;
 }

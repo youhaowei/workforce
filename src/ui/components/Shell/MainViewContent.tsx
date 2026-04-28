@@ -12,6 +12,7 @@ import type { Project } from "@/services/types";
 import type { ViewType } from "./Shell";
 import type { AgentConfig } from "@/services/types";
 import type { ForkInfo } from "../Messages/MessageItem";
+import type { ShellError } from "@/ui/stores/shellStore";
 
 interface MainViewContentProps {
   currentView: ViewType;
@@ -34,12 +35,13 @@ interface MainViewContentProps {
   }>;
   isStreaming: boolean;
   forksMap?: Map<string, ForkInfo[]>;
-  error: string | null;
+  error: ShellError | null;
   onDismissError: () => void;
   onSelectAgent: (sessionId: string) => void;
   onBackFromDetail: () => void;
   onStartChat: () => void;
   onNavigate: (view: ViewType) => void;
+  onOpenSettings: () => void;
   onSelectSession: (sessionId: string) => void;
   onSelectProject: (projectId: string | null) => void;
   onNewSessionProjectChange: (projectId: string | null) => void;
@@ -68,6 +70,7 @@ export function MainViewContent({
   onBackFromDetail,
   onStartChat,
   onNavigate,
+  onOpenSettings,
   onSelectSession,
   onSelectProject,
   onNewSessionProjectChange,
@@ -117,6 +120,7 @@ export function MainViewContent({
           forksMap={forksMap}
           error={error}
           onDismissError={onDismissError}
+          onOpenSettings={onOpenSettings}
           onSubmit={onSubmitMessage}
           onCancel={onCancelStream}
           onRewind={onRewind}

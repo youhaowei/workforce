@@ -10,6 +10,7 @@ import { trpc as trpcClient } from "@/bridge/trpc";
 import { queryClient } from "@/bridge/query-client";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 import { useDialogStore } from "@/ui/stores/useDialogStore";
+import type { ShellError } from "@/ui/stores/shellStore";
 import type { ForkInfo } from "../Messages/MessageItem";
 import type { ViewType } from "./Shell";
 
@@ -17,7 +18,7 @@ interface UseForkActionsParams {
   selectedSessionId: string | null;
   activeSessionRef: React.RefObject<string | null>;
   handleSelectSession: (sessionId: string) => void;
-  setError: (error: string | null) => void;
+  setError: (error: ShellError | null) => void;
   currentView: ViewType;
 }
 

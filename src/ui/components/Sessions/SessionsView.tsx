@@ -17,6 +17,7 @@ import { useState, useCallback } from "react";
 import type { Project } from "@/services/types";
 import { MessageList, MessageInput } from "../Messages";
 import { useCCSyncBanner } from "@/ui/hooks/useCCSyncBanner";
+import type { ShellError } from "@/ui/stores/shellStore";
 import type { AgentConfig } from "@/services/types";
 import type { ForkInfo } from "../Messages/MessageItem";
 
@@ -40,8 +41,9 @@ interface SessionsViewProps {
   }>;
   isStreaming: boolean;
   forksMap?: Map<string, ForkInfo[]>;
-  error: string | null;
+  error: ShellError | null;
   onDismissError: () => void;
+  onOpenSettings?: () => void;
   onSubmit: (submission: { content: string; agentConfig: AgentConfig }) => void;
   onCancel: () => void;
   onRewind?: (messageIndex: number) => void;
@@ -60,6 +62,7 @@ export function SessionsView({
   forksMap,
   error,
   onDismissError,
+  onOpenSettings,
   onSubmit,
   onCancel,
   onRewind,
@@ -83,6 +86,7 @@ export function SessionsView({
           forksMap={forksMap}
           error={error}
           onDismissError={onDismissError}
+          onOpenSettings={onOpenSettings}
           onRewind={onRewind}
           onFork={onFork}
           onSelectSession={onSelectSession}
