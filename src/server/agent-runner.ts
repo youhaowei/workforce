@@ -516,9 +516,11 @@ class AgentRunnerImpl {
       this.broadcast(run, { type: "done", data: "" });
     } catch (err) {
       const errorPayload = toSSEErrorData(err);
-      const logMessage = typeof errorPayload === "string" ? errorPayload : errorPayload.message;
-      const logCode = typeof errorPayload === "string" ? undefined : errorPayload.code;
-      log.error({ error: logMessage, code: logCode }, "run error");
+      const errorFields =
+        typeof errorPayload === "string"
+          ? { message: errorPayload, code: undefined as string | undefined }
+          : errorPayload;
+      log.error({ error: errorFields.message, code: errorFields.code }, "run error");
       run.error = errorPayload;
 
       if (

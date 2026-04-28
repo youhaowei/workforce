@@ -315,12 +315,7 @@ export default function MessageList({
                   )}
                   <div className="mt-1 flex items-center gap-2">
                     {isAuthError && onOpenSettings && (
-                      <Button
-                        variant="solid"
-                        color="primary"
-                        size="sm"
-                        onClick={onOpenSettings}
-                      >
+                      <Button variant="solid" color="primary" size="sm" onClick={onOpenSettings}>
                         Open Settings
                       </Button>
                     )}
