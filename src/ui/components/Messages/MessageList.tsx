@@ -300,28 +300,31 @@ export default function MessageList({
         <>
           <div className="h-14" />
           {errorMessage && (
-            <div className="mx-4 mb-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between gap-3">
+            <div
+              role="alert"
+              className="mx-4 mb-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between gap-3"
+            >
               <div className="flex items-start gap-2 min-w-0">
-                <AlertCircle className="h-4 w-4 text-palette-danger shrink-0" />
+                <AlertCircle aria-hidden="true" className="h-4 w-4 text-palette-danger shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-palette-danger">
                     {isAuthError ? "Claude authentication needs attention" : errorMessage}
                   </p>
                   {isAuthError && (
                     <p className="mt-0.5 text-xs text-palette-danger/80 break-words">
-                      Re-authenticate Claude in Settings to continue running agents. {errorMessage}
+                      Re-authenticate Claude in Settings to continue running agents.
                     </p>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 {isAuthError && onOpenSettings && (
                   <Button
                     variant="solid"
                     color="primary"
                     size="sm"
                     onClick={onOpenSettings}
-                    className="h-7 shrink-0"
+                    className="shrink-0"
                   >
                     Open Settings
                   </Button>
@@ -329,9 +332,10 @@ export default function MessageList({
                 {onDismissError && (
                   <Button
                     variant="ghost"
+                    color="danger"
                     size="sm"
                     onClick={onDismissError}
-                    className="text-palette-danger h-7 shrink-0"
+                    className="shrink-0"
                   >
                     Dismiss
                   </Button>

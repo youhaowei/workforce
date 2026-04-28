@@ -204,7 +204,7 @@ export function handleStreamEvent(
   }
 }
 
-function parseStreamError(error: unknown): ShellError {
+export function parseStreamError(error: unknown): ShellError {
   if (typeof error === "string") return error;
   if (error && typeof error === "object") {
     const obj = error as { message?: unknown; code?: unknown; error?: unknown };

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { handleStreamEvent, type StreamEventActions } from "./shellHelpers";
+import { handleStreamEvent, parseStreamError, type StreamEventActions } from "./shellHelpers";
 
 /**
  * Tests for handleStreamEvent — verifies SSE event dispatch to store actions.
@@ -223,7 +223,7 @@ describe("handleStreamEvent", () => {
 
   it("recovers a usable label when the error payload object lacks `message`", () => {
     handleStreamEvent(
-      { type: "error", data: { error: "rate limited", code: "RATE_LIMIT" } as unknown as string },
+      { type: "error", data: { error: "rate limited", code: "RATE_LIMIT" } },
       "sess1",
       "msg1",
       actions,
@@ -367,5 +367,37 @@ describe("handleStreamEvent", () => {
     expect(done).toBe(false);
     expect(actions.appendToStreamingMessage).not.toHaveBeenCalled();
     expect(actions.finishStreamingMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("parseStreamError", () => {
+  it("passes through plain string errors", () => {
+    expect(parseStreamError("boom")).toBe("boom");
+  });
+
+  it("preserves AgentError code from structured payloads", () => {
+    expect(parseStreamError({ message: "not authenticated", code: "AUTH_ERROR" })).toEqual({
+      message: "not authenticated",
+      code: "AUTH_ERROR",
+    });
+  });
+
+  it("falls back to {error: ...} server shapes when message is missing", () => {
+    expect(parseStreamError({ error: "rate limited", code: "RATE_LIMIT" })).toEqual({
+      message: "rate limited",
+      code: "RATE_LIMIT",
+    });
+  });
+
+  it("never surfaces [object Object] for unknown object shapes", () => {
+    expect(parseStreamError({ unexpected: true })).toEqual({
+      message: "Stream error",
+      code: undefined,
+    });
+  });
+
+  it("stringifies non-object/non-string inputs", () => {
+    expect(parseStreamError(42)).toBe("42");
+    expect(parseStreamError(null)).toBe("null");
   });
 });

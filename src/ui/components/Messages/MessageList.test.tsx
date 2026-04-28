@@ -173,6 +173,19 @@ describe("MessageList scroll behavior", () => {
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
   });
 
+  it("renders auth error banner without CTA when onOpenSettings is absent", () => {
+    render(
+      <MessageList
+        messages={makeMessages(1)}
+        isStreaming={false}
+        error={{ message: "not authenticated", code: "AUTH_ERROR" }}
+      />,
+    );
+
+    expect(screen.getByText("Claude authentication needs attention")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Open Settings" })).not.toBeInTheDocument();
+  });
+
   it("should notify parent with jump handler on wheel-up during streaming", () => {
     mockStoreIsStreaming = true;
     const messages = makeMessages(10, true);

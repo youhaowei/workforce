@@ -517,7 +517,8 @@ class AgentRunnerImpl {
     } catch (err) {
       const errorPayload = toSSEErrorData(err);
       const logMessage = typeof errorPayload === "string" ? errorPayload : errorPayload.message;
-      log.error({ error: logMessage }, "run error");
+      const logCode = typeof errorPayload === "string" ? undefined : errorPayload.code;
+      log.error({ error: logMessage, code: logCode }, "run error");
       run.error = errorPayload;
 
       if (
