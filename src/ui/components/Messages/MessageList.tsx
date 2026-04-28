@@ -8,6 +8,7 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 import type { ShellError } from "@/ui/stores/shellStore";
@@ -300,48 +301,38 @@ export default function MessageList({
         <>
           <div className="h-14" />
           {errorMessage && (
-            <div
-              role="alert"
-              className="mx-4 mb-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between gap-3"
-            >
-              <div className="flex items-start gap-2 min-w-0">
-                <AlertCircle aria-hidden="true" className="h-4 w-4 text-palette-danger shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-palette-danger">
-                    {isAuthError ? "Claude authentication needs attention" : errorMessage}
-                  </p>
+            <Alert color="danger" className="mx-4 mb-2">
+              <AlertCircle aria-hidden="true" />
+              <AlertTitle>
+                {isAuthError ? "Claude authentication needs attention" : errorMessage}
+              </AlertTitle>
+              {(isAuthError || onDismissError) && (
+                <AlertDescription>
                   {isAuthError && (
-                    <p className="mt-0.5 text-xs text-palette-danger/80 break-words">
+                    <p className="text-palette-danger/80 break-words">
                       Re-authenticate Claude in Settings to continue running agents.
                     </p>
                   )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {isAuthError && onOpenSettings && (
-                  <Button
-                    variant="solid"
-                    color="primary"
-                    size="sm"
-                    onClick={onOpenSettings}
-                    className="shrink-0"
-                  >
-                    Open Settings
-                  </Button>
-                )}
-                {onDismissError && (
-                  <Button
-                    variant="ghost"
-                    color="danger"
-                    size="sm"
-                    onClick={onDismissError}
-                    className="shrink-0"
-                  >
-                    Dismiss
-                  </Button>
-                )}
-              </div>
-            </div>
+                  <div className="mt-1 flex items-center gap-2">
+                    {isAuthError && onOpenSettings && (
+                      <Button
+                        variant="solid"
+                        color="primary"
+                        size="sm"
+                        onClick={onOpenSettings}
+                      >
+                        Open Settings
+                      </Button>
+                    )}
+                    {onDismissError && (
+                      <Button variant="ghost" color="danger" size="sm" onClick={onDismissError}>
+                        Dismiss
+                      </Button>
+                    )}
+                  </div>
+                </AlertDescription>
+              )}
+            </Alert>
           )}
         </>
       ),
