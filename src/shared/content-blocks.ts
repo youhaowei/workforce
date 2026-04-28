@@ -15,6 +15,7 @@ export function completeRunningBlocks(
   blocks: ContentBlock[] | undefined,
 ): ContentBlock[] | undefined {
   if (!blocks?.length) return blocks;
+  if (!blocks.some((block) => block.status === "running")) return blocks;
   return blocks.map((block) =>
     block.status === "running" ? { ...block, status: "complete" as const } : block,
   );

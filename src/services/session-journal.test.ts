@@ -299,6 +299,38 @@ describe("replaySession", () => {
     expect(session.messages[2].content).toBe("second attempt");
   });
 
+  it("appends late final after intervening user message when superseding abort", async () => {
+    const dir = nextDir();
+    await writeRecords(dir, "sess-1", [
+      makeHeader(),
+      { t: "message_start", seq: 1, ts: 2000, id: "msg-1", role: "assistant" },
+      { t: "message_delta", seq: 2, ts: 2001, id: "msg-1", delta: "partial" },
+      { t: "message_abort", seq: 3, ts: 3000, id: "msg-1", reason: "user_cancelled" },
+      {
+        t: "message",
+        seq: 4,
+        ts: 4000,
+        id: "msg-2",
+        role: "user",
+        content: "try again",
+      },
+      {
+        t: "message_final",
+        seq: 5,
+        ts: 5000,
+        id: "msg-1",
+        role: "assistant",
+        content: "complete answer",
+        stopReason: "end_turn",
+      },
+    ]);
+
+    const result = await replaySession(dir, "sess-1");
+    const session = result!.session;
+    expect(session.messages.map((m) => m.id)).toEqual(["msg-2", "msg-1"]);
+    expect(session.messages[1].content).toBe("complete answer");
+  });
+
   it("persists aborted streams that have only toolActivities", async () => {
     const dir = nextDir();
     await writeRecords(dir, "sess-1", [
@@ -318,6 +350,8 @@ describe("replaySession", () => {
     const result = await replaySession(dir, "sess-1");
     const session = result!.session;
     expect(session.messages).toHaveLength(1);
+    expect(session.messages[0].content).toBe("");
+    expect(session.messages[0].contentBlocks).toBeUndefined();
     expect(session.messages[0].toolActivities).toEqual([{ name: "Read", input: "{}" }]);
   });
 
