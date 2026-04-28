@@ -263,7 +263,7 @@ interface ActiveRun {
   /**
    * Stored as the same shape used on the wire so a late observer (post-disconnect
    * reconnect after the run terminated) replays the structured payload —
-   * preserving `code` (e.g. `auth_error`) so the UI can still render the reauth CTA.
+   * preserving `code` (e.g. `AUTH_ERROR`) so the UI can still render the reauth CTA.
    */
   error?: string | { message: string; code?: string };
   fullText: string;
