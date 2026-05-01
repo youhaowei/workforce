@@ -204,9 +204,11 @@ class AgentServiceImpl implements AgentService {
       const filePath = String((event.inputRaw as Record<string, unknown>)?.file_path ?? "");
       if (filePath.endsWith(".md")) this.lastPlanPath = filePath;
     }
-    if (event.name === "ExitPlanMode" && this.lastPlanPath) {
+    if (event.name === "ExitPlanMode") {
       this.inPlanMode = false;
-      yield { type: "plan_ready", path: this.lastPlanPath };
+      if (this.lastPlanPath) {
+        yield { type: "plan_ready", path: this.lastPlanPath };
+      }
       this.lastPlanPath = null;
     }
 

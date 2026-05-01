@@ -1,12 +1,29 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+
+const sdkQueryMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@anthropic-ai/claude-agent-sdk", () => ({
+  query: sdkQueryMock,
+}));
+
 import {
   mapSdkToStreamEvents,
   bridgeApproval,
   flushPendingTools,
   backfillText,
   processMessage,
+  runSDKQuery,
 } from "./sdk-adapter";
 import type { AgentStreamEvent } from "./types";
+
+function makeQuery() {
+  return {
+    close: vi.fn(),
+    async *[Symbol.asyncIterator]() {
+      // Empty query stream for canUseTool option inspection.
+    },
+  };
+}
 
 // Helper: collect all events from a generator
 function collect(
@@ -563,5 +580,126 @@ describe("bridgeApproval — error handling", () => {
       },
     );
     expect(result).toMatchObject({ behavior: "deny" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// runSDKQuery — canUseTool bridge
+// ---------------------------------------------------------------------------
+
+describe("runSDKQuery — canUseTool bridge", () => {
+  beforeEach(() => {
+    sdkQueryMock.mockReset();
+    sdkQueryMock.mockImplementation(() => makeQuery());
+  });
+
+  it("uses the SDK toolUseID for AskUserQuestion request IDs", async () => {
+    let requestId: string | null = null;
+    const result = runSDKQuery("prompt", {
+      sdkOptions: {},
+      onAgentQuestion: async (request) => {
+        requestId = request.id;
+        return { answers: { q1: ["red", "blue"] } };
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    const canUseTool = sdkQueryMock.mock.calls[0]?.[0].options.canUseTool;
+    const permission = await canUseTool(
+      "AskUserQuestion",
+      { questions: [{ id: "q1", question: "Pick colors", multiSelect: true }] },
+      { signal: new AbortController().signal, toolUseID: "toolu_ask_1" },
+    );
+
+    expect(requestId).toBe("toolu_ask_1");
+    expect(permission).toMatchObject({
+      behavior: "allow",
+      updatedInput: { answers: { "Pick colors": "red\nblue" } },
+    });
+
+    if (!result.ok) throw new Error("expected runSDKQuery success");
+    await expect(result.value.events.next()).resolves.toMatchObject({
+      value: { type: "agent_question", requestId: "toolu_ask_1" },
+      done: false,
+    });
+  });
+
+  it("resets fallback question IDs for each query", async () => {
+    const first = runSDKQuery("first", {
+      sdkOptions: {},
+      onAgentQuestion: async () => ({ answers: {} }),
+    });
+    const firstCanUseTool = sdkQueryMock.mock.calls[0]?.[0].options.canUseTool;
+    await firstCanUseTool(
+      "AskUserQuestion",
+      { questions: [] },
+      { signal: new AbortController().signal, toolUseID: "" },
+    );
+
+    const second = runSDKQuery("second", {
+      sdkOptions: {},
+      onAgentQuestion: async () => ({ answers: {} }),
+    });
+    const secondCanUseTool = sdkQueryMock.mock.calls[1]?.[0].options.canUseTool;
+    await secondCanUseTool(
+      "AskUserQuestion",
+      { questions: [] },
+      { signal: new AbortController().signal, toolUseID: "" },
+    );
+
+    if (!first.ok || !second.ok) throw new Error("expected runSDKQuery success");
+    await expect(first.value.events.next()).resolves.toMatchObject({
+      value: { type: "agent_question", requestId: "claude_input_1" },
+    });
+    await expect(second.value.events.next()).resolves.toMatchObject({
+      value: { type: "agent_question", requestId: "claude_input_1" },
+    });
+  });
+
+  it("denies non-question tools when no approval handler is configured", async () => {
+    const result = runSDKQuery("prompt", {
+      sdkOptions: {},
+      onAgentQuestion: async () => ({ answers: {} }),
+    });
+
+    expect(result.ok).toBe(true);
+    const canUseTool = sdkQueryMock.mock.calls[0]?.[0].options.canUseTool;
+    await expect(
+      canUseTool(
+        "Bash",
+        { command: "rm -rf tmp" },
+        {
+          signal: new AbortController().signal,
+          toolUseID: "toolu_bash_1",
+        },
+      ),
+    ).resolves.toMatchObject({
+      behavior: "deny",
+      message: "Tool approval handler unavailable",
+    });
+  });
+
+  it("delegates non-question tools to the approval handler when configured", async () => {
+    const result = runSDKQuery("prompt", {
+      sdkOptions: {},
+      onAgentQuestion: async () => ({ answers: {} }),
+      onApprovalRequest: async () => "approve",
+    });
+
+    expect(result.ok).toBe(true);
+    const canUseTool = sdkQueryMock.mock.calls[0]?.[0].options.canUseTool;
+    await expect(
+      canUseTool(
+        "Bash",
+        { command: "git status" },
+        {
+          signal: new AbortController().signal,
+          toolUseID: "toolu_bash_1",
+        },
+      ),
+    ).resolves.toMatchObject({
+      behavior: "allow",
+      updatedInput: { command: "git status" },
+    });
   });
 });

@@ -110,8 +110,6 @@ export function bridgeApproval(fn: ApprovalCallback): CanUseTool {
   };
 }
 
-let nextInteractionId = 1;
-
 function parseAgentQuestions(input: Record<string, unknown>): AgentQuestion[] {
   const rawQuestions = Array.isArray(input.questions) ? input.questions : [];
   return rawQuestions.map((raw, index) => {
@@ -120,8 +118,7 @@ function parseAgentQuestions(input: Record<string, unknown>): AgentQuestion[] {
     return {
       id: String(question.id ?? `q_${index}`),
       header: String(question.header ?? ""),
-      question:
-        typeof raw === "string" ? raw : String(question.question ?? question.text ?? ""),
+      question: typeof raw === "string" ? raw : String(question.question ?? question.text ?? ""),
       freeform: question.freeform !== false,
       secret: Boolean(question.secret),
       multiSelect: Boolean(question.multiSelect),
@@ -144,7 +141,7 @@ function toClaudeQuestionAnswers(
   const result: Record<string, string> = {};
   for (const [questionId, selected] of Object.entries(answers)) {
     const question = questions.find((q) => q.id === questionId);
-    result[question?.question ?? questionId] = selected[0] ?? "";
+    result[question?.question ?? questionId] = selected.join("\n");
   }
   return result;
 }
@@ -152,6 +149,7 @@ function toClaudeQuestionAnswers(
 function buildCanUseTool(
   opts: Pick<SDKAdapterOptions, "onAgentQuestion" | "onApprovalRequest">,
   pushStreamEvent: (event: AgentStreamEvent) => void,
+  nextFallbackRequestId: () => string,
 ): CanUseTool | undefined {
   if (!opts.onAgentQuestion && !opts.onApprovalRequest) return undefined;
 
@@ -162,7 +160,7 @@ function buildCanUseTool(
   ): Promise<PermissionResult> => {
     if (toolName === "AskUserQuestion" && opts.onAgentQuestion) {
       const questions = parseAgentQuestions(input);
-      const requestId = `claude_input_${nextInteractionId++}`;
+      const requestId = options?.toolUseID || nextFallbackRequestId();
       pushStreamEvent({ type: "agent_question", requestId, questions });
       const response = await opts.onAgentQuestion({
         id: requestId,
@@ -186,7 +184,10 @@ function buildCanUseTool(
       });
     }
 
-    return { behavior: "allow", updatedInput: input };
+    return {
+      behavior: "deny",
+      message: "Tool approval handler unavailable",
+    };
   };
 }
 
@@ -737,6 +738,8 @@ export function runSDKQuery(
   prompt: string,
   opts: SDKAdapterOptions,
 ): Result<SDKQueryHandle, SDKAdapterError> {
+  let nextInteractionId = 1;
+  const nextFallbackRequestId = () => `claude_input_${nextInteractionId++}`;
   const pendingInteractionEvents: AgentStreamEvent[] = [];
   let interactionEventResolver: (() => void) | null = null;
   const pushInteractionEvent = (event: AgentStreamEvent) => {
@@ -749,7 +752,7 @@ export function runSDKQuery(
       interactionEventResolver = () => resolve("interaction");
     });
 
-  const canUseTool = buildCanUseTool(opts, pushInteractionEvent);
+  const canUseTool = buildCanUseTool(opts, pushInteractionEvent, nextFallbackRequestId);
 
   const sdkOptions: SDKOptions = {
     ...opts.sdkOptions,

@@ -197,4 +197,47 @@ describe("AgentService direct SDK port", () => {
     expect(abort).toHaveBeenCalledOnce();
     await expect(iterator.next()).resolves.toMatchObject({ done: true });
   });
+
+  it("clears plan mode when ExitPlanMode arrives without a written plan", async () => {
+    mockRunSDKQuery.mockReturnValueOnce(
+      mockHandle(
+        [
+          {
+            type: "tool_start",
+            name: "EnterPlanMode",
+            input: "",
+            toolUseId: "tool-1",
+            inputRaw: {},
+          },
+          {
+            type: "tool_start",
+            name: "ExitPlanMode",
+            input: "",
+            toolUseId: "tool-2",
+            inputRaw: {},
+          },
+          {
+            type: "tool_start",
+            name: "Write",
+            input: "",
+            toolUseId: "tool-3",
+            inputRaw: { file_path: "/tmp/not-a-plan.md" },
+          },
+          {
+            type: "tool_start",
+            name: "ExitPlanMode",
+            input: "",
+            toolUseId: "tool-4",
+            inputRaw: {},
+          },
+        ],
+        "session-1",
+      ),
+    );
+
+    const service = getAgentService();
+    const events = await collect(service.run("plan mode", { model: "sonnet" }));
+
+    expect(events.some((event) => event.type === "plan_ready")).toBe(false);
+  });
 });
