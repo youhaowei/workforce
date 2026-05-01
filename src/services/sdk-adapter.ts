@@ -9,6 +9,7 @@
  * - Orphaned tool completion: synthetic error tool_result for dangling IDs
  * - Text delta backfill when stream_event messages are suppressed
  */
+/* eslint-disable max-lines */
 
 import {
   query as sdkQuery,
@@ -17,9 +18,13 @@ import {
   type CanUseTool,
   type PermissionResult,
 } from "@anthropic-ai/claude-agent-sdk";
-import type { AgentStreamEvent, Result } from "./types";
+import type { AgentQuestion, AgentStreamEvent, Result } from "./types";
 import type { EventBus } from "@/shared/event-bus";
-import type { QueryResultEvent } from "@/shared/event-types";
+import type {
+  HookResponseEvent,
+  QueryResultEvent,
+  TaskNotificationEvent,
+} from "@/shared/event-types";
 import { createLogger } from "tracey";
 
 const logger = createLogger("sdk-adapter");
@@ -49,11 +54,15 @@ export interface SDKAdapterOptions {
   sdkOptions: Omit<SDKOptions, "canUseTool">;
   /** Optional EventBus for broadcasting raw SDK events. */
   eventBus?: EventBus;
+  /** Whether to emit RawSdkMessage events to the EventBus. */
+  emitRawEvents?: boolean;
   /**
    * Simplified approval callback — maps to SDK's canUseTool.
    * Return "approve" or "deny".
    */
   onApprovalRequest?: ApprovalCallback;
+  /** Blocking callback for the AskUserQuestion tool. */
+  onAgentQuestion?: AgentQuestionCallback;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +77,13 @@ export type ApprovalCallback = (request: {
   signal?: AbortSignal;
   toolUseID?: string;
 }) => Promise<"approve" | "deny">;
+
+export type AgentQuestionCallback = (request: {
+  id: string;
+  questions: AgentQuestion[];
+  signal?: AbortSignal;
+  toolUseID?: string;
+}) => Promise<{ answers: Record<string, string[]> }>;
 
 /** Bridge a simple approve/deny callback to the SDK's CanUseTool signature. */
 export function bridgeApproval(fn: ApprovalCallback): CanUseTool {
@@ -91,6 +107,86 @@ export function bridgeApproval(fn: ApprovalCallback): CanUseTool {
       logger.warn({ err, toolName }, "Approval callback threw — denying");
       return { behavior: "deny", message: "Approval callback error" };
     }
+  };
+}
+
+let nextInteractionId = 1;
+
+function parseAgentQuestions(input: Record<string, unknown>): AgentQuestion[] {
+  const rawQuestions = Array.isArray(input.questions) ? input.questions : [];
+  return rawQuestions.map((raw, index) => {
+    const question = raw as Record<string, unknown>;
+    const rawOptions = Array.isArray(question.options) ? question.options : undefined;
+    return {
+      id: String(question.id ?? `q_${index}`),
+      header: String(question.header ?? ""),
+      question:
+        typeof raw === "string" ? raw : String(question.question ?? question.text ?? ""),
+      freeform: question.freeform !== false,
+      secret: Boolean(question.secret),
+      multiSelect: Boolean(question.multiSelect),
+      options: rawOptions?.map((option) => {
+        if (typeof option === "string") return { label: option, description: "" };
+        const optionRecord = option as Record<string, unknown>;
+        return {
+          label: String(optionRecord.label ?? optionRecord.value ?? ""),
+          description: String(optionRecord.description ?? ""),
+        };
+      }),
+    };
+  });
+}
+
+function toClaudeQuestionAnswers(
+  questions: AgentQuestion[],
+  answers: Record<string, string[]>,
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [questionId, selected] of Object.entries(answers)) {
+    const question = questions.find((q) => q.id === questionId);
+    result[question?.question ?? questionId] = selected[0] ?? "";
+  }
+  return result;
+}
+
+function buildCanUseTool(
+  opts: Pick<SDKAdapterOptions, "onAgentQuestion" | "onApprovalRequest">,
+  pushStreamEvent: (event: AgentStreamEvent) => void,
+): CanUseTool | undefined {
+  if (!opts.onAgentQuestion && !opts.onApprovalRequest) return undefined;
+
+  return async (
+    toolName: string,
+    input: Record<string, unknown>,
+    options?: { signal?: AbortSignal; toolUseID?: string },
+  ): Promise<PermissionResult> => {
+    if (toolName === "AskUserQuestion" && opts.onAgentQuestion) {
+      const questions = parseAgentQuestions(input);
+      const requestId = `claude_input_${nextInteractionId++}`;
+      pushStreamEvent({ type: "agent_question", requestId, questions });
+      const response = await opts.onAgentQuestion({
+        id: requestId,
+        questions,
+        signal: options?.signal,
+        toolUseID: options?.toolUseID,
+      });
+      return {
+        behavior: "allow",
+        updatedInput: {
+          ...input,
+          answers: toClaudeQuestionAnswers(questions, response.answers),
+        },
+      };
+    }
+
+    if (opts.onApprovalRequest) {
+      return bridgeApproval(opts.onApprovalRequest)(toolName, input, {
+        signal: options?.signal ?? new AbortController().signal,
+        toolUseID: options?.toolUseID ?? "",
+      });
+    }
+
+    return { behavior: "allow", updatedInput: input };
   };
 }
 
@@ -239,33 +335,105 @@ function* mapUserMessage(msg: any, toolRegistry: ToolRegistry): Generator<AgentS
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+interface BusEmitState {
+  lastMessageId: string;
+}
+
+function mapUsage(raw: any) {
+  return {
+    inputTokens: Number(raw?.input_tokens ?? 0),
+    outputTokens: Number(raw?.output_tokens ?? 0),
+    cacheReadInputTokens: Number(raw?.cache_read_input_tokens ?? 0),
+    cacheCreationInputTokens: Number(raw?.cache_creation_input_tokens ?? 0),
+  };
+}
+
+// eslint-disable-next-line complexity -- SDK system subtypes are a flat event translation table.
 function emitSystemToBus(bus: EventBus, msg: any, now: number): void {
-  if (msg.subtype === "init") {
-    bus.emit({
-      type: "SystemInit",
-      claudeCodeVersion: String(msg.claude_code_version ?? ""),
-      cwd: String(msg.cwd ?? ""),
-      model: String(msg.model ?? ""),
-      tools: Array.isArray(msg.tools) ? msg.tools : [],
-      mcpServers: Array.isArray(msg.mcp_servers) ? msg.mcp_servers : [],
-      permissionMode: String(msg.permissionMode ?? ""),
-      slashCommands: Array.isArray(msg.slash_commands) ? msg.slash_commands : [],
-      skills: Array.isArray(msg.skills) ? msg.skills : [],
-      sessionId: String(msg.session_id ?? ""),
-      timestamp: now,
-    });
-  } else if (msg.subtype === "status") {
-    bus.emit({
-      type: "SystemStatus",
-      status: msg.status ?? null,
-      permissionMode: msg.permissionMode,
-      timestamp: now,
-    });
+  switch (msg.subtype) {
+    case "init":
+      bus.emit({
+        type: "SystemInit",
+        claudeCodeVersion: String(msg.claude_code_version ?? ""),
+        cwd: String(msg.cwd ?? ""),
+        model: String(msg.model ?? ""),
+        tools: Array.isArray(msg.tools) ? msg.tools : [],
+        mcpServers: Array.isArray(msg.mcp_servers) ? msg.mcp_servers : [],
+        permissionMode: String(msg.permissionMode ?? ""),
+        slashCommands: Array.isArray(msg.slash_commands) ? msg.slash_commands : [],
+        skills: Array.isArray(msg.skills) ? msg.skills : [],
+        sessionId: String(msg.session_id ?? ""),
+        timestamp: now,
+      });
+      break;
+    case "status":
+      bus.emit({
+        type: "SystemStatus",
+        status: msg.status ?? null,
+        permissionMode: msg.permissionMode,
+        timestamp: now,
+      });
+      break;
+    case "hook_started":
+      bus.emit({
+        type: "HookStarted",
+        hookId: String(msg.hook_id ?? ""),
+        hookName: String(msg.hook_name ?? ""),
+        hookEvent: String(msg.hook_event ?? ""),
+        timestamp: now,
+      });
+      break;
+    case "hook_progress":
+      bus.emit({
+        type: "HookProgress",
+        hookId: String(msg.hook_id ?? ""),
+        hookName: String(msg.hook_name ?? ""),
+        hookEvent: String(msg.hook_event ?? ""),
+        stdout: String(msg.stdout ?? ""),
+        stderr: String(msg.stderr ?? ""),
+        output: String(msg.output ?? ""),
+        timestamp: now,
+      });
+      break;
+    case "hook_response": {
+      const outcome = (["success", "error", "cancelled"] as const).includes(
+        msg.outcome as "success",
+      )
+        ? (msg.outcome as HookResponseEvent["outcome"])
+        : "error";
+      bus.emit({
+        type: "HookResponse",
+        hookId: String(msg.hook_id ?? ""),
+        hookName: String(msg.hook_name ?? ""),
+        hookEvent: String(msg.hook_event ?? ""),
+        outcome,
+        output: String(msg.output ?? ""),
+        exitCode: msg.exit_code != null ? Number(msg.exit_code) : undefined,
+        timestamp: now,
+      });
+      break;
+    }
+    case "task_notification": {
+      const status = (["completed", "failed", "stopped"] as const).includes(
+        msg.status as "completed",
+      )
+        ? (msg.status as TaskNotificationEvent["status"])
+        : "failed";
+      bus.emit({
+        type: "TaskNotification",
+        taskId: String(msg.task_id ?? ""),
+        status,
+        outputFile: String(msg.output_file ?? ""),
+        summary: String(msg.summary ?? ""),
+        timestamp: now,
+      });
+      break;
+    }
   }
 }
 
 // eslint-disable-next-line complexity -- pure data mapping, branches are field coercions
-function emitStreamEventToBus(bus: EventBus, event: any, now: number): void {
+function emitStreamEventToBus(bus: EventBus, event: any, now: number, state: BusEmitState): void {
   switch (event.type) {
     case "content_block_start":
       if (event.content_block)
@@ -295,15 +463,13 @@ function emitStreamEventToBus(bus: EventBus, event: any, now: number): void {
     case "message_start":
       if (event.message) {
         const m = event.message;
+        state.lastMessageId = String(m.id ?? "");
         bus.emit({
           type: "MessageStart",
-          messageId: String(m.id ?? ""),
+          messageId: state.lastMessageId,
           model: String(m.model ?? ""),
           stopReason: m.stop_reason ?? null,
-          usage: {
-            inputTokens: Number(m.usage?.input_tokens ?? 0),
-            outputTokens: Number(m.usage?.output_tokens ?? 0),
-          },
+          usage: mapUsage(m.usage),
           timestamp: now,
         });
       }
@@ -311,11 +477,58 @@ function emitStreamEventToBus(bus: EventBus, event: any, now: number): void {
     case "message_stop":
       bus.emit({
         type: "MessageStop",
-        messageId: "",
+        messageId: state.lastMessageId,
         stopReason: event.message?.stop_reason ?? "end_turn",
         timestamp: now,
       });
       break;
+  }
+}
+
+function mapAssistantContent(content: any[]) {
+  return content.map((block) => {
+    if (block.type === "text") return { type: "text" as const, text: String(block.text ?? "") };
+    if (block.type === "tool_use") {
+      return {
+        type: "tool_use" as const,
+        id: String(block.id ?? ""),
+        name: String(block.name ?? ""),
+        input: block.input,
+      };
+    }
+    if (block.type === "thinking") {
+      return { type: "thinking" as const, thinking: String(block.thinking ?? "") };
+    }
+    return { type: String(block.type ?? "text") as "text" };
+  });
+}
+
+// eslint-disable-next-line complexity -- Field coercion for SDK assistant payloads.
+function emitAssistantToBus(bus: EventBus, msg: any, now: number): void {
+  const message = msg.message;
+  const content = Array.isArray(message?.content) ? message.content : [];
+  bus.emit({
+    type: "AssistantMessage",
+    messageId: String(message?.id ?? ""),
+    uuid: String(msg.uuid ?? ""),
+    sessionId: String(msg.session_id ?? ""),
+    model: String(message?.model ?? ""),
+    stopReason: message?.stop_reason ?? null,
+    usage: mapUsage(message?.usage),
+    content: mapAssistantContent(content),
+    error: msg.error ? String(msg.error) : undefined,
+    timestamp: now,
+  });
+
+  for (const block of content) {
+    if (block.type !== "tool_use") continue;
+    bus.emit({
+      type: "ToolStart",
+      toolId: String(block.id ?? ""),
+      toolName: String(block.name ?? ""),
+      args: block.input,
+      timestamp: now,
+    });
   }
 }
 
@@ -358,16 +571,49 @@ function emitResultToBus(bus: EventBus, msg: any, now: number): void {
     errors: Array.isArray(msg.errors) ? msg.errors : undefined,
     timestamp: now,
   });
+
+  if (msg.subtype && msg.subtype !== "success") {
+    const errors = Array.isArray(msg.errors) ? msg.errors.join("; ") : "";
+    bus.emit({
+      type: "BridgeError",
+      source: "agent-sdk",
+      error: errors || `Session ended with: ${msg.subtype}`,
+      code: String(msg.subtype),
+      timestamp: now,
+    });
+  }
 }
 
-function emitToBus(bus: EventBus, msg: any): void {
+// eslint-disable-next-line complexity -- Top-level SDK message dispatcher.
+function emitToBus(bus: EventBus, msg: any, state: BusEmitState, emitRawEvents: boolean): void {
   const now = Date.now();
+  if (emitRawEvents) {
+    bus.emit({
+      type: "RawSdkMessage",
+      sdkMessageType: String(msg.type ?? ""),
+      payload: msg,
+      timestamp: now,
+    });
+  }
+
   switch (msg.type) {
     case "system":
       emitSystemToBus(bus, msg, now);
       break;
     case "stream_event":
-      if (msg.event) emitStreamEventToBus(bus, msg.event, now);
+      if (msg.event) emitStreamEventToBus(bus, msg.event, now, state);
+      break;
+    case "assistant":
+      emitAssistantToBus(bus, msg, now);
+      break;
+    case "auth_status":
+      bus.emit({
+        type: "AuthStatus",
+        isAuthenticating: Boolean(msg.isAuthenticating),
+        output: Array.isArray(msg.output) ? msg.output : [],
+        error: msg.error ? String(msg.error) : undefined,
+        timestamp: now,
+      });
       break;
     case "result":
       emitResultToBus(bus, msg, now);
@@ -472,6 +718,8 @@ export interface SDKQueryHandle {
   events: AsyncGenerator<AgentStreamEvent>;
   /** Abort the running query. Safe to call multiple times. */
   abort: () => void;
+  /** Last observed Claude session id from SDK messages. */
+  getSessionId: () => string | null;
   /** The underlying SDK Query handle (for advanced use like interrupt/setPermissionMode). */
   query: Query;
 }
@@ -489,7 +737,19 @@ export function runSDKQuery(
   prompt: string,
   opts: SDKAdapterOptions,
 ): Result<SDKQueryHandle, SDKAdapterError> {
-  const canUseTool = opts.onApprovalRequest ? bridgeApproval(opts.onApprovalRequest) : undefined;
+  const pendingInteractionEvents: AgentStreamEvent[] = [];
+  let interactionEventResolver: (() => void) | null = null;
+  const pushInteractionEvent = (event: AgentStreamEvent) => {
+    pendingInteractionEvents.push(event);
+    interactionEventResolver?.();
+    interactionEventResolver = null;
+  };
+  const waitForInteractionEvent = () =>
+    new Promise<"interaction">((resolve) => {
+      interactionEventResolver = () => resolve("interaction");
+    });
+
+  const canUseTool = buildCanUseTool(opts, pushInteractionEvent);
 
   const sdkOptions: SDKOptions = {
     ...opts.sdkOptions,
@@ -512,24 +772,67 @@ export function runSDKQuery(
   const closeOnce = () => {
     if (closed) return;
     closed = true;
+    interactionEventResolver?.();
+    interactionEventResolver = null;
     queryHandle.close();
+  };
+
+  let sessionId: string | null = null;
+
+  const recordSessionId = (msg: unknown) => {
+    const record = msg as { session_id?: unknown };
+    if (typeof record.session_id === "string" && record.session_id) {
+      sessionId = record.session_id;
+    }
+  };
+
+  const resultError = (msg: unknown): SDKAdapterError | null => {
+    const result = msg as { type?: unknown; subtype?: unknown; errors?: unknown };
+    if (result.type !== "result" || result.subtype === undefined || result.subtype === "success") {
+      return null;
+    }
+    const errors = Array.isArray(result.errors) ? result.errors.join("; ") : "";
+    return new SDKAdapterError(errors || `Session ended with: ${String(result.subtype)}`);
   };
 
   async function* streamEvents(): AsyncGenerator<AgentStreamEvent> {
     const toolRegistry: ToolRegistry = new Map();
     const state = { streamedTextThisTurn: false };
+    const busState: BusEmitState = { lastMessageId: "" };
 
     try {
+      const iterator = (queryHandle as AsyncIterable<unknown>)[Symbol.asyncIterator]();
+      let nextMessage = iterator.next();
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for await (const msg of queryHandle as AsyncIterable<any>) {
+      while (true) {
+        while (pendingInteractionEvents.length > 0) {
+          yield pendingInteractionEvents.shift()!;
+        }
+
+        const raced = await Promise.race([
+          nextMessage.then((result) => ({ type: "message" as const, result })),
+          waitForInteractionEvent().then(() => ({ type: "interaction" as const })),
+        ]);
+
+        if (raced.type === "interaction") continue;
+        if (raced.result.done) break;
+
+        const msg = raced.result.value;
+        nextMessage = iterator.next();
+        recordSessionId(msg);
+
         if (opts.eventBus) {
           try {
-            emitToBus(opts.eventBus, msg);
+            emitToBus(opts.eventBus, msg, busState, Boolean(opts.emitRawEvents));
           } catch (err) {
             logger.warn({ err }, "EventBus emit failed");
           }
         }
         yield* processMessage(msg, toolRegistry, state);
+
+        const error = resultError(msg);
+        if (error) throw error;
       }
       // Only flush pending tools as errors on a NATURAL end. If the iterator
       // exited because abort() was called (closeOnce ran externally), the
@@ -550,6 +853,7 @@ export function runSDKQuery(
     value: {
       events: streamEvents(),
       abort: closeOnce,
+      getSessionId: () => sessionId,
       query: queryHandle,
     },
   };
