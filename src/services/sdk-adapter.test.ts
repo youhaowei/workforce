@@ -702,4 +702,43 @@ describe("runSDKQuery — canUseTool bridge", () => {
       updatedInput: { command: "git status" },
     });
   });
+
+  it("flushes pending tool results before throwing result-level errors", async () => {
+    sdkQueryMock.mockImplementation(() => ({
+      close: vi.fn(),
+      async *[Symbol.asyncIterator]() {
+        yield {
+          type: "assistant",
+          message: {
+            content: [{ type: "tool_use", id: "tu_failed", name: "Bash", input: {} }],
+          },
+        };
+        yield {
+          type: "result",
+          subtype: "error_during_execution",
+          errors: ["execution failed"],
+        };
+      },
+    }));
+
+    const result = runSDKQuery("prompt", { sdkOptions: {} });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected runSDKQuery success");
+
+    await expect(result.value.events.next()).resolves.toMatchObject({
+      value: { type: "tool_start", toolUseId: "tu_failed", name: "Bash" },
+      done: false,
+    });
+    await expect(result.value.events.next()).resolves.toMatchObject({
+      value: {
+        type: "tool_result",
+        toolUseId: "tu_failed",
+        toolName: "Bash",
+        isError: true,
+      },
+      done: false,
+    });
+    await expect(result.value.events.next()).rejects.toThrow("execution failed");
+  });
 });

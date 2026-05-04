@@ -835,7 +835,10 @@ export function runSDKQuery(
         yield* processMessage(msg, toolRegistry, state);
 
         const error = resultError(msg);
-        if (error) throw error;
+        if (error) {
+          yield* flushPendingTools(toolRegistry, true);
+          throw error;
+        }
       }
       // Only flush pending tools as errors on a NATURAL end. If the iterator
       // exited because abort() was called (closeOnce ran externally), the
