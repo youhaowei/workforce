@@ -20,7 +20,7 @@ import { AgentOverview } from "./AgentOverview";
 import { AgentMessages } from "./AgentMessages";
 import { AgentActions } from "./AgentActions";
 import { AgentAudit } from "./AgentAudit";
-import type { SessionLifecycle } from "@/services/types";
+import type { LifecycleState, SessionLifecycle } from "@/services/types";
 
 export interface AgentDetailViewProps {
   sessionId: string;
@@ -31,7 +31,7 @@ export interface AgentDetailViewProps {
 interface AgentDetailHeaderProps {
   sessionId: string;
   goal: string;
-  state: string;
+  state: LifecycleState;
   templateId?: string;
   onBack?: () => void;
 }
@@ -40,7 +40,7 @@ function AgentDetailHeader({ sessionId, goal, state, templateId, onBack }: Agent
   return (
     <div className="mb-4">
       <div className="flex items-center gap-3 mb-2">
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack}>
+        <Button variant="ghost" color="neutral" size="icon" className="h-7 w-7" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h2 className="text-lg font-semibold flex-1 truncate">{goal}</h2>
@@ -56,11 +56,13 @@ function AgentDetailHeader({ sessionId, goal, state, templateId, onBack }: Agent
   );
 }
 
+type AgentDetailAction = "pause" | "resume" | "cancel";
+
 interface AgentDetailActionsProps {
-  state: string;
+  state: LifecycleState;
   canSpawnChild: boolean;
   spawnPending: boolean;
-  onAction: (action: string) => void;
+  onAction: (action: AgentDetailAction) => void;
   onSpawnChild: () => void;
 }
 
@@ -76,12 +78,12 @@ function AgentDetailActions({
   return (
     <div className="flex gap-2 mb-4 ml-10">
       {state === "active" ? (
-        <Button variant="outline" size="sm" onClick={() => onAction("pause")}>
+        <Button variant="outline" color="neutral" size="sm" onClick={() => onAction("pause")}>
           <Pause className="h-3 w-3 mr-1.5" />
           Pause
         </Button>
       ) : (
-        <Button size="sm" onClick={() => onAction("resume")}>
+        <Button color="primary" size="sm" onClick={() => onAction("resume")}>
           <Play className="h-3 w-3 mr-1.5" />
           Resume
         </Button>
@@ -91,7 +93,13 @@ function AgentDetailActions({
         Cancel
       </Button>
       {canSpawnChild && (
-        <Button variant="outline" size="sm" onClick={onSpawnChild} disabled={spawnPending}>
+        <Button
+          variant="outline"
+          color="neutral"
+          size="sm"
+          onClick={onSpawnChild}
+          disabled={spawnPending}
+        >
           <Plus className="h-3 w-3 mr-1.5" />
           Spawn Child
         </Button>
@@ -107,7 +115,7 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
   const { data: session } = useQuery(trpc.session.get.queryOptions({ sessionId }));
 
   const lifecycle = session?.metadata?.lifecycle as SessionLifecycle | undefined;
-  const state = lifecycle?.state ?? "created";
+  const state: LifecycleState = lifecycle?.state ?? "created";
   const goal = (session?.metadata?.goal as string) ?? "No goal set";
   const templateId = session?.metadata?.templateId as string | undefined;
   const orgId = session?.metadata?.orgId as string | undefined;
@@ -137,7 +145,7 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
   );
 
   const handleAction = useCallback(
-    (action: string) => {
+    (action: AgentDetailAction) => {
       if (action === "cancel") {
         cancelMutation.mutate({ sessionId, reason: "User cancelled" });
       } else if (action === "pause") {

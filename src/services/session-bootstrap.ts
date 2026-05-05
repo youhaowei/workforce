@@ -1,9 +1,11 @@
 import { readdir, mkdir } from "fs/promises";
+import { createLogger } from "tracey";
 import type { HydrationStatus, Session } from "./types";
-import { getLogService } from "./log";
 import { runMigrations } from "./migration";
 import { replaySessionMetadata } from "./session-journal";
 import { RehydrationManager } from "./session-rehydration";
+
+const log = createLogger("session-bootstrap");
 
 export interface SessionBootstrapDeps {
   dataDir: string;
@@ -30,7 +32,7 @@ export async function initializeSessions(deps: SessionBootstrapDeps): Promise<vo
   } catch (err) {
     const error = err as NodeJS.ErrnoException;
     if (error.code !== "ENOENT") {
-      getLogService().error("general", "Failed to initialize sessions", { error: String(error) });
+      log.error({ error: String(error) }, "Failed to initialize sessions");
     }
   }
 

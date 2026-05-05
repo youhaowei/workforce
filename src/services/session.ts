@@ -1,4 +1,3 @@
-/* oxlint-disable max-lines -- SessionService is a facade over extracted modules; split remaining CRUD surface after public interface decomposition. */
 /**
  * SessionService — JSONL append-only persistence with streaming delta tracking.
  *
@@ -8,6 +7,8 @@
  * Extracted modules:
  *   session-journal.ts     — JSONL I/O, replay, consolidation, append locking
  *   session-rehydration.ts — Background full-replay at startup (bounded concurrency)
+ *   session-read.ts        — Replay-backed reads, listing, search, message retrieval
+ *   session-history.ts     — Forking and truncating session history
  *   session-lifecycle.ts   — WorkAgent creation and state transitions
  *   session-streaming.ts   — Stream record methods (start/delta/final/abort)
  */
@@ -31,29 +32,26 @@ import type {
   JournalRecord,
 } from "./types";
 import { getEventBus } from "@/shared/event-bus";
-import { createLogger } from "tracey";
 import { getDataDir } from "./data-dir";
 import {
   appendRecord,
   appendRecords,
   writeRecords as journalWriteRecords,
-  writeForkSession,
   AppendLock,
   SeqAllocator,
   JSONL_VERSION,
-  consolidateSession,
 } from "./session-journal";
 import { RehydrationManager } from "./session-rehydration";
-import { loadSession } from "./session-upgrade";
 import * as lifecycle from "./session-lifecycle";
 import * as streaming from "./session-streaming";
 import { CCSourceWatcher } from "./cc-watcher";
 import * as ccSync from "./cc-sync";
 import { initializeSessions } from "./session-bootstrap";
 import { scheduleSessionConsolidation } from "./session-consolidation";
+import * as sessionRead from "./session-read";
+import * as history from "./session-history";
 
 const SESSIONS_DIR = join(getDataDir(), "sessions");
-const log = createLogger("Session");
 /** Debounce delay (ms) for consolidation after writes. */
 const CONSOLIDATION_DEBOUNCE_MS = 500;
 
@@ -81,6 +79,8 @@ class SessionServiceImpl implements SessionService {
   private lifecycleDeps: lifecycle.LifecycleDeps;
   private ccSyncDeps: ccSync.CCSyncDeps;
   private streamingDeps: streaming.StreamingDeps;
+  private readDeps: sessionRead.SessionReadDeps;
+  private historyDeps: history.SessionHistoryDeps;
 
   constructor(sessionsDir?: string) {
     this.sessionsDir = sessionsDir ?? SESSIONS_DIR;
@@ -123,6 +123,26 @@ class SessionServiceImpl implements SessionService {
       ensureInitialized: () => this.ensureInitialized(),
       writeRecords: (id, records) => this.writeRecords(id, records),
       scheduleConsolidation: (id) => this.scheduleConsolidation(id),
+    };
+
+    this.readDeps = {
+      sessions: this.sessions,
+      hydrationStatus: this.hydrationStatus,
+      seqAllocators: this.seqAllocators,
+      sessionsDir: this.sessionsDir,
+      rehydrator: this.rehydrator,
+      ensureInitialized: () => this.ensureInitialized(),
+      scheduleConsolidation: (id) => this.scheduleConsolidation(id),
+    };
+
+    this.historyDeps = {
+      sessionsDir: this.sessionsDir,
+      appendLock: this.appendLock,
+      consolidationTimers: this.consolidationTimers,
+      deletedSessionIds: this.deletedSessionIds,
+      registerSession: (session) => this.registerSession(session, "ready"),
+      getSession: (id) => this.get(id),
+      generateId,
     };
   }
 
@@ -192,66 +212,7 @@ class SessionServiceImpl implements SessionService {
   }
 
   async get(sessionId: string): Promise<Session | null> {
-    await this.ensureInitialized();
-    const status = this.hydrationStatus.get(sessionId);
-    log.info({ sessionId, status }, `get(${sessionId}) status=${status}`);
-
-    // Fast path: fully rehydrated
-    if (status === "ready") {
-      const s = this.sessions.get(sessionId) ?? null;
-      log.info(
-        { sessionId, msgs: s?.messages.length ?? "null" },
-        `get(${sessionId}) ready → msgs=${s?.messages.length ?? "null"}`,
-      );
-      return s;
-    }
-
-    // Await in-flight rehydration
-    const flight = this.rehydrator.getFlight(sessionId);
-    if (flight) {
-      log.info({ sessionId }, `get(${sessionId}) awaiting rehydration flight`);
-      await flight;
-      const s = this.sessions.get(sessionId) ?? null;
-      log.info(
-        { sessionId, msgs: s?.messages.length ?? "null" },
-        `get(${sessionId}) flight done → msgs=${s?.messages.length ?? "null"}`,
-      );
-      return s;
-    }
-
-    // Failed rehydration may have left the session in the map with messages
-    // (loadSession succeeded but consolidation failed). Use it if available.
-    if (status === "failed") {
-      const cached = this.sessions.get(sessionId);
-      if (cached && cached.messages.length > 0) {
-        log.info(
-          { sessionId, msgs: cached.messages.length },
-          `get(${sessionId}) using cached from failed rehydration → msgs=${cached.messages.length}`,
-        );
-        return cached;
-      }
-    }
-
-    // Cold / failed-without-cache / unknown: do a direct replay (with upgrade)
-    log.info(
-      { sessionId, status: status ?? "unknown" },
-      `get(${sessionId}) ${status ?? "unknown"}, no flight → direct load`,
-    );
-    const result = await loadSession(this.sessionsDir, sessionId);
-    if (!result) {
-      log.info({ sessionId }, `get(${sessionId}) load returned null`);
-      return null;
-    }
-    const { session, maxSeq } = result;
-    log.info(
-      { sessionId, msgs: session.messages.length, upgraded: result.upgraded },
-      `get(${sessionId}) loaded → msgs=${session.messages.length}`,
-    );
-    this.sessions.set(sessionId, session);
-    this.seqAllocators.set(sessionId, new SeqAllocator(maxSeq + 1));
-    this.hydrationStatus.set(sessionId, "ready");
-    this.scheduleConsolidation(sessionId);
-    return session;
+    return sessionRead.getSession(this.readDeps, sessionId);
   }
 
   async updateSession(sessionId: string, patch: SessionSavePatch): Promise<void> {
@@ -302,86 +263,11 @@ class SessionServiceImpl implements SessionService {
   }
 
   async fork(sessionId: string, options?: { atMessageIndex?: number }): Promise<Session> {
-    const parent = await this.get(sessionId);
-    if (!parent) throw new Error(`Session not found: ${sessionId}`);
-    if (parent.messages.length === 0) throw new Error("Cannot fork an empty session");
-
-    const cutoff = options?.atMessageIndex;
-    if (cutoff !== undefined && (cutoff < -1 || cutoff >= parent.messages.length))
-      throw new Error(
-        `Invalid message index: ${cutoff}. Session has ${parent.messages.length} messages.`,
-      );
-
-    // cutoff === -1 means "fork with zero messages" (edit-and-resend the first message)
-    let messages: typeof parent.messages;
-    if (cutoff === -1) messages = [];
-    else if (cutoff !== undefined) messages = parent.messages.slice(0, cutoff + 1);
-    else messages = parent.messages;
-    const lastIdx = cutoff !== undefined && cutoff >= 0 ? cutoff : parent.messages.length - 1;
-    const forkAtMessageId = parent.messages[lastIdx]?.id;
-    const now = Date.now();
-    const {
-      lifecycle: _,
-      type: _t,
-      templateId: _ti,
-      goal: _g,
-      worktreePath: _w,
-      workflowId: _wf,
-      workflowStepIndex: _ws,
-      repoRoot: _rr,
-      forkAtMessageId: _old,
-      ...inheritedMetadata
-    } = parent.metadata;
-    const forked: Session = {
-      id: generateId(),
-      title: parent.title ? `${parent.title} (fork)` : undefined,
-      createdAt: now,
-      updatedAt: now,
-      parentId: parent.id,
-      messages: messages.map((m) => ({ ...m })),
-      metadata: { ...inheritedMetadata, forkAtMessageId },
-    };
-
-    this.registerSession(forked, "ready");
-    await writeForkSession(this.sessionsDir, forked);
-    getEventBus().emit({
-      type: "SessionChange",
-      sessionId: forked.id,
-      action: "created",
-      timestamp: now,
-    });
-    return forked;
+    return history.forkSession(this.historyDeps, sessionId, options);
   }
 
   async truncate(sessionId: string, upToMessageIndex: number): Promise<Session> {
-    const session = await this.get(sessionId);
-    if (!session) throw new Error(`Session not found: ${sessionId}`);
-    if (upToMessageIndex === -1 && session.messages.length === 0) return session;
-    if (upToMessageIndex < -1 || upToMessageIndex >= session.messages.length)
-      throw new Error(
-        `Invalid message index: ${upToMessageIndex}. Session has ${session.messages.length} messages.`,
-      );
-
-    const timer = this.consolidationTimers.get(sessionId);
-    if (timer) {
-      clearTimeout(timer);
-      this.consolidationTimers.delete(sessionId);
-    }
-
-    await this.appendLock.acquire(sessionId, async () => {
-      session.messages =
-        upToMessageIndex === -1 ? [] : session.messages.slice(0, upToMessageIndex + 1);
-      session.updatedAt = Date.now();
-      if (!this.deletedSessionIds.has(sessionId))
-        await consolidateSession(this.sessionsDir, session);
-    });
-    getEventBus().emit({
-      type: "SessionChange",
-      sessionId,
-      action: "updated",
-      timestamp: session.updatedAt,
-    });
-    return session;
+    return history.truncateSession(this.historyDeps, sessionId, upToMessageIndex);
   }
 
   async list(options?: {
@@ -390,56 +276,11 @@ class SessionServiceImpl implements SessionService {
     orgId?: string;
     projectId?: string;
   }): Promise<SessionSummary[]> {
-    await this.ensureInitialized();
-    let results = Array.from(this.sessions.values());
-    if (options?.orgId)
-      results = results.filter(
-        (s) =>
-          s.metadata.orgId === options.orgId ||
-          (s.metadata.source === "claude-code" && !s.metadata.orgId), // include CC sessions missing orgId
-      );
-    if (options?.projectId)
-      results = results.filter((s) => s.metadata.projectId === options.projectId);
-    const sorted = results.sort((a, b) => b.updatedAt - a.updatedAt);
-    const offset = options?.offset ?? 0;
-    const limit = options?.limit ?? sorted.length;
-    return sorted.slice(offset, offset + limit).map((session) => {
-      const lastMessage = session.messages[session.messages.length - 1];
-      return {
-        id: session.id,
-        title: session.title,
-        createdAt: session.createdAt,
-        updatedAt: session.updatedAt,
-        parentId: session.parentId,
-        metadata: session.metadata,
-        messageCount: session.messages.length,
-        lastMessagePreview: lastMessage?.content,
-      };
-    });
+    return sessionRead.listSessions(this.readDeps, options);
   }
 
   async search(query: string): Promise<SessionSearchResult[]> {
-    await this.ensureInitialized();
-    const results: SessionSearchResult[] = [];
-    const lowerQuery = query.toLowerCase();
-
-    for (const session of this.sessions.values()) {
-      if (session.title?.toLowerCase().includes(lowerQuery)) {
-        results.push({ session, matchedText: session.title, score: 2.0 });
-        continue;
-      }
-      for (const message of session.messages) {
-        const content = message.content.toLowerCase();
-        const index = content.indexOf(lowerQuery);
-        if (index !== -1) {
-          const start = Math.max(0, index - 30);
-          const end = Math.min(content.length, index + query.length + 30);
-          results.push({ session, matchedText: message.content.slice(start, end), score: 1.0 });
-          break;
-        }
-      }
-    }
-    return results.sort((a, b) => b.score - a.score);
+    return sessionRead.searchSessions(this.readDeps, query);
   }
 
   async delete(sessionId: string): Promise<void> {
@@ -526,17 +367,7 @@ class SessionServiceImpl implements SessionService {
     sessionId: string,
     options?: { limit?: number; offset?: number },
   ): Promise<Message[]> {
-    log.info({ sessionId }, `getMessages(${sessionId}) called`);
-    const session = await this.get(sessionId);
-    if (!session) throw new Error(`Session not found: ${sessionId}`);
-    const offset = options?.offset ?? 0;
-    const limit = options?.limit ?? session.messages.length;
-    const result = session.messages.slice(offset, offset + limit);
-    log.info(
-      { sessionId, count: result.length },
-      `getMessages(${sessionId}) → returning ${result.length} messages`,
-    );
-    return result;
+    return sessionRead.getSessionMessages(this.readDeps, sessionId, options);
   }
 
   recordStreamStart(sessionId: string, messageId: string) {

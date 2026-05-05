@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Check, ChevronRight, Loader2, X } from "lucide-react";
 import type { ContentBlock } from "@/services/types";
+import { Button } from "@/components/ui/button";
 import ContentBlockRenderer from "./ContentBlockRenderer";
 import { Chip } from "@/ui/components/Chip";
 
@@ -73,17 +74,13 @@ function TaskGroupRow({
 
   return (
     <div>
-      <div
-        role="button"
-        tabIndex={0}
+      <Button
+        type="button"
+        variant="ghost"
+        color="neutral"
+        aria-expanded={expanded}
         onClick={() => setExpanded((p) => !p)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setExpanded((p) => !p);
-          }
-        }}
-        className="group/row flex items-center gap-2 py-0.5 text-[13px] cursor-pointer hover:text-neutral-fg transition-colors"
+        className="group/row h-auto w-full justify-start gap-2 px-0 py-0.5 text-[13px] hover:bg-transparent"
       >
         <ChevronRight
           className={`h-3 w-3 text-neutral-fg-subtle/60 shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`}
@@ -94,7 +91,7 @@ function TaskGroupRow({
           {description}
         </span>
         {block.status === "error" && <Chip color="danger">Error</Chip>}
-      </div>
+      </Button>
       {expanded && children.length > 0 && (
         <div className="pl-5 ml-[7px] border-l-2 border-neutral-border-subtle space-y-0">
           <ContentBlockRenderer blocks={children} isStreaming={isStreaming} inline />
@@ -181,10 +178,13 @@ export function ActivitySegment({
 
   return (
     <div>
-      <button
+      <Button
         type="button"
+        variant="ghost"
+        color="neutral"
+        aria-expanded={expanded}
         onClick={() => setExpanded((p) => !p)}
-        className="flex items-center gap-2 w-full py-1 text-[13px] text-neutral-fg-subtle hover:text-neutral-fg transition-colors"
+        className="h-auto w-full justify-start gap-2 px-0 py-1 text-[13px] hover:bg-transparent"
       >
         <ChevronRight
           className={`h-3 w-3 shrink-0 transition-transform text-neutral-fg-subtle/40 ${expanded ? "rotate-90" : ""}`}
@@ -198,7 +198,7 @@ export function ActivitySegment({
         )}
         <span className="truncate flex-1 min-w-0 text-left">{headerText}</span>
         {errorCount > 0 && <Chip color="danger">{errorCount} failed</Chip>}
-      </button>
+      </Button>
 
       {expanded && (
         <div className="pl-4 space-y-0 border-l-2 border-neutral-border-subtle ml-[5px]">

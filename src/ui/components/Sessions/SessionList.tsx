@@ -39,6 +39,7 @@ import { filterSessions, groupSessions } from "./sessionListHelpers";
 import type { GroupByMode, SortDirection } from "./sessionListHelpers";
 import {
   FILTERS_STORAGE_KEY,
+  GROUP_BY_STORAGE_KEY,
   SORT_FIELD_OPTIONS,
   SORT_STORAGE_KEY,
   flattenGroups,
@@ -51,8 +52,6 @@ import {
 } from "./sessionListState";
 import { FilterDropdown } from "./SessionListUIHelpers";
 import { renderEmptyState } from "./renderEmptyState";
-
-const GROUP_BY_STORAGE_KEY = "workforce:sessions-group-by";
 
 const GROUP_BY_OPTIONS: { value: GroupByMode; label: string; icon: typeof Calendar }[] = [
   { value: "date", label: "Created", icon: Calendar },

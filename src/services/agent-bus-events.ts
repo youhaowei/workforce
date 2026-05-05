@@ -18,7 +18,10 @@ const VALID_SUBTYPES: ReadonlySet<string> = new Set([
 ]);
 
 function validSubtype(s: string | undefined): QueryResultEvent["subtype"] {
-  return s && VALID_SUBTYPES.has(s) ? (s as QueryResultEvent["subtype"]) : "success";
+  if (s === undefined) return "success";
+  if (VALID_SUBTYPES.has(s)) return s as QueryResultEvent["subtype"];
+  log.warn({ subtype: s }, "Unknown session result subtype");
+  return "error_during_execution";
 }
 
 function toBusUsage(u: Usage) {
@@ -260,9 +263,7 @@ function emitHookOrTaskEvent(
       });
       break;
     case "hook_response": {
-      const outcome = (["success", "error", "cancelled"] as const).includes(
-        event.outcome as "success",
-      )
+      const outcome = (["success", "error"] as const).includes(event.outcome as "success")
         ? (event.outcome as HookResponseEvent["outcome"])
         : "error";
       bus.emit({
