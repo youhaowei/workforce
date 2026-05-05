@@ -5,6 +5,9 @@ name = "workforce"
 [setup]
 script = '''
 cd "$CODEX_WORKTREE_PATH"
+# Submodule URLs in .gitmodules are SSH-based. CI uses the same rewrite —
+# without it, environments without configured SSH keys can't init submodules.
+git config --global url."https://github.com/".insteadOf "git@github.com:"
 git submodule update --init --recursive
 bun install
 '''

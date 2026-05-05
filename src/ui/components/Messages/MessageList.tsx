@@ -8,8 +8,10 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Virtuoso, type VirtuosoHandle } from "react-virtuoso";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
+import type { ShellError } from "@/ui/stores/shellStore";
 import MessageItem, { type ForkInfo } from "./MessageItem";
 
 interface MessageListProps {
@@ -24,8 +26,9 @@ interface MessageListProps {
   }>;
   isStreaming: boolean;
   forksMap?: Map<string, ForkInfo[]>;
-  error?: string | null;
+  error?: ShellError | null;
   onDismissError?: () => void;
+  onOpenSettings?: () => void;
   onRewind?: (messageIndex: number) => void;
   onFork?: (messageIndex: number) => void;
   onSelectSession?: (sessionId: string) => void;
@@ -39,6 +42,7 @@ export default function MessageList({
   forksMap,
   error,
   onDismissError,
+  onOpenSettings,
   onRewind,
   onFork,
   onSelectSession,
@@ -65,6 +69,8 @@ export default function MessageList({
   const activeSessionId = useMessagesStore((s) => s.activeSessionId);
 
   const firstMsgId = messages[0]?.id ?? null;
+  const isAuthError = typeof error === "object" && error?.code === "AUTH_ERROR";
+  const errorMessage = typeof error === "string" ? error : error?.message;
 
   // Track whether we need to scroll to bottom after Virtuoso finishes layout.
   // Set on session switch or bulk message load; cleared after scroll completes.
@@ -294,29 +300,40 @@ export default function MessageList({
       Header: () => (
         <>
           <div className="h-14" />
-          {error && (
-            <div className="mx-4 mb-2 px-4 py-2 bg-palette-danger/10 border border-palette-danger/20 rounded-lg flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-palette-danger shrink-0" />
-                <span className="text-sm text-palette-danger">{error}</span>
-              </div>
-              {onDismissError && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onDismissError}
-                  className="text-palette-danger h-7 shrink-0"
-                >
-                  Dismiss
-                </Button>
+          {errorMessage && (
+            <Alert color="danger" className="mx-4 mb-2">
+              <AlertCircle aria-hidden="true" />
+              <AlertTitle>
+                {isAuthError ? "Claude authentication needs attention" : errorMessage}
+              </AlertTitle>
+              {(isAuthError || onDismissError) && (
+                <AlertDescription>
+                  {isAuthError && (
+                    <p className="text-palette-danger/80 break-words">
+                      Re-authenticate Claude in Settings to continue running agents.
+                    </p>
+                  )}
+                  <div className="mt-1 flex items-center gap-2">
+                    {isAuthError && onOpenSettings && (
+                      <Button variant="solid" color="primary" size="sm" onClick={onOpenSettings}>
+                        Open Settings
+                      </Button>
+                    )}
+                    {onDismissError && (
+                      <Button variant="ghost" color="danger" size="sm" onClick={onDismissError}>
+                        Dismiss
+                      </Button>
+                    )}
+                  </div>
+                </AlertDescription>
               )}
-            </div>
+            </Alert>
           )}
         </>
       ),
       Footer: () => <div className="h-52" />,
     }),
-    [error, onDismissError],
+    [errorMessage, isAuthError, onDismissError, onOpenSettings],
   );
 
   // Empty state is handled by the parent (SessionsView)

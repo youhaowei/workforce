@@ -15,6 +15,7 @@ import type {
   ToolCall,
   ToolResult,
 } from "@/services/types";
+import { completeRunningBlocks } from "@/shared/content-blocks";
 
 // =============================================================================
 // Types
@@ -164,7 +165,7 @@ export const useMessagesStore = create<MessagesStore>()(
               msg.toolActivities = [...state.pendingToolActivities];
             }
             if (state.streamingBlocks.length > 0) {
-              msg.contentBlocks = [...state.streamingBlocks];
+              msg.contentBlocks = completeRunningBlocks(state.streamingBlocks);
             }
           }
         }
@@ -248,9 +249,7 @@ export const useMessagesStore = create<MessagesStore>()(
           toolActivities: m.toolActivities,
           // Persisted blocks may have stale 'running' status from mid-stream snapshots.
           // Since these messages are finalized, mark all blocks as complete.
-          contentBlocks: m.contentBlocks?.map((b) =>
-            b.status === "running" ? { ...b, status: "complete" as const } : b,
-          ),
+          contentBlocks: m.contentBlocks ? completeRunningBlocks(m.contentBlocks) : undefined,
         }));
       });
     },

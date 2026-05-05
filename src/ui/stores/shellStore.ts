@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 export type SidebarMode = "expanded" | "collapsed";
+export type ShellError = string | { message: string; code?: string };
 
 interface ShellStore {
   // Panel states
@@ -21,7 +22,7 @@ interface ShellStore {
 
   // Server connection
   serverConnected: boolean;
-  error: string | null;
+  error: ShellError | null;
 
   // Actions
   setThemePanelOpen: (open: boolean) => void;
@@ -34,7 +35,7 @@ interface ShellStore {
   setCreateProjectDialog: (open: boolean, source: "projects-panel" | "new-session" | null) => void;
   setNewSessionProjectId: (id: string | null) => void;
   setServerConnected: (connected: boolean) => void;
-  setError: (error: string | null) => void;
+  setError: (error: ShellError | null) => void;
 }
 
 // Storage keys for persistence
