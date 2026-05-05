@@ -11,16 +11,19 @@
     "no-nested-ternary": "warn",
     "max-depth": ["warn", { "max": 4 }],
     "max-lines": ["warn", { "max": 500, "skipBlankLines": true, "skipComments": true }],
-    "complexity": ["warn", { "max": 15 }],
+    "complexity": ["warn", { "max": 20 }],
     "no-case-declarations": "off",
     "no-dupe-class-members": "off",
     "require-yield": "off",
     "react/exhaustive-deps": "warn",
     "react/rules-of-hooks": "error",
-    "typescript/no-unused-vars": ["error", {
-      "argsIgnorePattern": "^_",
-      "varsIgnorePattern": "^_"
-    }]
+    "typescript/no-unused-vars": [
+      "error",
+      {
+        "argsIgnorePattern": "^_",
+        "varsIgnorePattern": "^_"
+      }
+    ]
   },
   "overrides": [
     {

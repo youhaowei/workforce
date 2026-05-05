@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- SessionService is a facade over extracted modules; split remaining CRUD surface after public interface decomposition. */
 /**
  * SessionService — JSONL append-only persistence with streaming delta tracking.
  *
@@ -11,7 +12,7 @@
  *   session-streaming.ts   — Stream record methods (start/delta/final/abort)
  */
 
-import { readdir, mkdir, unlink } from "fs/promises";
+import { unlink } from "fs/promises";
 import { join } from "path";
 import type {
   SessionService,
@@ -30,20 +31,17 @@ import type {
   JournalRecord,
 } from "./types";
 import { getEventBus } from "@/shared/event-bus";
-import { getDataDir } from "./data-dir";
-import { runMigrations } from "./migration";
 import { createLogger } from "tracey";
-import { getLogService } from "./log";
+import { getDataDir } from "./data-dir";
 import {
   appendRecord,
   appendRecords,
   writeRecords as journalWriteRecords,
   writeForkSession,
-  replaySessionMetadata,
-  consolidateSession,
   AppendLock,
   SeqAllocator,
   JSONL_VERSION,
+  consolidateSession,
 } from "./session-journal";
 import { RehydrationManager } from "./session-rehydration";
 import { loadSession } from "./session-upgrade";
@@ -51,6 +49,8 @@ import * as lifecycle from "./session-lifecycle";
 import * as streaming from "./session-streaming";
 import { CCSourceWatcher } from "./cc-watcher";
 import * as ccSync from "./cc-sync";
+import { initializeSessions } from "./session-bootstrap";
+import { scheduleSessionConsolidation } from "./session-consolidation";
 
 const SESSIONS_DIR = join(getDataDir(), "sessions");
 const log = createLogger("Session");
@@ -139,29 +139,13 @@ class SessionServiceImpl implements SessionService {
   }
 
   private async doInit(): Promise<void> {
-    await runMigrations(this.dataDir);
-
-    try {
-      await mkdir(this.sessionsDir, { recursive: true });
-      const entries = await readdir(this.sessionsDir);
-      const sessionFiles = entries.filter(
-        (name) => name.endsWith(".jsonl") && !name.includes(".corrupt") && !name.includes(".tmp"),
-      );
-
-      for (const file of sessionFiles) {
-        const sessionId = file.replace(".jsonl", "");
-        const session = await replaySessionMetadata(this.sessionsDir, sessionId);
-        if (session) this.registerSession(session, "cold");
-      }
-    } catch (err) {
-      const error = err as NodeJS.ErrnoException;
-      if (error.code !== "ENOENT") {
-        getLogService().error("general", "Failed to initialize sessions", { error: String(error) });
-      }
-    }
-
+    await initializeSessions({
+      dataDir: this.dataDir,
+      sessionsDir: this.sessionsDir,
+      registerSession: (session, status) => this.registerSession(session, status),
+      rehydrator: this.rehydrator,
+    });
     this.initialized = true;
-    this.rehydrator.enqueue();
   }
 
   // ─── CRUD ──────────────────────────────────────────────────────────
@@ -555,8 +539,6 @@ class SessionServiceImpl implements SessionService {
     return result;
   }
 
-  // ─── Delegated: Streaming ──────────────────────────────────────────
-
   recordStreamStart(sessionId: string, messageId: string) {
     return streaming.recordStreamStart(this.streamingDeps, sessionId, messageId);
   }
@@ -605,9 +587,6 @@ class SessionServiceImpl implements SessionService {
   recordStreamAbort(sessionId: string, messageId: string, reason: string) {
     return streaming.recordStreamAbort(this.streamingDeps, sessionId, messageId, reason);
   }
-
-  // ─── Delegated: WorkAgent + Lifecycle ──────────────────────────────
-
   createWorkAgent(config: WorkAgentConfig) {
     return lifecycle.createWorkAgent(this.lifecycleDeps, config);
   }
@@ -625,13 +604,9 @@ class SessionServiceImpl implements SessionService {
   getChildren(parentSessionId: string) {
     return lifecycle.getChildren(this.lifecycleDeps, parentSessionId);
   }
-
   getHydrationStatus(sessionId: string): HydrationStatus {
     return this.hydrationStatus.get(sessionId) ?? "cold";
   }
-
-  // ─── CC Session Sync (delegated to cc-sync.ts) ──────────────────
-
   importCCSession(ccFilePath: string, orgId?: string) {
     return ccSync.importCCSession(this.ccSyncDeps, ccFilePath, orgId);
   }
@@ -667,29 +642,17 @@ class SessionServiceImpl implements SessionService {
   }
 
   private scheduleConsolidation(sessionId: string): void {
-    const existing = this.consolidationTimers.get(sessionId);
-    if (existing) clearTimeout(existing);
-
-    const timer = setTimeout(async () => {
-      this.consolidationTimers.delete(sessionId);
-      try {
-        if (this.deletedSessionIds.has(sessionId)) return;
-        const session = this.sessions.get(sessionId);
-        if (session) {
-          await this.appendLock.acquire(sessionId, async () => {
-            if (this.deletedSessionIds.has(sessionId)) return;
-            await consolidateSession(this.sessionsDir, session);
-          });
-          log.info({ sessionId }, `Consolidated session ${sessionId}`);
-        }
-      } catch (err) {
-        log.error(
-          { sessionId, error: err instanceof Error ? err.message : String(err) },
-          `Consolidation failed for ${sessionId}`,
-        );
-      }
-    }, CONSOLIDATION_DEBOUNCE_MS);
-    this.consolidationTimers.set(sessionId, timer);
+    scheduleSessionConsolidation(
+      {
+        sessionsDir: this.sessionsDir,
+        sessions: this.sessions,
+        deletedSessionIds: this.deletedSessionIds,
+        appendLock: this.appendLock,
+        timers: this.consolidationTimers,
+        debounceMs: CONSOLIDATION_DEBOUNCE_MS,
+      },
+      sessionId,
+    );
   }
 
   dispose(): void {
@@ -709,18 +672,4 @@ class SessionServiceImpl implements SessionService {
 }
 
 export { SessionServiceImpl };
-
-// Singleton management (same pattern as all other services)
-let _instance: SessionServiceImpl | null = null;
-export function getSessionService(): SessionService {
-  return (_instance ??= new SessionServiceImpl());
-}
-export function resetSessionService(): void {
-  if (_instance) {
-    _instance.dispose();
-    _instance = null;
-  }
-}
-export function createSessionService(sessionsDir: string): SessionService {
-  return new SessionServiceImpl(sessionsDir);
-}
+export { getSessionService, resetSessionService, createSessionService } from "./session-factory";

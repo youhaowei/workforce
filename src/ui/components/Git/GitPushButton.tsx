@@ -62,7 +62,9 @@ export function GitPushButton({ cwd }: GitPushButtonProps) {
     );
   }
 
-  const buttonLabel = pushMutation.isPending ? "Pushing..." : ahead > 0 ? `Push ${ahead}` : "Push";
+  let buttonLabel = "Push";
+  if (pushMutation.isPending) buttonLabel = "Pushing...";
+  else if (ahead > 0) buttonLabel = `Push ${ahead}`;
 
   return (
     <Tooltip>

@@ -21,6 +21,19 @@ import type {
   JournalMeta,
   TokenUsage,
 } from "./types";
+import { discoverCCSessions, projectPathToSlug, type CCSessionSummary } from "./cc-discovery";
+import type {
+  CCAssistant,
+  CCContentBlock,
+  CCFileHistorySnapshot,
+  CCPrLink,
+  CCProgress,
+  CCQueueOperation,
+  CCRecord,
+  CCSystem,
+  CCUsage,
+  CCUser,
+} from "./cc-reader-types";
 
 // =============================================================================
 // Public API
@@ -68,120 +81,6 @@ export async function readCCSession(
 // =============================================================================
 // CC Record Types (raw parsed shapes)
 // =============================================================================
-
-interface CCBase {
-  type: string;
-  parentUuid?: string | null;
-  uuid?: string;
-  timestamp?: string;
-  sessionId?: string;
-  version?: string;
-  gitBranch?: string;
-  cwd?: string;
-  slug?: string;
-  isMeta?: boolean;
-}
-
-interface CCUser extends CCBase {
-  type: "user";
-  message: {
-    role: "user";
-    content: string | CCContentBlock[];
-  };
-  toolUseResult?: {
-    type: string;
-    file?: { filePath: string; content: string };
-  };
-}
-
-interface CCAssistant extends CCBase {
-  type: "assistant";
-  message: {
-    id: string;
-    model?: string;
-    role: "assistant";
-    content: CCContentBlock[];
-    stop_reason: string | null;
-    usage?: CCUsage;
-  };
-}
-
-interface CCContentBlock {
-  type: string;
-  text?: string;
-  thinking?: string;
-  signature?: string;
-  id?: string;
-  name?: string;
-  input?: Record<string, unknown>;
-  tool_use_id?: string;
-  content?: string | CCContentBlock[];
-}
-
-interface CCUsage {
-  input_tokens?: number;
-  output_tokens?: number;
-  cache_read_input_tokens?: number;
-  cache_creation_input_tokens?: number;
-}
-
-interface CCProgress extends CCBase {
-  type: "progress";
-  data?: {
-    type?: string;
-    hookEvent?: string;
-    hookName?: string;
-    toolUseID?: string;
-    content?: string;
-    output?: string;
-    durationMs?: number;
-    [key: string]: unknown;
-  };
-}
-
-interface CCSystem extends CCBase {
-  type: "system";
-  subtype?: string;
-  durationMs?: number;
-  hookCount?: number;
-  hookInfos?: Array<{ command: string; durationMs: number }>;
-  content?: string;
-  compactMetadata?: { trigger?: string; preTokens?: number };
-  [key: string]: unknown;
-}
-
-interface CCFileHistorySnapshot extends CCBase {
-  type: "file-history-snapshot";
-  messageId?: string;
-  snapshot?: {
-    messageId?: string;
-    trackedFileBackups?: Record<string, unknown>;
-    timestamp?: string;
-  };
-}
-
-interface CCQueueOperation extends CCBase {
-  type: "queue-operation";
-  operation: string;
-  content?: string;
-}
-
-interface CCPrLink extends CCBase {
-  type: "pr-link";
-  prNumber?: number;
-  prUrl?: string;
-  prRepository?: string;
-}
-
-type CCRecord =
-  | CCUser
-  | CCAssistant
-  | CCProgress
-  | CCSystem
-  | CCFileHistorySnapshot
-  | CCQueueOperation
-  | CCPrLink
-  | CCBase;
 
 // =============================================================================
 // Parser

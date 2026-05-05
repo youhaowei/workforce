@@ -3,8 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Outlet, useNavigate, useLocation } from "@tanstack/react-router";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { ShellProvider } from "@/ui/context/ShellContext";
 import { useCurrentView } from "@/ui/hooks/useCurrentView";
 import { useShellStore } from "@/ui/stores/shellStore";
 
@@ -12,9 +10,7 @@ import { ThemePanel } from "../Theme/ThemePanel";
 import { ChatInfoPanel } from "../ChatInfo";
 import { ArtifactPanel } from "../Artifact";
 import { SessionsPanel } from "../Sessions";
-import { ProjectsPanel, CreateProjectDialog } from "../Project";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { AgentQuestionDialog } from "./AgentQuestionDialog";
+import { ProjectsPanel } from "../Project";
 import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
 import { useHotkey } from "@/ui/hotkeys";
 import { usePlatform } from "@/ui/context/PlatformProvider";
@@ -42,19 +38,10 @@ import {
   SELECTED_SESSION_STORAGE_KEY,
   checkServerConnection,
 } from "./shellHelpers";
+import { ShellProviders } from "./ShellProviders";
 
-export type ViewType =
-  | "home"
-  | "board"
-  | "queue"
-  | "sessions"
-  | "projects"
-  | "templates"
-  | "workflows"
-  | "orgs"
-  | "audit"
-  | "detail";
-export type SidebarMode = "expanded" | "collapsed";
+export type { ViewType } from "@/ui/hooks/useCurrentView";
+export type { SidebarMode } from "@/ui/stores/shellStore";
 
 // oxlint-disable-next-line complexity
 export default function Shell() {
@@ -463,128 +450,123 @@ export default function Shell() {
   };
 
   return (
-    <ShellProvider value={shellContextValue}>
-      <TooltipProvider>
-        <div
-          className="h-screen flex overflow-hidden shell-ground"
-          data-desktop={isDesktop || undefined}
-        >
-          {/* Window dragging: Electron uses CSS -webkit-app-region: drag via the
+    <ShellProviders
+      contextValue={shellContextValue}
+      createProjectDialogOpen={createProjectDialogOpen}
+      onProjectDialogOpenChange={handleProjectDialogOpenChange}
+      onProjectCreated={handleProjectCreated}
+    >
+      <div
+        className="h-screen flex overflow-hidden shell-ground"
+        data-desktop={isDesktop || undefined}
+      >
+        {/* Window dragging: Electron uses CSS -webkit-app-region: drag via the
             .titlebar-drag-region class in AppHeader and sidebar spacer.
             Interactive elements opt out via app-region: no-drag (set in index.html <style>). */}
 
-          <AppSidebar mode={sidebarMode} onToggleSize={toggleSidebarSize} />
+        <AppSidebar mode={sidebarMode} onToggleSize={toggleSidebarSize} />
 
-          <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-            <TopBar
-              currentView={currentView}
-              sessionTitle={activeSessionTitle}
-              onBack={currentView === "detail" ? navigateBack : undefined}
-              sessionsPanelCollapsed={sessionsPanelCollapsed}
-              onToggleSessionsPanel={toggleSessionsPanel}
-              projectsPanelCollapsed={projectsPanelCollapsed}
-              onToggleProjectsPanel={toggleProjectsPanel}
-              onQuickCreate={handleCreateSession}
-              themePanelOpen={themePanelOpen}
-              onToggleThemePanel={() => setThemePanelOpen(!themePanelOpen)}
-              boardKeyword={boardKeyword}
-              onBoardKeywordChange={setBoardKeyword}
-              boardStatusFilter={boardStatusFilter}
-              onBoardStatusFilterChange={setBoardStatusFilter}
-            />
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <TopBar
+            currentView={currentView}
+            sessionTitle={activeSessionTitle}
+            onBack={currentView === "detail" ? navigateBack : undefined}
+            sessionsPanelCollapsed={sessionsPanelCollapsed}
+            onToggleSessionsPanel={toggleSessionsPanel}
+            projectsPanelCollapsed={projectsPanelCollapsed}
+            onToggleProjectsPanel={toggleProjectsPanel}
+            onQuickCreate={handleCreateSession}
+            themePanelOpen={themePanelOpen}
+            onToggleThemePanel={() => setThemePanelOpen(!themePanelOpen)}
+            boardKeyword={boardKeyword}
+            onBoardKeywordChange={setBoardKeyword}
+            boardStatusFilter={boardStatusFilter}
+            onBoardStatusFilterChange={setBoardStatusFilter}
+          />
 
-            <div className="flex-1 flex min-h-0 overflow-hidden">
-              <Surface
-                variant="main"
-                className="flex min-w-0 flex-1 m-[0_var(--surface-inset)_var(--surface-inset)_0] rounded-[var(--surface-radius)] [contain:paint]"
-              >
-                {showSessionsView && (
-                  <SessionsPanel
-                    collapsed={sessionsPanelCollapsed}
-                    activeSessionId={selectedSessionId ?? undefined}
-                    onSelectSession={handleSelectSession}
-                    onDeleteSession={handleDeleteSession}
-                    onCreateSession={handleCreateSession}
-                  />
-                )}
-
-                {currentView === "projects" && (
-                  <ProjectsPanel
-                    collapsed={projectsPanelCollapsed}
-                    selectedProjectId={selectedProjectId}
-                    onCollapse={toggleProjectsPanel}
-                    onSelectProject={setSelectedProjectId}
-                    onClearSelection={() => setSelectedProjectId(null)}
-                    onCreateProject={() => {
-                      setCreateProjectDialog(true, "projects-panel");
-                    }}
-                  />
-                )}
-
-                {/* Stage: chat + artifact grouped so sessions resize pushes both */}
-                <div className="flex-1 flex min-w-0 overflow-hidden">
-                  <MainContentColumn
-                    serverConnected={serverConnected}
-                    showFloatingPill={showSessionsView}
-                    sessionTitle={activeSessionTitle}
-                    sessionsPanelOpen={!sessionsPanelCollapsed}
-                    infoPanelOpen={showChatInfo}
-                    projectRootPath={projectRootPath}
-                    onToggleSessions={toggleSessionsPanel}
-                    onToggleInfo={toggleInfoPanel}
-                    onGitClick={() => {
-                      if (infoPanelCollapsed) toggleInfoPanel();
-                    }}
-                  >
-                    <Outlet />
-                  </MainContentColumn>
-
-                  <ArtifactPanel
-                    isOpen={planPanelOpen || artifactPanel.panelOpen}
-                    isPlanMode={isPlanMode}
-                    isPlanArtifact={!!planArtifactId && !artifactPanel.panelOpen}
-                    title={artifactPanel.artifact?.title ?? planTitle}
-                    filePath={artifactPanel.artifact?.filePath ?? planFilePath}
-                    status={artifactPanel.artifact?.status ?? planStatus}
-                    content={
-                      artifactPanel.panelOpen
-                        ? (artifactPanel.artifact?.content ?? "")
-                        : (artifactPanel.artifact?.content ?? planContent)
-                    }
-                    loadError={planLoadError}
-                    comments={artifactPanel.pendingComments}
-                    sessionArtifacts={artifactPanel.sessionArtifacts}
-                    activeArtifactId={artifactPanel.activeArtifactId}
-                    onAddComment={artifactPanel.addComment}
-                    onSubmitReview={artifactPanel.submitReview}
-                    onApprove={artifactPanel.handleApprove}
-                    onReject={artifactPanel.handleReject}
-                    onClose={artifactPanel.panelOpen ? artifactPanel.closePanel : handlePlanClose}
-                    onSelectArtifact={artifactPanel.openArtifact}
-                  />
-                </div>
-
-                <ChatInfoPanel
-                  isOpen={showChatInfo}
-                  sessionId={selectedSessionId}
-                  projectRootPath={projectRootPath}
-                  onOpenArtifact={artifactPanel.openArtifact}
+          <div className="flex-1 flex min-h-0 overflow-hidden">
+            <Surface
+              variant="main"
+              className="flex min-w-0 flex-1 m-[0_var(--surface-inset)_var(--surface-inset)_0] rounded-[var(--surface-radius)] [contain:paint]"
+            >
+              {showSessionsView && (
+                <SessionsPanel
+                  collapsed={sessionsPanelCollapsed}
+                  activeSessionId={selectedSessionId ?? undefined}
+                  onSelectSession={handleSelectSession}
+                  onDeleteSession={handleDeleteSession}
+                  onCreateSession={handleCreateSession}
                 />
-              </Surface>
+              )}
 
-              <ThemePanel isOpen={themePanelOpen} onClose={() => setThemePanelOpen(false)} />
-            </div>
+              {currentView === "projects" && (
+                <ProjectsPanel
+                  collapsed={projectsPanelCollapsed}
+                  selectedProjectId={selectedProjectId}
+                  onCollapse={toggleProjectsPanel}
+                  onSelectProject={setSelectedProjectId}
+                  onClearSelection={() => setSelectedProjectId(null)}
+                  onCreateProject={() => {
+                    setCreateProjectDialog(true, "projects-panel");
+                  }}
+                />
+              )}
+
+              {/* Stage: chat + artifact grouped so sessions resize pushes both */}
+              <div className="flex-1 flex min-w-0 overflow-hidden">
+                <MainContentColumn
+                  serverConnected={serverConnected}
+                  showFloatingPill={showSessionsView}
+                  sessionTitle={activeSessionTitle}
+                  sessionsPanelOpen={!sessionsPanelCollapsed}
+                  infoPanelOpen={showChatInfo}
+                  projectRootPath={projectRootPath}
+                  onToggleSessions={toggleSessionsPanel}
+                  onToggleInfo={toggleInfoPanel}
+                  onGitClick={() => {
+                    if (infoPanelCollapsed) toggleInfoPanel();
+                  }}
+                >
+                  <Outlet />
+                </MainContentColumn>
+
+                <ArtifactPanel
+                  isOpen={planPanelOpen || artifactPanel.panelOpen}
+                  isPlanMode={isPlanMode}
+                  isPlanArtifact={!!planArtifactId && !artifactPanel.panelOpen}
+                  title={artifactPanel.artifact?.title ?? planTitle}
+                  filePath={artifactPanel.artifact?.filePath ?? planFilePath}
+                  status={artifactPanel.artifact?.status ?? planStatus}
+                  content={
+                    artifactPanel.panelOpen
+                      ? (artifactPanel.artifact?.content ?? "")
+                      : (artifactPanel.artifact?.content ?? planContent)
+                  }
+                  loadError={planLoadError}
+                  comments={artifactPanel.pendingComments}
+                  sessionArtifacts={artifactPanel.sessionArtifacts}
+                  activeArtifactId={artifactPanel.activeArtifactId}
+                  onAddComment={artifactPanel.addComment}
+                  onSubmitReview={artifactPanel.submitReview}
+                  onApprove={artifactPanel.handleApprove}
+                  onReject={artifactPanel.handleReject}
+                  onClose={artifactPanel.panelOpen ? artifactPanel.closePanel : handlePlanClose}
+                  onSelectArtifact={artifactPanel.openArtifact}
+                />
+              </div>
+
+              <ChatInfoPanel
+                isOpen={showChatInfo}
+                sessionId={selectedSessionId}
+                projectRootPath={projectRootPath}
+                onOpenArtifact={artifactPanel.openArtifact}
+              />
+            </Surface>
+
+            <ThemePanel isOpen={themePanelOpen} onClose={() => setThemePanelOpen(false)} />
           </div>
         </div>
-
-        <CreateProjectDialog
-          open={createProjectDialogOpen}
-          onOpenChange={handleProjectDialogOpenChange}
-          onCreated={handleProjectCreated}
-        />
-        <ConfirmDialog />
-        <AgentQuestionDialog />
-      </TooltipProvider>
-    </ShellProvider>
+      </div>
+    </ShellProviders>
   );
 }

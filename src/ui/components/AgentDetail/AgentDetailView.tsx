@@ -28,6 +28,78 @@ export interface AgentDetailViewProps {
   onNavigateToChild?: (childSessionId: string) => void;
 }
 
+interface AgentDetailHeaderProps {
+  sessionId: string;
+  goal: string;
+  state: string;
+  templateId?: string;
+  onBack?: () => void;
+}
+
+function AgentDetailHeader({ sessionId, goal, state, templateId, onBack }: AgentDetailHeaderProps) {
+  return (
+    <div className="mb-4">
+      <div className="flex items-center gap-3 mb-2">
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack}>
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <h2 className="text-lg font-semibold flex-1 truncate">{goal}</h2>
+        <Badge {...stateVariant(state)} className="text-[10px]">
+          {state}
+        </Badge>
+      </div>
+      <div className="flex items-center gap-3 text-xs text-neutral-fg-subtle ml-10">
+        <code className="bg-neutral-bg-dim px-1.5 py-0.5 rounded text-[10px]">{sessionId}</code>
+        {templateId && <span>Template: {templateId}</span>}
+      </div>
+    </div>
+  );
+}
+
+interface AgentDetailActionsProps {
+  state: string;
+  canSpawnChild: boolean;
+  spawnPending: boolean;
+  onAction: (action: string) => void;
+  onSpawnChild: () => void;
+}
+
+function AgentDetailActions({
+  state,
+  canSpawnChild,
+  spawnPending,
+  onAction,
+  onSpawnChild,
+}: AgentDetailActionsProps) {
+  if (state !== "active" && state !== "paused") return null;
+
+  return (
+    <div className="flex gap-2 mb-4 ml-10">
+      {state === "active" ? (
+        <Button variant="outline" size="sm" onClick={() => onAction("pause")}>
+          <Pause className="h-3 w-3 mr-1.5" />
+          Pause
+        </Button>
+      ) : (
+        <Button size="sm" onClick={() => onAction("resume")}>
+          <Play className="h-3 w-3 mr-1.5" />
+          Resume
+        </Button>
+      )}
+      <Button variant="solid" color="danger" size="sm" onClick={() => onAction("cancel")}>
+        <XCircle className="h-3 w-3 mr-1.5" />
+        Cancel
+      </Button>
+      {canSpawnChild && (
+        <Button variant="outline" size="sm" onClick={onSpawnChild} disabled={spawnPending}>
+          <Plus className="h-3 w-3 mr-1.5" />
+          Spawn Child
+        </Button>
+      )}
+    </div>
+  );
+}
+
 export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentDetailViewProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -97,73 +169,21 @@ export function AgentDetailView({ sessionId, onBack, onNavigateToChild }: AgentD
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden pt-14 px-6 pb-6">
-      {/* Header */}
-      <div className="mb-4">
-        <div className="flex items-center gap-3 mb-2">
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <h2 className="text-lg font-semibold flex-1 truncate">{goal}</h2>
-          <Badge {...stateVariant(state)} className="text-[10px]">
-            {state}
-          </Badge>
-        </div>
-        <div className="flex items-center gap-3 text-xs text-neutral-fg-subtle ml-10">
-          <code className="bg-neutral-bg-dim px-1.5 py-0.5 rounded text-[10px]">{session.id}</code>
-          {templateId && <span>Template: {templateId}</span>}
-        </div>
-      </div>
+      <AgentDetailHeader
+        sessionId={session.id}
+        goal={goal}
+        state={state}
+        templateId={templateId}
+        onBack={onBack}
+      />
 
-      {/* Action buttons */}
-      {(state === "active" || state === "paused") && (
-        <div className="flex gap-2 mb-4 ml-10">
-          {state === "active" && (
-            <>
-              <Button variant="outline" size="sm" onClick={() => handleAction("pause")}>
-                <Pause className="h-3 w-3 mr-1.5" />
-                Pause
-              </Button>
-              <Button
-                variant="solid"
-                color="danger"
-                size="sm"
-                onClick={() => handleAction("cancel")}
-              >
-                <XCircle className="h-3 w-3 mr-1.5" />
-                Cancel
-              </Button>
-            </>
-          )}
-          {state === "paused" && (
-            <>
-              <Button size="sm" onClick={() => handleAction("resume")}>
-                <Play className="h-3 w-3 mr-1.5" />
-                Resume
-              </Button>
-              <Button
-                variant="solid"
-                color="danger"
-                size="sm"
-                onClick={() => handleAction("cancel")}
-              >
-                <XCircle className="h-3 w-3 mr-1.5" />
-                Cancel
-              </Button>
-            </>
-          )}
-          {orgId && templateId && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSpawnChild}
-              disabled={spawnMutation.isPending}
-            >
-              <Plus className="h-3 w-3 mr-1.5" />
-              Spawn Child
-            </Button>
-          )}
-        </div>
-      )}
+      <AgentDetailActions
+        state={state}
+        canSpawnChild={!!orgId && !!templateId}
+        spawnPending={spawnMutation.isPending}
+        onAction={handleAction}
+        onSpawnChild={handleSpawnChild}
+      />
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="flex-1 flex flex-col overflow-hidden">

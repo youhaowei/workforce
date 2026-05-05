@@ -36,7 +36,19 @@ import {
 import type { Project, SessionSummary } from "@/services/types";
 import { SessionItem } from "./SessionItem";
 import { filterSessions, groupSessions } from "./sessionListHelpers";
-import type { GroupByMode, SortDirection, SessionGroup } from "./sessionListHelpers";
+import type { GroupByMode, SortDirection } from "./sessionListHelpers";
+import {
+  FILTERS_STORAGE_KEY,
+  SORT_FIELD_OPTIONS,
+  SORT_STORAGE_KEY,
+  flattenGroups,
+  getInitialFilters,
+  getInitialSort,
+  type FlatItem,
+  type SortField,
+  type StatusFilter,
+  type TypeFilterMode,
+} from "./sessionListState";
 import { FilterDropdown } from "./SessionListUIHelpers";
 import { renderEmptyState } from "./renderEmptyState";
 
@@ -65,142 +77,6 @@ function getInitialGroupBy(groupByProp: GroupByMode): GroupByMode {
 }
 
 export type { GroupByMode } from "./sessionListHelpers";
-
-// =============================================================================
-// Filter Types
-// =============================================================================
-
-type SortField = "default" | "created" | "active" | "title" | "messages";
-
-const SORT_FIELD_OPTIONS: { value: SortField; label: string }[] = [
-  { value: "default", label: "Same as group" },
-  { value: "created", label: "Created" },
-  { value: "active", label: "Last active" },
-  { value: "title", label: "Title" },
-  { value: "messages", label: "Messages" },
-];
-
-type StatusFilter = "all" | "active" | "completed" | "failed";
-type TypeFilterMode = "all" | "chat" | "workagent" | "external";
-
-const FILTERS_STORAGE_KEY = "workforce:sessions-filters";
-const SORT_STORAGE_KEY = "workforce:sessions-sort";
-
-const VALID_STATUS = new Set<StatusFilter>(["all", "active", "completed", "failed"]);
-const VALID_TYPE = new Set<TypeFilterMode>(["all", "chat", "workagent", "external"]);
-const VALID_SORT_FIELDS = new Set<SortField>(["default", "created", "active", "title", "messages"]);
-const VALID_SORT_DIRS = new Set<SortDirection>(["asc", "desc"]);
-
-function getInitialFilters(): { status: StatusFilter; type: TypeFilterMode } {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(FILTERS_STORAGE_KEY) ?? "");
-    if (parsed && typeof parsed === "object") {
-      return {
-        status: VALID_STATUS.has(parsed.status) ? parsed.status : "all",
-        type: VALID_TYPE.has(parsed.type) ? parsed.type : "all",
-      };
-    }
-  } catch {
-    /* ignore */
-  }
-  return { status: "all", type: "all" };
-}
-
-function getInitialSort(): {
-  dir: SortDirection;
-  secondary: { field: SortField; dir: SortDirection };
-} {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(SORT_STORAGE_KEY) ?? "");
-    if (parsed && typeof parsed === "object") {
-      const dir = VALID_SORT_DIRS.has(parsed.dir) ? parsed.dir : "desc";
-      const secField = VALID_SORT_FIELDS.has(parsed.secondary?.field)
-        ? parsed.secondary.field
-        : "default";
-      const secDir = VALID_SORT_DIRS.has(parsed.secondary?.dir) ? parsed.secondary.dir : "desc";
-      return { dir, secondary: { field: secField, dir: secDir } };
-    }
-  } catch {
-    /* ignore */
-  }
-  return { dir: "desc", secondary: { field: "default", dir: "desc" } };
-}
-
-// =============================================================================
-// Flattened List Item (for virtualization)
-// =============================================================================
-
-type FlatItem =
-  | {
-      kind: "header";
-      label: string;
-      key: string;
-      count: number;
-      collapsible: boolean;
-      collapsed: boolean;
-    }
-  | { kind: "session"; session: SessionSummary };
-
-function compareByField(
-  a: SessionSummary,
-  b: SessionSummary,
-  field: SortField,
-  dir: SortDirection,
-  groupBy: GroupByMode,
-): number {
-  const mul = dir === "desc" ? -1 : 1;
-  let resolvedField = field;
-  if (field === "default") {
-    resolvedField = groupBy === "active" ? "active" : "created";
-  }
-  switch (resolvedField) {
-    case "created":
-      return mul * (a.createdAt - b.createdAt);
-    case "active":
-      return mul * (a.updatedAt - b.updatedAt);
-    case "title":
-      return mul * (a.title ?? "").localeCompare(b.title ?? "");
-    case "messages":
-      return mul * (a.messageCount - b.messageCount);
-    default:
-      return 0;
-  }
-}
-
-function flattenGroups(
-  groups: SessionGroup[] | null,
-  groupBy: GroupByMode,
-  collapsedGroups: Set<string>,
-  secondary?: { field: SortField; dir: SortDirection },
-): FlatItem[] {
-  if (!groups) return [];
-
-  const items: FlatItem[] = [];
-  const collapsible = groupBy !== "date";
-
-  for (const group of groups) {
-    const collapsed = collapsible && collapsedGroups.has(group.key);
-    const sorted = secondary
-      ? [...group.sessions].sort((a, b) =>
-          compareByField(a, b, secondary.field, secondary.dir, groupBy),
-        )
-      : group.sessions;
-    items.push({
-      kind: "header",
-      label: group.label,
-      key: group.key,
-      count: sorted.length,
-      collapsible,
-      collapsed,
-    });
-    if (!collapsed) {
-      for (const session of sorted) {
-        items.push({ kind: "session", session });
-      }
-    }
-  }
-  return items;
-}
 
 // =============================================================================
 // Component
