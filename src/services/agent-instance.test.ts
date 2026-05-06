@@ -47,6 +47,7 @@ function mockHandle(
     value: {
       events: gen,
       abort: abortFn,
+      getSessionId: () => "sess-1",
       query: {} as SDKQueryHandle["query"],
     },
   };
