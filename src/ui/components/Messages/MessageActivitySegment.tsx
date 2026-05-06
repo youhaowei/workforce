@@ -93,7 +93,7 @@ function TaskGroupRow({
         {block.status === "error" && <Chip color="danger">Error</Chip>}
       </Button>
       {expanded && children.length > 0 && (
-        <div className="pl-5 ml-[7px] border-l-2 border-neutral-border-subtle space-y-0">
+        <div className="pl-5 ml-2 border-l-2 border-neutral-border-subtle space-y-0">
           <ContentBlockRenderer blocks={children} isStreaming={isStreaming} inline />
         </div>
       )}
@@ -201,7 +201,7 @@ export function ActivitySegment({
       </Button>
 
       {expanded && (
-        <div className="pl-4 space-y-0 border-l-2 border-neutral-border-subtle ml-[5px]">
+        <div className="pl-4 space-y-0 border-l-2 border-neutral-border-subtle ml-1.5">
           {grouped.map((item, i) => {
             if (item.kind === "task") {
               return (

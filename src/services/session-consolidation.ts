@@ -2,7 +2,7 @@ import { createLogger } from "tracey";
 import type { Session } from "./types";
 import { AppendLock, consolidateSession } from "./session-journal";
 
-const log = createLogger("Session");
+const log = createLogger("session-consolidation");
 
 export interface SessionConsolidationDeps {
   sessionsDir: string;

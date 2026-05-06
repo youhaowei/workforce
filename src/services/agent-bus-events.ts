@@ -20,6 +20,7 @@ const VALID_SUBTYPES: ReadonlySet<string> = new Set([
 function validSubtype(s: string | undefined): QueryResultEvent["subtype"] {
   if (s === undefined) return "success";
   if (VALID_SUBTYPES.has(s)) return s as QueryResultEvent["subtype"];
+  // Intentional: unknown subtypes → error (not silent success) to surface SDK changes
   log.warn({ subtype: s }, "Unknown session result subtype");
   return "error_during_execution";
 }
@@ -263,7 +264,9 @@ function emitHookOrTaskEvent(
       });
       break;
     case "hook_response": {
-      const outcome = (["success", "error"] as const).includes(event.outcome as "success")
+      const outcome = (["success", "error", "cancelled"] as const).includes(
+        event.outcome as "success",
+      )
         ? (event.outcome as HookResponseEvent["outcome"])
         : "error";
       bus.emit({
