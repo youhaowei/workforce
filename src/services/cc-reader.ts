@@ -21,7 +21,6 @@ import type {
   JournalMeta,
   TokenUsage,
 } from "./types";
-import { discoverCCSessions, projectPathToSlug, type CCSessionSummary } from "./cc-discovery";
 import type {
   CCAssistant,
   CCContentBlock,
