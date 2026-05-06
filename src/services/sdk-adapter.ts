@@ -85,6 +85,29 @@ export type AgentQuestionCallback = (request: {
   toolUseID?: string;
 }) => Promise<{ answers: Record<string, string[]> }>;
 
+export function buildApprovalQuestion(toolName: string, input: unknown): AgentQuestion {
+  const summary = formatApprovalSummary(input);
+  return {
+    id: "approval",
+    header: "Approve",
+    question: `Allow ${toolName}${summary ? `: ${summary}` : ""}?`,
+    freeform: false,
+    secret: false,
+    multiSelect: false,
+    options: [
+      { label: "Approve", description: "Allow this tool use" },
+      { label: "Deny", description: "Block this tool use" },
+    ],
+  };
+}
+
+function formatApprovalSummary(input: unknown): string {
+  const detail = (input ?? {}) as Record<string, unknown>;
+  if (typeof detail.command === "string") return detail.command;
+  if (typeof detail.file_path === "string") return detail.file_path;
+  return JSON.stringify(input ?? "");
+}
+
 /** Bridge a simple approve/deny callback to the SDK's CanUseTool signature. */
 export function bridgeApproval(fn: ApprovalCallback): CanUseTool {
   return async (
@@ -178,9 +201,15 @@ function buildCanUseTool(
     }
 
     if (opts.onApprovalRequest) {
+      const requestId = options?.toolUseID || nextFallbackRequestId();
+      pushStreamEvent({
+        type: "agent_question",
+        requestId,
+        questions: [buildApprovalQuestion(toolName, input)],
+      });
       return bridgeApproval(opts.onApprovalRequest)(toolName, input, {
         signal: options?.signal ?? new AbortController().signal,
-        toolUseID: options?.toolUseID ?? "",
+        toolUseID: requestId,
       });
     }
 
@@ -338,6 +367,8 @@ function* mapUserMessage(msg: any, toolRegistry: ToolRegistry): Generator<AgentS
 
 interface BusEmitState {
   lastMessageId: string;
+  toolStartTimes: Map<string, number>;
+  toolNames: Map<string, string>;
 }
 
 function mapUsage(raw: any) {
@@ -505,7 +536,7 @@ function mapAssistantContent(content: any[]) {
 }
 
 // eslint-disable-next-line complexity -- Field coercion for SDK assistant payloads.
-function emitAssistantToBus(bus: EventBus, msg: any, now: number): void {
+function emitAssistantToBus(bus: EventBus, msg: any, now: number, state: BusEmitState): void {
   const message = msg.message;
   const content = Array.isArray(message?.content) ? message.content : [];
   bus.emit({
@@ -523,13 +554,38 @@ function emitAssistantToBus(bus: EventBus, msg: any, now: number): void {
 
   for (const block of content) {
     if (block.type !== "tool_use") continue;
+    const toolId = String(block.id ?? "");
+    const toolName = String(block.name ?? "");
+    state.toolStartTimes.set(toolId, now);
+    state.toolNames.set(toolId, toolName);
     bus.emit({
       type: "ToolStart",
-      toolId: String(block.id ?? ""),
-      toolName: String(block.name ?? ""),
+      toolId,
+      toolName,
       args: block.input,
       timestamp: now,
     });
+  }
+}
+
+function emitUserToBus(bus: EventBus, msg: any, now: number, state: BusEmitState): void {
+  const content = msg.message?.content;
+  if (!Array.isArray(content)) return;
+
+  for (const block of content) {
+    if (block.type !== "tool_result" || !block.tool_use_id) continue;
+    const toolId = String(block.tool_use_id);
+    const startTime = state.toolStartTimes.get(toolId) ?? now;
+    bus.emit({
+      type: "ToolEnd",
+      toolId,
+      toolName: state.toolNames.get(toolId) ?? "",
+      result: block.content,
+      duration: now - startTime,
+      timestamp: now,
+    });
+    state.toolStartTimes.delete(toolId);
+    state.toolNames.delete(toolId);
   }
 }
 
@@ -605,7 +661,10 @@ function emitToBus(bus: EventBus, msg: any, state: BusEmitState, emitRawEvents: 
       if (msg.event) emitStreamEventToBus(bus, msg.event, now, state);
       break;
     case "assistant":
-      emitAssistantToBus(bus, msg, now);
+      emitAssistantToBus(bus, msg, now, state);
+      break;
+    case "user":
+      emitUserToBus(bus, msg, now, state);
       break;
     case "auth_status":
       bus.emit({
@@ -801,7 +860,11 @@ export function runSDKQuery(
   async function* streamEvents(): AsyncGenerator<AgentStreamEvent> {
     const toolRegistry: ToolRegistry = new Map();
     const state = { streamedTextThisTurn: false };
-    const busState: BusEmitState = { lastMessageId: "" };
+    const busState: BusEmitState = {
+      lastMessageId: "",
+      toolStartTimes: new Map(),
+      toolNames: new Map(),
+    };
 
     try {
       const iterator = (queryHandle as AsyncIterable<unknown>)[Symbol.asyncIterator]();

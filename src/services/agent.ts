@@ -14,7 +14,7 @@ import { buildSdkEnv, isAuthError, AgentError } from "./agent-instance";
 import type { AgentErrorCode } from "./agent-instance";
 import { ModelCache, readLastUsedModelSync, writeLastUsedModel } from "./agent-models";
 import { resolveClaudeCliPath } from "./agent-cli-path";
-import { runSDKQuery, type SDKQueryHandle } from "./sdk-adapter";
+import { buildApprovalQuestion, runSDKQuery, type SDKQueryHandle } from "./sdk-adapter";
 
 const log = createLogger("Agent");
 
@@ -96,6 +96,20 @@ class AgentServiceImpl implements AgentService {
     });
   };
 
+  private handleApprovalRequest = async (request: {
+    description: string;
+    detail: unknown;
+    toolUseID?: string;
+  }): Promise<"approve" | "deny"> => {
+    const requestId = request.toolUseID || `approval_${Date.now()}`;
+    const toolName = request.description.replace(/^Tool:\s*/, "") || "Tool";
+    const response = await this.handleAgentQuestion({
+      id: requestId,
+      questions: [buildApprovalQuestion(toolName, request.detail)],
+    });
+    return response.answers.approval?.[0] === "Approve" ? "approve" : "deny";
+  };
+
   private buildSdkOptions(model: string, options?: RunOptions): Omit<SDKOptions, "canUseTool"> {
     const reuseKey = sessionReuseKey(model, options);
     const resume =
@@ -114,6 +128,7 @@ class AgentServiceImpl implements AgentService {
       abortController: this.abortController ?? undefined,
       pathToClaudeCodeExecutable: resolveClaudeCliPath(),
       includePartialMessages: true,
+      settingSources: ["user", "project", "local"],
       ...(resume ? { resume } : {}),
       ...(options?.permissionMode ? { permissionMode: options.permissionMode } : {}),
       ...(options?.permissionMode === "bypassPermissions"
@@ -122,15 +137,11 @@ class AgentServiceImpl implements AgentService {
       ...(options?.maxThinkingTokens !== undefined
         ? { maxThinkingTokens: options.maxThinkingTokens }
         : {}),
-      ...(options?.systemPrompt
-        ? {
-            systemPrompt: {
-              type: "preset" as const,
-              preset: "claude_code" as const,
-              append: options.systemPrompt,
-            },
-          }
-        : {}),
+      systemPrompt: {
+        type: "preset" as const,
+        preset: "claude_code" as const,
+        ...(options?.systemPrompt ? { append: options.systemPrompt } : {}),
+      },
     };
   }
 
@@ -157,6 +168,7 @@ class AgentServiceImpl implements AgentService {
         eventBus: bus,
         emitRawEvents: true,
         onAgentQuestion: this.handleAgentQuestion,
+        onApprovalRequest: this.handleApprovalRequest,
       });
 
       if (!result.ok) {
@@ -186,6 +198,7 @@ class AgentServiceImpl implements AgentService {
         if (this.currentHandle === handle) this.currentHandle = null;
       }
     } catch (err) {
+      this.clearPendingQuestions();
       yield* this.handleRunError(err, runController.signal.aborted);
     } finally {
       this.runInProgress = false;
@@ -265,15 +278,13 @@ class AgentServiceImpl implements AgentService {
   }
 
   cancel(): void {
+    this.warmSessionId = null;
+    this.warmSessionKey = null;
     this.abortController?.abort();
     this.abortController = null;
     this.currentHandle?.abort();
 
-    for (const resolve of this.pendingQuestions.values()) {
-      resolve({});
-    }
-    this.pendingQuestions.clear();
-    this.pendingQuestionData.clear();
+    this.clearPendingQuestions();
   }
 
   isRunning(): boolean {
@@ -284,6 +295,14 @@ class AgentServiceImpl implements AgentService {
     this.cancel();
     this.warmSessionId = null;
     this.warmSessionKey = null;
+  }
+
+  private clearPendingQuestions(): void {
+    for (const resolve of this.pendingQuestions.values()) {
+      resolve({});
+    }
+    this.pendingQuestions.clear();
+    this.pendingQuestionData.clear();
   }
 }
 

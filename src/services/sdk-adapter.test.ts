@@ -15,6 +15,8 @@ import {
   runSDKQuery,
 } from "./sdk-adapter";
 import type { AgentStreamEvent } from "./types";
+import { createEventBus } from "@/shared/event-bus";
+import type { BusEvent } from "@/shared/event-types";
 
 function makeQuery() {
   return {
@@ -701,6 +703,16 @@ describe("runSDKQuery — canUseTool bridge", () => {
       behavior: "allow",
       updatedInput: { command: "git status" },
     });
+
+    if (!result.ok) throw new Error("expected runSDKQuery success");
+    await expect(result.value.events.next()).resolves.toMatchObject({
+      value: {
+        type: "agent_question",
+        requestId: "toolu_bash_1",
+        questions: [{ id: "approval", question: "Allow Bash: git status?" }],
+      },
+      done: false,
+    });
   });
 
   it("flushes pending tool results before throwing result-level errors", async () => {
@@ -740,5 +752,50 @@ describe("runSDKQuery — canUseTool bridge", () => {
       done: false,
     });
     await expect(result.value.events.next()).rejects.toThrow("execution failed");
+  });
+
+  it("emits ToolEnd on the EventBus when SDK tool_result messages arrive", async () => {
+    sdkQueryMock.mockImplementation(() => ({
+      close: vi.fn(),
+      async *[Symbol.asyncIterator]() {
+        yield {
+          type: "assistant",
+          message: {
+            id: "msg_1",
+            content: [{ type: "tool_use", id: "tu_read", name: "Read", input: { file_path: "a" } }],
+          },
+        };
+        yield {
+          type: "user",
+          message: {
+            content: [{ type: "tool_result", tool_use_id: "tu_read", content: "file body" }],
+          },
+        };
+      },
+    }));
+
+    const bus = createEventBus();
+    const events: BusEvent[] = [];
+    bus.on("ToolStart", (event) => events.push(event));
+    bus.on("ToolEnd", (event) => events.push(event));
+
+    const result = runSDKQuery("prompt", { sdkOptions: {}, eventBus: bus });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("expected runSDKQuery success");
+
+    for await (const _event of result.value.events) {
+      // Drain the SDK stream so EventBus emissions run.
+    }
+
+    expect(events).toEqual([
+      expect.objectContaining({ type: "ToolStart", toolId: "tu_read", toolName: "Read" }),
+      expect.objectContaining({
+        type: "ToolEnd",
+        toolId: "tu_read",
+        toolName: "Read",
+        result: "file body",
+      }),
+    ]);
   });
 });

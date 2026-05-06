@@ -4,6 +4,18 @@ import type { SDKAdapterError, SDKQueryHandle } from "./sdk-adapter";
 
 vi.mock("./sdk-adapter", () => ({
   runSDKQuery: vi.fn(),
+  buildApprovalQuestion: (toolName: string, input: Record<string, unknown>) => ({
+    id: "approval",
+    header: "Approve",
+    question: `Allow ${toolName}: ${input.command ?? input.file_path ?? JSON.stringify(input)}?`,
+    freeform: false,
+    secret: false,
+    multiSelect: false,
+    options: [
+      { label: "Approve", description: "Allow this tool use" },
+      { label: "Deny", description: "Block this tool use" },
+    ],
+  }),
 }));
 
 vi.mock("./agent-instance", () => {
@@ -106,9 +118,15 @@ describe("AgentService direct SDK port", () => {
           env: { HOME: "/home/test" },
           pathToClaudeCodeExecutable: "/bin/claude",
           includePartialMessages: true,
+          settingSources: ["user", "project", "local"],
+          systemPrompt: {
+            type: "preset",
+            preset: "claude_code",
+          },
         }),
       }),
     );
+    expect(mockRunSDKQuery.mock.calls[0]?.[1].onApprovalRequest).toBeDefined();
     expect(events).toEqual([
       {
         type: "tool_start",
@@ -167,6 +185,80 @@ describe("AgentService direct SDK port", () => {
     expect(service.getPendingQuestion()).toBeNull();
   });
 
+  it("surfaces SDK approval requests through the pending question flow", async () => {
+    mockRunSDKQuery.mockReturnValueOnce(mockHandle([], "session-1"));
+    const service = getAgentService();
+
+    const run = service.run("approval");
+    await run.next();
+    const onApprovalRequest = mockRunSDKQuery.mock.calls[0]?.[1].onApprovalRequest;
+    expect(onApprovalRequest).toBeDefined();
+
+    const decision = onApprovalRequest!({
+      description: "Tool: Bash",
+      detail: { command: "git status" },
+      toolUseID: "tool-approval-1",
+    });
+
+    expect(service.getPendingQuestion()).toMatchObject({
+      requestId: "tool-approval-1",
+      questions: [
+        {
+          id: "approval",
+          question: "Allow Bash: git status?",
+        },
+      ],
+    });
+
+    service.submitAnswer("tool-approval-1", { approval: ["Approve"] });
+    await expect(decision).resolves.toBe("approve");
+    expect(service.getPendingQuestion()).toBeNull();
+  });
+
+  it("clears pending questions when a run fails with a non-abort error", async () => {
+    let rejectStream: () => void = () => {};
+    mockRunSDKQuery.mockReturnValueOnce({
+      ok: true,
+      value: {
+        events: (async function* () {
+          await new Promise<void>((resolve) => {
+            rejectStream = resolve;
+          });
+          throw new Error("network dropped");
+        })(),
+        abort: vi.fn(),
+        getSessionId: () => null,
+        query: {} as SDKQueryHandle["query"],
+      },
+    });
+
+    const service = getAgentService();
+    const iterator = service.run("question then fail");
+    const nextEvent = iterator.next();
+    const onAgentQuestion = mockRunSDKQuery.mock.calls[0]?.[1].onAgentQuestion;
+    expect(onAgentQuestion).toBeDefined();
+
+    const response = onAgentQuestion!({
+      id: "question-1",
+      questions: [
+        {
+          id: "q1",
+          header: "Choice",
+          question: "Pick one",
+          freeform: true,
+          secret: false,
+        },
+      ],
+    });
+
+    expect(service.getPendingQuestion()).toMatchObject({ requestId: "question-1" });
+    rejectStream();
+
+    await expect(nextEvent).rejects.toThrow("network dropped");
+    await expect(response).resolves.toEqual({ answers: {} });
+    expect(service.getPendingQuestion()).toBeNull();
+  });
+
   it("emits a cancelled token when Query.close drains the SDK stream cleanly", async () => {
     let releaseStream: () => void = () => {};
     const abort = vi.fn(() => releaseStream());
@@ -196,6 +288,46 @@ describe("AgentService direct SDK port", () => {
     });
     expect(abort).toHaveBeenCalledOnce();
     await expect(iterator.next()).resolves.toMatchObject({ done: true });
+  });
+
+  it("drops warm resume state when cancelling a resumed run", async () => {
+    let releaseStream: () => void = () => {};
+    const abort = vi.fn(() => releaseStream());
+    mockRunSDKQuery
+      .mockReturnValueOnce(mockHandle([], "session-1"))
+      .mockReturnValueOnce({
+        ok: true,
+        value: {
+          events: (async function* () {
+            await new Promise<void>((resolve) => {
+              releaseStream = resolve;
+            });
+          })(),
+          abort,
+          getSessionId: () => "session-1",
+          query: {} as SDKQueryHandle["query"],
+        },
+      })
+      .mockReturnValueOnce(mockHandle([], "session-2"));
+
+    const service = getAgentService();
+    await collect(service.run("first", { model: "sonnet" }));
+
+    const resumedRun = service.run("cancel resumed", { model: "sonnet" });
+    const cancelledEvent = resumedRun.next();
+    expect(mockRunSDKQuery.mock.calls[1]?.[1].sdkOptions).toMatchObject({
+      resume: "session-1",
+    });
+
+    service.cancel();
+
+    await expect(cancelledEvent).resolves.toMatchObject({
+      value: { type: "token", token: " [cancelled]" },
+    });
+    await expect(resumedRun.next()).resolves.toMatchObject({ done: true });
+
+    await collect(service.run("after cancel", { model: "sonnet" }));
+    expect(mockRunSDKQuery.mock.calls[2]?.[1].sdkOptions).not.toHaveProperty("resume");
   });
 
   it("clears plan mode when ExitPlanMode arrives without a written plan", async () => {
