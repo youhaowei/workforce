@@ -1,187 +1,356 @@
-import {
-  Home,
-  LayoutDashboard,
-  ClipboardList,
-  MessageSquare,
-  Blocks,
-  Workflow,
-  FolderKanban,
-  FolderGit2,
-  History,
-  PanelLeftClose,
-  PanelLeftOpen,
-  GitBranch,
-} from "lucide-react";
+/**
+ * AppSidebar — left navbar (Claude-desktop style).
+ * Transparent over shell-ground (matches the old icon-rail navbar) — main
+ * paper carries the visual weight via Surface variant="main".
+ *
+ * Hierarchy: projects first; sessions nested under their project. Sessions
+ * with no project live in a flat "Sessions" section at the bottom.
+ */
+
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { usePlatform } from "@/ui/context/PlatformProvider";
-import { getServerPort } from "@/bridge/config";
+import { ChevronDown, ChevronRight, Download, PanelLeftClose, RefreshCw } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useTRPC } from "@/bridge/react";
+import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
+import { usePlatform } from "@/ui/context/PlatformProvider";
+import type { Project, SessionSummary } from "@/services/types";
 
-import { ReviewBadge } from "../Review";
-import type { ViewType, SidebarMode } from "./Shell";
+import { ImportCCDialog } from "../Sessions/ImportCCDialog";
 
-interface NavItem {
-  id: ViewType;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  badge?: React.ReactNode;
-  path: string;
+const SIDEBAR_WIDTH_PX = 300;
+const TRAFFIC_LIGHT_SPACER_PX = 78;
+const COLLAPSED_PROJECTS_KEY = "workforce:sidebar-collapsed-projects";
+
+function readCollapsedSet(): Set<string> {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_PROJECTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return Array.isArray(parsed) ? new Set<string>(parsed) : new Set<string>();
+  } catch {
+    return new Set<string>();
+  }
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { id: "home", label: "Home", icon: Home, path: "/" },
-  { id: "board", label: "Board", icon: LayoutDashboard, path: "/board" },
-  { id: "queue", label: "Queue", icon: ClipboardList, badge: <ReviewBadge />, path: "/queue" },
-  { id: "sessions", label: "Sessions", icon: MessageSquare, path: "/sessions" },
-  { id: "projects", label: "Projects", icon: FolderGit2, path: "/projects" },
-  { id: "templates", label: "Templates", icon: Blocks, path: "/templates" },
-  { id: "workflows", label: "Workflows", icon: Workflow, path: "/workflows" },
-  { id: "orgs", label: "Orgs", icon: FolderKanban, path: "/orgs" },
-  { id: "audit", label: "Audit", icon: History, path: "/audit" },
-];
-
-const SIDEBAR_WIDTH_CLASSES: Record<SidebarMode, string> = {
-  expanded: "w-[200px]",
-  collapsed: "w-[68px]",
-};
-
-interface AppSidebarProps {
-  mode: SidebarMode;
-  onToggleSize?: () => void;
+export interface AppSidebarProps {
+  hidden: boolean;
+  peek?: boolean;
+  selectedProjectId: string | null;
+  selectedSessionId: string | null;
+  onToggle: () => void;
+  onSelectProject: (projectId: string) => void;
+  onSelectSession: (sessionId: string) => void;
+  onMouseLeave?: () => void;
 }
 
-export default function AppSidebar({ mode, onToggleSize }: AppSidebarProps) {
-  const isCollapsed = mode === "collapsed";
+export default function AppSidebar({
+  hidden,
+  peek,
+  selectedProjectId,
+  selectedSessionId,
+  onToggle,
+  onSelectProject,
+  onSelectSession,
+  onMouseLeave,
+}: AppSidebarProps) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const orgId = useRequiredOrgId();
   const { isDesktop, isMacOS } = usePlatform();
-  const isMacDesktop = isDesktop && isMacOS;
-  const topSpacerHeight = isDesktop ? "h-10" : "h-2";
+  const macDesktop = isDesktop && isMacOS;
+
+  const activeSessionRef = useRef(selectedSessionId);
+  activeSessionRef.current = selectedSessionId;
+
+  const listInput = { orgId };
+  const listQueryKey = trpc.session.list.queryKey(listInput);
+
+  const { data: projects = [] } = useQuery(trpc.project.list.queryOptions(listInput));
+  const { data: sessions = [] } = useQuery(trpc.session.list.queryOptions(listInput));
+
+  const projectMap = useMemo(
+    () => new Map((projects as Project[]).map((p) => [p.id, p])),
+    [projects],
+  );
+
+  const { byProject, orphans } = useMemo(() => {
+    const map = new Map<string, SessionSummary[]>();
+    const orphans: SessionSummary[] = [];
+    for (const s of sessions as SessionSummary[]) {
+      const pid = s.metadata?.projectId as string | undefined;
+      if (pid && projectMap.has(pid)) {
+        const arr = map.get(pid);
+        if (arr) arr.push(s);
+        else map.set(pid, [s]);
+      } else {
+        orphans.push(s);
+      }
+    }
+    return { byProject: map, orphans };
+  }, [sessions, projectMap]);
+
+  const [collapsedProjects, setCollapsedProjects] = useState<Set<string>>(readCollapsedSet);
+  const toggleProjectCollapsed = useCallback((projectId: string) => {
+    setCollapsedProjects((prev) => {
+      const next = new Set(prev);
+      if (next.has(projectId)) next.delete(projectId);
+      else next.add(projectId);
+      localStorage.setItem(COLLAPSED_PROJECTS_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      await queryClient.refetchQueries({ queryKey: listQueryKey });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [queryClient, listQueryKey]);
+
+  const [importOpen, setImportOpen] = useState(false);
+
+  const resumeMutation = useMutation(trpc.session.resume.mutationOptions());
+  const resume = resumeMutation.mutate;
+  const handleSelect = useCallback(
+    (sessionId: string) => {
+      activeSessionRef.current = sessionId;
+      if (sessionId !== selectedSessionId) resume({ sessionId });
+      onSelectSession(sessionId);
+    },
+    [resume, selectedSessionId, onSelectSession],
+  );
+
+  const isCollapsed = hidden && !peek;
 
   return (
-    <nav
-      aria-label="Main navigation"
-      className={`shrink-0 flex flex-col transition-[width] duration-200 ease-in-out overflow-hidden relative z-50 pointer-events-none ${SIDEBAR_WIDTH_CLASSES[mode]}`}
+    <aside
+      role="complementary"
+      aria-label="Navigation sidebar"
+      onMouseLeave={onMouseLeave}
+      className={[
+        "shrink-0 flex flex-col select-none overflow-hidden",
+        "transition-[width] duration-200 ease-in-out motion-reduce:transition-none",
+        peek ? "absolute inset-y-0 left-0 z-40 shadow-[4px_0_24px_rgba(0,0,0,0.4)]" : "relative",
+      ].join(" ")}
+      style={{ width: isCollapsed ? 0 : SIDEBAR_WIDTH_PX }}
+      aria-hidden={isCollapsed}
+      inert={isCollapsed ? true : undefined}
     >
-      {/* Traffic light zone — inherits pointer-events-none so drag overlay beneath is reachable */}
-      <div className={`${topSpacerHeight} shrink-0 flex items-center pointer-events-auto`}>
-        {isMacDesktop && <div className="h-full w-full titlebar-drag-region" />}
-      </div>
-
-      {/* Logo */}
-      <div
-        className={`flex items-center overflow-hidden h-8 pointer-events-auto ${isCollapsed ? "justify-center px-0" : "gap-2.5 px-3"}`}
-      >
-        <div className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-fg/90 text-neutral-bg font-bold text-[11px] tracking-tight">
-          W
-        </div>
-        {!isCollapsed && (
-          <span className="text-[13px] font-semibold text-neutral-fg/80 truncate tracking-tight">
-            Workforce
-          </span>
+      {/* Top row — drag region + sidebar toggle */}
+      <div className="relative shrink-0 flex items-center h-10 px-3">
+        <div className="absolute inset-0 titlebar-drag-region" aria-hidden="true" />
+        {macDesktop && (
+          <div className="shrink-0" style={{ width: TRAFFIC_LIGHT_SPACER_PX }} aria-hidden="true" />
         )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              color="neutral"
+              className="relative z-10 h-7 w-7 text-neutral-fg-subtle hover:text-neutral-fg"
+              onClick={onToggle}
+              aria-label="Hide sidebar"
+            >
+              <PanelLeftClose className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Hide sidebar (Cmd+Shift+H)</TooltipContent>
+        </Tooltip>
       </div>
 
-      {/* Nav items */}
-      <div className="flex-1 flex flex-col gap-0.5 overflow-y-auto pointer-events-auto px-2 py-2">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon;
-
-          const linkElement = (
-            <Link
-              key={item.id}
-              to={item.path}
-              className={`nav-glass-item relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 text-neutral-fg/50 hover:text-neutral-fg/80 hover:bg-neutral-bg/30 dark:hover:bg-neutral-fg/5 ${
-                isCollapsed ? "px-0 py-2 justify-center" : "px-2.5 py-[7px]"
-              }`}
-              activeProps={{
-                className: `nav-glass-item nav-glass-active relative flex items-center gap-2.5 w-full rounded-lg text-[13px] transition-all duration-150 text-neutral-fg font-medium ${
-                  isCollapsed ? "px-0 py-2 justify-center" : "px-2.5 py-[7px]"
-                }`,
-              }}
-            >
-              <Icon className="h-[18px] w-[18px] shrink-0" />
-              {!isCollapsed && <span className="truncate">{item.label}</span>}
-              {item.badge}
-            </Link>
-          );
-
-          if (isCollapsed) {
-            return (
-              <Tooltip key={item.id} delayDuration={0}>
-                <TooltipTrigger asChild>{linkElement}</TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8}>
-                  {item.label}
-                </TooltipContent>
-              </Tooltip>
-            );
-          }
-
-          return linkElement;
-        })}
-      </div>
-
-      {/* Collapse / Expand toggle */}
-      {onToggleSize && (
-        <div className="pointer-events-auto px-2 py-2">
-          {isCollapsed ? (
-            <Tooltip delayDuration={0}>
-              <TooltipTrigger asChild>
-                <button
-                  className="flex items-center justify-center w-full rounded-lg py-2 text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-neutral-bg/30 dark:hover:bg-neutral-fg/5 transition-all duration-150"
-                  onClick={onToggleSize}
-                  aria-label="Expand sidebar"
-                >
-                  <PanelLeftOpen className="h-4 w-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8}>
-                Expand
-              </TooltipContent>
-            </Tooltip>
-          ) : (
-            <button
-              className="flex items-center gap-2.5 w-full rounded-lg px-2.5 py-[7px] text-neutral-fg/40 hover:text-neutral-fg/70 hover:bg-neutral-bg/30 dark:hover:bg-neutral-fg/5 transition-all duration-150"
-              onClick={onToggleSize}
-            >
-              <PanelLeftClose className="h-4 w-4" />
-              <span className="text-xs">Collapse</span>
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Dev mode indicator — only visible when VITE_GIT_BRANCH is set */}
-      {import.meta.env.VITE_GIT_BRANCH && (
-        <div className="pointer-events-auto px-2 pb-2">
-          <div
-            className={`rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 ${isCollapsed ? "px-1.5 py-1.5 flex justify-center" : "px-2.5 py-1.5"}`}
+      <ScrollArea className="flex-1">
+        {/* Projects header (clickable → /projects list) */}
+        <div className="px-3 py-2">
+          <Link
+            to="/projects"
+            className="text-[11px] font-medium text-neutral-fg-subtle/60 hover:text-neutral-fg-subtle tracking-wider focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring rounded"
           >
-            {isCollapsed ? (
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <GitBranch className="h-3.5 w-3.5" />
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8}>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="font-medium">{import.meta.env.VITE_GIT_BRANCH}</span>
-                    <span className="opacity-60">API :{getServerPort()}</span>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-1.5">
-                  <GitBranch className="h-3 w-3 shrink-0" />
-                  <span className="text-[10px] font-medium truncate">
-                    {import.meta.env.VITE_GIT_BRANCH}
-                  </span>
-                </div>
-                <span className="text-[10px] opacity-50 pl-[18px]">API :{getServerPort()}</span>
-              </div>
-            )}
-          </div>
+            Projects
+          </Link>
         </div>
-      )}
-    </nav>
+
+        {projects.length === 0 ? (
+          <div className="px-3 pb-3 text-xs text-neutral-fg-subtle/70">No projects yet</div>
+        ) : (
+          <div className="flex flex-col px-2 pb-2">
+            {(projects as Project[]).map((p) => {
+              const projSessions = byProject.get(p.id) ?? [];
+              const isProjectCollapsed = collapsedProjects.has(p.id);
+              const isActive = p.id === selectedProjectId;
+              return (
+                <div key={p.id} className="flex flex-col">
+                  <ProjectRow
+                    project={p}
+                    count={projSessions.length}
+                    collapsed={isProjectCollapsed}
+                    active={isActive}
+                    onActivate={() => onSelectProject(p.id)}
+                    onToggleCollapse={() => toggleProjectCollapsed(p.id)}
+                  />
+                  {!isProjectCollapsed && projSessions.length > 0 && (
+                    <div className="flex flex-col pl-3">
+                      {projSessions.map((s) => (
+                        <SessionRow
+                          key={s.id}
+                          session={s}
+                          active={s.id === selectedSessionId}
+                          onClick={() => handleSelect(s.id)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Sessions (orphans only — sessions with no project) */}
+        <div className="flex items-center px-3 py-2">
+          <span className="flex-1 text-[11px] font-medium text-neutral-fg-subtle/60 tracking-wider">
+            Sessions
+          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                color="neutral"
+                className="h-5 w-5 text-neutral-fg-subtle hover:text-neutral-fg"
+                onClick={() => setImportOpen(true)}
+                aria-label="Import from Claude Code"
+              >
+                <Download className="h-3 w-3" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Import from Claude Code</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                color="neutral"
+                className="h-5 w-5 text-neutral-fg-subtle hover:text-neutral-fg"
+                onClick={handleRefresh}
+                aria-label="Refresh sessions"
+              >
+                <RefreshCw className={`h-3 w-3 ${isRefreshing ? "animate-spin" : ""}`} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Refresh sessions</TooltipContent>
+          </Tooltip>
+        </div>
+
+        {orphans.length === 0 ? (
+          <div className="px-3 pb-3 text-xs text-neutral-fg-subtle/70">No standalone sessions</div>
+        ) : (
+          <div className="flex flex-col px-2 pb-3">
+            {orphans.map((s) => (
+              <SessionRow
+                key={s.id}
+                session={s}
+                active={s.id === selectedSessionId}
+                onClick={() => handleSelect(s.id)}
+              />
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+
+      <ImportCCDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        orgId={orgId}
+        onImported={handleSelect}
+      />
+    </aside>
+  );
+}
+
+function ProjectRow({
+  project,
+  count,
+  collapsed,
+  active,
+  onActivate,
+  onToggleCollapse,
+}: {
+  project: Project;
+  count: number;
+  collapsed: boolean;
+  active: boolean;
+  onActivate: () => void;
+  onToggleCollapse: () => void;
+}) {
+  const Chevron = collapsed ? ChevronRight : ChevronDown;
+  return (
+    <div
+      className={[
+        "group flex items-center gap-1 h-8 rounded-md pr-2 transition-colors",
+        active
+          ? "bg-neutral-bg-subtle text-neutral-fg"
+          : "text-neutral-fg/80 hover:bg-neutral-bg-dim/50 hover:text-neutral-fg",
+      ].join(" ")}
+    >
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        className="shrink-0 h-6 w-6 flex items-center justify-center rounded text-neutral-fg-subtle hover:text-neutral-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring"
+        aria-label={collapsed ? `Expand ${project.name}` : `Collapse ${project.name}`}
+        aria-expanded={!collapsed}
+      >
+        <Chevron className="h-3 w-3" />
+      </button>
+      <button
+        type="button"
+        onClick={onActivate}
+        className="flex-1 flex items-center gap-2 h-full text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring rounded"
+      >
+        <span
+          className="shrink-0 w-1.5 h-1.5 rounded-full bg-neutral-fg-subtle/60"
+          style={project.color ? { backgroundColor: project.color } : undefined}
+          aria-hidden="true"
+        />
+        <span className="flex-1 truncate">{project.name}</span>
+        {count > 0 && (
+          <span className="text-[11px] text-neutral-fg-subtle/60 tabular-nums">{count}</span>
+        )}
+      </button>
+    </div>
+  );
+}
+
+function SessionRow({
+  session,
+  active,
+  onClick,
+}: {
+  session: SessionSummary;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "flex items-center gap-2 h-7 rounded-md px-2 text-sm text-left transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring",
+        active
+          ? "bg-neutral-bg-subtle text-neutral-fg"
+          : "text-neutral-fg/70 hover:bg-neutral-bg-dim/50 hover:text-neutral-fg",
+      ].join(" ")}
+    >
+      <span className="flex-1 truncate">{session.title || "Untitled session"}</span>
+    </button>
   );
 }

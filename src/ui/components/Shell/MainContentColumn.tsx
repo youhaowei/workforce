@@ -7,10 +7,10 @@ interface MainContentColumnProps {
   serverConnected: boolean;
   showFloatingPill?: boolean;
   sessionTitle?: string;
-  sessionsPanelOpen?: boolean;
+  sidebarHidden?: boolean;
   infoPanelOpen?: boolean;
   projectRootPath?: string | null;
-  onToggleSessions?: () => void;
+  onToggleSidebar?: () => void;
   onToggleInfo?: () => void;
   onGitClick?: () => void;
   children: ReactNode;
@@ -20,10 +20,10 @@ export function MainContentColumn({
   serverConnected,
   showFloatingPill,
   sessionTitle,
-  sessionsPanelOpen = false,
+  sidebarHidden = false,
   infoPanelOpen = false,
   projectRootPath,
-  onToggleSessions,
+  onToggleSidebar,
   onToggleInfo,
   onGitClick,
   children,
@@ -49,13 +49,13 @@ export function MainContentColumn({
         </div>
       )}
 
-      {showFloatingPill && onToggleSessions && onToggleInfo && (
+      {showFloatingPill && onToggleSidebar && onToggleInfo && (
         <StageFloatingPill
           sessionTitle={sessionTitle}
-          sessionsPanelOpen={sessionsPanelOpen}
+          sidebarHidden={sidebarHidden}
           infoPanelOpen={infoPanelOpen}
           projectRootPath={projectRootPath}
-          onToggleSessions={onToggleSessions}
+          onToggleSidebar={onToggleSidebar}
           onToggleInfo={onToggleInfo}
           onGitClick={onGitClick}
         />

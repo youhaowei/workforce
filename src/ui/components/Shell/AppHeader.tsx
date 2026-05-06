@@ -1,11 +1,14 @@
-import { ArrowLeft, FolderGit2, MessageSquare, Plus, Palette } from "lucide-react";
+import { ArrowLeft, PanelLeftOpen, Plus, Palette } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { usePlatform } from "@/ui/context/PlatformProvider";
 
 import { BoardFilters } from "../Board/BoardFilters";
 import type { ViewType } from "./Shell";
+
+const TRAFFIC_LIGHT_SPACER_PX = 78;
 
 const VIEW_TITLES: Partial<Record<ViewType, string>> = {
   home: "Home",
@@ -23,10 +26,8 @@ interface TopBarProps {
   currentView: ViewType;
   sessionTitle?: string;
   onBack?: () => void;
-  sessionsPanelCollapsed: boolean;
-  onToggleSessionsPanel: () => void;
-  projectsPanelCollapsed: boolean;
-  onToggleProjectsPanel: () => void;
+  sidebarHidden: boolean;
+  onShowSidebar: () => void;
   onQuickCreate: () => void;
   themePanelOpen: boolean;
   onToggleThemePanel: () => void;
@@ -40,10 +41,8 @@ export default function TopBar({
   currentView,
   sessionTitle,
   onBack,
-  sessionsPanelCollapsed,
-  onToggleSessionsPanel,
-  projectsPanelCollapsed,
-  onToggleProjectsPanel,
+  sidebarHidden,
+  onShowSidebar,
   onQuickCreate,
   themePanelOpen,
   onToggleThemePanel,
@@ -52,6 +51,9 @@ export default function TopBar({
   boardStatusFilter,
   onBoardStatusFilterChange,
 }: TopBarProps) {
+  const { isDesktop, isMacOS } = usePlatform();
+  const macDesktop = isDesktop && isMacOS;
+
   const title =
     currentView === "sessions" && sessionTitle
       ? sessionTitle
@@ -62,35 +64,17 @@ export default function TopBar({
       <div className="absolute inset-0 titlebar-drag-region" />
 
       <div className="flex items-center gap-2 min-w-0 flex-1 relative">
-        {sessionsPanelCollapsed && currentView === "sessions" && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={onToggleSessionsPanel}
-                aria-label="Show sessions"
-              >
-                <MessageSquare className="h-3 w-3" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Show sessions (Cmd+Shift+H)</TooltipContent>
-          </Tooltip>
+        {sidebarHidden && macDesktop && (
+          <div className="shrink-0" style={{ width: TRAFFIC_LIGHT_SPACER_PX }} aria-hidden="true" />
         )}
-
-        {currentView === "projects" && projectsPanelCollapsed && (
+        {sidebarHidden && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={onToggleProjectsPanel}
-                aria-label="Show projects"
-              >
-                <FolderGit2 className="h-3 w-3" />
+              <Button variant="ghost" size="xs" onClick={onShowSidebar} aria-label="Show sidebar">
+                <PanelLeftOpen className="h-3 w-3" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Show projects</TooltipContent>
+            <TooltipContent>Show sidebar (Cmd+Shift+H)</TooltipContent>
           </Tooltip>
         )}
 

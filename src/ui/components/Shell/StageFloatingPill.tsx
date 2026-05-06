@@ -1,12 +1,10 @@
 /**
- * StageFloatingPill - Three floating glass elements at the top of the stage area.
- *
- * Top-left: sessions panel toggle
- * Top-center: current session title
- * Top-right: info panel toggle
+ * StageFloatingPill — floating glass elements at the top of the stage.
+ * Left: sidebar toggle (visible when sidebar hidden) + session title
+ * Right: git status + info panel toggle
  */
 
-import { PanelLeft, PanelRight } from "lucide-react";
+import { PanelLeftOpen, PanelRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GitStatusBadge } from "../Git/GitStatusBadge";
 import { GitCommitButton } from "../Git/GitCommitButton";
@@ -14,38 +12,37 @@ import { GitSyncButton } from "../Git/GitSyncButton";
 
 interface StageFloatingPillProps {
   sessionTitle?: string;
-  sessionsPanelOpen: boolean;
+  sidebarHidden: boolean;
   infoPanelOpen: boolean;
   projectRootPath?: string | null;
-  onToggleSessions: () => void;
+  onToggleSidebar: () => void;
   onToggleInfo: () => void;
   onGitClick?: () => void;
 }
 
 export function StageFloatingPill({
   sessionTitle,
-  sessionsPanelOpen,
+  sidebarHidden,
   infoPanelOpen,
   projectRootPath,
-  onToggleSessions,
+  onToggleSidebar,
   onToggleInfo,
   onGitClick,
 }: StageFloatingPillProps) {
   return (
     <div className="absolute top-2 left-2 right-2 z-10 flex items-center gap-1.5">
-      {/* Left: sessions toggle + title */}
-      <Button
-        variant="ghost"
-        color="neutral"
-        size="icon"
-        active={sessionsPanelOpen}
-        onClick={onToggleSessions}
-        className="h-7 w-7 shrink-0 rounded-full shadow-sm border border-neutral-border/30"
-        aria-pressed={sessionsPanelOpen}
-        aria-label={sessionsPanelOpen ? "Hide sessions panel" : "Show sessions panel"}
-      >
-        <PanelLeft className="h-3.5 w-3.5" />
-      </Button>
+      {sidebarHidden && (
+        <Button
+          variant="ghost"
+          color="neutral"
+          size="icon"
+          onClick={onToggleSidebar}
+          className="h-7 w-7 shrink-0 rounded-full shadow-sm border border-neutral-border/30"
+          aria-label="Show sidebar"
+        >
+          <PanelLeftOpen className="h-3.5 w-3.5" />
+        </Button>
+      )}
 
       {sessionTitle && (
         <div className="flex items-center h-7 px-3 bg-neutral-bg/70 rounded-full shadow-sm border border-neutral-border/30">
@@ -55,10 +52,8 @@ export function StageFloatingPill({
         </div>
       )}
 
-      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Right: git status + commit + info toggle */}
       {projectRootPath && <GitStatusBadge cwd={projectRootPath} onClick={onGitClick} />}
       {projectRootPath && <GitCommitButton cwd={projectRootPath} />}
       {projectRootPath && <GitSyncButton cwd={projectRootPath} />}

@@ -9,8 +9,6 @@ import { useShellStore } from "@/ui/stores/shellStore";
 import { ThemePanel } from "../Theme/ThemePanel";
 import { ChatInfoPanel } from "../ChatInfo";
 import { ArtifactPanel } from "../Artifact";
-import { SessionsPanel } from "../Sessions";
-import { ProjectsPanel } from "../Project";
 import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
 import { useHotkey } from "@/ui/hotkeys";
 import { usePlatform } from "@/ui/context/PlatformProvider";
@@ -33,7 +31,6 @@ import { useAgentStream } from "./useAgentStream";
 import { usePlanMode } from "@/ui/hooks/usePlanMode";
 import { useArtifactPanel } from "@/ui/hooks/useArtifactPanel";
 import {
-  SESSIONS_PANEL_STORAGE_KEY,
   VIEW_STORAGE_KEY,
   SELECTED_SESSION_STORAGE_KEY,
   checkServerConnection,
@@ -54,8 +51,6 @@ export default function Shell() {
   // UI state from shell store (for panels, sidebar, etc.)
   const themePanelOpen = useShellStore((s) => s.themePanelOpen);
   const setThemePanelOpen = useShellStore((s) => s.setThemePanelOpen);
-  const sessionsPanelCollapsed = useShellStore((s) => s.sessionsPanelCollapsed);
-  const setSessionsPanelCollapsed = useShellStore((s) => s.setSessionsPanelCollapsed);
   const infoPanelCollapsed = useShellStore((s) => s.infoPanelCollapsed);
   const setInfoPanelCollapsed = useShellStore((s) => s.setInfoPanelCollapsed);
   const sidebarMode = useShellStore((s) => s.sidebarMode);
@@ -79,7 +74,6 @@ export default function Shell() {
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(() =>
     localStorage.getItem(SELECTED_SESSION_STORAGE_KEY),
   );
-  const [projectsPanelCollapsed, setProjectsPanelCollapsed] = useState(false);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const cancelStreamRef = useRef<(() => void) | null>(null);
@@ -165,21 +159,29 @@ export default function Shell() {
     finishStreamingMessage();
   }, [cancelActiveStream, finishStreamingMessage]);
 
+  const sidebarHidden = sidebarMode === "collapsed";
+  const [sidebarPeek, setSidebarPeek] = useState(false);
+
   const toggleSidebarSize = useCallback(() => {
     setSidebarMode(sidebarMode === "expanded" ? "collapsed" : "expanded");
+    setSidebarPeek(false);
   }, [sidebarMode, setSidebarMode]);
 
-  const toggleSessionsPanel = useCallback(() => {
-    setSessionsPanelCollapsed(!sessionsPanelCollapsed);
-  }, [sessionsPanelCollapsed, setSessionsPanelCollapsed]);
+  const handleSidebarPeekLeave = useCallback(() => {
+    setSidebarPeek(false);
+  }, []);
+
+  const handleSelectProject = useCallback(
+    (projectId: string) => {
+      setSelectedProjectId(projectId);
+      navigate({ to: "/projects" });
+    },
+    [navigate],
+  );
 
   const toggleInfoPanel = useCallback(() => {
     setInfoPanelCollapsed(!infoPanelCollapsed);
   }, [infoPanelCollapsed, setInfoPanelCollapsed]);
-
-  const toggleProjectsPanel = useCallback(() => {
-    setProjectsPanelCollapsed((prev) => !prev);
-  }, []);
 
   // TECH DEBT: useAgentStream is called twice because setActiveSession is needed
   // before restoredMessages is available (hooks can't be conditional). The first
@@ -232,22 +234,6 @@ export default function Shell() {
     ],
   );
 
-  const handleDeleteSession = useCallback(
-    (sessionId: string) => {
-      if (sessionId !== activeSessionRef.current) return;
-      cancelActiveStream();
-      useAgentQuestionStore.getState().clear();
-      clearMessages();
-      setActiveSession(null);
-      setSelectedSessionId(null);
-      setNewSessionProjectId(null);
-      activeSessionRef.current = null;
-      lastLoadedSessionRef.current = null;
-      localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
-    },
-    [cancelActiveStream, clearMessages, setActiveSession, setNewSessionProjectId],
-  );
-
   const handleCreateSession = useCallback(() => {
     cancelActiveStream();
     useAgentQuestionStore.getState().clear();
@@ -258,8 +244,7 @@ export default function Shell() {
     activeSessionRef.current = null;
     lastLoadedSessionRef.current = null;
     navigate({ to: "/sessions" });
-    setSessionsPanelCollapsed(false);
-    localStorage.setItem(SESSIONS_PANEL_STORAGE_KEY, "false");
+    setSidebarMode("expanded");
   }, [
     cancelActiveStream,
     clearMessages,
@@ -268,7 +253,7 @@ export default function Shell() {
     currentView,
     selectedProjectId,
     navigate,
-    setSessionsPanelCollapsed,
+    setSidebarMode,
   ]);
 
   const { forksMap, handleRewind, handleFork } = useForkActions({
@@ -279,7 +264,7 @@ export default function Shell() {
     currentView,
   });
 
-  useHotkey("toggleHistory", toggleSessionsPanel);
+  useHotkey("toggleHistory", toggleSidebarSize);
   useHotkey("toggleTasks", () => setThemePanelOpen(!themePanelOpen));
   useHotkey("cancelStream", handleCancel, isStreaming);
   useHotkey("refresh", () => window.location.reload());
@@ -459,24 +444,38 @@ export default function Shell() {
       onProjectCreated={handleProjectCreated}
     >
       <div
-        className="h-screen flex overflow-hidden shell-ground"
+        className="h-screen flex overflow-hidden shell-ground relative"
         data-desktop={isDesktop || undefined}
       >
+        {sidebarHidden && !sidebarPeek && (
+          <div
+            className="absolute left-0 top-0 bottom-0 w-3 z-30"
+            onMouseEnter={() => setSidebarPeek(true)}
+            aria-hidden="true"
+          />
+        )}
         {/* Window dragging: Electron uses CSS -webkit-app-region: drag via the
             .titlebar-drag-region class in AppHeader and sidebar spacer.
             Interactive elements opt out via app-region: no-drag (set in index.html <style>). */}
 
-        <AppSidebar mode={sidebarMode} onToggleSize={toggleSidebarSize} />
+        <AppSidebar
+          hidden={sidebarHidden}
+          peek={sidebarPeek}
+          selectedProjectId={selectedProjectId}
+          selectedSessionId={selectedSessionId}
+          onToggle={toggleSidebarSize}
+          onSelectProject={handleSelectProject}
+          onSelectSession={handleSelectSession}
+          onMouseLeave={handleSidebarPeekLeave}
+        />
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <TopBar
             currentView={currentView}
             sessionTitle={activeSessionTitle}
             onBack={currentView === "detail" ? navigateBack : undefined}
-            sessionsPanelCollapsed={sessionsPanelCollapsed}
-            onToggleSessionsPanel={toggleSessionsPanel}
-            projectsPanelCollapsed={projectsPanelCollapsed}
-            onToggleProjectsPanel={toggleProjectsPanel}
+            sidebarHidden={sidebarHidden}
+            onShowSidebar={toggleSidebarSize}
             onQuickCreate={handleCreateSession}
             themePanelOpen={themePanelOpen}
             onToggleThemePanel={() => setThemePanelOpen(!themePanelOpen)}
@@ -491,39 +490,16 @@ export default function Shell() {
               variant="main"
               className="flex min-w-0 flex-1 m-[0_var(--surface-inset)_var(--surface-inset)_0] rounded-[var(--surface-radius)] [contain:paint]"
             >
-              {showSessionsView && (
-                <SessionsPanel
-                  collapsed={sessionsPanelCollapsed}
-                  activeSessionId={selectedSessionId ?? undefined}
-                  onSelectSession={handleSelectSession}
-                  onDeleteSession={handleDeleteSession}
-                  onCreateSession={handleCreateSession}
-                />
-              )}
-
-              {currentView === "projects" && (
-                <ProjectsPanel
-                  collapsed={projectsPanelCollapsed}
-                  selectedProjectId={selectedProjectId}
-                  onCollapse={toggleProjectsPanel}
-                  onSelectProject={setSelectedProjectId}
-                  onClearSelection={() => setSelectedProjectId(null)}
-                  onCreateProject={() => {
-                    setCreateProjectDialog(true, "projects-panel");
-                  }}
-                />
-              )}
-
               {/* Stage: chat + artifact grouped so sessions resize pushes both */}
               <div className="flex-1 flex min-w-0 overflow-hidden">
                 <MainContentColumn
                   serverConnected={serverConnected}
                   showFloatingPill={showSessionsView}
                   sessionTitle={activeSessionTitle}
-                  sessionsPanelOpen={!sessionsPanelCollapsed}
+                  sidebarHidden={sidebarHidden}
                   infoPanelOpen={showChatInfo}
                   projectRootPath={projectRootPath}
-                  onToggleSessions={toggleSessionsPanel}
+                  onToggleSidebar={toggleSidebarSize}
                   onToggleInfo={toggleInfoPanel}
                   onGitClick={() => {
                     if (infoPanelCollapsed) toggleInfoPanel();
