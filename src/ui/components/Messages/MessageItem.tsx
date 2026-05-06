@@ -6,8 +6,8 @@
  * Task tools rendered as collapsible group headers within activity segments.
  */
 
-import { memo, useState, useMemo, useCallback, type MouseEvent } from "react";
-import { History, GitBranch, ChevronRight, Loader2, Check, X } from "lucide-react";
+import { memo, useMemo, useCallback, type MouseEvent } from "react";
+import { History, GitBranch, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
@@ -16,8 +16,8 @@ import ToolOutput from "../Tools/ToolOutput";
 import ContentBlockRenderer from "./ContentBlockRenderer";
 import QuestionCard from "./QuestionCard";
 import Markdown from "./Markdown";
-import { Chip } from "@/ui/components/Chip";
 import { segmentBlocks } from "./segmentBlocks";
+import { ActivitySegment } from "./MessageActivitySegment";
 
 export interface ForkInfo {
   sessionId: string;
@@ -150,47 +150,6 @@ function ForkIndicator({
   );
 }
 
-// ─── Activity grouping (Task absorbs children) ──────────────────────────────
-
-/** A grouped item: either a standalone block or a Task group with children. */
-type GroupedItem =
-  | { kind: "block"; block: ContentBlock }
-  | { kind: "task"; block: ContentBlock & { type: "tool_use" }; children: ContentBlock[] };
-
-/** Group activity blocks: Task tool_use blocks absorb subsequent blocks until the next text or Task. */
-function groupActivities(blocks: ContentBlock[]): GroupedItem[] {
-  const items: GroupedItem[] = [];
-  let currentTask: (ContentBlock & { type: "tool_use" }) | null = null;
-  let currentChildren: ContentBlock[] = [];
-
-  function flushTask() {
-    if (currentTask) {
-      items.push({ kind: "task", block: currentTask, children: currentChildren });
-      currentTask = null;
-      currentChildren = [];
-    }
-  }
-
-  for (const block of blocks) {
-    if (block.type === "tool_use" && (block.name === "Task" || block.name === "Agent")) {
-      flushTask();
-      currentTask = block;
-      currentChildren = [];
-    } else if (currentTask) {
-      if (block.type === "text") {
-        flushTask();
-        items.push({ kind: "block", block });
-      } else {
-        currentChildren.push(block);
-      }
-    } else {
-      items.push({ kind: "block", block });
-    }
-  }
-  flushTask();
-  return items;
-}
-
 // ─── useMessageSegments hook ─────────────────────────────────────────────────
 
 function useMessageSegments(message: MessageItemProps["message"]) {
@@ -227,129 +186,6 @@ function useMessageSegments(message: MessageItemProps["message"]) {
 
 const EMPTY_BLOCKS: ContentBlock[] = [];
 
-// ─── Status Icons ────────────────────────────────────────────────────────────
-
-function TaskStatusIcon({ status }: { status: "running" | "complete" | "error" }) {
-  if (status === "running")
-    return <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />;
-  if (status === "error") {
-    return (
-      <span className="shrink-0 w-4 h-4 rounded-full bg-palette-danger/15 inline-flex items-center justify-center">
-        <X className="h-2.5 w-2.5 text-palette-danger" />
-      </span>
-    );
-  }
-  return (
-    <span className="shrink-0 w-4 h-4 rounded-full bg-palette-success/15 inline-flex items-center justify-center">
-      <Check className="h-2.5 w-2.5 text-palette-success" />
-    </span>
-  );
-}
-
-// ─── Task Group Row ──────────────────────────────────────────────────────────
-
-function TaskGroupRow({
-  block,
-  children,
-  isStreaming,
-}: {
-  block: ContentBlock & { type: "tool_use" };
-  children: ContentBlock[];
-  isStreaming: boolean;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const args = (block.inputRaw ?? {}) as Record<string, unknown>;
-  const subagentType = args.subagent_type ? String(args.subagent_type) : null;
-  const description = String(args.description ?? block.input ?? "Task");
-
-  return (
-    <div>
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={() => setExpanded((p) => !p)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setExpanded((p) => !p);
-          }
-        }}
-        className="group/row flex items-center gap-2 py-0.5 text-[13px] cursor-pointer hover:text-neutral-fg transition-colors"
-      >
-        <ChevronRight
-          className={`h-3 w-3 text-neutral-fg-subtle/60 shrink-0 transition-transform ${expanded ? "rotate-90" : ""}`}
-        />
-        <TaskStatusIcon status={block.status} />
-        {subagentType && <Chip>{subagentType}</Chip>}
-        <span className="truncate flex-1 min-w-0 text-neutral-fg-subtle font-medium">
-          {description}
-        </span>
-        {block.status === "error" && <Chip color="danger">Error</Chip>}
-      </div>
-      {expanded && children.length > 0 && (
-        <div className="pl-5 ml-[7px] border-l-2 border-neutral-border-subtle space-y-0">
-          <ContentBlockRenderer blocks={children} isStreaming={isStreaming} inline />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Activity header derivation ──────────────────────────────────────────────
-
-function deriveStreamingHeader(activityBlocks: ContentBlock[]) {
-  for (let i = activityBlocks.length - 1; i >= 0; i--) {
-    const b = activityBlocks[i];
-    if (b.type === "tool_use" && b.status === "running") return `Running ${b.name}...`;
-  }
-  const lastTool = [...activityBlocks].reverse().find((b) => b.type === "tool_use");
-  if (lastTool && lastTool.type === "tool_use") return `Running ${lastTool.name}...`;
-  return "Working...";
-}
-
-function pluralize(n: number, singular: string, plural: string) {
-  return n > 0 ? `${n} ${n > 1 ? plural : singular}` : "";
-}
-
-function buildCompletedParts(counts: Record<string, number>): string[] {
-  const r = counts.Read ?? 0;
-  const e = (counts.Edit ?? 0) + (counts.Write ?? 0);
-  const s = (counts.Grep ?? 0) + (counts.Glob ?? 0);
-
-  const entries: Array<[number, string, string, string?]> = [
-    [r, "file", "files", "read "],
-    [e, "file", "files", "edited "],
-    [s, "search", "searches"],
-    [counts.Bash ?? 0, "command", "commands"],
-    [counts.Task ?? 0, "task", "tasks"],
-  ];
-
-  return entries
-    .filter(([n]) => n > 0)
-    .map(([n, sg, pl, prefix]) => `${prefix ?? ""}${pluralize(n, sg, pl)}`);
-}
-
-function deriveCompletedHeader(activityBlocks: ContentBlock[]) {
-  const tools = activityBlocks.filter(
-    (b): b is ContentBlock & { type: "tool_use" } => b.type === "tool_use",
-  );
-  if (tools.length === 0) return "Completed";
-
-  const counts: Record<string, number> = {};
-  for (const t of tools) counts[t.name] = (counts[t.name] ?? 0) + 1;
-
-  const parts = buildCompletedParts(counts);
-  return parts.length > 0
-    ? parts.join(", ")
-    : `Used ${tools.length} tool${tools.length > 1 ? "s" : ""}`;
-}
-
-function deriveHeaderText(activityBlocks: ContentBlock[], isStreaming: boolean) {
-  return isStreaming
-    ? deriveStreamingHeader(activityBlocks)
-    : deriveCompletedHeader(activityBlocks);
-}
-
 // ─── Segment Components ──────────────────────────────────────────────────────
 
 function ThinkingSegment({ blocks }: { blocks: ContentBlock[] }) {
@@ -369,81 +205,6 @@ function ThinkingSegment({ blocks }: { blocks: ContentBlock[] }) {
         );
       })}
     </>
-  );
-}
-
-function ActivitySegment({
-  blocks,
-  isStreaming,
-}: {
-  blocks: ContentBlock[];
-  isStreaming: boolean;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const grouped = useMemo(() => groupActivities(blocks), [blocks]);
-  const anyRunning = blocks.some((b) => b.status === "running");
-  const headerText = useMemo(
-    () => deriveHeaderText(blocks, isStreaming && anyRunning),
-    [blocks, isStreaming, anyRunning],
-  );
-  const errorCount = useMemo(
-    () => blocks.filter((b) => b.type === "tool_use" && b.status === "error").length,
-    [blocks],
-  );
-
-  // Single child → render flat without collapsible wrapper
-  if (grouped.length === 1) {
-    if (grouped[0].kind === "block") {
-      return <ContentBlockRenderer blocks={[grouped[0].block]} isStreaming={isStreaming} inline />;
-    }
-    // Single task with children — render the task group directly (no outer summary)
-    const task = grouped[0];
-    return <TaskGroupRow block={task.block} children={task.children} isStreaming={isStreaming} />;
-  }
-
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setExpanded((p) => !p)}
-        className="flex items-center gap-2 w-full py-1 text-[13px] text-neutral-fg-subtle hover:text-neutral-fg transition-colors"
-      >
-        <ChevronRight
-          className={`h-3 w-3 shrink-0 transition-transform text-neutral-fg-subtle/40 ${expanded ? "rotate-90" : ""}`}
-        />
-        {isStreaming && anyRunning ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-palette-primary shrink-0" />
-        ) : (
-          <span className="shrink-0 w-4 h-4 rounded-full bg-palette-success/15 inline-flex items-center justify-center">
-            <Check className="h-2.5 w-2.5 text-palette-success" />
-          </span>
-        )}
-        <span className="truncate flex-1 min-w-0 text-left">{headerText}</span>
-        {errorCount > 0 && <Chip color="danger">{errorCount} failed</Chip>}
-      </button>
-
-      {expanded && (
-        <div className="pl-4 space-y-0 border-l-2 border-neutral-border-subtle ml-[5px]">
-          {grouped.map((item, i) => {
-            if (item.kind === "task") {
-              return (
-                <TaskGroupRow
-                  key={`task-${item.block.id}`}
-                  block={item.block}
-                  children={item.children}
-                  isStreaming={isStreaming}
-                />
-              );
-            }
-            const block = item.block;
-            const key = block.type === "tool_use" ? `tool-${block.id}` : `${block.type}-${i}`;
-            return (
-              <ContentBlockRenderer key={key} blocks={[block]} isStreaming={isStreaming} inline />
-            );
-          })}
-        </div>
-      )}
-    </div>
   );
 }
 

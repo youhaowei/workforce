@@ -33,7 +33,7 @@ jobs:
               run: bun run type-check
 
             - name: Lint
-              run: bunx oxlint src/ --max-warnings 24
+              run: bunx oxlint src/ --max-warnings 0
 
             - name: Format check
               run: bunx oxfmt --check src/
