@@ -1,4 +1,3 @@
-import type { AgentEvent, Usage } from "unifai";
 import type { EventBus } from "@/shared/event-bus";
 import type {
   HookResponseEvent,
@@ -8,6 +7,108 @@ import type {
 import { createLogger } from "tracey";
 
 const log = createLogger("Agent");
+
+interface Usage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+}
+
+interface ModelUsage extends Usage {
+  webSearchRequests?: number;
+  costUsd?: number;
+  contextWindow?: number;
+  maxOutputTokens?: number;
+}
+
+type AgentEvent =
+  | {
+      type: "message_start";
+      messageId: string;
+      model: string;
+      stopReason: string | null;
+      usage: Usage;
+    }
+  | { type: "message_stop" }
+  | {
+      type: "content_block_start";
+      index: number;
+      blockType: "text" | "tool_use" | "thinking";
+      id?: string;
+      name?: string;
+    }
+  | { type: "content_block_stop"; index: number }
+  | {
+      type: "assistant_message";
+      messageId: string;
+      uuid?: string;
+      sessionId: string;
+      model: string;
+      stopReason: string | null;
+      usage: Usage;
+      content: Array<{
+        type: "text" | "tool_use" | "thinking";
+        text?: string;
+        id?: string;
+        name?: string;
+        input?: unknown;
+        thinking?: string;
+      }>;
+      error?: string;
+    }
+  | { type: "tool_start"; toolUseId: string; toolName: string; input: unknown }
+  | { type: "tool_progress"; toolUseId: string; toolName: string; elapsedSeconds: number }
+  | { type: "tool_summary"; summary: string; precedingToolUseIds?: string[] }
+  | { type: "tool_result"; toolUseId: string; toolName: string; result: unknown; isError: boolean }
+  | {
+      type: "session_init";
+      sessionId: string;
+      model?: string;
+      tools?: string[];
+      cwd?: string;
+      claudeCodeVersion?: string;
+      mcpServers?: Array<{ name: string; status: string }>;
+      permissionMode?: string;
+      slashCommands?: string[];
+      skills?: string[];
+    }
+  | { type: "status"; message: string; permissionMode?: string }
+  | {
+      type: "session_complete";
+      subtype?: string;
+      result?: string;
+      structuredOutput?: unknown;
+      usage: Usage;
+      durationMs: number;
+      durationApiMs?: number;
+      numTurns: number;
+      costUsd?: number;
+      modelUsage?: Record<string, ModelUsage>;
+      errors?: string[];
+    }
+  | { type: "auth_status"; isAuthenticating: boolean; output: string[]; error?: string }
+  | { type: "error"; message: string; code?: string; recoverable: boolean }
+  | { type: "hook_started"; hookId: string; hookName: string; hookEvent: string }
+  | {
+      type: "hook_progress";
+      hookId: string;
+      hookName: string;
+      hookEvent: string;
+      stdout: string;
+      stderr: string;
+      output: string;
+    }
+  | {
+      type: "hook_response";
+      hookId: string;
+      hookName: string;
+      hookEvent: string;
+      outcome: string;
+      output: string;
+      exitCode?: number;
+    }
+  | { type: "task_notification"; taskId: string; status: string; outputFile: string; summary: string };
 
 const VALID_SUBTYPES: ReadonlySet<string> = new Set([
   "success",
@@ -224,7 +325,7 @@ function emitLifecycleEvent(
     case "error":
       bus.emit({
         type: "BridgeError",
-        source: "unifai",
+        source: "agent-sdk",
         error: event.message,
         code: event.code,
         timestamp: now,
@@ -327,8 +428,8 @@ function emitSessionComplete(
             {
               inputTokens: mu.inputTokens,
               outputTokens: mu.outputTokens,
-              cacheReadInputTokens: mu.cacheReadTokens,
-              cacheCreationInputTokens: mu.cacheCreationTokens,
+              cacheReadInputTokens: mu.cacheReadTokens ?? 0,
+              cacheCreationInputTokens: mu.cacheCreationTokens ?? 0,
               webSearchRequests: mu.webSearchRequests ?? 0,
               costUSD: mu.costUsd ?? 0,
               contextWindow: mu.contextWindow ?? 0,
