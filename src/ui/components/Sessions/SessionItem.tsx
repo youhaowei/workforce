@@ -104,7 +104,7 @@ export function SessionItem({
       role="button"
       tabIndex={0}
       className={`session-item group mx-1.5 px-2 py-2 cursor-pointer rounded-lg transition-colors overflow-hidden ${
-        isActive ? "bg-neutral-fg/[0.06]" : "hover:bg-neutral-bg-dim/50"
+        isActive ? "bg-neutral-fg/[0.06]" : "hover:bg-neutral-fg/[0.04]"
       }`}
       onClick={() => onSelect?.(session.id)}
       onKeyDown={(e) => {

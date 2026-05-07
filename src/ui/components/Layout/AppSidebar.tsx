@@ -129,8 +129,8 @@ export default function AppSidebar({
                     className={cn(
                       "justify-start gap-2 h-8 px-2 text-sm",
                       active
-                        ? "bg-neutral-bg-subtle text-neutral-fg"
-                        : "text-neutral-fg/80 hover:bg-neutral-bg-dim/50 hover:text-neutral-fg",
+                        ? "bg-neutral-fg/[0.06] text-neutral-fg font-medium"
+                        : "text-neutral-fg/70 hover:bg-neutral-fg/[0.04] hover:text-neutral-fg",
                     )}
                   >
                     <span
