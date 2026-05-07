@@ -27,9 +27,13 @@ export function StageFloatingPill({
     <div className="absolute top-2 left-2 right-2 z-10 flex items-center gap-1.5">
       <div className="flex-1" />
 
-      {projectRootPath && <GitStatusBadge cwd={projectRootPath} onClick={onGitClick} />}
-      {projectRootPath && <GitCommitButton cwd={projectRootPath} />}
-      {projectRootPath && <GitSyncButton cwd={projectRootPath} />}
+      {projectRootPath && (
+        <>
+          <GitStatusBadge cwd={projectRootPath} onClick={onGitClick} />
+          <GitCommitButton cwd={projectRootPath} />
+          <GitSyncButton cwd={projectRootPath} />
+        </>
+      )}
 
       <Button
         variant="ghost"

@@ -26,7 +26,7 @@ import { MainContentColumn } from "./MainContentColumn";
 import { Sidebar } from "@/components/ui/sidebar";
 import { Workspace } from "@/components/ui/workspace";
 import { Dock } from "@/components/ui/dock";
-import { useActiveSessionInfo } from "./useActiveSessionTitle";
+import { useActiveSessionInfo } from "./useActiveSessionInfo";
 import { useSessionProjectPath } from "@/ui/hooks/useSessionProjectPath";
 import { useForkActions } from "./useForkActions";
 import { useAgentStream } from "./useAgentStream";
@@ -469,7 +469,6 @@ export default function Layout() {
           />
         )}
 
-        {/* TopBar — spans full width */}
         <AppTopBar
           sidebarOpen={!sidebarHidden}
           onToggleSidebar={toggleSidebarSize}
@@ -485,9 +484,7 @@ export default function Layout() {
           onBoardStatusFilterChange={setBoardStatusFilter}
         />
 
-        {/* Content row: [left sidebar] [workspace] [right sidebar] */}
         <div className="flex-1 flex gap-[var(--surface-inset)] min-h-0 overflow-hidden">
-          {/* Left Sidebar */}
           <Sidebar
             side="left"
             open={!sidebarHidden}
@@ -504,9 +501,7 @@ export default function Layout() {
             />
           </Sidebar>
 
-          {/* Workspace — outer Surface holding Stage + Docks */}
           <Workspace>
-            {/* Stage + Artifact panes */}
             <div className="flex-1 flex min-w-0 overflow-hidden">
               <MainContentColumn
                 serverConnected={serverConnected}
@@ -546,7 +541,6 @@ export default function Layout() {
               />
             </div>
 
-            {/* Right Dock — ChatInfo */}
             <Dock side="right" open={showChatInfo}>
               <ChatInfoPanel
                 isOpen={showChatInfo}
@@ -557,7 +551,6 @@ export default function Layout() {
             </Dock>
           </Workspace>
 
-          {/* Right Sidebar — Appearance */}
           <Sidebar side="right" open={rightSidebarOpen} width={288}>
             <ThemePanel isOpen={rightSidebarOpen} onClose={() => setRightSidebarOpen(false)} />
           </Sidebar>

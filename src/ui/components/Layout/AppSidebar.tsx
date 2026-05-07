@@ -12,6 +12,7 @@ import { Download, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/ui/lib/utils";
 import { useTRPC } from "@/bridge/react";
 import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
 import type { Project, SessionSummary } from "@/services/types";
@@ -107,7 +108,6 @@ export default function AppSidebar({
 
   return (
     <>
-      {/* Projects — clickable header (→ /projects) + always-visible list */}
         <div className="shrink-0">
           <div className="flex items-center px-3 py-2">
             <Link
@@ -124,17 +124,16 @@ export default function AppSidebar({
               {(projects as Project[]).map((p) => {
                 const active = p.id === selectedProjectId;
                 return (
-                  <button
+                  <Button
                     key={p.id}
-                    type="button"
+                    variant="ghost"
                     onClick={() => onSelectProject(p.id)}
-                    className={[
-                      "flex items-center gap-2 h-8 rounded-md px-2 text-sm text-left transition-colors",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring",
+                    className={cn(
+                      "justify-start gap-2 h-8 px-2 text-sm",
                       active
                         ? "bg-neutral-bg-subtle text-neutral-fg"
                         : "text-neutral-fg/80 hover:bg-neutral-bg-dim/50 hover:text-neutral-fg",
-                    ].join(" ")}
+                    )}
                   >
                     <span
                       className="shrink-0 w-1.5 h-1.5 rounded-full bg-neutral-fg-subtle/60"
@@ -142,14 +141,13 @@ export default function AppSidebar({
                       aria-hidden="true"
                     />
                     <span className="flex-1 truncate">{p.name}</span>
-                  </button>
+                  </Button>
                 );
               })}
             </div>
           )}
         </div>
 
-        {/* Sessions header */}
         <div className="shrink-0 flex items-center px-3 py-2">
           <span className="flex-1 text-[11px] font-medium text-neutral-fg-subtle tracking-wider">
             Sessions
@@ -177,14 +175,13 @@ export default function AppSidebar({
                 onClick={handleRefresh}
                 aria-label="Refresh sessions"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>Refresh sessions</TooltipContent>
           </Tooltip>
         </div>
 
-        {/* Sessions list — full feature parity (search/sort/group/filter/delete) */}
         <div className="flex-1 min-h-0 flex flex-col">
           <SessionList
             sessions={sessions as SessionSummary[]}

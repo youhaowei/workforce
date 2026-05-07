@@ -25,7 +25,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       <aside
         ref={ref}
         role="complementary"
-        aria-label={`${side === "left" ? "Navigation" : "Inspector"} sidebar`}
+        aria-label={props["aria-label"] ?? `${side} sidebar`}
         className={cn(
           "shrink-0 flex flex-col select-none overflow-hidden",
           "transition-[width] duration-200 ease-in-out motion-reduce:transition-none",

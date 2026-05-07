@@ -3,6 +3,7 @@ import { ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRigh
 import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/ui/topbar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/ui/lib/utils";
 import { usePlatform } from "@/ui/context/PlatformProvider";
 
 import { BoardFilters } from "../Board/BoardFilters";
@@ -56,7 +57,7 @@ export default function AppTopBar({
             <Button
               variant="ghost"
               size="icon"
-              className={`h-7 w-7 hover:text-neutral-fg/90 ${sidebarOpen ? "text-neutral-fg/80" : "text-neutral-fg/60"}`}
+              className={cn("h-7 w-7 hover:text-neutral-fg/90", sidebarOpen ? "text-neutral-fg/80" : "text-neutral-fg/60")}
               onClick={onToggleSidebar}
               aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
             >
@@ -68,7 +69,6 @@ export default function AppTopBar({
           </TooltipContent>
         </Tooltip>
 
-        {/* Breadcrumb — project / session (only on session routes) */}
         {currentView === "sessions" && (projectName || sessionTitle) && (
           <nav className="flex items-center gap-1 min-w-0 text-[11px]" aria-label="Breadcrumb">
             {projectName && (
@@ -88,7 +88,6 @@ export default function AppTopBar({
         )}
       </div>
 
-      {/* Center — view-specific controls */}
       {currentView === "board" && (
         <div className="relative">
           <BoardFilters
@@ -100,7 +99,6 @@ export default function AppTopBar({
         </div>
       )}
 
-      {/* Right — global actions */}
       <div className="flex items-center gap-1 shrink-0 relative">
         <Button
           variant="ghost"
@@ -118,7 +116,7 @@ export default function AppTopBar({
             <Button
               variant="ghost"
               size="icon"
-              className={`h-7 w-7 hover:text-neutral-fg/90 ${rightSidebarOpen ? "text-neutral-fg/80" : "text-neutral-fg/60"}`}
+              className={cn("h-7 w-7 hover:text-neutral-fg/90", rightSidebarOpen ? "text-neutral-fg/80" : "text-neutral-fg/60")}
               onClick={onToggleRightSidebar}
               aria-label="Toggle appearance panel"
             >

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "@/bridge/react";
 import type { Project, SessionSummary } from "@/services/types";
 
-interface UseActiveSessionTitleParams {
+interface UseActiveSessionInfoParams {
   orgId?: string;
   selectedSessionId: string | null;
   serverConnected: boolean;
@@ -20,7 +20,7 @@ export function useActiveSessionInfo({
   selectedSessionId,
   serverConnected,
   projects,
-}: UseActiveSessionTitleParams): ActiveSessionInfo {
+}: UseActiveSessionInfoParams): ActiveSessionInfo {
   const trpc = useTRPC();
   const { data: sessionList } = useQuery(
     trpc.session.list.queryOptions(orgId ? { orgId } : undefined, { enabled: serverConnected }),
