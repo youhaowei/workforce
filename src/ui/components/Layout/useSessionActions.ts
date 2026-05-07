@@ -61,21 +61,24 @@ export function useSessionActions({
   const handleSelectSession = useCallback(
     (sessionId: string) => {
       const hasMessages = useMessagesStore.getState().messages.length > 0;
-      if (sessionId === activeSessionRef.current && hasMessages) return;
+      const alreadyActive = sessionId === activeSessionRef.current && hasMessages;
 
-      cancelActiveStream();
-      finishStreamingMessage();
-      useAgentQuestionStore.getState().clear();
-      setNewSessionProjectId(null);
-      clearMessages();
-      setActiveSession(sessionId);
-      setSelectedSessionId(sessionId);
-      activeSessionRef.current = sessionId;
-      lastLoadedSessionRef.current = null;
+      if (!alreadyActive) {
+        cancelActiveStream();
+        finishStreamingMessage();
+        useAgentQuestionStore.getState().clear();
+        setNewSessionProjectId(null);
+        clearMessages();
+        setActiveSession(sessionId);
+        setSelectedSessionId(sessionId);
+        activeSessionRef.current = sessionId;
+        lastLoadedSessionRef.current = null;
+        queryClient.invalidateQueries({
+          queryKey: trpc.session.messages.queryKey({ sessionId }),
+        });
+      }
+
       navigate({ to: "/sessions/$id", params: { id: sessionId } });
-      queryClient.invalidateQueries({
-        queryKey: trpc.session.messages.queryKey({ sessionId }),
-      });
     },
     [
       cancelActiveStream,
