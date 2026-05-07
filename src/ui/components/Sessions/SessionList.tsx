@@ -214,7 +214,7 @@ export function SessionList({
       if (item.kind === "header") {
         if (!item.collapsible) {
           return (
-            <div className="px-3 py-2 text-[11px] font-medium text-neutral-fg-subtle/60 tracking-wider select-none">
+            <div className="px-3 py-2 text-[11px] font-medium text-neutral-fg-subtle tracking-wider select-none">
               {item.label}
             </div>
           );
@@ -301,7 +301,7 @@ export function SessionList({
 
       {/* Group-by row */}
       <div className="flex items-center gap-1 px-3 py-1 border-b border-neutral-border/50">
-        <span className="text-[10px] text-neutral-fg-subtle/50 shrink-0">Group</span>
+        <span className="text-[10px] text-neutral-fg-subtle shrink-0">Group</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-1 h-6 px-1.5 rounded text-[11px] text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-dim/50 transition-colors shrink-0">
@@ -402,7 +402,7 @@ export function SessionList({
 
       {/* Filter row */}
       <div className="flex items-center flex-wrap gap-0.5 px-3 py-1 border-b border-neutral-border/50">
-        <span className="text-[10px] text-neutral-fg-subtle/50 shrink-0 mr-0.5">Filter</span>
+        <span className="text-[10px] text-neutral-fg-subtle shrink-0 mr-0.5">Filter</span>
         <FilterDropdown<StatusFilter>
           label="Status"
           icon={Activity}

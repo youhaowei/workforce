@@ -108,7 +108,7 @@ function createWindow() {
     width: 1200,
     height: 800,
     titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 16, y: 13 },
+    trafficLightPosition: { x: 16, y: 15 },
     acceptFirstMouse: true,
     backgroundColor: "#00000000",
     vibrancy: "under-window",

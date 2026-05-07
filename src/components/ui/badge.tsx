@@ -9,7 +9,7 @@ const badgeVariants = cva(
     variants: {
       variant: {
         solid: "border-transparent text-[var(--badge-fg)] bg-[var(--badge-bg)] hover:opacity-90",
-        soft: "border-transparent text-[var(--badge-bg)] bg-[var(--badge-bg)]/10",
+        soft: "border-transparent text-[var(--badge-bg)] [--_soft-bg:color-mix(in_oklch,var(--badge-bg)_20%,var(--neutral-bg))] bg-[var(--_soft-bg)]/80 backdrop-blur-sm",
         outline: "border text-neutral-fg",
       },
       color: {

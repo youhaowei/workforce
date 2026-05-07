@@ -126,7 +126,7 @@ export function SessionItem({
             >
               {title}
             </span>
-            <span className="text-[11px] text-neutral-fg-subtle/60 tabular-nums shrink-0">
+            <span className="text-[11px] text-neutral-fg-subtle tabular-nums shrink-0">
               {timeAgoLabel}
             </span>
           </div>
@@ -137,7 +137,7 @@ export function SessionItem({
       {projectName && (
         <div className="flex items-center mt-0.5 pl-5">
           {isCwdFolder ? (
-            <span className="inline-flex items-center gap-1 text-[11px] text-neutral-fg-subtle/40 truncate">
+            <span className="inline-flex items-center gap-1 text-[11px] text-neutral-fg-subtle truncate">
               <Folder className="h-2.5 w-2.5 shrink-0" />
               {projectName}
             </span>
@@ -147,10 +147,7 @@ export function SessionItem({
               className="h-[18px] px-1.5 py-0 text-[10px] rounded font-medium truncate max-w-[160px]"
               style={
                 projectColor
-                  ? {
-                      backgroundColor: `${projectColor}18`,
-                      color: projectColor,
-                    }
+                  ? ({ "--badge-bg": projectColor, color: projectColor } as React.CSSProperties)
                   : undefined
               }
             >
@@ -176,7 +173,7 @@ export function SessionItem({
             variant="soft"
             color="default"
             className="h-[18px] px-1.5 py-0 text-[10px] rounded gap-0.5"
-            style={{ backgroundColor: `${CLAUDE_COLOR}18`, color: CLAUDE_COLOR }}
+            style={{ "--badge-bg": CLAUDE_COLOR, color: CLAUDE_COLOR } as React.CSSProperties}
           >
             <ClaudeIcon className="h-2.5 w-2.5" />
             Claude
