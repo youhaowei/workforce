@@ -453,7 +453,7 @@ export default function Layout() {
               />
             </div>
 
-            <Dock side="right" open={showChatInfo}>
+            <Dock side="right" open={showChatInfo} width={240}>
               <ChatInfoPanel
                 isOpen={showChatInfo}
                 sessionId={selectedSessionId}

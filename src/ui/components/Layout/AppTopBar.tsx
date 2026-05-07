@@ -65,7 +65,7 @@ export default function AppTopBar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            {sidebarOpen ? "Hide" : "Show"} sidebar (Cmd+Shift+H)
+            {sidebarOpen ? "Hide" : "Show"} sidebar ({macDesktop ? "Cmd" : "Ctrl"}+Shift+H)
           </TooltipContent>
         </Tooltip>
 
