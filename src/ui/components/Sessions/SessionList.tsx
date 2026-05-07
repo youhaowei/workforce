@@ -214,7 +214,7 @@ export function SessionList({
       if (item.kind === "header") {
         if (!item.collapsible) {
           return (
-            <div className="px-3 py-2 text-[11px] font-medium text-neutral-fg-subtle/60 tracking-wider select-none">
+            <div className="px-3 py-2 text-[11px] font-medium text-neutral-fg-subtle tracking-wider select-none">
               {item.label}
             </div>
           );
@@ -223,7 +223,7 @@ export function SessionList({
           <button
             onClick={() => toggleGroup(item.key)}
             aria-expanded={!item.collapsed}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-neutral-fg-subtle hover:bg-neutral-bg-dim/50 transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-neutral-fg-subtle hover:bg-neutral-fg/[0.04] transition-colors"
           >
             {item.collapsed ? (
               <ChevronRight className="h-3 w-3" />
@@ -270,7 +270,7 @@ export function SessionList({
   return (
     <div className="flex flex-col h-full min-w-0">
       {/* Search bar */}
-      <div className="px-3 py-2 border-b border-neutral-border/50">
+      <div className="px-3 py-2 border-b border-neutral-border/20">
         <div className="flex gap-1.5">
           <div className="relative flex-1">
             <Search className="absolute left-2 top-1.5 h-3.5 w-3.5 text-neutral-fg-subtle pointer-events-none" />
@@ -292,7 +292,7 @@ export function SessionList({
               </button>
             )}
           </div>
-          <Button size="sm" className="h-7 px-2.5 text-xs" onClick={onCreate}>
+          <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs" onClick={onCreate}>
             <Plus className="h-3 w-3 mr-1" />
             New
           </Button>
@@ -300,11 +300,11 @@ export function SessionList({
       </div>
 
       {/* Group-by row */}
-      <div className="flex items-center gap-1 px-3 py-1 border-b border-neutral-border/50">
-        <span className="text-[10px] text-neutral-fg-subtle/50 shrink-0">Group</span>
+      <div className="flex items-center gap-1 px-3 py-1 border-b border-neutral-border/20">
+        <span className="text-[10px] text-neutral-fg-subtle shrink-0">Group</span>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-1 h-6 px-1.5 rounded text-[11px] text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-dim/50 transition-colors shrink-0">
+            <button className="flex items-center gap-1 h-6 px-1.5 rounded text-[11px] text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-fg/[0.04] transition-colors shrink-0">
               {GROUP_BY_OPTIONS.find((o) => o.value === groupBy)?.label ?? "Group"}
               <ChevronDown className="h-2.5 w-2.5" />
             </button>
@@ -322,7 +322,7 @@ export function SessionList({
         </DropdownMenu>
         <Popover>
           <PopoverTrigger asChild>
-            <button className="flex items-center gap-1 h-6 px-1.5 rounded text-[11px] text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-bg-dim/50 transition-colors shrink-0">
+            <button className="flex items-center gap-1 h-6 px-1.5 rounded text-[11px] text-neutral-fg-subtle hover:text-neutral-fg hover:bg-neutral-fg/[0.04] transition-colors shrink-0">
               <ArrowUpDown className="h-3 w-3" />
               Sort
             </button>
@@ -338,8 +338,8 @@ export function SessionList({
                   }}
                   className={`flex-1 flex items-center justify-center gap-1 h-7 rounded text-xs transition-colors ${
                     sortDir === "desc"
-                      ? "bg-neutral-bg-subtle text-neutral-fg font-medium"
-                      : "text-neutral-fg-subtle hover:bg-neutral-bg-dim/50"
+                      ? "bg-neutral-fg/[0.06] text-neutral-fg font-medium"
+                      : "text-neutral-fg-subtle hover:bg-neutral-fg/[0.04]"
                   }`}
                 >
                   <ArrowDown className="h-3 w-3" /> Newest
@@ -351,8 +351,8 @@ export function SessionList({
                   }}
                   className={`flex-1 flex items-center justify-center gap-1 h-7 rounded text-xs transition-colors ${
                     sortDir === "asc"
-                      ? "bg-neutral-bg-subtle text-neutral-fg font-medium"
-                      : "text-neutral-fg-subtle hover:bg-neutral-bg-dim/50"
+                      ? "bg-neutral-fg/[0.06] text-neutral-fg font-medium"
+                      : "text-neutral-fg-subtle hover:bg-neutral-fg/[0.04]"
                   }`}
                 >
                   <ArrowUp className="h-3 w-3" /> Oldest
@@ -386,7 +386,7 @@ export function SessionList({
                     setSecondarySort(next);
                     persistSort(sortDir, next);
                   }}
-                  className="h-7 w-7 flex items-center justify-center rounded text-neutral-fg-subtle hover:bg-neutral-bg-dim/50 transition-colors"
+                  className="h-7 w-7 flex items-center justify-center rounded text-neutral-fg-subtle hover:bg-neutral-fg/[0.04] transition-colors"
                 >
                   {secondarySort.dir === "desc" ? (
                     <ArrowDown className="h-3 w-3" />
@@ -401,8 +401,8 @@ export function SessionList({
       </div>
 
       {/* Filter row */}
-      <div className="flex items-center flex-wrap gap-0.5 px-3 py-1 border-b border-neutral-border/50">
-        <span className="text-[10px] text-neutral-fg-subtle/50 shrink-0 mr-0.5">Filter</span>
+      <div className="flex items-center flex-wrap gap-0.5 px-3 py-1 border-b border-neutral-border/20">
+        <span className="text-[10px] text-neutral-fg-subtle shrink-0 mr-0.5">Filter</span>
         <FilterDropdown<StatusFilter>
           label="Status"
           icon={Activity}

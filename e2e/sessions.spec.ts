@@ -8,18 +8,14 @@ test.describe('Sessions Panel', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
-    // Wait for Shell to load (past setup gate)
+    // Wait for layout to load (past setup gate) — sidebar is always rendered
     await expect(
-      page.locator('button:has-text("Home")'),
+      page.locator('aside[role="complementary"]'),
     ).toBeVisible({ timeout: 10000 })
   })
 
-  test('Sessions nav button navigates to sessions view', async ({ page }) => {
-    const sessionsButton = page.locator('button:has-text("Sessions")')
-    await expect(sessionsButton).toBeVisible()
-    await sessionsButton.click()
-
-    // Sessions view should show the sessions panel header
-    await expect(page.locator('h2:has-text("Sessions")')).toBeVisible()
+  test('sessions section is visible in sidebar by default', async ({ page }) => {
+    // Sessions view is the default — sessions section label should be visible
+    await expect(page.locator('text=Sessions')).toBeVisible()
   })
 })

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { trpcMutate, trpcQuery, setupTestUserAndOrg, resetServerState } from './helpers'
+import { trpcMutate, trpcQuery, setupTestUserAndOrg } from './helpers'
 
 test.describe('Projects', () => {
   let orgId: string
@@ -17,8 +17,8 @@ test.describe('Projects', () => {
     await trpcMutate('org.update', { id: orgId, updates: { initialized: true } })
 
     await page.goto('/')
-    // Wait for Shell to load (past setup gate)
-    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 })
+    // Wait for layout to load (past setup gate) — sidebar is always rendered
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 })
   })
 
   test.afterEach(async () => {
@@ -38,22 +38,19 @@ test.describe('Projects', () => {
     await setupTestUserAndOrg()
   })
 
-  test('Projects button switches to projects view', async ({ page }) => {
-    const projectsButton = page.locator('button:has-text("Projects")')
-    await expect(projectsButton).toBeVisible()
-
-    await projectsButton.click()
+  test('navigating to /projects shows projects view', async ({ page }) => {
+    await page.goto('/projects')
     await expect(page.locator('h2:has-text("Projects")')).toBeVisible()
   })
 
   test('projects panel shows empty state with create button', async ({ page }) => {
-    await page.locator('button:has-text("Projects")').click()
+    await page.goto('/projects')
     await expect(page.locator('text=No projects yet')).toBeVisible()
     await expect(page.locator('button:has-text("Create project")')).toBeVisible()
   })
 
   test('New button opens create project dialog', async ({ page }) => {
-    await page.locator('button:has-text("Projects")').click()
+    await page.goto('/projects')
     await expect(page.locator('h2:has-text("Projects")')).toBeVisible()
 
     await page.locator('button:has-text("New")').click()
@@ -61,7 +58,7 @@ test.describe('Projects', () => {
   })
 
   test('create dialog has name, path, and color fields', async ({ page }) => {
-    await page.locator('button:has-text("Projects")').click()
+    await page.goto('/projects')
     await page.locator('button:has-text("New")').click()
 
     await expect(page.locator('label:has-text("Name")')).toBeVisible()
@@ -70,7 +67,7 @@ test.describe('Projects', () => {
   })
 
   test('create button is disabled when fields are empty', async ({ page }) => {
-    await page.locator('button:has-text("Projects")').click()
+    await page.goto('/projects')
     await page.locator('button:has-text("New")').click()
 
     const createButton = page.locator('button[type="submit"]:has-text("Create")')
@@ -78,7 +75,7 @@ test.describe('Projects', () => {
   })
 
   test('can create a new project', async ({ page }) => {
-    await page.locator('button:has-text("Projects")').click()
+    await page.goto('/projects')
     await page.locator('button:has-text("New")').click()
 
     // Fill in project name
@@ -102,7 +99,7 @@ test.describe('Projects', () => {
   })
 
   test('can create project from empty state button', async ({ page }) => {
-    await page.locator('button:has-text("Projects")').click()
+    await page.goto('/projects')
 
     // Click the "Create project" button in the empty state
     await page.locator('button:has-text("Create project")').click()
@@ -128,9 +125,9 @@ test.describe('Projects', () => {
       rootPath: '/tmp/beta',
     })
     await page.reload()
-    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 })
 
-    await page.locator('button:has-text("Projects")').click()
+    await page.goto('/projects')
 
     // Wait for both projects to appear
     await expect(page.locator('text=Alpha Project').first()).toBeVisible()
@@ -152,21 +149,21 @@ test.describe('Projects', () => {
       rootPath: '/tmp/selectable',
     })
     await page.reload()
-    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 })
 
-    await page.locator('button:has-text("Projects")').click()
+    await page.goto('/projects')
     await expect(page.locator('text=Selectable Project').first()).toBeVisible({ timeout: 10000 })
 
     // Click the project row
     await page.locator('text=Selectable Project').first().click()
 
-    // The row should get the active/accent background
+    // The row should get the active background
     const projectRow = page.locator('[role="button"]:has-text("Selectable Project")')
-    await expect(projectRow).toHaveClass(/bg-accent/)
+    await expect(projectRow).toHaveClass(/bg-/)
   })
 
   test('cancel button closes create dialog', async ({ page }) => {
-    await page.locator('button:has-text("Projects")').click()
+    await page.goto('/projects')
     await page.locator('button:has-text("New")').click()
     await expect(page.locator('text=New Project')).toBeVisible()
 

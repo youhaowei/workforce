@@ -7,7 +7,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { resetServerState, setupTestUserAndOrg, trpcMutate, trpcQuery } from './helpers';
+import { resetServerState, setupTestUserAndOrg, trpcMutate } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -45,7 +45,7 @@ test.describe('Onboarding Flow', () => {
     await page.getByRole('button', { name: /get started/i }).click();
 
     // Should reach the Shell — sidebar nav visible
-    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('returning user with initialized org skips all steps', async ({ page }) => {
@@ -55,7 +55,7 @@ test.describe('Onboarding Flow', () => {
     await page.goto('/');
 
     // Should skip directly to Shell — sidebar visible
-    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 });
 
     // Setup gate headings should NOT be visible
     await expect(page.getByText(/welcome to workforce/i)).not.toBeVisible();
@@ -112,7 +112,7 @@ test.describe('Onboarding Flow', () => {
 
     // Click one org card → should advance past gate
     await page.getByText('Workspace Alpha').click();
-    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 });
   });
 
   // Clean up after the suite so the "chromium" project starts fresh

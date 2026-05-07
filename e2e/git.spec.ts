@@ -82,8 +82,8 @@ test.describe("Git Status UI", () => {
     await trpcMutate("org.update", { id: orgId, updates: { initialized: true } });
 
     await page.goto("/");
-    // Nav items are links in this branch — wait for the Shell to render
-    await expect(page.locator('text=Home').first()).toBeVisible({ timeout: 10000 });
+    // Wait for layout to load (past setup gate) — sidebar is always rendered
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 });
   });
 
   test.afterEach(async () => {
@@ -106,11 +106,7 @@ test.describe("Git Status UI", () => {
     page: import("@playwright/test").Page,
     sessionTitle: string,
   ) {
-    // Navigate to sessions view
-    await page.locator('a:has-text("Sessions")').click();
-    await expect(page.locator('h2:has-text("Sessions")')).toBeVisible();
-
-    // Click the session row
+    // Sessions view is the default — click the session row directly
     const sessionRow = page.locator(`[role="button"]:has-text("${sessionTitle}")`);
     await expect(sessionRow).toBeVisible({ timeout: 5000 });
     await sessionRow.click();
@@ -138,9 +134,9 @@ test.describe("Git Status UI", () => {
     });
 
     await page.reload();
-    await expect(page.locator('text=Home').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 });
 
-    await page.locator('a:has-text("Sessions")').click();
+    // Sessions view is the default — click the session row directly
     const sessionRow = page.locator('[role="button"]:has-text("Dirty Session")');
     await expect(sessionRow).toBeVisible({ timeout: 5000 });
     await sessionRow.click();
@@ -169,7 +165,7 @@ test.describe("Git Status UI", () => {
     });
 
     await page.reload();
-    await expect(page.locator('text=Home').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 });
     await openSessionWithInfoPanel(page, "Groups Session");
 
     // Wait for GitSection to load (polls on open)
@@ -199,7 +195,7 @@ test.describe("Git Status UI", () => {
     });
 
     await page.reload();
-    await expect(page.locator('text=Home').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 });
     await openSessionWithInfoPanel(page, "FileRow Session");
 
     // Wait for staged files to render
@@ -232,7 +228,7 @@ test.describe("Git Status UI", () => {
     });
 
     await page.reload();
-    await expect(page.locator('text=Home').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 });
     await openSessionWithInfoPanel(page, "Commit Flow Session");
 
     // Wait for staged files (commit UI only appears when staged files exist)
@@ -271,7 +267,7 @@ test.describe("Git Status UI", () => {
     });
 
     await page.reload();
-    await expect(page.locator('text=Home').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 });
     await openSessionWithInfoPanel(page, "Clean Session");
 
     // Should show the clean state message
