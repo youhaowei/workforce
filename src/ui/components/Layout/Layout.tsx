@@ -29,10 +29,7 @@ import { useForkActions } from "./useForkActions";
 import { useAgentStream } from "./useAgentStream";
 import { usePlanMode } from "@/ui/hooks/usePlanMode";
 import { useArtifactPanel } from "@/ui/hooks/useArtifactPanel";
-import {
-  SELECTED_SESSION_STORAGE_KEY,
-  checkServerConnection,
-} from "./shellHelpers";
+import { SELECTED_SESSION_STORAGE_KEY, checkServerConnection } from "./shellHelpers";
 import { ShellProviders } from "./ShellProviders";
 import { useSessionActions } from "./useSessionActions";
 

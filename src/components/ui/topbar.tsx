@@ -7,11 +7,7 @@ export interface TopBarProps extends React.HTMLAttributes<HTMLElement> {}
 const TopBar = React.forwardRef<HTMLElement, TopBarProps>(
   ({ className, children, ...props }, ref) => {
     return (
-      <header
-        ref={ref}
-        className={cn("relative shrink-0 flex items-center", className)}
-        {...props}
-      >
+      <header ref={ref} className={cn("relative shrink-0 flex items-center", className)} {...props}>
         <div className="absolute inset-0 titlebar-drag-region" aria-hidden="true" />
         {children}
       </header>

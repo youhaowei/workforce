@@ -107,7 +107,15 @@ export function useSessionActions({
       lastLoadedSessionRef.current = null;
       localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
     },
-    [cancelActiveStream, clearMessages, setActiveSession, setSelectedSessionId, setNewSessionProjectId, activeSessionRef, lastLoadedSessionRef],
+    [
+      cancelActiveStream,
+      clearMessages,
+      setActiveSession,
+      setSelectedSessionId,
+      setNewSessionProjectId,
+      activeSessionRef,
+      lastLoadedSessionRef,
+    ],
   );
 
   const handleCreateSession = useCallback(() => {

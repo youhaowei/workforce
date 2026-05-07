@@ -109,88 +109,88 @@ export default function AppSidebar({
 
   return (
     <>
-        <div className="shrink-0">
-          <div className="flex items-center px-3 py-2">
-            <span className="flex-1 text-[11px] font-medium text-neutral-fg-subtle tracking-wider">
-              Projects
-            </span>
-          </div>
-          {projects.length === 0 ? (
-            <div className="px-3 pb-2 text-xs text-neutral-fg-subtle/70">No projects yet</div>
-          ) : (
-            <div className="flex flex-col gap-px px-2 pb-2">
-              {(projects as Project[]).map((p) => {
-                const active = pathname === "/projects" && p.id === selectedProjectId;
-                return (
-                  <Button
-                    key={p.id}
-                    variant="ghost"
-                    onClick={() => onSelectProject(p.id)}
-                    className={cn(
-                      "justify-start gap-2 h-8 px-2 text-sm",
-                      active
-                        ? "bg-neutral-fg/[0.06] text-neutral-fg font-medium"
-                        : "text-neutral-fg/70 hover:bg-neutral-fg/[0.04] hover:text-neutral-fg",
-                    )}
-                  >
-                    <span
-                      className="shrink-0 w-1.5 h-1.5 rounded-full bg-neutral-fg-subtle/60"
-                      style={p.color ? { backgroundColor: p.color } : undefined}
-                      aria-hidden="true"
-                    />
-                    <span className="flex-1 truncate">{p.name}</span>
-                  </Button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="shrink-0 flex items-center px-3 py-2">
+      <div className="shrink-0">
+        <div className="flex items-center px-3 py-2">
           <span className="flex-1 text-[11px] font-medium text-neutral-fg-subtle tracking-wider">
-            Sessions
+            Projects
           </span>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-neutral-fg/50 hover:text-neutral-fg/80"
-                onClick={() => setImportOpen(true)}
-                aria-label="Import from Claude Code"
-              >
-                <Download className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Import from Claude Code</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-neutral-fg/50 hover:text-neutral-fg/80"
-                onClick={handleRefresh}
-                aria-label="Refresh sessions"
-              >
-                <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Refresh sessions</TooltipContent>
-          </Tooltip>
         </div>
+        {projects.length === 0 ? (
+          <div className="px-3 pb-2 text-xs text-neutral-fg-subtle/70">No projects yet</div>
+        ) : (
+          <div className="flex flex-col gap-px px-2 pb-2">
+            {(projects as Project[]).map((p) => {
+              const active = pathname === "/projects" && p.id === selectedProjectId;
+              return (
+                <Button
+                  key={p.id}
+                  variant="ghost"
+                  onClick={() => onSelectProject(p.id)}
+                  className={cn(
+                    "justify-start gap-2 h-8 px-2 text-sm",
+                    active
+                      ? "bg-neutral-fg/[0.06] text-neutral-fg font-medium"
+                      : "text-neutral-fg/70 hover:bg-neutral-fg/[0.04] hover:text-neutral-fg",
+                  )}
+                >
+                  <span
+                    className="shrink-0 w-1.5 h-1.5 rounded-full bg-neutral-fg-subtle/60"
+                    style={p.color ? { backgroundColor: p.color } : undefined}
+                    aria-hidden="true"
+                  />
+                  <span className="flex-1 truncate">{p.name}</span>
+                </Button>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-        <div className="flex-1 min-h-0 flex flex-col">
-          <SessionList
-            sessions={sessions as SessionSummary[]}
-            activeSessionId={selectedSessionId ?? undefined}
-            groupBy="project"
-            projectMap={projectMap}
-            onSelect={handleSelect}
-            onDelete={handleDelete}
-            onCreate={onCreateSession}
-          />
-        </div>
+      <div className="shrink-0 flex items-center px-3 py-2">
+        <span className="flex-1 text-[11px] font-medium text-neutral-fg-subtle tracking-wider">
+          Sessions
+        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-neutral-fg/50 hover:text-neutral-fg/80"
+              onClick={() => setImportOpen(true)}
+              aria-label="Import from Claude Code"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Import from Claude Code</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 text-neutral-fg/50 hover:text-neutral-fg/80"
+              onClick={handleRefresh}
+              aria-label="Refresh sessions"
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", isRefreshing && "animate-spin")} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Refresh sessions</TooltipContent>
+        </Tooltip>
+      </div>
+
+      <div className="flex-1 min-h-0 flex flex-col">
+        <SessionList
+          sessions={sessions as SessionSummary[]}
+          activeSessionId={selectedSessionId ?? undefined}
+          groupBy="project"
+          projectMap={projectMap}
+          onSelect={handleSelect}
+          onDelete={handleDelete}
+          onCreate={onCreateSession}
+        />
+      </div>
       <ImportCCDialog
         open={importOpen}
         onOpenChange={setImportOpen}

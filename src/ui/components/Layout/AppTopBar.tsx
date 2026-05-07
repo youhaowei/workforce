@@ -1,4 +1,11 @@
-import { ChevronRight, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Plus } from "lucide-react";
+import {
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Plus,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { TopBar } from "@/components/ui/topbar";
@@ -57,7 +64,10 @@ export default function AppTopBar({
             <Button
               variant="ghost"
               size="icon"
-              className={cn("h-7 w-7 hover:text-neutral-fg/90", sidebarOpen ? "text-neutral-fg/80" : "text-neutral-fg/60")}
+              className={cn(
+                "h-7 w-7 hover:text-neutral-fg/90",
+                sidebarOpen ? "text-neutral-fg/80" : "text-neutral-fg/60",
+              )}
               onClick={onToggleSidebar}
               aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
             >
@@ -81,9 +91,7 @@ export default function AppTopBar({
                 )}
               </>
             )}
-            {sessionTitle && (
-              <span className="text-neutral-fg/80 truncate">{sessionTitle}</span>
-            )}
+            {sessionTitle && <span className="text-neutral-fg/80 truncate">{sessionTitle}</span>}
           </nav>
         )}
       </div>
@@ -116,7 +124,10 @@ export default function AppTopBar({
             <Button
               variant="ghost"
               size="icon"
-              className={cn("h-7 w-7 hover:text-neutral-fg/90", rightSidebarOpen ? "text-neutral-fg/80" : "text-neutral-fg/60")}
+              className={cn(
+                "h-7 w-7 hover:text-neutral-fg/90",
+                rightSidebarOpen ? "text-neutral-fg/80" : "text-neutral-fg/60",
+              )}
               onClick={onToggleRightSidebar}
               aria-label="Toggle appearance panel"
             >
