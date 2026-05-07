@@ -108,7 +108,13 @@ type AgentEvent =
       output: string;
       exitCode?: number;
     }
-  | { type: "task_notification"; taskId: string; status: string; outputFile: string; summary: string };
+  | {
+      type: "task_notification";
+      taskId: string;
+      status: string;
+      outputFile: string;
+      summary: string;
+    };
 
 const VALID_SUBTYPES: ReadonlySet<string> = new Set([
   "success",
