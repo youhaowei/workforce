@@ -30,7 +30,12 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           "shrink-0 flex flex-col select-none overflow-hidden",
           "transition-[width] duration-200 ease-in-out motion-reduce:transition-none",
           peek
-            ? "absolute inset-y-0 z-40 shadow-[4px_0_24px_rgba(0,0,0,0.4)]"
+            ? cn(
+                "absolute inset-y-0 z-40",
+                side === "left"
+                  ? "shadow-[4px_0_24px_oklch(0_0_0/0.35)]"
+                  : "shadow-[-4px_0_24px_oklch(0_0_0/0.35)]",
+              )
             : "relative",
           peek && side === "left" && "left-0",
           peek && side === "right" && "right-0",

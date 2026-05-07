@@ -401,7 +401,7 @@ export default function Layout() {
           onBoardStatusFilterChange={setBoardStatusFilter}
         />
 
-        <div className="flex-1 flex gap-[var(--surface-inset)] min-h-0 overflow-hidden">
+        <div className="flex-1 flex gap-[var(--surface-inset)] min-h-0 overflow-hidden relative">
           <Sidebar
             side="left"
             open={!sidebarHidden}
