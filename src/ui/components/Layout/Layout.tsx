@@ -425,39 +425,34 @@ export default function Layout() {
   const openSettings = useCallback(() => navigate({ to: "/orgs" }), [navigate]);
   const showChatInfo = showSessionsView && !!selectedSessionId && !infoPanelCollapsed;
 
-  // Provide Shell state to route components via context
-  const shellContextValue = {
-    selectedSessionId,
-    selectedProjectId,
-    selectedAgentId,
-    newSessionProjectId,
-    messages,
-    isStreaming,
-    forksMap,
-    projects: projects as Project[],
-    boardKeyword,
-    boardStatusFilter,
-    error,
-    onSelectSession: handleSelectSession,
-    onSelectProject: setSelectedProjectId,
-    onSelectAgent: navigateToDetail,
-    onBackFromDetail: navigateBack,
-    onStartChat: handleCreateSession,
-    onNewSessionProjectChange: setNewSessionProjectId,
-    onCreateProjectForSession: () => {
-      setCreateProjectDialog(true, "new-session");
-    },
-    onSubmitMessage: handleSubmit,
-    onCancelStream: handleCancel,
-    onDismissError: dismissError,
-    onOpenSettings: openSettings,
-    onRewind: handleRewind,
-    onFork: handleFork,
-  };
-
   return (
     <ShellProviders
-      contextValue={shellContextValue}
+      contextValue={{
+        selectedSessionId,
+        selectedProjectId,
+        selectedAgentId,
+        newSessionProjectId,
+        messages,
+        isStreaming,
+        forksMap,
+        projects: projects as Project[],
+        boardKeyword,
+        boardStatusFilter,
+        error,
+        onSelectSession: handleSelectSession,
+        onSelectProject: setSelectedProjectId,
+        onSelectAgent: navigateToDetail,
+        onBackFromDetail: navigateBack,
+        onStartChat: handleCreateSession,
+        onNewSessionProjectChange: setNewSessionProjectId,
+        onCreateProjectForSession: () => setCreateProjectDialog(true, "new-session"),
+        onSubmitMessage: handleSubmit,
+        onCancelStream: handleCancel,
+        onDismissError: dismissError,
+        onOpenSettings: openSettings,
+        onRewind: handleRewind,
+        onFork: handleFork,
+      }}
       createProjectDialogOpen={createProjectDialogOpen}
       onProjectDialogOpenChange={handleProjectDialogOpenChange}
       onProjectCreated={handleProjectCreated}
