@@ -7,7 +7,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { useLocation } from "@tanstack/react-router";
 import { Download, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ export default function AppSidebar({
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const orgId = useRequiredOrgId();
+  const pathname = useLocation({ select: (l) => l.pathname });
 
   const activeSessionRef = useRef(selectedSessionId);
   activeSessionRef.current = selectedSessionId;
@@ -110,19 +111,16 @@ export default function AppSidebar({
     <>
         <div className="shrink-0">
           <div className="flex items-center px-3 py-2">
-            <Link
-              to="/projects"
-              className="flex-1 text-[11px] font-medium text-neutral-fg-subtle hover:text-neutral-fg tracking-wider rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-ring"
-            >
+            <span className="flex-1 text-[11px] font-medium text-neutral-fg-subtle tracking-wider">
               Projects
-            </Link>
+            </span>
           </div>
           {projects.length === 0 ? (
             <div className="px-3 pb-2 text-xs text-neutral-fg-subtle/70">No projects yet</div>
           ) : (
             <div className="flex flex-col gap-px px-2 pb-2">
               {(projects as Project[]).map((p) => {
-                const active = p.id === selectedProjectId;
+                const active = pathname === "/projects" && p.id === selectedProjectId;
                 return (
                   <Button
                     key={p.id}
