@@ -19,7 +19,6 @@
       "@/*": ["src/*"],
       "tracey": ["lib/tracey/src/index.ts"],
       "tracey/*": ["lib/tracey/src/*"],
-      "unifai": ["lib/unifai/src/index.ts"],
       "@wystack/types": ["lib/wystack/packages/types/src/index.ts"],
       "@wystack/version": ["lib/wystack/packages/version/src/index.ts"],
       "@wystack/db": ["lib/wystack/packages/db/src/index.ts"],
@@ -31,6 +30,6 @@
     },
     "types": ["vitest/globals", "vite/client"]
   },
-  "include": ["src", "lib/tracey/src", "lib/unifai/src", "lib/wystack/packages/types/src", "lib/wystack/packages/version/src"],
+  "include": ["src", "lib/tracey/src", "lib/wystack/packages/types/src", "lib/wystack/packages/version/src"],
   "exclude": ["node_modules", "dist", "build", "out", "src-electron", ".vite", "lib/wystack/packages/*/src/__tests__"]
 }

@@ -93,14 +93,10 @@
   },
   "workspaces": [
     "lib/tracey",
-    "lib/unifai",
     "lib/stdui",
     "lib/wystack",
     "lib/wystack/packages/*"
   ],
-  "overrides": {
-    "@openai/codex": "0.107.0"
-  },
   "engines": {
     "node": ">=20"
   }
