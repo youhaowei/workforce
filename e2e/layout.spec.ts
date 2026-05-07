@@ -8,9 +8,9 @@ test.describe('Layout', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
-    // Wait for Shell to load (past setup gate)
+    // Wait for layout to load (past setup gate) — sidebar is always rendered
     await expect(
-      page.locator('button:has-text("Home")'),
+      page.locator('aside[role="complementary"]'),
     ).toBeVisible({ timeout: 10000 })
   })
 
@@ -23,20 +23,17 @@ test.describe('Layout', () => {
   })
 
   test('status bar shows ready state', async ({ page }) => {
-    // StatusBar only renders in Sessions view
-    await page.locator('button:has-text("Sessions")').click()
+    // Sessions view is the default — Ready text should be visible
     await expect(page.locator('text=Ready')).toBeVisible()
   })
 
-  test('sidebar has navigation items', async ({ page }) => {
-    await expect(page.locator('button:has-text("Home")')).toBeVisible()
-    await expect(page.locator('button:has-text("Sessions")')).toBeVisible()
-    await expect(page.locator('button:has-text("Projects")')).toBeVisible()
+  test('sidebar has section labels', async ({ page }) => {
+    await expect(page.locator('text=Projects')).toBeVisible()
+    await expect(page.locator('text=Sessions')).toBeVisible()
   })
 
   test('textarea auto-resizes with content', async ({ page }) => {
-    // Navigate to Sessions view where the chat textarea lives
-    await page.locator('button:has-text("Sessions")').click()
+    // Sessions view is the default — textarea is directly visible
     const input = page.locator('textarea[placeholder="Ask Workforce anything..."]')
     await expect(input).toBeVisible({ timeout: 10000 })
 

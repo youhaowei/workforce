@@ -56,15 +56,14 @@ test.describe('Message Segments & Event-Driven Updates', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('button:has-text("Home")')).toBeVisible({ timeout: 10000 })
+    // Wait for layout to load (past setup gate) — sidebar is always rendered
+    await expect(page.locator('aside[role="complementary"]')).toBeVisible({ timeout: 10000 })
   })
 
   // ─── Event-driven session list updates ─────────────────────────────────────
 
   test('session created via API appears in sessions list', async ({ page }) => {
-    await page.locator('button:has-text("Sessions")').click()
-    await expect(page.locator('h2:has-text("Sessions")')).toBeVisible()
-
+    // Sessions view is the default — session list is directly visible
     const title = `SSE Create ${Date.now()}`
     const session = await trpcMutate('session.create', { orgId, title })
 
@@ -78,7 +77,7 @@ test.describe('Message Segments & Event-Driven Updates', () => {
     const title = `SSE Delete ${Date.now()}`
     const session = await trpcMutate('session.create', { orgId, title })
 
-    await page.locator('button:has-text("Sessions")').click()
+    // Sessions view is the default — session should be visible
     await expect(page.locator(`text=${title}`)).toBeVisible({ timeout: 5000 })
 
     await trpcMutate('session.delete', { id: session.id })
@@ -96,7 +95,7 @@ test.describe('Message Segments & Event-Driven Updates', () => {
       { type: 'text', text: 'Here is my detailed response.' },
     ])
 
-    await page.locator('button:has-text("Sessions")').click()
+    // Sessions view is the default — click session directly
     await page.locator(`text=${title}`).click()
 
     await expect(page.locator('text=Here is my detailed response.')).toBeVisible({ timeout: 5000 })
@@ -118,7 +117,7 @@ test.describe('Message Segments & Event-Driven Updates', () => {
       { type: 'text', text: 'Done reading.' },
     ])
 
-    await page.locator('button:has-text("Sessions")').click()
+    // Sessions view is the default — click session directly
     await page.locator(`text=${title}`).click()
 
     // Activity header should summarize tools
@@ -144,7 +143,7 @@ test.describe('Message Segments & Event-Driven Updates', () => {
       { type: 'text', text: 'Bug is fixed.' },
     ])
 
-    await page.locator('button:has-text("Sessions")').click()
+    // Sessions view is the default — click session directly
     await page.locator(`text=${title}`).click()
 
     // All three text segments should be visible (not hidden in activity fold)
@@ -168,7 +167,7 @@ test.describe('Message Segments & Event-Driven Updates', () => {
       { type: 'text', text: 'Command failed.' },
     ])
 
-    await page.locator('button:has-text("Sessions")').click()
+    // Sessions view is the default — click session directly
     await page.locator(`text=${title}`).click()
 
     // Error badge should be visible in the activity header
