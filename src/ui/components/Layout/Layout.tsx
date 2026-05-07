@@ -9,15 +9,12 @@ import { useShellStore } from "@/ui/stores/shellStore";
 import { ThemePanel } from "../Theme/ThemePanel";
 import { ChatInfoPanel } from "../ChatInfo";
 import { ArtifactPanel } from "../Artifact";
-import { useAgentQuestionStore } from "@/ui/stores/useAgentQuestionStore";
 import { useHotkey } from "@/ui/hotkeys";
 import { usePlatform } from "@/ui/context/PlatformProvider";
 import { getServerPort } from "@/bridge/config";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 import { useRequiredOrgId } from "@/ui/hooks/useRequiredOrgId";
 import { useTRPC } from "@/bridge/react";
-import { trpc as trpcClient } from "@/bridge/trpc";
-import { queryClient } from "@/bridge/query-client";
 import { getEventBus } from "@/shared/event-bus";
 import type { Project } from "@/services/types";
 import AppSidebar from "./AppSidebar";
@@ -38,6 +35,7 @@ import {
   checkServerConnection,
 } from "./shellHelpers";
 import { ShellProviders } from "./ShellProviders";
+import { useSessionActions } from "./useSessionActions";
 
 export type { ViewType } from "@/ui/hooks/useCurrentView";
 export type { SidebarMode } from "@/ui/stores/shellStore";
@@ -88,10 +86,7 @@ export default function Layout() {
 
   const messages = useMessagesStore((s) => s.messages);
   const isStreaming = useMessagesStore((s) => s.isStreaming);
-  const finishStreamingMessage = useMessagesStore((s) => s.finishStreamingMessage);
-  const clearMessages = useMessagesStore((s) => s.clearMessages);
   const loadMessages = useMessagesStore((s) => s.loadMessages);
-  const setCurrentTool = useMessagesStore((s) => s.setCurrentTool);
 
   const { data: projects = [] } = useQuery(trpc.project.list.queryOptions({ orgId }));
 
@@ -136,31 +131,42 @@ export default function Layout() {
     navigate({ to: "/board" });
   }, [navigate]);
 
-  const cancelActiveStream = useCallback(() => {
-    trpcClient.agent.cancel.mutate().catch(() => {
-      /* best-effort */
-    });
-    if (cancelStreamRef.current) {
-      cancelStreamRef.current();
-      cancelStreamRef.current = null;
-    }
-    setCurrentTool(null);
-  }, [setCurrentTool]);
+  // TECH DEBT: useAgentStream is called twice because setActiveSession is needed
+  // before restoredMessages is available (hooks can't be conditional). The first
+  // call's effects are no-ops because restoredMessages is null. The second call's
+  // effects overwrite the first's sendMessage registration. This is safe because
+  // React processes effects in order, but fragile. TODO: split useAgentStream into
+  // useActiveSession() + useAgentStream() to eliminate the double-call.
+  const { setActiveSession } = useAgentStream({
+    selectedSessionId,
+    orgId,
+    newSessionProjectId,
+    isStreaming,
+    restoredMessages: null,
+    cancelStreamRef,
+    activeSessionRef,
+    planReadyRef,
+    trpcQueryKeys: { sessionList: (input) => trpc.session.list.queryKey(input) },
+    setSelectedSessionId,
+    setNewSessionProjectId,
+    setError,
+  });
 
-  const handleCancel = useCallback(() => {
-    const sessId = activeSessionRef.current;
-    const msgId = useMessagesStore.getState().streamingMessageId;
-    cancelActiveStream();
-    useAgentQuestionStore.getState().clear();
-    if (sessId && msgId) {
-      trpcClient.session.streamAbort
-        .mutate({ sessionId: sessId, messageId: msgId, reason: "user_cancelled" })
-        .catch(() => {
-          /* best-effort */
-        });
-    }
-    finishStreamingMessage();
-  }, [cancelActiveStream, finishStreamingMessage]);
+  const {
+    handleCancel,
+    handleSelectSession,
+    handleDeleteSession,
+    handleCreateSession,
+    clearMessages,
+  } = useSessionActions({
+    selectedProjectId,
+    currentView,
+    cancelStreamRef,
+    activeSessionRef,
+    lastLoadedSessionRef,
+    setActiveSession,
+    setSelectedSessionId,
+  });
 
   const sidebarHidden = sidebarMode === "collapsed";
   const [sidebarPeek, setSidebarPeek] = useState(false);
@@ -185,95 +191,6 @@ export default function Layout() {
   const toggleInfoPanel = useCallback(() => {
     setInfoPanelCollapsed(!infoPanelCollapsed);
   }, [infoPanelCollapsed, setInfoPanelCollapsed]);
-
-  // TECH DEBT: useAgentStream is called twice because setActiveSession is needed
-  // before restoredMessages is available (hooks can't be conditional). The first
-  // call's effects are no-ops because restoredMessages is null. The second call's
-  // effects overwrite the first's sendMessage registration. This is safe because
-  // React processes effects in order, but fragile. TODO: split useAgentStream into
-  // useActiveSession() + useAgentStream() to eliminate the double-call.
-  const { setActiveSession } = useAgentStream({
-    selectedSessionId,
-    orgId,
-    newSessionProjectId,
-    isStreaming,
-    restoredMessages: null,
-    cancelStreamRef,
-    activeSessionRef,
-    planReadyRef,
-    trpcQueryKeys: { sessionList: (input) => trpc.session.list.queryKey(input) },
-    setSelectedSessionId,
-    setNewSessionProjectId,
-    setError,
-  });
-
-  const handleSelectSession = useCallback(
-    (sessionId: string) => {
-      const hasMessages = useMessagesStore.getState().messages.length > 0;
-      if (sessionId === activeSessionRef.current && hasMessages) return;
-
-      cancelActiveStream();
-      finishStreamingMessage();
-      useAgentQuestionStore.getState().clear();
-      setNewSessionProjectId(null);
-      clearMessages();
-      setActiveSession(sessionId);
-      setSelectedSessionId(sessionId);
-      activeSessionRef.current = sessionId;
-      lastLoadedSessionRef.current = null;
-      navigate({ to: "/sessions/$id", params: { id: sessionId } });
-      queryClient.invalidateQueries({
-        queryKey: trpc.session.messages.queryKey({ sessionId }),
-      });
-    },
-    [
-      cancelActiveStream,
-      finishStreamingMessage,
-      setNewSessionProjectId,
-      clearMessages,
-      setActiveSession,
-      trpc,
-      navigate,
-    ],
-  );
-
-  const handleDeleteSession = useCallback(
-    (sessionId: string) => {
-      if (sessionId !== activeSessionRef.current) return;
-      cancelActiveStream();
-      useAgentQuestionStore.getState().clear();
-      clearMessages();
-      setActiveSession(null);
-      setSelectedSessionId(null);
-      setNewSessionProjectId(null);
-      activeSessionRef.current = null;
-      lastLoadedSessionRef.current = null;
-      localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
-    },
-    [cancelActiveStream, clearMessages, setActiveSession, setNewSessionProjectId],
-  );
-
-  const handleCreateSession = useCallback(() => {
-    cancelActiveStream();
-    useAgentQuestionStore.getState().clear();
-    clearMessages();
-    setActiveSession(null);
-    setSelectedSessionId(null);
-    setNewSessionProjectId(currentView === "projects" ? selectedProjectId : null);
-    activeSessionRef.current = null;
-    lastLoadedSessionRef.current = null;
-    navigate({ to: "/sessions" });
-    setSidebarMode("expanded");
-  }, [
-    cancelActiveStream,
-    clearMessages,
-    setActiveSession,
-    setNewSessionProjectId,
-    currentView,
-    selectedProjectId,
-    navigate,
-    setSidebarMode,
-  ]);
 
   const { forksMap, handleRewind, handleFork } = useForkActions({
     selectedSessionId,
