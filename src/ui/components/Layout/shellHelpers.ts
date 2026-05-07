@@ -1,46 +1,10 @@
 import type { Session, SessionSummary, AgentQuestion } from "@/services/types";
-import type { SidebarMode, ViewType } from "./Layout";
 import type { ShellError } from "@/ui/stores/shellStore";
 import { getServerUrl } from "@/bridge/config";
 import { trpc as trpcClient } from "@/bridge/trpc";
 
-export const SIDEBAR_STORAGE_KEY = "workforce-sidebar-mode";
-export const VIEW_STORAGE_KEY = "workforce-current-view";
 export const SELECTED_SESSION_STORAGE_KEY = "workforce-selected-session";
-export const INFO_PANEL_STORAGE_KEY = "workforce-info-panel-collapsed";
 export const SESSION_TITLE_MAX_LENGTH = 80;
-
-export const VALID_VIEWS = new Set<ViewType>([
-  "home",
-  "board",
-  "queue",
-  "sessions",
-  "projects",
-  "templates",
-  "workflows",
-  "orgs",
-  "audit",
-  "detail",
-]);
-
-// =============================================================================
-// State Initializers (read from localStorage)
-// =============================================================================
-
-export function getInitialView(): ViewType {
-  const stored = localStorage.getItem(VIEW_STORAGE_KEY);
-  if (stored && VALID_VIEWS.has(stored as ViewType)) {
-    return stored === "detail" ? "board" : (stored as ViewType);
-  }
-  return "home";
-}
-
-export function getInitialSidebarMode(): SidebarMode {
-  const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-  // Backward compat: old key stored 'true'/'false' or 'hidden' — all map to collapsed
-  if (stored === "true" || stored === "collapsed" || stored === "hidden") return "collapsed";
-  return "expanded";
-}
 
 /** Handle subscription-level transport errors (distinct from SSE 'error' events). */
 export function handleStreamError(

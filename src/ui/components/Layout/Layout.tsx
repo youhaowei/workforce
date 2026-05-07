@@ -30,7 +30,6 @@ import { useAgentStream } from "./useAgentStream";
 import { usePlanMode } from "@/ui/hooks/usePlanMode";
 import { useArtifactPanel } from "@/ui/hooks/useArtifactPanel";
 import {
-  VIEW_STORAGE_KEY,
   SELECTED_SESSION_STORAGE_KEY,
   checkServerConnection,
 } from "./shellHelpers";
@@ -211,10 +210,6 @@ export default function Layout() {
     },
     [],
   );
-
-  useEffect(() => {
-    localStorage.setItem(VIEW_STORAGE_KEY, currentView);
-  }, [currentView]);
 
   useEffect(() => {
     if (selectedSessionId) {
