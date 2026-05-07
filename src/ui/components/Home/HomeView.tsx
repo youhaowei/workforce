@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, MessageSquare, Bot, AlertCircle, Plus, ArrowRight } from "lucide-react";
 import type { SessionLifecycle } from "@/services/types";
-import type { ViewType } from "../Shell/Shell";
+import type { ViewType } from "../Layout/Layout";
 
 interface HomeViewProps {
   onStartChat: () => void;

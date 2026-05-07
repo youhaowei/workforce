@@ -2,7 +2,7 @@
  * App — Root component with full provider stack.
  *
  * Provider order (outer → inner):
- *   QueryClientProvider → TRPCProvider → PlatformProvider → HotkeyProvider → Shell
+ *   QueryClientProvider → TRPCProvider → PlatformProvider → HotkeyProvider → Layout
  *
  * EventBus → Zustand wiring is initialized via useEventBusInit().
  */
@@ -21,7 +21,7 @@ import {
 } from "./app-bootstrap";
 import { PlatformProvider } from "./context/PlatformProvider";
 import { HotkeyProvider } from "./hotkeys/HotkeyProvider";
-import { AppContextMenu } from "./components/Shell/AppContextMenu";
+import { AppContextMenu } from "./components/Layout/AppContextMenu";
 import { useEventBusInit } from "./hooks/useEventBusInit";
 import { useServerEventInvalidation } from "./hooks/useServerEventInvalidation";
 import { SetupGate } from "./components/SetupGate";

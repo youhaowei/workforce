@@ -5,7 +5,7 @@ export type ShellError = string | { message: string; code?: string };
 
 interface ShellStore {
   // Panel states
-  themePanelOpen: boolean;
+  rightSidebarOpen: boolean;
   infoPanelCollapsed: boolean;
   sidebarMode: SidebarMode;
 
@@ -23,7 +23,7 @@ interface ShellStore {
   error: ShellError | null;
 
   // Actions
-  setThemePanelOpen: (open: boolean) => void;
+  setRightSidebarOpen: (open: boolean) => void;
   setInfoPanelCollapsed: (collapsed: boolean) => void;
   setSidebarMode: (mode: SidebarMode) => void;
   setBoardKeyword: (keyword: string) => void;
@@ -40,7 +40,7 @@ const INFO_PANEL_STORAGE_KEY = "workforce:info-panel-collapsed";
 
 export const useShellStore = create<ShellStore>((set) => ({
   // Initial state from localStorage or defaults
-  themePanelOpen: false,
+  rightSidebarOpen: false,
   infoPanelCollapsed: localStorage.getItem(INFO_PANEL_STORAGE_KEY) !== "false", // Default true
   sidebarMode: (localStorage.getItem(SIDEBAR_STORAGE_KEY) as SidebarMode) || "expanded",
   boardKeyword: "",
@@ -52,7 +52,7 @@ export const useShellStore = create<ShellStore>((set) => ({
   error: null,
 
   // Actions
-  setThemePanelOpen: (open) => set({ themePanelOpen: open }),
+  setRightSidebarOpen: (open) => set({ rightSidebarOpen: open }),
 
   setInfoPanelCollapsed: (collapsed) => {
     localStorage.setItem(INFO_PANEL_STORAGE_KEY, String(collapsed));

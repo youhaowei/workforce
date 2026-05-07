@@ -12,7 +12,7 @@ import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 import { useDialogStore } from "@/ui/stores/useDialogStore";
 import type { ShellError } from "@/ui/stores/shellStore";
 import type { ForkInfo } from "../Messages/MessageItem";
-import type { ViewType } from "./Shell";
+import type { ViewType } from "./Layout";
 
 interface UseForkActionsParams {
   selectedSessionId: string | null;

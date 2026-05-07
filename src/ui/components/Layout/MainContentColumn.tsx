@@ -1,16 +1,13 @@
 import { WifiOff } from "lucide-react";
 import type { ReactNode } from "react";
-import { Surface } from "@/components/ui/surface";
+import { Stage } from "@/components/ui/stage";
 import { StageFloatingPill } from "./StageFloatingPill";
 
 interface MainContentColumnProps {
   serverConnected: boolean;
   showFloatingPill?: boolean;
-  sessionTitle?: string;
-  sidebarHidden?: boolean;
   infoPanelOpen?: boolean;
   projectRootPath?: string | null;
-  onToggleSidebar?: () => void;
   onToggleInfo?: () => void;
   onGitClick?: () => void;
   children: ReactNode;
@@ -19,20 +16,14 @@ interface MainContentColumnProps {
 export function MainContentColumn({
   serverConnected,
   showFloatingPill,
-  sessionTitle,
-  sidebarHidden = false,
   infoPanelOpen = false,
   projectRootPath,
-  onToggleSidebar,
   onToggleInfo,
   onGitClick,
   children,
 }: MainContentColumnProps) {
   return (
-    <Surface
-      variant="stage"
-      className="flex-1 flex flex-col min-w-[480px] overflow-hidden rounded-[10px] shadow-[var(--surface-shadow)] relative isolate"
-    >
+    <Stage>
       {!serverConnected && (
         <div className="px-4 py-3 bg-neutral-bg-dim/50 border-b flex items-center gap-3">
           <WifiOff className="h-4 w-4 text-neutral-fg-subtle" />
@@ -49,19 +40,16 @@ export function MainContentColumn({
         </div>
       )}
 
-      {showFloatingPill && onToggleSidebar && onToggleInfo && (
+      {showFloatingPill && onToggleInfo && (
         <StageFloatingPill
-          sessionTitle={sessionTitle}
-          sidebarHidden={sidebarHidden}
           infoPanelOpen={infoPanelOpen}
           projectRootPath={projectRootPath}
-          onToggleSidebar={onToggleSidebar}
           onToggleInfo={onToggleInfo}
           onGitClick={onGitClick}
         />
       )}
 
-      <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
-    </Surface>
+      {children}
+    </Stage>
   );
 }

@@ -1,4 +1,4 @@
-/** Shell - Main application layout (sidebar | sessions | content | artifact | chatinfo | task). */
+/** Layout - Main application layout orchestrator. */
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -21,10 +21,12 @@ import { queryClient } from "@/bridge/query-client";
 import { getEventBus } from "@/shared/event-bus";
 import type { Project } from "@/services/types";
 import AppSidebar from "./AppSidebar";
-import TopBar from "./AppHeader";
+import AppTopBar from "./AppTopBar";
 import { MainContentColumn } from "./MainContentColumn";
-import { Surface } from "@/components/ui/surface";
-import { useActiveSessionTitle } from "./useActiveSessionTitle";
+import { Sidebar } from "@/components/ui/sidebar";
+import { Workspace } from "@/components/ui/workspace";
+import { Dock } from "@/components/ui/dock";
+import { useActiveSessionInfo } from "./useActiveSessionTitle";
 import { useSessionProjectPath } from "@/ui/hooks/useSessionProjectPath";
 import { useForkActions } from "./useForkActions";
 import { useAgentStream } from "./useAgentStream";
@@ -41,7 +43,7 @@ export type { ViewType } from "@/ui/hooks/useCurrentView";
 export type { SidebarMode } from "@/ui/stores/shellStore";
 
 // oxlint-disable-next-line complexity
-export default function Shell() {
+export default function Layout() {
   const { isDesktop } = usePlatform();
   const location = useLocation();
   const navigate = useNavigate();
@@ -49,8 +51,8 @@ export default function Shell() {
   const pathname = location.pathname;
 
   // UI state from shell store (for panels, sidebar, etc.)
-  const themePanelOpen = useShellStore((s) => s.themePanelOpen);
-  const setThemePanelOpen = useShellStore((s) => s.setThemePanelOpen);
+  const rightSidebarOpen = useShellStore((s) => s.rightSidebarOpen);
+  const setRightSidebarOpen = useShellStore((s) => s.setRightSidebarOpen);
   const infoPanelCollapsed = useShellStore((s) => s.infoPanelCollapsed);
   const setInfoPanelCollapsed = useShellStore((s) => s.setInfoPanelCollapsed);
   const sidebarMode = useShellStore((s) => s.sidebarMode);
@@ -93,10 +95,11 @@ export default function Shell() {
 
   const { data: projects = [] } = useQuery(trpc.project.list.queryOptions({ orgId }));
 
-  const activeSessionTitle = useActiveSessionTitle({
+  const { title: activeSessionTitle, projectName: activeProjectName } = useActiveSessionInfo({
     orgId,
     selectedSessionId,
     serverConnected,
+    projects: projects as Project[],
   });
 
   const projectRootPath = useSessionProjectPath({
@@ -234,6 +237,22 @@ export default function Shell() {
     ],
   );
 
+  const handleDeleteSession = useCallback(
+    (sessionId: string) => {
+      if (sessionId !== activeSessionRef.current) return;
+      cancelActiveStream();
+      useAgentQuestionStore.getState().clear();
+      clearMessages();
+      setActiveSession(null);
+      setSelectedSessionId(null);
+      setNewSessionProjectId(null);
+      activeSessionRef.current = null;
+      lastLoadedSessionRef.current = null;
+      localStorage.removeItem(SELECTED_SESSION_STORAGE_KEY);
+    },
+    [cancelActiveStream, clearMessages, setActiveSession, setNewSessionProjectId],
+  );
+
   const handleCreateSession = useCallback(() => {
     cancelActiveStream();
     useAgentQuestionStore.getState().clear();
@@ -265,7 +284,7 @@ export default function Shell() {
   });
 
   useHotkey("toggleHistory", toggleSidebarSize);
-  useHotkey("toggleTasks", () => setThemePanelOpen(!themePanelOpen));
+  useHotkey("toggleTasks", () => setRightSidebarOpen(!rightSidebarOpen));
   useHotkey("cancelStream", handleCancel, isStreaming);
   useHotkey("refresh", () => window.location.reload());
 
@@ -444,7 +463,7 @@ export default function Shell() {
       onProjectCreated={handleProjectCreated}
     >
       <div
-        className="h-screen flex overflow-hidden shell-ground relative"
+        className="h-screen flex flex-col overflow-hidden shell-ground relative"
         data-desktop={isDesktop || undefined}
       >
         {sidebarHidden && !sidebarPeek && (
@@ -454,95 +473,99 @@ export default function Shell() {
             aria-hidden="true"
           />
         )}
-        {/* Window dragging: Electron uses CSS -webkit-app-region: drag via the
-            .titlebar-drag-region class in AppHeader and sidebar spacer.
-            Interactive elements opt out via app-region: no-drag (set in index.html <style>). */}
 
-        <AppSidebar
-          hidden={sidebarHidden}
-          peek={sidebarPeek}
-          selectedProjectId={selectedProjectId}
-          selectedSessionId={selectedSessionId}
-          onToggle={toggleSidebarSize}
-          onSelectProject={handleSelectProject}
-          onSelectSession={handleSelectSession}
-          onMouseLeave={handleSidebarPeekLeave}
+        {/* TopBar — spans full width */}
+        <AppTopBar
+          sidebarOpen={!sidebarHidden}
+          onToggleSidebar={toggleSidebarSize}
+          projectName={activeProjectName}
+          sessionTitle={activeSessionTitle}
+          onQuickCreate={handleCreateSession}
+          rightSidebarOpen={rightSidebarOpen}
+          onToggleRightSidebar={() => setRightSidebarOpen(!rightSidebarOpen)}
+          currentView={currentView}
+          boardKeyword={boardKeyword}
+          onBoardKeywordChange={setBoardKeyword}
+          boardStatusFilter={boardStatusFilter}
+          onBoardStatusFilterChange={setBoardStatusFilter}
         />
 
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <TopBar
-            currentView={currentView}
-            sessionTitle={activeSessionTitle}
-            onBack={currentView === "detail" ? navigateBack : undefined}
-            sidebarHidden={sidebarHidden}
-            onShowSidebar={toggleSidebarSize}
-            onQuickCreate={handleCreateSession}
-            themePanelOpen={themePanelOpen}
-            onToggleThemePanel={() => setThemePanelOpen(!themePanelOpen)}
-            boardKeyword={boardKeyword}
-            onBoardKeywordChange={setBoardKeyword}
-            boardStatusFilter={boardStatusFilter}
-            onBoardStatusFilterChange={setBoardStatusFilter}
-          />
+        {/* Content row: [left sidebar] [workspace] [right sidebar] */}
+        <div className="flex-1 flex gap-[var(--surface-inset)] min-h-0 overflow-hidden">
+          {/* Left Sidebar */}
+          <Sidebar
+            side="left"
+            open={!sidebarHidden}
+            peek={sidebarPeek}
+            onMouseLeave={handleSidebarPeekLeave}
+          >
+            <AppSidebar
+              selectedProjectId={selectedProjectId}
+              selectedSessionId={selectedSessionId}
+              onSelectProject={handleSelectProject}
+              onSelectSession={handleSelectSession}
+              onDeleteSession={handleDeleteSession}
+              onCreateSession={handleCreateSession}
+            />
+          </Sidebar>
 
-          <div className="flex-1 flex min-h-0 overflow-hidden">
-            <Surface
-              variant="main"
-              className="flex min-w-0 flex-1 m-[0_var(--surface-inset)_var(--surface-inset)_0] rounded-[var(--surface-radius)] [contain:paint]"
-            >
-              {/* Stage: chat + artifact grouped so sessions resize pushes both */}
-              <div className="flex-1 flex min-w-0 overflow-hidden">
-                <MainContentColumn
-                  serverConnected={serverConnected}
-                  showFloatingPill={showSessionsView}
-                  sessionTitle={activeSessionTitle}
-                  sidebarHidden={sidebarHidden}
-                  infoPanelOpen={showChatInfo}
-                  projectRootPath={projectRootPath}
-                  onToggleSidebar={toggleSidebarSize}
-                  onToggleInfo={toggleInfoPanel}
-                  onGitClick={() => {
-                    if (infoPanelCollapsed) toggleInfoPanel();
-                  }}
-                >
-                  <Outlet />
-                </MainContentColumn>
+          {/* Workspace — outer Surface holding Stage + Docks */}
+          <Workspace>
+            {/* Stage + Artifact panes */}
+            <div className="flex-1 flex min-w-0 overflow-hidden">
+              <MainContentColumn
+                serverConnected={serverConnected}
+                showFloatingPill={showSessionsView}
+                infoPanelOpen={showChatInfo}
+                projectRootPath={projectRootPath}
+                onToggleInfo={toggleInfoPanel}
+                onGitClick={() => {
+                  if (infoPanelCollapsed) toggleInfoPanel();
+                }}
+              >
+                <Outlet />
+              </MainContentColumn>
 
-                <ArtifactPanel
-                  isOpen={planPanelOpen || artifactPanel.panelOpen}
-                  isPlanMode={isPlanMode}
-                  isPlanArtifact={!!planArtifactId && !artifactPanel.panelOpen}
-                  title={artifactPanel.artifact?.title ?? planTitle}
-                  filePath={artifactPanel.artifact?.filePath ?? planFilePath}
-                  status={artifactPanel.artifact?.status ?? planStatus}
-                  content={
-                    artifactPanel.panelOpen
-                      ? (artifactPanel.artifact?.content ?? "")
-                      : (artifactPanel.artifact?.content ?? planContent)
-                  }
-                  loadError={planLoadError}
-                  comments={artifactPanel.pendingComments}
-                  sessionArtifacts={artifactPanel.sessionArtifacts}
-                  activeArtifactId={artifactPanel.activeArtifactId}
-                  onAddComment={artifactPanel.addComment}
-                  onSubmitReview={artifactPanel.submitReview}
-                  onApprove={artifactPanel.handleApprove}
-                  onReject={artifactPanel.handleReject}
-                  onClose={artifactPanel.panelOpen ? artifactPanel.closePanel : handlePlanClose}
-                  onSelectArtifact={artifactPanel.openArtifact}
-                />
-              </div>
+              <ArtifactPanel
+                isOpen={planPanelOpen || artifactPanel.panelOpen}
+                isPlanMode={isPlanMode}
+                isPlanArtifact={!!planArtifactId && !artifactPanel.panelOpen}
+                title={artifactPanel.artifact?.title ?? planTitle}
+                filePath={artifactPanel.artifact?.filePath ?? planFilePath}
+                status={artifactPanel.artifact?.status ?? planStatus}
+                content={
+                  artifactPanel.panelOpen
+                    ? (artifactPanel.artifact?.content ?? "")
+                    : (artifactPanel.artifact?.content ?? planContent)
+                }
+                loadError={planLoadError}
+                comments={artifactPanel.pendingComments}
+                sessionArtifacts={artifactPanel.sessionArtifacts}
+                activeArtifactId={artifactPanel.activeArtifactId}
+                onAddComment={artifactPanel.addComment}
+                onSubmitReview={artifactPanel.submitReview}
+                onApprove={artifactPanel.handleApprove}
+                onReject={artifactPanel.handleReject}
+                onClose={artifactPanel.panelOpen ? artifactPanel.closePanel : handlePlanClose}
+                onSelectArtifact={artifactPanel.openArtifact}
+              />
+            </div>
 
+            {/* Right Dock — ChatInfo */}
+            <Dock side="right" open={showChatInfo}>
               <ChatInfoPanel
                 isOpen={showChatInfo}
                 sessionId={selectedSessionId}
                 projectRootPath={projectRootPath}
                 onOpenArtifact={artifactPanel.openArtifact}
               />
-            </Surface>
+            </Dock>
+          </Workspace>
 
-            <ThemePanel isOpen={themePanelOpen} onClose={() => setThemePanelOpen(false)} />
-          </div>
+          {/* Right Sidebar — Appearance */}
+          <Sidebar side="right" open={rightSidebarOpen} width={288}>
+            <ThemePanel isOpen={rightSidebarOpen} onClose={() => setRightSidebarOpen(false)} />
+          </Sidebar>
         </div>
       </div>
     </ShellProviders>

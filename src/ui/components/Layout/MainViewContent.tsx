@@ -9,7 +9,7 @@ import { OrgListView } from "../Org/OrgListView";
 import { ProjectView } from "../Project";
 import { HomeView } from "../Home";
 import type { Project } from "@/services/types";
-import type { ViewType } from "./Shell";
+import type { ViewType } from "./Layout";
 import type { AgentConfig } from "@/services/types";
 import type { ForkInfo } from "../Messages/MessageItem";
 import type { ShellError } from "@/ui/stores/shellStore";

@@ -6,7 +6,6 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { X, RotateCcw, Sun, Moon, Monitor, ChevronRight } from "lucide-react";
-import { Surface } from "@/components/ui/surface";
 import { Button } from "@/components/ui/button";
 import { usePlatform } from "@/ui/context/PlatformProvider";
 import {
@@ -100,15 +99,7 @@ export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
     mode === "system" ? ["light", "dark"] : [mode as ResolvedMode];
 
   return (
-    <Surface
-      variant="main"
-      data-collapsed={!isOpen}
-      className={`flex-shrink-0 flex flex-col select-none rounded-[var(--surface-radius)] m-[0_var(--surface-inset)_var(--surface-inset)_0] transition-[width,margin,opacity] duration-200 ease-in-out ${
-        isOpen ? "w-72 opacity-100" : "w-0 opacity-0 !m-0 !rounded-none"
-      }`}
-      aria-hidden={!isOpen}
-      inert={!isOpen ? true : undefined}
-    >
+    <div className="flex flex-col select-none h-full">
       {/* Header */}
       <div className="flex items-center h-10 px-3 gap-2 shrink-0">
         <h2 className="text-sm font-semibold text-neutral-fg flex-1 select-none">Appearance</h2>
@@ -198,7 +189,7 @@ export function ThemePanel({ isOpen, onClose }: ThemePanelProps) {
             ))}
         </div>
       </div>
-    </Surface>
+    </div>
   );
 }
 

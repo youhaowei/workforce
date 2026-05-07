@@ -1,5 +1,5 @@
 import type { Session, SessionSummary, AgentQuestion } from "@/services/types";
-import type { SidebarMode, ViewType } from "./Shell";
+import type { SidebarMode, ViewType } from "./Layout";
 import type { ShellError } from "@/ui/stores/shellStore";
 import { getServerUrl } from "@/bridge/config";
 import { trpc as trpcClient } from "@/bridge/trpc";
