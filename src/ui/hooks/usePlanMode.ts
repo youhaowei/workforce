@@ -11,7 +11,12 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { trpc as trpcClient } from "@/bridge/trpc";
 import { queryClient } from "@/bridge/query-client";
-import type { AgentConfig, AgentPermissionMode, ArtifactStatus } from "@/services/types";
+import type {
+  AgentConfig,
+  AgentPermissionMode,
+  AgentProvider,
+  ArtifactStatus,
+} from "@/services/types";
 import type { MessageState } from "@/ui/stores/useMessagesStore";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 
@@ -22,6 +27,15 @@ function resolveLastModel(messages: MessageState[]) {
     }
   }
   return "sonnet";
+}
+
+function resolveLastProvider(messages: MessageState[]): AgentProvider {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user" && messages[i].agentConfig?.provider !== undefined) {
+      return messages[i].agentConfig!.provider ?? "claude";
+    }
+  }
+  return "claude";
 }
 
 function resolveLastThinking(messages: MessageState[]): AgentConfig["thinkingLevel"] {
@@ -178,11 +192,13 @@ export function usePlanMode({
       setTimeout(() => {
         if (sessionIdRef.current !== selectedSessionId) return;
         const currentMessages = useMessagesStore.getState().messages;
+        const lastProvider = resolveLastProvider(currentMessages);
         const lastModel = resolveLastModel(currentMessages);
         const lastThinking = resolveLastThinking(currentMessages);
         onSubmit({
           content: `Execute the plan at ${planFilePath}`,
           agentConfig: {
+            provider: lastProvider,
             model: lastModel,
             thinkingLevel: lastThinking,
             permissionMode: permission,

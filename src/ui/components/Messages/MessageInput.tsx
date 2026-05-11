@@ -9,7 +9,7 @@ import { useState, useRef, useEffect, useCallback, type KeyboardEvent } from "re
 import { useQuery } from "@tanstack/react-query";
 import { Send, Square } from "lucide-react";
 import { useTRPC } from "@/bridge/react";
-import type { AgentConfig, AgentPermissionMode, ThinkingLevel } from "@/services/types";
+import type { AgentConfig, AgentPermissionMode, AgentProvider, ThinkingLevel } from "@/services/types";
 import { useMessagesStore } from "@/ui/stores/useMessagesStore";
 import { useSdkStore } from "@/ui/stores/useSdkStore";
 import { Card } from "@/components/ui/card";
@@ -19,6 +19,7 @@ import {
   DEFAULT_AGENT_CONFIG,
   cacheModels,
   getModelsFromCache,
+  mergeSeedModels,
   parseStoredAgentConfig,
 } from "./agentConfig";
 
@@ -57,6 +58,7 @@ function getInitialConfig(
   // Priority 3: org-level defaults
   if (orgDefaults) {
     return {
+      provider: DEFAULT_AGENT_CONFIG.provider,
       model: orgDefaults.model,
       thinkingLevel: orgDefaults.thinkingLevel,
       permissionMode: DEFAULT_AGENT_CONFIG.permissionMode,
@@ -93,6 +95,7 @@ export default function MessageInput({
 
   const [models, setModels] = useState(() => getModelsFromCache());
   const [initialConfig] = useState(() => getInitialConfig(messages, sessionId));
+  const [provider, setProvider] = useState<AgentProvider>(initialConfig.provider ?? "claude");
   const [model, setModel] = useState(initialConfig.model);
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(initialConfig.thinkingLevel);
   const [permissionMode, setPermissionMode] = useState<AgentPermissionMode>(
@@ -115,6 +118,7 @@ export default function MessageInput({
         models.length > 0 && !models.some((m) => m.id === orgDefaults.model)
           ? models[0].id
           : orgDefaults.model;
+      setProvider(DEFAULT_AGENT_CONFIG.provider ?? "claude");
       setModel(validModel);
       setThinkingLevel(orgDefaults.thinkingLevel);
     }
@@ -133,8 +137,9 @@ export default function MessageInput({
   // Update model list when fresh data arrives
   useEffect(() => {
     if (!supportedModels || supportedModels.length === 0) return;
-    setModels(supportedModels);
-    cacheModels(supportedModels);
+    const nextModels = mergeSeedModels(supportedModels);
+    setModels(nextModels);
+    cacheModels(nextModels);
   }, [supportedModels]);
 
   // Auto-correct model selection if current model is no longer available.
@@ -142,11 +147,13 @@ export default function MessageInput({
   // Session restore handles its own validation inline (see below).
   useEffect(() => {
     if (models.length === 0) return;
-    if (!models.some((m) => m.id === model)) {
-      setModel(models[0].id);
+    const providerModels = models.filter((m) => (m.provider ?? "claude") === provider);
+    if (providerModels.length === 0) return;
+    if (!providerModels.some((m) => m.id === model)) {
+      setModel(providerModels[0].id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [models]);
+  }, [models, provider]);
 
   // Restore config when session changes, and re-apply once messages load asynchronously.
   // Two-phase approach handles the race: Shell clears messages before the async fetch,
@@ -167,8 +174,13 @@ export default function MessageInput({
     if (sessionChanged) {
       sessionConfigRef.current = { sessionId: sessionId ?? null, appliedWithMessages: hasMessages };
       const cfg = getInitialConfig(messages, sessionId);
+      const cfgProvider = cfg.provider ?? "claude";
+      const providerModels = models.filter((m) => (m.provider ?? "claude") === cfgProvider);
       const validModel =
-        models.length > 0 && !models.some((m) => m.id === cfg.model) ? models[0].id : cfg.model;
+        providerModels.length > 0 && !providerModels.some((m) => m.id === cfg.model)
+          ? providerModels[0].id
+          : cfg.model;
+      setProvider(cfgProvider);
       setModel(validModel);
       setThinkingLevel(cfg.thinkingLevel);
       setPermissionMode(cfg.permissionMode);
@@ -176,8 +188,13 @@ export default function MessageInput({
       // Same session: messages just loaded — re-apply to pick up session-specific agentConfig
       sessionConfigRef.current = { ...prev, appliedWithMessages: true };
       const cfg = getInitialConfig(messages, sessionId);
+      const cfgProvider = cfg.provider ?? "claude";
+      const providerModels = models.filter((m) => (m.provider ?? "claude") === cfgProvider);
       const validModel =
-        models.length > 0 && !models.some((m) => m.id === cfg.model) ? models[0].id : cfg.model;
+        providerModels.length > 0 && !providerModels.some((m) => m.id === cfg.model)
+          ? providerModels[0].id
+          : cfg.model;
+      setProvider(cfgProvider);
       setModel(validModel);
       setThinkingLevel(cfg.thinkingLevel);
       setPermissionMode(cfg.permissionMode);
@@ -209,10 +226,20 @@ export default function MessageInput({
     adjustHeight();
   }, [value, adjustHeight]);
 
+  const providerModels = models.filter((m) => (m.provider ?? "claude") === provider);
+  const handleProviderChange = useCallback(
+    (nextProvider: AgentProvider) => {
+      setProvider(nextProvider);
+      const nextModels = models.filter((m) => (m.provider ?? "claude") === nextProvider);
+      if (nextModels.length > 0) setModel(nextModels[0].id);
+    },
+    [models],
+  );
+
   const handleSubmit = useCallback(() => {
     const trimmed = value.trim();
     if (trimmed && !isStreaming) {
-      const agentConfig: AgentConfig = { model, thinkingLevel, permissionMode };
+      const agentConfig: AgentConfig = { provider, model, thinkingLevel, permissionMode };
       try {
         localStorage.setItem(AGENT_CONFIG_LAST_KEY, JSON.stringify(agentConfig));
       } catch {
@@ -224,7 +251,7 @@ export default function MessageInput({
         textareaRef.current.style.height = "auto";
       }
     }
-  }, [value, isStreaming, model, thinkingLevel, permissionMode, onSubmit]);
+  }, [value, isStreaming, provider, model, thinkingLevel, permissionMode, onSubmit]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -275,10 +302,12 @@ export default function MessageInput({
           <div className="flex items-center justify-between px-5 pb-3">
             <div className="flex items-center gap-1.5">
               <AgentConfigToolbar
+                provider={provider}
                 model={model}
                 thinkingLevel={thinkingLevel}
                 permissionMode={permissionMode}
-                models={models}
+                models={providerModels}
+                onProviderChange={handleProviderChange}
                 onModelChange={setModel}
                 onThinkingChange={setThinkingLevel}
                 onPermissionChange={setPermissionMode}

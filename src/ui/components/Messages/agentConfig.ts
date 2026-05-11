@@ -3,6 +3,7 @@ import type {
   AgentDefaults,
   AgentModelInfo,
   AgentPermissionMode,
+  AgentProvider,
   AgentTone,
   ThinkingLevel,
   VerboseLevel,
@@ -12,18 +13,36 @@ export const AGENT_CONFIG_LAST_KEY = "agent-config-last";
 export const AGENT_MODELS_CACHE_KEY = "agent-models-cache";
 
 export const SEED_MODELS: AgentModelInfo[] = [
-  { id: "claude-opus-4-6", displayName: "Opus 4.6", description: "Most capable model" },
-  { id: "claude-sonnet-4-6", displayName: "Sonnet 4.6", description: "Fast and capable" },
+  {
+    id: "claude-opus-4-6",
+    displayName: "Opus 4.6",
+    description: "Most capable model",
+    provider: "claude",
+  },
+  {
+    id: "claude-sonnet-4-6",
+    displayName: "Sonnet 4.6",
+    description: "Fast and capable",
+    provider: "claude",
+  },
   {
     id: "claude-sonnet-4-5-20250929",
     displayName: "Sonnet 4.5",
     description: "Balanced performance",
+    provider: "claude",
   },
   {
     id: "claude-haiku-4-5-20251001",
     displayName: "Haiku 4.5",
     description: "Fastest, lowest cost",
+    provider: "claude",
   },
+  { id: "gpt-5.4", displayName: "GPT-5.4", description: "Codex", provider: "codex" },
+];
+
+export const PROVIDER_OPTIONS: Array<{ value: AgentProvider; label: string }> = [
+  { value: "claude", label: "Claude" },
+  { value: "codex", label: "Codex" },
 ];
 
 export const THINKING_LEVELS: Array<{ value: ThinkingLevel; label: string }> = [
@@ -72,6 +91,7 @@ export const DEFAULT_AGENT_DEFAULTS: AgentDefaults = {
 };
 
 export const DEFAULT_AGENT_CONFIG: AgentConfig = {
+  provider: "claude",
   model: SEED_MODELS[2].id, // Sonnet 4.5
   thinkingLevel: "auto",
   permissionMode: "default",
@@ -84,9 +104,12 @@ function isAgentModelInfo(value: unknown): value is AgentModelInfo {
     "id" in value &&
     typeof (value as AgentModelInfo).id === "string" &&
     "displayName" in value &&
-    typeof (value as AgentModelInfo).displayName === "string" &&
-    "description" in value &&
-    typeof (value as AgentModelInfo).description === "string",
+      typeof (value as AgentModelInfo).displayName === "string" &&
+      "description" in value &&
+      typeof (value as AgentModelInfo).description === "string" &&
+      (!("provider" in value) ||
+        (value as AgentModelInfo).provider === "claude" ||
+        (value as AgentModelInfo).provider === "codex"),
   );
 }
 
@@ -97,10 +120,16 @@ export function getModelsFromCache(): AgentModelInfo[] {
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return SEED_MODELS;
     const valid = parsed.filter(isAgentModelInfo);
-    return valid.length > 0 ? valid : SEED_MODELS;
+    return valid.length > 0 ? mergeSeedModels(valid) : SEED_MODELS;
   } catch {
     return SEED_MODELS;
   }
+}
+
+export function mergeSeedModels(models: AgentModelInfo[]): AgentModelInfo[] {
+  const seen = new Set(models.map((model) => model.id));
+  const missingSeeds = SEED_MODELS.filter((model) => !seen.has(model.id));
+  return [...models, ...missingSeeds];
 }
 
 export function cacheModels(models: AgentModelInfo[]): void {
@@ -115,10 +144,12 @@ export function parseStoredAgentConfig(raw: string | null): AgentConfig | null {
     if (
       typeof parsed.model === "string" &&
       parsed.model.length > 0 &&
+      (parsed.provider === undefined ||
+        PROVIDER_OPTIONS.some((option) => option.value === parsed.provider)) &&
       THINKING_LEVELS.some((option) => option.value === parsed.thinkingLevel) &&
       PERMISSION_OPTIONS.some((option) => option.value === parsed.permissionMode)
     ) {
-      return parsed as AgentConfig;
+      return { ...parsed, provider: parsed.provider ?? "claude" } as AgentConfig;
     }
     return null;
   } catch {

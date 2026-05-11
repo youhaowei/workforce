@@ -9,8 +9,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/ui/lib/utils";
-import type { AgentModelInfo, AgentPermissionMode, ThinkingLevel } from "@/services/types";
-import { THINKING_LEVELS, PERMISSION_OPTIONS } from "./agentConfig";
+import type {
+  AgentModelInfo,
+  AgentPermissionMode,
+  AgentProvider,
+  ThinkingLevel,
+} from "@/services/types";
+import { THINKING_LEVELS, PERMISSION_OPTIONS, PROVIDER_OPTIONS } from "./agentConfig";
 
 interface PillProps {
   label: string;
@@ -41,10 +46,12 @@ function Pill({ label, disabled, children }: PillProps) {
 }
 
 interface AgentConfigToolbarProps {
+  provider: AgentProvider;
   model: string;
   thinkingLevel: ThinkingLevel;
   permissionMode: AgentPermissionMode;
   models: AgentModelInfo[];
+  onProviderChange: (value: AgentProvider) => void;
   onModelChange: (value: string) => void;
   onThinkingChange: (value: ThinkingLevel) => void;
   onPermissionChange: (value: AgentPermissionMode) => void;
@@ -52,10 +59,12 @@ interface AgentConfigToolbarProps {
 }
 
 export default function AgentConfigToolbar({
+  provider,
   model,
   thinkingLevel,
   permissionMode,
   models,
+  onProviderChange,
   onModelChange,
   onThinkingChange,
   onPermissionChange,
@@ -67,9 +76,25 @@ export default function AgentConfigToolbar({
     THINKING_LEVELS.find((l) => l.value === thinkingLevel)?.label ?? thinkingLevel;
   const permissionLabel =
     PERMISSION_OPTIONS.find((p) => p.value === permissionMode)?.label ?? permissionMode;
+  const providerLabel = PROVIDER_OPTIONS.find((p) => p.value === provider)?.label ?? provider;
 
   return (
     <div className="flex items-center gap-1.5">
+      <Pill label={providerLabel} disabled={disabled}>
+        <DropdownMenuLabel className="text-xs">Provider</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuRadioGroup
+          value={provider}
+          onValueChange={(value) => onProviderChange(value as AgentProvider)}
+        >
+          {PROVIDER_OPTIONS.map((p) => (
+            <DropdownMenuRadioItem key={p.value} value={p.value} className="text-xs">
+              {p.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </Pill>
+
       <Pill label={modelLabel} disabled={disabled}>
         <DropdownMenuLabel className="text-xs">Model</DropdownMenuLabel>
         <DropdownMenuSeparator />

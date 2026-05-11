@@ -65,6 +65,7 @@ describe("MessageInput", () => {
     const call = mockOnSubmit.mock.calls[0][0];
     expect(call.content).toBe("Hello world");
     expect(call.agentConfig).toEqual({
+      provider: "claude",
       model: "claude-sonnet-4-5-20250929",
       thinkingLevel: "auto",
       permissionMode: "default",
@@ -192,7 +193,7 @@ describe("MessageInput", () => {
       fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
       const call = mockOnSubmit.mock.calls[0][0];
-      expect(call.agentConfig).toEqual(stored);
+      expect(call.agentConfig).toEqual({ provider: "claude", ...stored });
     });
 
     it("restores config from session messages over localStorage", () => {
@@ -227,6 +228,35 @@ describe("MessageInput", () => {
       fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
 
       const call = mockOnSubmit.mock.calls[0][0];
+      expect(call.agentConfig).toEqual({ provider: "claude", ...sessionConfig });
+    });
+
+    it("restores Codex provider config from session messages", () => {
+      const sessionConfig = {
+        provider: "codex" as const,
+        model: "gpt-5.4",
+        thinkingLevel: "auto" as const,
+        permissionMode: "default" as const,
+      };
+      const messages = [
+        { role: "user" as const, agentConfig: sessionConfig },
+        { role: "assistant" as const },
+      ];
+
+      render(
+        <MessageInput
+          onSubmit={mockOnSubmit}
+          isStreaming={false}
+          sessionId="sess-codex"
+          messages={messages}
+        />,
+      );
+
+      const textarea = screen.getByPlaceholderText("Ask Workforce anything...");
+      fireEvent.change(textarea, { target: { value: "test" } });
+      fireEvent.keyDown(textarea, { key: "Enter", shiftKey: false });
+
+      const call = mockOnSubmit.mock.calls[0][0];
       expect(call.agentConfig).toEqual(sessionConfig);
     });
 
@@ -244,6 +274,7 @@ describe("MessageInput", () => {
 
       const call = mockOnSubmit.mock.calls[0][0];
       expect(call.agentConfig).toEqual({
+        provider: "claude",
         model: "claude-sonnet-4-5-20250929",
         thinkingLevel: "auto",
         permissionMode: "default",
@@ -259,6 +290,7 @@ describe("MessageInput", () => {
 
       const stored = JSON.parse(localStorage.getItem("agent-config-last")!);
       expect(stored).toEqual({
+        provider: "claude",
         model: "claude-sonnet-4-5-20250929",
         thinkingLevel: "auto",
         permissionMode: "default",

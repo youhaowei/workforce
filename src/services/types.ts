@@ -40,8 +40,10 @@ export interface AgentDefaults {
 }
 
 export type AgentPermissionMode = "plan" | "default" | "acceptEdits" | "bypassPermissions";
+export type AgentProvider = "claude" | "codex";
 
 export interface AgentConfig {
+  provider?: AgentProvider;
   model: string;
   thinkingLevel: ThinkingLevel;
   permissionMode: AgentPermissionMode;
@@ -51,6 +53,7 @@ export interface AgentModelInfo {
   id: string;
   displayName: string;
   description: string;
+  provider?: AgentProvider;
 }
 
 // =============================================================================
@@ -58,6 +61,8 @@ export interface AgentModelInfo {
 // =============================================================================
 
 export interface RunOptions {
+  /** Provider runtime to use (defaults to Claude). */
+  provider?: AgentProvider;
   /** Model to use (defaults to claude-sonnet) */
   model?: string;
   /** Maximum tokens in response */

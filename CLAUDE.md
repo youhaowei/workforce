@@ -139,10 +139,13 @@ Test at the layer the change lives in (test both if a fix crosses layers):
 
 ### Git Submodules (lib/)
 
-Both **unifai** and **tracey** are git submodules under `lib/`:
+`tracey`, `stdui`, and `wystack` are git submodules under `lib/`.
+`unifai` was removed after the direct Claude Agent SDK migration; do not add
+new runtime code against the old `"unifai"` import.
 
-- `lib/unifai` — Multi-provider agent abstraction. Imports as `"unifai"`.
 - `lib/tracey` — Structured logging (pino-based). Imports as `"tracey"`.
+- `lib/stdui` — Shared UI primitives. Imports as `"@stdui/react"`.
+- `lib/wystack` — Shared WyStack packages. Imports as `"@wystack/*"`.
 
 ```bash
 git submodule update --init --recursive  # After fresh clone
@@ -153,18 +156,9 @@ bun install                             # Install workspace deps after submodule
 run a separate package-manager install inside those submodules unless you are
 working on the submodule repo in isolation.
 
-### Dependency Pins
-
-- `overrides["@openai/codex"] = 0.107.0` was added during the Electron
-  migration on 2026-03-28 to keep Workforce on the known-good
-  Codex release used by the desktop + agent runtime during the Electron cutover.
-  Only remove or update that override after re-running `bun install`,
-  `bun run test`, and a packaged Electron smoke check against the newer Codex
-  release.
-
 **Branch-per-agent for submodule changes**: When modifying a submodule, create a branch (e.g., `agent/feat-redaction`). Commit on the branch, push, then merge to main. This prevents conflicts when multiple agents work on the same submodule in parallel. The parent repo's submodule pointer should always reference a merge commit on main.
 
-**Path resolution**: tsconfig `paths` + vite `resolve.alias` + vitest `resolve.alias` all map `"tracey"` → `lib/tracey/src` and `"unifai"` → `lib/unifai/src`.
+**Path resolution**: tsconfig `paths` + vite `resolve.alias` + vitest `resolve.alias` map `"tracey"` → `lib/tracey/src`, `"@stdui/react"` → `lib/stdui/packages/ui/src`, and `"@wystack/*"` → the matching package sources.
 
 ### Logging (tracey)
 
