@@ -1,0 +1,1 @@
+Since Claude started restricting personal and third-party wrapper usage in the Claude Agent SDK to improve the Claude Code GUI experience. It's less interesting to me to keep working on this. Alternatives like craft-agent-oss and t3-code are much further along and have more contributors, and that is probably something I'll be using and contributing to instead.
