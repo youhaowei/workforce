@@ -196,6 +196,7 @@ export function useAgentStream(opts: UseAgentStreamOptions) {
         sub = trpcClient.agent.run.subscribe(
           {
             prompt: content,
+            provider: agentConfig.provider,
             model: agentConfig.model,
             ...(maxThinkingTokens !== undefined ? { maxThinkingTokens } : {}),
             permissionMode: agentConfig.permissionMode,

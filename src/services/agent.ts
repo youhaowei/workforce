@@ -15,6 +15,7 @@ import type { AgentErrorCode } from "./agent-instance";
 import { ModelCache, readLastUsedModelSync, writeLastUsedModel } from "./agent-models";
 import { resolveClaudeCliPath } from "./agent-cli-path";
 import { buildApprovalQuestion, runSDKQuery, type SDKQueryHandle } from "./sdk-adapter";
+import { runCodexQuery, type CodexQueryHandle } from "./codex-adapter";
 
 const log = createLogger("Agent");
 
@@ -61,6 +62,7 @@ class AgentServiceImpl implements AgentService {
   private abortController: AbortController | null = null;
   private runInProgress = false;
   private currentHandle: SDKQueryHandle | null = null;
+  private currentCodexHandle: CodexQueryHandle | null = null;
   private modelCache = new ModelCache();
   /** Whether the agent is currently in plan mode (between EnterPlanMode and ExitPlanMode). */
   private inPlanMode = false;
@@ -157,11 +159,34 @@ class AgentServiceImpl implements AgentService {
     this.inPlanMode = false;
 
     const bus = getEventBus();
+    const provider = options?.provider ?? "claude";
     const model = options?.model ?? "sonnet";
     const reuseKey = sessionReuseKey(model, options);
 
     try {
       writeLastUsedModel(model);
+
+      if (provider === "codex") {
+        const result = runCodexQuery(prompt, {
+          model,
+          cwd: process.cwd(),
+          permissionMode: options?.permissionMode,
+          signal: runController.signal,
+        });
+        if (!result.ok) {
+          throw new AgentError(result.error.message, "STREAM_FAILED", result.error);
+        }
+        const handle = result.value;
+        this.currentCodexHandle = handle;
+        try {
+          for await (const event of handle.events) {
+            yield event;
+          }
+        } finally {
+          if (this.currentCodexHandle === handle) this.currentCodexHandle = null;
+        }
+        return;
+      }
 
       const result = runSDKQuery(prompt, {
         sdkOptions: this.buildSdkOptions(model, options),
@@ -258,7 +283,26 @@ class AgentServiceImpl implements AgentService {
   }
 
   async getSupportedModels(): Promise<AgentModelInfo[]> {
-    return this.modelCache.getSupportedModels();
+    const claudeModels = await this.modelCache.getSupportedModels();
+    return [
+      ...claudeModels.map((model) => ({
+        ...model,
+        provider: model.provider ?? "claude",
+      })),
+      { id: "gpt-5.4", displayName: "GPT-5.4", description: "Codex", provider: "codex" },
+      {
+        id: "gpt-5.3-codex",
+        displayName: "GPT-5.3 Codex",
+        description: "Codex-specialized",
+        provider: "codex",
+      },
+      {
+        id: "gpt-5.3-codex-spark",
+        displayName: "GPT-5.3 Spark",
+        description: "Fast Codex",
+        provider: "codex",
+      },
+    ];
   }
 
   submitAnswer(requestId: string, answers: Record<string, string[]>): void {
@@ -283,6 +327,7 @@ class AgentServiceImpl implements AgentService {
     this.abortController?.abort();
     this.abortController = null;
     this.currentHandle?.abort();
+    this.currentCodexHandle?.abort();
 
     this.clearPendingQuestions();
   }

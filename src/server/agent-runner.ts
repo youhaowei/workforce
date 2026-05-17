@@ -324,6 +324,7 @@ class AgentRunnerImpl {
    */
   startRun(input: {
     prompt: string;
+    provider?: "claude" | "codex";
     model?: string;
     maxThinkingTokens?: number;
     permissionMode?: "plan" | "default" | "acceptEdits" | "bypassPermissions";
@@ -455,6 +456,7 @@ class AgentRunnerImpl {
     run: ActiveRun,
     input: {
       prompt: string;
+      provider?: "claude" | "codex";
       model?: string;
       maxThinkingTokens?: number;
       permissionMode?: string;
@@ -465,6 +467,7 @@ class AgentRunnerImpl {
     log.info(
       {
         prompt: input.prompt.slice(0, 100),
+        provider: input.provider,
         model: input.model,
         sessionId: input.sessionId,
       },
@@ -481,6 +484,7 @@ class AgentRunnerImpl {
 
     try {
       for await (const event of agent.run(input.prompt, {
+        provider: input.provider,
         model: input.model,
         maxThinkingTokens: input.maxThinkingTokens,
         permissionMode: input.permissionMode as

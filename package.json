@@ -30,6 +30,7 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "test:packaged-smoke": "node scripts/packaged-smoke.js",
+    "poc:codex": "tsx scripts/codex-app-server-poc.ts",
     "lint": "oxlint src/ src-electron/ tooling/ --max-warnings 0",
     "format": "oxfmt src/ src-electron/ tooling/",
     "format:check": "oxfmt --check src/ src-electron/ tooling/",

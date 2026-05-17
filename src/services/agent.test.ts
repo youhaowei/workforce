@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentStreamEvent, Result } from "./types";
 import type { SDKAdapterError, SDKQueryHandle } from "./sdk-adapter";
+import type { CodexQueryHandle } from "./codex-adapter";
 
 vi.mock("./sdk-adapter", () => ({
   runSDKQuery: vi.fn(),
@@ -16,6 +17,10 @@ vi.mock("./sdk-adapter", () => ({
       { label: "Deny", description: "Block this tool use" },
     ],
   }),
+}));
+
+vi.mock("./codex-adapter", () => ({
+  runCodexQuery: vi.fn(),
 }));
 
 vi.mock("./agent-instance", () => {
@@ -58,8 +63,10 @@ vi.mock("./agent-models", () => ({
 
 import { getAgentService, resetAgentService } from "./agent";
 import { runSDKQuery } from "./sdk-adapter";
+import { runCodexQuery } from "./codex-adapter";
 
 const mockRunSDKQuery = vi.mocked(runSDKQuery);
+const mockRunCodexQuery = vi.mocked(runCodexQuery);
 
 async function collect(events: AsyncGenerator<AgentStreamEvent>) {
   const collected: AgentStreamEvent[] = [];
@@ -80,6 +87,18 @@ function mockHandle(
       abort: vi.fn(),
       getSessionId: () => sessionId,
       query: {} as SDKQueryHandle["query"],
+    },
+  };
+}
+
+function mockCodexHandle(events: AgentStreamEvent[]): Result<CodexQueryHandle> {
+  return {
+    ok: true,
+    value: {
+      events: (async function* () {
+        for (const event of events) yield event;
+      })(),
+      abort: vi.fn(),
     },
   };
 }
@@ -151,6 +170,31 @@ describe("AgentService direct SDK port", () => {
     expect(mockRunSDKQuery.mock.calls[1]?.[1].sdkOptions).toMatchObject({
       resume: "session-1",
     });
+  });
+
+  it("routes Codex provider runs through the app-server adapter", async () => {
+    mockRunCodexQuery.mockReturnValueOnce(mockCodexHandle([{ type: "token", token: "ok" }]));
+
+    const service = getAgentService();
+    const events = await collect(
+      service.run("hello", {
+        provider: "codex",
+        model: "gpt-5.4",
+        permissionMode: "default",
+      }),
+    );
+
+    expect(mockRunCodexQuery).toHaveBeenCalledWith(
+      "hello",
+      expect.objectContaining({
+        model: "gpt-5.4",
+        cwd: process.cwd(),
+        permissionMode: "default",
+      }),
+    );
+    expect(mockRunSDKQuery).not.toHaveBeenCalled();
+    expect(events).toEqual([{ type: "token", token: "ok" }]);
+    expect(writeLastUsedModel).toHaveBeenCalledWith("gpt-5.4");
   });
 
   it("exposes blocking agent questions until submitAnswer resolves them", async () => {

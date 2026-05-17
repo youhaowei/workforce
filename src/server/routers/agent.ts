@@ -17,6 +17,7 @@ export const agentRouter = router({
     .input(
       z.object({
         prompt: z.string(),
+        provider: z.enum(["claude", "codex"]).optional(),
         model: z.string().optional(),
         maxThinkingTokens: z.number().optional(),
         permissionMode: z.enum(["plan", "default", "acceptEdits", "bypassPermissions"]).optional(),
